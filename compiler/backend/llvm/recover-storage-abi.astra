@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // E25-A-v1 carrier groups, measured independently against native-v14 C0.
 // Buffers use (data,count), copyable records use their ordered scalar fields,
-// and Class owners/borrowed receivers use one pointer. Hidden success storage
-// follows an admitted receiver and precedes every explicit source group.
+// and Class owners/borrowed receivers use one pointer. Ordinary checked success
+// storage follows a receiver. Payload-free enum result storage leads the
+// receiver and all explicit groups, including for checked enum results.
 int recover_abi_group_count(CheckedIndex checked, TypeId type, int flags) {
 	if (!recover_storage_channel(checked, type, flags, false)) return 0;
 	int kind = checked_kind(checked, type); if (kind == 22 || kind == 15) return 2;
@@ -37,12 +38,19 @@ class RecoverAbi {
 
 	init(CheckedIndex checked, SymbolId declaration) {
 		var identity = shared_clone(checked.types.identity); this.identity = move identity; this.declaration = declaration; var id = checked.symbol_signatures[declaration.index]; this.signature = id; var signature = checked.signatures[id.index - 1]; var result = checked.types.argument(checked.types, signature.callable, 0); this.result = result.type; this.result_flags = result.flags; this.error = signature.error;
-		int receiver = -1; var source = checked_source_plan(checked, declaration); if (source.concrete.index == declaration.index && source.enclosing.index != 0) receiver = 0; this.receiver = receiver;
-		int success = -1; if ((signature.flags & 64) != 0 && result.type.index != 14) {
-			success = 0;
-			if (receiver == 0) success = 1;
-		} this.success = success;
-		int count = checked.types.row(signature.callable).count - 1; this.groups = new int[count]; int physical = 0; int p = 0;
+		bool sum = checked_kind(checked, result.type) == 32;
+		int receiver = -1; var source = checked_source_plan(checked, declaration);
+		if (source.concrete.index == declaration.index && source.enclosing.index != 0) {
+			receiver = 0;
+			if (sum) receiver = 1;
+		}
+		this.receiver = receiver;
+		int success = -1; if (sum) success = 0;
+		else { if ((signature.flags & 64) != 0 && result.type.index != 14) {
+				success = 0;
+				if (receiver == 0) success = 1;
+			} } this.success = success;
+		int count = checked.types.row(signature.callable).count - 1; this.groups = new int[count]; int physical = 0; if (sum) physical = 1; int p = 0;
 		while (p < count) {
 			if (physical == success) physical = physical + 1;
 			this.groups[p] = physical;
@@ -54,16 +62,18 @@ class RecoverAbi {
 	}
 }
 
-bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
-	if (plan.parameters < 0 || plan.parameters > 1024 || !type_owner_same(plan.identity, checked.types.identity) || plan.declaration.index < 1 || plan.declaration.index > checked.bindings.symbol_count || !checked.validate()) return false;
+// Used after the enclosing module pass independently verifies all source maps.
+bool recover_abi_source(RecoverAbi plan, CheckedIndex checked) {
+	if (plan.parameters < 0 || plan.parameters > 1024 || !type_owner_same(plan.identity, checked.types.identity) || plan.declaration.index < 1 || plan.declaration.index > checked.bindings.symbol_count) return false;
 	var symbol = checked.bindings.symbol(plan.declaration); var id = checked.symbol_signatures[plan.declaration.index]; if (symbol.kind != 1 || id.index < 1 || id.index > checked.signature_count || plan.signature.index != id.index) return false;
 	var signature = checked.signatures[id.index - 1]; var result = checked.types.argument(checked.types, signature.callable, 0);
 	if (plan.result.index != result.type.index || plan.error.index != signature.error.index || plan.result_flags != result.flags || !recover_storage_channel(checked, result.type, result.flags, true) || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature) || !recover_member_attributes(checked, symbol.node)) return false;
+	bool sum = checked_kind(checked, result.type) == 32;
 	int receiver = -1; var source = checked_source_plan(checked, plan.declaration);
 	if (source.concrete.index == plan.declaration.index && source.enclosing.index != 0) {
 		var origin = checked.bindings.symbol(source.origin);
 		bool error = error_storage_class(checked, source.enclosing);
-		if (origin.kind != 11 && origin.kind != 12 && !(origin.kind == 18 && class_getter_plan_verified(checked, source)) || !class_storage_class(checked, source.enclosing) && !error || !generic_verify(checked)) return false;
+		if (origin.kind != 11 && origin.kind != 12 && !(origin.kind == 18 && class_getter_plan_verified(checked, source)) || !class_storage_class(checked, source.enclosing) && !error) return false;
 		if (error) {
 			// Error members use the same borrowed one-pointer group, with the
 			// actual independently checked source copy and hidden parameter.
@@ -73,18 +83,20 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 			if (origin.kind == 12 && !recover_error_constructor_local(checked, plan.declaration)) return false;
 		}
 		receiver = 0;
+		if (sum) receiver = 1;
 	}
-	int success = -1; if ((signature.flags & 64) != 0 && result.type.index != 14) {
-		success = 0;
-		if (receiver == 0) success = 1;
-	}
+	int success = -1; if (sum) success = 0;
+	else { if ((signature.flags & 64) != 0 && result.type.index != 14) {
+			success = 0;
+			if (receiver == 0) success = 1;
+		} }
 	if (plan.receiver != receiver || plan.success != success) return false;
 	int count = checked.types.row(signature.callable).count - 1; if (count != len(plan.groups) || count < 0 || count > 256) return false;
-	int physical = 0; int p = 0;
+	int physical = 0; if (sum) physical = 1; int p = 0;
 	while (p < count) {
 		if (physical == success) physical = physical + 1; if (plan.groups[p] != physical) return false;
 		var channel = checked.types.argument(checked.types, signature.callable, p + 1); if (!recover_storage_channel(checked, channel.type, channel.flags, false)) return false;
-		if (p == 0 && receiver == 0 && (channel.flags != 2 || channel.type.index != source.enclosing.index)) return false;
+		if (p == 0 && receiver >= 0 && (channel.flags != 2 || channel.type.index != source.enclosing.index)) return false;
 		int kind = checked_kind(checked, channel.type); int groups = 1;
 		if (kind == 22 || kind == 15) groups = 2;
 		if (kind == 30) {
@@ -95,6 +107,12 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 	}
 	if (physical == success) physical = physical + 1;
 	return plan.parameters == physical && physical <= 1024;
+}
+
+bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
+	if (!checked.validate() || !recover_abi_source(plan, checked)) return false;
+	var source = checked_source_plan(checked, plan.declaration);
+	return source.enclosing.index == 0 || generic_verify(checked);
 }
 
 // Compare physical types against the original nominal table, independently
@@ -123,14 +141,18 @@ bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) 
 	return recover_llvm_scalar_type(checked, type, actual);
 }
 
-bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* function) {
-	if (!recover_abi_verify(plan, checked) || function == null || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != plan.parameters) return false;
+bool recover_storage_llvm_abi_local(RecoverAbi plan, CheckedIndex checked, void* function) {
+	if (!recover_abi_source(plan, checked) || function == null || LLVMGetFunctionCallConv(function) != 8 || LLVMGetLinkage(function) != 8 || LLVMCountParams(function) != plan.parameters) return false;
 	var physical = LLVMGlobalGetValueType(function); if (LLVMIsFunctionVarArg(physical) != 0) return false;
 	var signature = checked.signatures[plan.signature.index - 1]; bool conditional = (signature.flags & 64) != 0; var result = LLVMGetReturnType(physical);
 	if (conditional) {
 		if (LLVMGetTypeKind(result) != 12) return false;
 	} else {
-		if (!recover_storage_llvm_type(checked, plan.result, result)) return false;
+		if (checked_kind(checked, plan.result) == 32) {
+			if (LLVMGetTypeKind(result) != 0) return false;
+		} else {
+			if (!recover_storage_llvm_type(checked, plan.result, result)) return false;
+		}
 	}
 	if (plan.success >= 0 && LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, plan.success))) != 12) return false;
 	int p = 0; while (p < len(plan.groups)) {
@@ -146,7 +168,11 @@ bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* funct
 					f = f + 1;
 				}
 			} else {
-				if (!recover_storage_llvm_type(checked, channel.type, LLVMTypeOf(LLVMGetParam(function, at)))) return false;
+				if (kind == 32) {
+					if (!enum_value_type_verified(checked, channel.type) || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, at)))) return false;
+				} else {
+					if (!recover_storage_llvm_type(checked, channel.type, LLVMTypeOf(LLVMGetParam(function, at)))) return false;
+				}
 			} }
 		p = p + 1;
 	}
@@ -266,4 +292,8 @@ bool recover_record_helper_verified(void* function, void* memory, void* carrier,
 	if (instruction == null || LLVMGetInstructionOpcode(instruction) != 1 || LLVMHasMetadata(instruction) != 0 || LLVMGetNextInstruction(instruction) != null || LLVMGetBasicBlockTerminator(block) != instruction) return false;
 	if (store) return LLVMGetNumOperands(instruction) == 0;
 	return LLVMGetNumOperands(instruction) == 1 && LLVMGetOperand(instruction, 0) == previous;
+}
+
+bool recover_storage_llvm_abi(RecoverAbi plan, CheckedIndex checked, void* function) {
+	return recover_abi_verify(plan, checked) && recover_storage_llvm_abi_local(plan, checked, function);
 }

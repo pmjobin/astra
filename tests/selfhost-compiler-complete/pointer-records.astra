@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Paired with the exact original RecoverOwnerInstruction declaration.
+extern(C) void* opaque_cursor_create();
+
+extern(C) u64 opaque_cursor_read(void* cursor);
+
+struct PointerEnvelope {
+	bool active;
+	RecoverOwnerInstruction instruction;
+	int adjustment;
+}
+
+class PointerRecordStore {
+	owned PointerEnvelope[] entries;
+
+	init(void* cursor) {
+		var entries = new PointerEnvelope[2];
+		RecoverOwnerInstruction instruction = {value = cursor, operation = null};
+		PointerEnvelope envelope = {active = true, instruction = instruction, adjustment = 0};
+		entries[1] = envelope;
+		this.entries = move entries;
+	}
+
+	PointerEnvelope read() {
+		return this.entries[1];
+	}
+}
+
+RecoverOwnerInstruction pointer_record(void* cursor) {
+	RecoverOwnerInstruction result = {value = cursor, operation = null};
+	return result;
+}
+
+int pointer_read(RecoverOwnerInstruction instruction) {
+	if (instruction.operation != null) return 3;
+	return opaque_cursor_read(instruction.value) as int;
+}
+
+PointerEnvelope pointer_envelope(PointerEnvelope value) {
+	return value;
+}
+
+int main() {
+	var cursor = opaque_cursor_create();
+	var instruction = pointer_record(cursor);
+	if (instruction.value != cursor || pointer_read(instruction) != 42) return 4;
+	var store = new PointerRecordStore(cursor);
+	var envelope = pointer_envelope(store.read());
+	if (!envelope.active || envelope.instruction.operation != null) return 5;
+	return pointer_read(envelope.instruction) + envelope.adjustment;
+}

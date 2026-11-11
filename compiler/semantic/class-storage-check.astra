@@ -145,7 +145,7 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		if (source_type.index != 0 && checked.bindings.program.arena.kind(source_type) == SyntaxKind.NonNullTypeSyntax()) source_flags = source_flags | 1;
 		if ((flags & 7) != source_flags || (flags & 384) != (checked_flags(checked.bindings.program.arena, node) & 384)) return false;
 		var value = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, value);
-		bool pointer = descriptor.kind == 31 && recover_storage_pointer(checked, value);
+		bool pointer = recover_storage_pointer(checked, value);
 		if (type_numeric(kind) || kind == 13 || pointer) {
 			if (storage_flags != 0) return false;
 		}

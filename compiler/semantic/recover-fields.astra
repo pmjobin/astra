@@ -161,6 +161,10 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 		return checked.uses[capacity.index].type.index == 1 && recover_constructor_value(checked, capacity, function, aggregate, initialized, depth + 1);
 	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		if (checked_kind(checked, checked.uses[node.index].type) == 32) {
+			var variant = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+			if (variant.index > 0 && checked.bindings.symbol(variant).kind == 13) return enum_constructor_verified(checked, node, variant, checked.uses[node.index].type);
+		}
 		var arguments = checked_call_arguments(checked, node);
 		int shared = checked_shared_action(checked, node);
 		if (shared != 0) {

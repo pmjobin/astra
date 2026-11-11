@@ -22,11 +22,12 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 	var kind = checked.bindings.program.arena.kind(source);
 	if (recover_value_kind(row.kind) && row.type.index != types.types[source.index].index) return false;
 	if (!recover_value_kind(row.kind) && row.kind != 25 && row.type.index != 14) return false;
-	if (row.kind != 3 && row.kind != 62 && row.kind != 55 && row.kind != 61 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && (row.b != 0 || row.c != 0)) return false;
+	if (row.kind != 3 && row.kind != 62 && row.kind != 55 && row.kind != 61 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && row.kind != 73 && (row.b != 0 || row.c != 0)) return false;
 	if (row.kind == 3 && row.c != 0) return false;
-	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 11 && row.kind != 67 && row.kind != 69 && row.kind != 70 && row.kind != 14 && row.kind != 19 && row.kind != 50 && row.kind != 56 && row.kind != 57 && row.kind != 20 && row.kind != 24 && (row.count != 0 || row.first != 0)) return false;
-	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.token.index != 0) return false;
-	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.symbol.index != 0) return false;
+	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 11 && row.kind != 67 && row.kind != 69 && row.kind != 70 && row.kind != 14 && row.kind != 19 && row.kind != 50 && row.kind != 56 && row.kind != 57 && row.kind != 20 && row.kind != 24 && row.kind != 72 && (row.count != 0 || row.first != 0)) return false;
+	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.kind != 71 && row.kind != 73 && row.token.index != 0) return false;
+	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.kind != 71 && row.kind != 73 && row.symbol.index != 0) return false;
+	if (row.kind == 71 || row.kind == 72 || row.kind == 73) return recover_enum_source(flow, checked, types, row, child, seen, edges, depth);
 	if (row.kind == 1) {
 		if (row.a != 0) return false;
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) return row.token.index == checked.bindings.program.arena.get_token_token(source).index && row.type.index == 15;
@@ -53,8 +54,8 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		bool compare = checked.bindings.program.arena.token_is(row.token, "==") || checked.bindings.program.arena.token_is(row.token, "!=") || checked.bindings.program.arena.token_is(row.token, "<") || checked.bindings.program.arena.token_is(row.token, ">") || checked.bindings.program.arena.token_is(row.token, "<=") || checked.bindings.program.arena.token_is(row.token, ">=");
 		int code = checked_kind(checked, left.type);
 		bool pointer = recover_storage_class(checked, left.type) || recover_storage_error(checked, left.type) || recover_storage_shared(checked, left.type) || recover_storage_pointer(checked, left.type);
-		if ((code == 15 || pointer) && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=")) return false;
-		if (!type_numeric(code) && code != 13 && code != 15 && !pointer || checked.bindings.program.arena.token_is(row.token, "/") && !type_numeric(code)) return false;
+		if ((code == 15 || pointer || code == 32) && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=")) return false;
+		if (!type_numeric(code) && code != 13 && code != 15 && !(code == 32 && enum_value_type_verified(checked, left.type)) && !pointer || checked.bindings.program.arena.token_is(row.token, "/") && !type_numeric(code)) return false;
 		if ((checked.bindings.program.arena.token_is(row.token, "%") || checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^")) && !type_integer(code)) return false;
 		return compare && row.type.index == 13 || !compare && code != 15 && row.type.index == left.type.index;
 	}
@@ -263,6 +264,15 @@ bool recover_falls(RecoverFlowData flow, int id, int depth) {
 			i = i + 1;
 		}
 	}
+	if (row.kind == 72) {
+		int at = 0;
+		while (at < row.count) {
+			if (recover_falls(flow, flow.edges[row.first + at], depth + 1)) return true;
+			at = at + 1;
+		}
+		return false;
+	}
+	if (row.kind == 73) return recover_falls(flow, row.a, depth + 1);
 	if (row.kind == 24) {
 		if (recover_falls(flow, row.a, depth + 1)) return true;
 		int i = 0;
@@ -310,6 +320,7 @@ bool recover_flow_verify(RecoverFlow flow) {
 	}
 	while (s <= flow.checked.bindings.symbol_count) {
 		var declaration = flow.checked.bindings.symbol(type_symbol(s));
+		if (declaration.kind == 5 && !enum_value_type_verified(flow.checked, flow.checked.symbol_types[s])) return false;
 		if (declaration.kind == 4 && !classes[s] || (declaration.kind == 11 || declaration.kind == 12) && (declaration.owner.index < 1 || declaration.owner.index >= len(classes) || !classes[declaration.owner.index])) return false;
 		if (recover_runtime_function(flow.checked, type_symbol(s))) {
 			if (!recover_function_source(flow.checked, type_symbol(s)) || expected >= flow.data.function_count || flow.data.symbols[s] != expected + 1) return false;

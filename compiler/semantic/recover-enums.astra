@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Payload-free enum tags retain their actual variant symbols. Match arms keep
+// their source bodies and the identity of their enclosing structured operation.
+RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode input, int id, int depth) {
+	var row = input;
+	var kind = checked.bindings.program.arena.kind(row.source);
+	if (kind == SyntaxKind.CallExpressionSyntax() && checked_kind(checked, row.type) == 32) {
+		var variant = checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source));
+		if (variant.index > 0 && checked.bindings.symbol(variant).kind == 13) {
+			row.kind = 71;
+			row.symbol = variant;
+			row.token = checked.bindings.program.arena.get_token_identifier(row.source);
+		}
+	}
+	if (kind != SyntaxKind.MatchStatementSyntax()) return row;
+	if (!enum_match_verified(checked, row.source)) {
+		flow.defer(row.source);
+		return row;
+	}
+	row.kind = 72; row.type = type_id(14);
+	row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, depth + 1);
+	var arms = checked.bindings.program.arena.get_list_arms(row.source);
+	int count = checked.bindings.program.arena.list_count(arms);
+	var children = new int[count]; int at = 0;
+	while (at < count && flow.status == 0) {
+		var source = checked.bindings.program.arena.node_at(arms, at);
+		var arm = recover_empty(source, row.function, type_id(14), row.handler, row.caught);
+		arm.kind = 73; arm.c = id;
+		arm.token = checked.bindings.program.arena.get_token_variant(source);
+		if (arm.token.index != 0) arm.symbol = checked_target(checked, source, arm.token);
+		int child = flow.add(arm);
+		if (child == 0) return row;
+		arm.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_body(source), row.function, row.handler, row.caught, depth + 1);
+		flow.nodes[child - 1] = arm;
+		children[at] = child;
+		at = at + 1;
+	}
+	row.first = flow.edge_count; row.count = count; at = 0;
+	while (at < count && flow.status == 0) {
+		int edge = flow.edge(children[at]);
+		at = at + 1;
+	}
+	return row;
+}
+
+bool recover_enum_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int id, bool[] seen, bool[] edges, int depth) {
+	if (row.kind == 71) {
+		return row.a == 0 && row.b == 0 && row.c == 0 && row.token.index == checked.bindings.program.arena.get_token_identifier(row.source).index && enum_constructor_verified(checked, row.source, row.symbol, row.type);
+	}
+	if (row.kind == 72) {
+		if (row.b != 0 || row.c != 0 || !enum_match_verified(checked, row.source) || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, seen, edges, depth + 1)) return false;
+		var arms = checked.bindings.program.arena.get_list_arms(row.source);
+		if (row.count != checked.bindings.program.arena.list_count(arms)) return false;
+		int at = 0;
+		while (at < row.count) {
+			int edge = row.first + at;
+			if (edges[edge]) return false;
+			edges[edge] = true;
+			int child = flow.edges[edge];
+			if (child < 1 || child > flow.node_count || flow.nodes[child - 1].kind != 73 || flow.nodes[child - 1].c != id || !recover_child(flow, checked, types, child, checked.bindings.program.arena.node_at(arms, at), row.function, row.handler, row.caught, seen, edges, depth + 1)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+	if (row.kind != 73 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.EnumArmSyntax() || row.b != 0 || row.c < 1 || row.c > flow.node_count) return false;
+	var parent = flow.nodes[row.c - 1];
+	if (parent.kind != 72 || parent.function != row.function || parent.handler != row.handler || parent.caught != row.caught || parent.a < 1 || parent.a > flow.node_count) return false;
+	if (checked.bindings.program.arena.kind(parent.source) != SyntaxKind.MatchStatementSyntax() || parent.first < 0 || parent.count < 1 || parent.first > flow.edge_count - parent.count) return false;
+	var arms = checked.bindings.program.arena.get_list_arms(parent.source);
+	if (parent.count != checked.bindings.program.arena.list_count(arms)) return false;
+	int found = 0; int at = 0;
+	while (at < parent.count) {
+		if (flow.edges[parent.first + at] == id && checked.bindings.program.arena.node_at(arms, at).index == row.source.index) found = found + 1;
+		at = at + 1;
+	}
+	if (found != 1 || row.token.index != checked.bindings.program.arena.get_token_variant(row.source).index) return false;
+	var type = flow.nodes[parent.a - 1].type;
+	if (row.token.index == 0) {
+		if (row.symbol.index != 0 || checked.bindings.program.arena.get_token_qualifier(row.source).index != 0) return false;
+	} else {
+		if (!enum_arm_variant_verified(checked, row.source, row.symbol, type)) return false;
+	}
+	return recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_body(row.source), row.function, row.handler, row.caught, seen, edges, depth + 1);
+}

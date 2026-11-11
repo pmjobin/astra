@@ -13,7 +13,7 @@ int recover_record_field(CheckedIndex checked, TypeId type, SyntaxTokenId token)
 }
 
 bool recover_copy_channel(CheckedIndex checked, TypeId type, int flags, bool result) {
-	int kind = checked_kind(checked, type); return flags == 0 && (type_numeric(kind) || kind == 13 || result && kind == 14 || kind == 30 && recover_storage_record(checked, type));
+	int kind = checked_kind(checked, type); return flags == 0 && (type_numeric(kind) || kind == 13 || recover_storage_pointer(checked, type) || result && kind == 14 || kind == 30 && recover_storage_record(checked, type));
 }
 
 bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId type) {
@@ -96,7 +96,7 @@ int recover_record_shape_part(RecoverRecordShape shape, CheckedIndex checked, Ty
 		return 0;
 	}
 	int kind = checked_kind(checked, type);
-	if (!type_numeric(kind) && kind != 13 && (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0))) {
+	if (!type_numeric(kind) && kind != 13 && !recover_storage_pointer(checked, type) && (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0))) {
 		shape.status = 3;
 		return 0;
 	}
@@ -155,7 +155,7 @@ bool recover_record_shape_verify(RecoverRecordShape shape, CheckedIndex checked)
 		if (kind == 30) {
 			if (!class_storage_record_verified(checked, part.type) || checked_record_owned(checked, part.type, 0)) return false;
 		} else {
-			if (!type_numeric(kind) && kind != 13 || part.first < 0 || part.first >= shape.leaf_count || part.count != 1 || leaves[part.first] || shape.leaves[part.first] != n + 1) return false;
+			if (!type_numeric(kind) && kind != 13 && !recover_storage_pointer(checked, part.type) || part.first < 0 || part.first >= shape.leaf_count || part.count != 1 || leaves[part.first] || shape.leaves[part.first] != n + 1) return false;
 			leaves[part.first] = true; counts[n] = 1;
 		}
 		n = n + 1;
@@ -190,7 +190,7 @@ bool recover_record_shape_verify(RecoverRecordShape shape, CheckedIndex checked)
 // retained offsets. A negative count refuses unsupported or excessive trees.
 int recover_record_value_count(CheckedIndex checked, TypeId type, int depth) {
 	if (depth > 32 || !checked.types.valid_id(type)) return -1;
-	int kind = checked_kind(checked, type); if (type_numeric(kind) || kind == 13) return 1;
+	int kind = checked_kind(checked, type); if (type_numeric(kind) || kind == 13 || recover_storage_pointer(checked, type)) return 1;
 	if (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0)) return -1;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int total = 0; int f = 0;
 	while (f < checked.bindings.program.arena.list_count(fields)) {
@@ -206,7 +206,7 @@ int recover_record_value_count(CheckedIndex checked, TypeId type, int depth) {
 TypeId recover_record_value_type(CheckedIndex checked, TypeId type, int ordinal, int depth) {
 	if (depth > 32 || ordinal < 0 || !checked.types.valid_id(type)) return no_type();
 	int kind = checked_kind(checked, type);
-	if (type_numeric(kind) || kind == 13) {
+	if (type_numeric(kind) || kind == 13 || recover_storage_pointer(checked, type)) {
 		if (ordinal == 0) return type;
 		return no_type();
 	}

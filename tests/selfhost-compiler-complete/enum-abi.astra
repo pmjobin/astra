@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Paired with the exact original payload-free enum and Error declarations.
+class EnumHolder {
+	int bias;
+
+	init(int bias) {
+		this.bias = bias;
+	}
+
+	BindingState read() {
+		return BindingState.Bound();
+	}
+
+	BindingState require(bool fail) throws Error {
+		if (fail) {
+			throw new Error("enum failure");
+		}
+		return BindingState.Bound();
+	}
+
+	SyntaxKind kind() {
+		if (this.bias == 0) return SyntaxKind.NameExpressionSyntax();
+		return SyntaxKind.IntegerLiteralExpressionSyntax();
+	}
+}
+
+SyntaxKind enum_select(BindingState state, SyntaxKind kind) {
+	if (state == BindingState.Bound()) return kind;
+	return SyntaxKind.IntegerLiteralExpressionSyntax();
+}
+
+int enum_read(SyntaxKind kind) {
+	match (kind) {
+		case SyntaxKind.NameExpressionSyntax(): {
+			return 42;
+		}
+		else: {
+			return 4;
+		}
+	}
+}
+
+int main() {
+	var holder = new EnumHolder(0);
+	if (holder.read() != BindingState.Bound()) return 5;
+	try {
+		if (holder.require(false) != BindingState.Bound()) return 6;
+		var unused = holder.require(true);
+		return 7;
+	} catch (Error error) {
+		if (error.message != "enum failure") return 8;
+	}
+	return enum_read(enum_select(holder.read(), holder.kind()));
+}

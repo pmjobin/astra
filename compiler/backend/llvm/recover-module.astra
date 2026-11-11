@@ -236,7 +236,7 @@ class RecoverLlvm {
 	}
 
 	void* scalar(CheckedIndex checked, TypeId type) {
-		int kind = checked_kind(checked, type); if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
+		int kind = checked_kind(checked, type); if (kind == 32 && enum_value_type_verified(checked, type)) return this.integer; if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
 		if (kind == 23) {
 			var fields = new void*[3]; fields[0] = this.pointer; fields[1] = this.integer; fields[2] = this.integer;
 			return this.structure(fields);
@@ -256,12 +256,12 @@ class RecoverLlvm {
 					if (!recover_record_shape_verify(shape, checked)) return null;
 					var flattened = new void*[shape.leaf_count]; int leaf = 0;
 					while (leaf < shape.leaf_count) {
-						flattened[leaf] = llvm_checked_abi_scalar(this.context, checked_kind(checked, shape.parts[shape.leaves[leaf] - 1].type));
+						flattened[leaf] = this.scalar(checked, shape.parts[shape.leaves[leaf] - 1].type);
 						leaf = leaf + 1;
 					}
 					return this.structure(flattened);
 				}
-				fields[f] = llvm_checked_abi_scalar(this.context, checked_kind(checked, checked.symbol_types[symbol.index]));
+				fields[f] = this.scalar(checked, checked.symbol_types[symbol.index]);
 				f = f + 1;
 			}
 			return this.structure(fields);
@@ -431,7 +431,7 @@ class RecoverLlvm {
 			var out = new Utf8ByteBuilder(); source_append_text(out, "astra.e25a.f."); append_int(out, row.symbol.index); var name = out.snapshot(); var signature = ssa.cfg.core.flow.checked.signatures[row.signature.index - 1];
 			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); if (plan.parameters > 1024) {
 				throw new Error("LLVM_DEFERRED: carrier handle capacity");
-			} if (!recover_abi_verify(plan, ssa.cfg.core.flow.checked)) {
+			} if (!recover_abi_source(plan, ssa.cfg.core.flow.checked)) {
 				throw new Error("LLVM_INVALID_IR: carrier signature");
 			}
 			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;
@@ -444,10 +444,13 @@ class RecoverLlvm {
 						field = field + 1;
 					}
 				} else {
+					if (kind == 32) type = this.pointer;
 					parameters[at] = type;
 				} p = p + 1;
 			}
-			var result = this.scalar(ssa.cfg.core.flow.checked, row.result); if (row.checked) result = this.pointer;
+			var result = this.scalar(ssa.cfg.core.flow.checked, row.result);
+			if (checked_kind(ssa.cfg.core.flow.checked, row.result) == 32) result = LLVMVoidTypeInContext(this.context);
+			if (row.checked) result = this.pointer;
 			void* function = null; if (main) function = this.function("main", result, parameters, false); else {
 				function = this.function(name.text, result, parameters, true);
 			}
@@ -465,6 +468,11 @@ class RecoverLlvm {
 				if (source < 0) {
 					throw new Error("LLVM_INVALID_IR: parameter source");
 				} var plan = new RecoverAbi(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[slot.function - 1].symbol); int at = plan.groups[source]; var function = this.functions[slot.function - 1]; void* value = LLVMGetParam(function, at); int kind = checked_kind(ssa.cfg.core.flow.checked, slot.type);
+				if (kind == 32) {
+					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
+					value = this.load(this.integer, value);
+					LLVMSetAlignment(value, 4);
+				}
 				if (kind == 30 || kind == 22 || kind == 15) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
 					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, slot.type));
@@ -508,9 +516,10 @@ class RecoverLlvm {
 				var span = ssa.cfg.core.flow.checked.bindings.program.arena.source_span(ssa.cfg.core.flow.checked.bindings.program.arena.header(row.source).span); var path = span.path(); var location = span.location(); var file = llvm17_text_literal(this.module, path.text);
 				var fields = new void*[4]; fields[0] = LLVMGetOperand(file, 0); fields[1] = this.int32(path.text.byte_length); fields[2] = this.int32(location.line); fields[3] = this.int32(location.column); var initializer = this.constant(fields); var origin = this.global(this.origin_type, initializer); this.origins[n] = origin;
 			}
-			if (ssa.cfg.core.nodes[n].conditional && row.type.index != 14) {
+			if (ssa.cfg.core.nodes[n].conditional && row.type.index != 14 || recover_value_kind(row.kind) && checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) {
 				LLVMPositionBuilderAtEnd(this.builder, this.entries[row.function - 1]);
 				var slot = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, row.type), this.empty);
+				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) LLVMSetAlignment(slot, 4);
 				this.slots[n] = slot;
 			}
 			if (row.kind == 57) {
@@ -717,6 +726,7 @@ class RecoverLlvm {
 				value = LLVMBuildXor(this.builder, value, LLVMConstInt(LLVMTypeOf(value), mask, 0), this.empty);
 			}
 		}
+		if (op == 71) value = this.int32(enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol));
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {
 			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index]; var function = ssa.cfg.core.flow.data.functions[callee - 1]; var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol); var arguments = new void*[plan.parameters]; if (plan.success >= 0) arguments[plan.success] = this.slots[block.origin - 1]; int i = 0;
@@ -733,7 +743,13 @@ class RecoverLlvm {
 						field = field + 1;
 					}
 				} else {
-					arguments[at] = this.values[child];
+					if (kind == 32) {
+						var copied = LLVMBuildStore(this.builder, this.values[child], this.slots[child - 1]);
+						LLVMSetAlignment(copied, 4);
+						arguments[at] = this.slots[child - 1];
+					} else {
+						arguments[at] = this.values[child];
+					}
 				}
 				i = i + 1;
 			}
@@ -746,6 +762,10 @@ class RecoverLlvm {
 			}
 			else {
 				value = operation;
+				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) {
+					value = this.load(this.integer, this.slots[block.origin - 1]);
+					LLVMSetAlignment(value, 4);
+				}
 			}
 		}
 		if (op == 5) {
@@ -849,7 +869,13 @@ class RecoverLlvm {
 						field = field + 1;
 					}
 				} else {
-					arguments[at] = this.values[child];
+					if (kind == 32) {
+						var copied = LLVMBuildStore(this.builder, this.values[child], this.slots[child - 1]);
+						LLVMSetAlignment(copied, 4);
+						arguments[at] = this.slots[child - 1];
+					} else {
+						arguments[at] = this.values[child];
+					}
 				}
 				i = i + 1;
 			}
@@ -905,6 +931,11 @@ class RecoverLlvm {
 			operation = value;
 		}
 		if (value != null && row.type.index != 14) this.values[block.origin] = value;
+		if (op == 73 || op == 74) {
+			int predicate = 32; if (op == 74) predicate = 36;
+			var condition = LLVMBuildICmp(this.builder, predicate, this.values[block.a], this.int32(block.rank), this.empty);
+			operation = LLVMBuildCondBr(this.builder, condition, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
 		if (op == 21 || op == 63) operation = LLVMBuildCondBr(this.builder, this.values[block.a], this.blocks[block.next - 1], this.blocks[block.other - 1]);
 		if (op == 16) {
 			var present = LLVMBuildICmp(this.builder, 33, this.values[block.a], LLVMConstNull(this.pointer), this.empty);
@@ -949,14 +980,20 @@ class RecoverLlvm {
 				if (function.result.index != 14) {
 					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
 					operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], plan.success));
+					if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) LLVMSetAlignment(operation, 4);
 				}
 				var end = LLVMBuildRet(this.builder, LLVMConstNull(this.pointer));
 				if (operation == null) operation = end;
 			}
 			else {
-				if (function.result.index == 14) operation = LLVMBuildRetVoid(this.builder); else {
-					operation = LLVMBuildRet(this.builder, this.values[block.a]);
-				}
+				if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) {
+					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
+					operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], plan.success));
+					LLVMSetAlignment(operation, 4);
+					var end = LLVMBuildRetVoid(this.builder);
+				} else { if (function.result.index == 14) operation = LLVMBuildRetVoid(this.builder); else {
+						operation = LLVMBuildRet(this.builder, this.values[block.a]);
+					} }
 			}
 		}
 		if (op == 23) operation = LLVMBuildRet(this.builder, this.values[block.owner]);

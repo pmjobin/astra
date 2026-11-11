@@ -13,6 +13,7 @@ int recover_llvm_instruction_count(void* block) {
 bool recover_llvm_scalar_type(CheckedIndex checked, TypeId semantic, void* actual) {
 	int kind = checked_kind(checked, semantic);
 	if (recover_storage_pointer(checked, semantic)) return recover_shared_pointer(actual);
+	if (kind == 32) return enum_value_type_verified(checked, semantic) && LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == 32;
 	if (kind == 14) return LLVMGetTypeKind(actual) == 0;
 	if (kind == 11) return LLVMGetTypeKind(actual) == 2;
 	if (kind == 12) return LLVMGetTypeKind(actual) == 3;
@@ -60,11 +61,12 @@ bool recover_llvm_binary(RecoverSsa ssa, RecoverNode row, void* result, void* le
 		if (equal) predicate = 32;
 		return recover_llvm_compare(result, predicate, left, right) && LLVMGetICmpSameSign(result) == 0 && LLVMHasMetadata(result) == 0;
 	}
+	if (kind == 32 && (token.text != "==" && token.text != "!=" || !enum_value_type_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type))) return false;
 	if (kind == 11 || kind == 12) return recover_llvm_float_binary(token.text, kind, result, left, right);
 	bool comparison = token.text == "==" || token.text == "!=" || token.text == "<" || token.text == ">" || token.text == "<=" || token.text == ">=";
 	if (LLVMIsAConstantInt(result) != null) {
 		if (LLVMIsAConstantInt(left) == null || LLVMIsAConstantInt(right) == null) return false;
-		u64 a = LLVMConstIntGetZExtValue(left); u64 b = LLVMConstIntGetZExtValue(right); u64 expected = 0; int width = 1; if (kind != 13) width = type_width(kind);
+		u64 a = LLVMConstIntGetZExtValue(left); u64 b = LLVMConstIntGetZExtValue(right); u64 expected = 0; int width = 1; if (kind != 13) width = type_width(kind); if (kind == 32) width = 32;
 		if (comparison) {
 			if (type_signed(kind)) {
 				u64 sign = 1 as u64 << (width - 1);

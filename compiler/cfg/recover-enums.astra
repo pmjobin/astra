@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A range guard rejects invalid tags before the source-ordered case chain.
+// The scrutinee is evaluated once. Every arm keeps its lexical body cleanup.
+int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
+	var row = cfg.core.nodes[id - 1].value;
+	var type = cfg.core.nodes[row.a - 1].value.type;
+	var declaration = cfg.core.flow.checked.bindings.symbol(cfg.core.flow.checked.types.row(type).nominal);
+	int count = cfg.core.flow.checked.bindings.program.arena.list_count(cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
+	int fatal = cfg.block(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0);
+	int dispatch = fatal; int at = row.count - 1;
+	while (at >= 0 && cfg.status == 0) {
+		int child = cfg.core.flow.data.edges[row.first + at];
+		var arm = cfg.core.nodes[child - 1].value;
+		int body = recover_cfg_tree(cfg, arm.a, next, depth + 1);
+		int operation = 0;
+		if (arm.symbol.index != 0) {
+			int tag = enum_value_ordinal(cfg.core.flow.checked, type, arm.symbol);
+			operation = cfg.block(row.function, child, 73, row.a, 0, body, dispatch, 0, 0, tag);
+			dispatch = operation;
+		} else {
+			dispatch = body;
+		}
+		RecoverRegion region = {entry = body, operation = operation, next = next};
+		cfg.regions[child - 1] = region;
+		at = at - 1;
+	}
+	int guard = cfg.block(row.function, id, 74, row.a, 0, dispatch, fatal, 0, 0, count);
+	int head = recover_cfg_tree(cfg, row.a, guard, depth + 1);
+	RecoverRegion region = {entry = head, operation = guard, next = next};
+	cfg.regions[id - 1] = region;
+	return head;
+}
+
+bool recover_cfg_enum_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value; var region = cfg.regions[id - 1];
+	int guard = region.operation;
+	if (guard < 1 || guard > cfg.block_count || row.a < 1 || row.a > cfg.core.count) return false;
+	var type = cfg.core.nodes[row.a - 1].value.type;
+	if (!enum_value_type_verified(cfg.core.flow.checked, type)) return false;
+	var declaration = cfg.core.flow.checked.bindings.symbol(cfg.core.flow.checked.types.row(type).nominal);
+	int count = cfg.core.flow.checked.bindings.program.arena.list_count(cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
+	int dispatch = cfg.blocks[guard - 1].next; int fatal = cfg.blocks[guard - 1].other;
+	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 74, row.a, 0, dispatch, fatal, 0, 0, count), seen) || !recover_cfg_expect(cfg, fatal, recover_cfg_expected(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0), seen)) return false;
+	if (!recover_cfg_check_tree(cfg, row.a, guard, seen, nodes, depth + 1) || region.entry != cfg.regions[row.a - 1].entry) return false;
+	int at = 0; bool fallback = false;
+	while (at < row.count) {
+		int child = cfg.core.flow.data.edges[row.first + at];
+		if (child < 1 || child > cfg.core.count || nodes[child - 1] || fallback) return false;
+		nodes[child - 1] = true;
+		var arm = cfg.core.nodes[child - 1].value; var anchor = cfg.regions[child - 1];
+		if (arm.kind != 73 || arm.c != id || anchor.next != next || arm.a < 1 || arm.a > cfg.core.count || !recover_cfg_check_tree(cfg, arm.a, next, seen, nodes, depth + 1) || anchor.entry != cfg.regions[arm.a - 1].entry) return false;
+		if (arm.symbol.index == 0) {
+			if (anchor.operation != 0 || dispatch != anchor.entry || at + 1 != row.count) return false;
+			fallback = true;
+		} else {
+			if (dispatch < 1 || dispatch > cfg.block_count || anchor.operation != dispatch) return false;
+			int tag = enum_value_ordinal(cfg.core.flow.checked, type, arm.symbol);
+			if (tag < 0 || tag >= count) return false;
+			int following = cfg.blocks[dispatch - 1].other;
+			if (!recover_cfg_expect(cfg, dispatch, recover_cfg_expected(row.function, child, 73, row.a, 0, anchor.entry, following, 0, 0, tag), seen)) return false;
+			dispatch = following;
+		}
+		at = at + 1;
+	}
+	return fallback || dispatch == fatal;
+}

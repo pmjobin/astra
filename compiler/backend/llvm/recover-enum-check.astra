@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Payload-free enum values have one I32 tag. Native function channels retain
+// C0's pointer parameters and leading caller-provided result storage.
+bool recover_enum_argument_verified(RecoverSsa ssa, int child, void* address, void* value, void* call, void* block, int parameter) {
+	if (child < 1 || child > ssa.cfg.core.count || address == null || value == null || !enum_value_type_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) || LLVMGetArgOperand(call, parameter) != address) return false;
+	int stores = 0; int remaining = 8192; var instruction = LLVMGetFirstInstruction(block);
+	while (instruction != null && instruction != call && remaining > 0) {
+		if (LLVMGetInstructionOpcode(instruction) == 28 && LLVMGetOperand(instruction, 1) == address) {
+			if (LLVMGetOperand(instruction, 0) != value || LLVMGetAlignment(instruction) != 4 || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0 || LLVMHasMetadata(instruction) != 0) return false;
+			stores = stores + 1;
+		}
+		instruction = LLVMGetNextInstruction(instruction); remaining = remaining - 1;
+	}
+	return instruction == call && stores == 1;
+}
+
+bool recover_enum_guard_verified(RecoverSsa ssa, RecoverBlock block, void* condition, void* value) {
+	if (block.opcode != 73 && block.opcode != 74 || block.a < 1 || block.a > ssa.cfg.core.count || value == null || condition == null) return false;
+	var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+	if (!enum_value_type_verified(ssa.cfg.core.flow.checked, type) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(value))) return false;
+	var source = ssa.cfg.core.nodes[block.origin - 1].value;
+	int expected = -1; int predicate = 32;
+	if (block.opcode == 73) {
+		if (source.kind != 73) return false;
+		expected = enum_value_ordinal(ssa.cfg.core.flow.checked, type, source.symbol);
+	} else {
+		if (source.kind != 72) return false;
+		var declaration = ssa.cfg.core.flow.checked.bindings.symbol(ssa.cfg.core.flow.checked.types.row(type).nominal);
+		expected = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(ssa.cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
+		predicate = 36;
+	}
+	if (expected < 0 || block.rank != expected) return false;
+	if (LLVMIsAConstantInt(condition) != null) {
+		if (LLVMIsAConstantInt(value) == null) return false;
+		u64 tag = LLVMConstIntGetZExtValue(value); bool accepted = tag == expected as u64;
+		if (block.opcode == 74) accepted = tag < expected as u64;
+		u64 bit = 0; if (accepted) bit = 1;
+		return recover_llvm_bits(condition, 1, bit);
+	}
+	if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != predicate || LLVMGetICmpSameSign(condition) != 0 || LLVMHasMetadata(condition) != 0 || LLVMGetOperand(condition, 0) != value) return false;
+	return recover_llvm_bits(LLVMGetOperand(condition, 1), 32, expected as u64);
+}

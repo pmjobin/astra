@@ -1291,6 +1291,54 @@ the unchanged development-host C0 path. A perf-event sample was denied by host
 permissions, with the refusal retained. The native module probe also refuses
 the required enum result channel. No toolchain or installed workflow changed.
 
+## Enum transport and pointer-record candidate
+
+The frozen `c937113` observer passes all 31 focused source/control cases. This
+includes six scope-key corruptions, a missing scope mapping, six changed scope
+fields and six enum construction/match mutations, with each original state
+restored. The two original 190-input probes then run concurrently. Their
+whole-source outcomes and costs remain pending at this checkpoint.
+
+The next source candidate carries original payload-free enum values through
+structured Flow, Core, range-guarded CFG case chains, SSA and LLVM emission.
+Case order, nominal/variant identity, lexical arm cleanup, scrutinee evaluation
+and caller channels have independent consumers. The native ABI keeps leading
+caller-provided enum result storage before an admitted receiver and explicit
+arguments. Checked enum results use that same result storage. Source enum
+arguments remain pointer channels with callee-local tag copies. Internal I32
+tags use four-byte size/alignment on the authenticated x86-64 target. No
+native execution result is established for this candidate yet.
+
+The exact C0 enum method oracle confirms ordinary `void(ptr sum, ptr this)`
+and checked `ptr(ptr sum, ptr this, i1)` signatures. The original seven enum
+fragments plus the corrected checked-method fixture execute exit42 at O0/O2
+with clean unsuppressed Valgrind. The first oracle attempted an unsupported
+CLI spelling and the second fixture encountered C0's enum-valued record-field
+storage refusal. Both raw attempts remain preserved. The corrected fixture
+uses C0-valid function channels. C0's explicit invalid-tag switch successor is
+retained as an independently checked fatal range edge in the candidate.
+
+The exact original `RecoverOwnerInstruction` declaration also passes a C0
+O0/O2 oracle covering pointer-record returns/arguments, nested records and
+Class-owned record arrays. The next candidate admits non-owning void pointer
+leaves through existing record shape, layout, carrier and memory consumers.
+The original frozen inputs remain read-only and byte-exact. Full original
+module generation still requires separate proof.
+
+The gen13 independent audit verifies 197 Git-authenticated archived inputs,
+46 tools, 77 artifact references and 24 clean memory streams. Its three raw
+refusals remain explicit. The first audit used an incorrect log suffix and is
+retained separately from the corrected audit. Guarded formatting and exact-C0
+frontend checks pass both new development-host entries. New enum controls
+cover three Flow/source, two CFG, four ABI and four LLVM-valid physical
+mutations, but their execution is pending the next immutable native host.
+
+ABI source checks now have pass-local entry points within the independently
+verified SSA/module boundaries. Standalone entry points retain validation of
+the complete checked owner and generic map as before. This removes repeated
+whole-owner scans from declaration-level LLVM ABI checks. The candidate has
+no measured native speedup yet.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

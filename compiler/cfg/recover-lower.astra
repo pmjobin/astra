@@ -31,6 +31,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		return 0;
 	}
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
+	if (row.kind == 72) return recover_cfg_enum(cfg, id, next, depth);
 	if (row.kind == 44) {
 		int publish = cfg.block(row.function, id, 44, row.a, 0, next, 0, 0, 0, 0);
 		int enter = recover_cfg_commit(cfg, id, publish);

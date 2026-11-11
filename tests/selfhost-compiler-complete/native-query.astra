@@ -166,8 +166,126 @@ bool mutation_index_controls(RecoverFlow flow) {
 	return true;
 }
 
+bool enum_transport_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	int source_controls = 0; bool literal = false; bool match_node = false; bool arm_node = false; int n = 0;
+	while (n < ssa.cfg.core.flow.data.node_count) {
+		var row = ssa.cfg.core.flow.data.nodes[n];
+		if (row.kind == 71 && !literal) {
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(ssa.cfg.core.flow.checked.types.row(row.type).nominal);
+			var variants = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node);
+			int count = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(variants);
+			if (count < 2) return false;
+			int ordinal = enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol);
+			int next = ordinal + 1; if (next == count) next = 0;
+			var variant = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(variants, next);
+			ssa.cfg.core.flow.data.nodes[n].symbol = ssa.cfg.core.flow.checked.node_symbols[variant.index];
+			bool refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.data.nodes[n].symbol = row.symbol;
+			if (!refused || !module.check(ssa)) return false;
+			source_controls = source_controls + 1; literal = true;
+		}
+		if (row.kind == 72 && !match_node) {
+			ssa.cfg.core.flow.data.nodes[n].a = 0;
+			bool refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.data.nodes[n].a = row.a;
+			if (!refused || !module.check(ssa)) return false;
+			source_controls = source_controls + 1; match_node = true;
+		}
+		if (row.kind == 73 && !arm_node) {
+			ssa.cfg.core.flow.data.nodes[n].c = 0;
+			bool refused = !recover_flow_verify(ssa.cfg.core.flow);
+			ssa.cfg.core.flow.data.nodes[n].c = row.c;
+			if (!refused || !module.check(ssa)) return false;
+			source_controls = source_controls + 1; arm_node = true;
+		}
+		n = n + 1;
+	}
+	int abi_controls = 0; int f = 0;
+	while (f < ssa.cfg.core.flow.data.function_count && abi_controls == 0) {
+		var function = ssa.cfg.core.flow.data.functions[f];
+		if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) {
+			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
+			if (plan.receiver == 1) {
+				if (!recover_abi_verify(plan, ssa.cfg.core.flow.checked) || plan.success != 0 || len(plan.groups) < 1 || plan.groups[0] != 1) return false;
+				int category = 0;
+				while (category < 4) {
+					int receiver = plan.receiver; int success = plan.success; int group = plan.groups[0]; int parameters = plan.parameters;
+					if (category == 0) plan.receiver = 0;
+					if (category == 1) plan.success = 1;
+					if (category == 2) plan.groups[0] = 0;
+					if (category == 3) plan.parameters = parameters + 1;
+					bool refused = !recover_abi_verify(plan, ssa.cfg.core.flow.checked);
+					plan.receiver = receiver; plan.success = success; plan.groups[0] = group; plan.parameters = parameters;
+					if (!refused || !recover_abi_verify(plan, ssa.cfg.core.flow.checked)) return false;
+					category = category + 1;
+				}
+				abi_controls = 4;
+			}
+		}
+		f = f + 1;
+	}
+	int cfg_controls = 0; int physical_controls = 0;
+	bool case_guard = false; bool range_guard = false; bool argument = false; bool result = false; int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (ssa.data.reachable[b] && block.origin > 0) {
+			var row = ssa.cfg.core.nodes[block.origin - 1].value;
+			if (block.opcode == 73 && !case_guard || block.opcode == 74 && !range_guard) {
+				var condition = LLVMGetCondition(LLVMGetBasicBlockTerminator(module.blocks[b]));
+				if (LLVMIsAInstruction(condition) != null) {
+					ssa.cfg.blocks[b].rank = block.rank + 1;
+					bool refused = !recover_cfg_verify(ssa.cfg);
+					ssa.cfg.blocks[b].rank = block.rank;
+					if (!refused || !module.check(ssa)) return false;
+					cfg_controls = cfg_controls + 1;
+					var constant = LLVMGetOperand(condition, 1);
+					LLVMSetOperand(condition, 1, module.int32(block.rank + 1));
+					refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+					LLVMSetOperand(condition, 1, constant);
+					if (!refused || !module.check(ssa)) return false;
+					physical_controls = physical_controls + 1;
+					if (block.opcode == 73) case_guard = true;
+					else {
+						range_guard = true;
+					}
+				}
+			}
+			if (block.opcode == 4 && !argument) {
+				var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); int at = 0;
+				while (at < row.count && !argument) {
+					int child = ssa.cfg.core.flow.data.edges[row.first + at];
+					if (checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) == 32) {
+						var call = module.operations[b]; int position = plan.groups[at]; var address = LLVMGetArgOperand(call, position);
+						LLVMSetOperand(call, position, LLVMConstNull(module.pointer));
+						bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+						LLVMSetOperand(call, position, address);
+						if (!refused || !module.check(ssa)) return false;
+						physical_controls = physical_controls + 1; argument = true;
+					}
+					at = at + 1;
+				}
+			}
+			if (block.opcode == 22 && !result && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[block.function - 1].result) == 32) {
+				var store = module.operations[b];
+				if (store == null || LLVMGetInstructionOpcode(store) != 28) return false;
+				var address = LLVMGetOperand(store, 1);
+				LLVMSetOperand(store, 1, LLVMConstNull(module.pointer));
+				bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(store, 1, address);
+				if (!refused || !module.check(ssa)) return false;
+				physical_controls = physical_controls + 1; result = true;
+			}
+		}
+		b = b + 1;
+	}
+	if (source_controls != 3 || cfg_controls != 2 || abi_controls != 4 || physical_controls != 4) return false;
+	println("ENUM_TRANSPORT_CONTROLS source=3 cfg=2 abi=4 physical=4 restored=1");
+	return true;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -207,6 +325,10 @@ int main(string[] args) {
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
 		var module = new RecoverLlvm(ssa); module.build(ssa);
+		if (args[1] == "--enum-transport-controls") {
+			if (enum_transport_controls(module, ssa)) return 42;
+			return 14;
+		}
 		if (args[1] == "--record-value-controls") {
 			if (record_value_controls(module, ssa)) return 42;
 			return 11;
