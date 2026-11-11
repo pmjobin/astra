@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Paired with the seven unchanged original payload-free enum declarations.
+BindingState enum_state() {
+	return BindingState.Bound();
+}
+
+BindingDomain enum_domain() {
+	return BindingDomain.Type();
+}
+
+BindingSymbolKind enum_symbol_kind() {
+	return BindingSymbolKind.Function();
+}
+
+SyntaxPolicy enum_policy() {
+	return SyntaxPolicy.INVALID();
+}
+
+SyntaxDispatch enum_dispatch() {
+	return SyntaxDispatch.DIRECT();
+}
+
+TokenKind enum_token_kind() {
+	return TokenKind.EOF();
+}
+
+SyntaxKind enum_syntax_kind(bool name) {
+	if (name) return SyntaxKind.NameExpressionSyntax();
+	return SyntaxKind.IntegerLiteralExpressionSyntax();
+}
+
+bool enum_same(SyntaxKind first, SyntaxKind second) {
+	return first == second;
+}
+
+int enum_classify(SyntaxKind value) {
+	int result = 0;
+	match (value) {
+		case SyntaxKind.NameExpressionSyntax(): {
+			result = 42;
+		}
+		case SyntaxKind.IntegerLiteralExpressionSyntax(): {
+			result = 2;
+		}
+		else: {
+			result = 1;
+		}
+	}
+	return result;
+}
+
+int main() {
+	if (enum_state() != BindingState.Bound() || enum_domain() != BindingDomain.Type()) return 3;
+	if (enum_symbol_kind() != BindingSymbolKind.Function() || enum_policy() != SyntaxPolicy.INVALID()) return 4;
+	if (enum_dispatch() != SyntaxDispatch.DIRECT() || enum_token_kind() != TokenKind.EOF()) return 5;
+	var value = enum_syntax_kind(true);
+	if (!enum_same(value, SyntaxKind.NameExpressionSyntax()) || enum_classify(enum_syntax_kind(false)) != 2) return 6;
+	return enum_classify(value);
+}

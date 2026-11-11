@@ -44,7 +44,7 @@ SymbolId class_getter_lower(CheckedIndex index, SymbolId property, TypeId enclos
 	}
 	// The declared result is part of the property, outside the accessor span.
 	// Its exact node remains a source-map key in this bounded property window.
-	var plan = generic_window(index, property, enclosing, 0);
+	var plan = generic_window(index, property, enclosing, 0, true);
 	plan.origin = origin;
 	if (index.generic_node_used > 8000000 - plan.node_count - 1 || index.generic_symbol_used > 8000000 - plan.symbol_count - 1) {
 		index.fail(index.bindings.program.arena.header(getter).span, "getter source map resource limit");

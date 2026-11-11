@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Paired with the unchanged original TypeOwner declaration.
+class SharedConstructorInput {
+	owned shared TypeOwner identity;
+	int value;
+
+	init(int value) {
+		var owner = new TypeOwner();
+		var identity = shared_acquire(move owner);
+		this.identity = move identity;
+		this.value = value;
+	}
+}
+
+class SharedOwnedConstructor {
+	owned shared TypeOwner identity;
+	owned SharedConstructorInput input;
+
+	init(owned SharedConstructorInput input) {
+		var identity = shared_clone(input.identity);
+		this.identity = move identity;
+		this.input = move input;
+	}
+}
+
+class SharedNestedConstructor {
+	owned shared TypeOwner identity;
+	owned SharedOwnedConstructor input;
+
+	init(owned SharedOwnedConstructor input) {
+		var identity = shared_clone(input.input.identity);
+		this.identity = move identity;
+		this.input = move input;
+	}
+}
+
+class SharedBorrowedConstructor {
+	owned shared TypeOwner identity;
+	int value;
+
+	init(borrowed SharedConstructorInput input) {
+		var identity = shared_clone(input.identity);
+		this.identity = move identity;
+		this.value = input.value;
+	}
+}
+
+int main() {
+	var source = new SharedConstructorInput(42);
+	var borrowed_copy = new SharedBorrowedConstructor(source);
+	if (borrowed_copy.value != 42) return 1;
+	var owned_copy = new SharedOwnedConstructor(move source);
+	var nested = new SharedNestedConstructor(move owned_copy);
+	return nested.input.input.value;
+}

@@ -454,6 +454,73 @@ The seven selected source guards, generator consistency check and both
 development entries' all-source C0 frontend checks pass.
 Full-original native qualification remains zero of two profiles.
 
+## Direct source symbol-map capacity candidate
+
+The matching `2314de0` observer passes all 24 focused cases. These include the
+original ClassStoragePlan constructor through Flow and all eight restored
+initialization/source controls, plus six match-copy controls. Its original
+190-input Typecore and Flow attempts both fail with `ordinary member source map
+resource limit` at the original SyntaxArena `replace_return_statement` method,
+bytes 141383–141677. The observations take 77.98 and 78.10 seconds. Its C0
+observer build takes 1,454.15 seconds.
+
+The existing symbol window reserves every ID between the first and last source
+symbol. Collection of declaration heads and later body locals can leave large
+unrelated gaps in that interval. The candidate gives direct source methods an
+ordered key table containing the actual original source IDs and a binary-search
+lookup. Its independent consumer reconstructs the complete ordered domain from
+Binder nodes and checks every source and concrete mapping. Genuine generic
+plans use the existing dense intervals, including the offsets consumed by the
+protected historical mutation and reference observers. The consumer checks the
+storage role against the plan's actual generic/direct disposition. The 256
+instance, 8,000,000 map-entry and 8,000,000 SSA ceilings are enforced.
+
+A focused method-head/parameter/local witness executes to 42 with original C0
+at both profiles and clean unsuppressed Valgrind. The previous source observer
+passes that small witness through Flow. Six key-domain mutations and one
+concrete-mapping mutation await execution with the new representation. The next
+observer also records actual map usage on both success and refusal.
+
+The separate constructor candidate verifies reads through actual borrowed or
+owned Class parameters and initialized Class locals, including nested declared
+fields. It checks the function-owned root, flags, visibility, exact field type
+and each parent projection. Existing field/owner consumers reconstruct the
+runtime storage and lifetime authority. A borrowed/owned/nested Shared clone
+fixture passes C0 O0/O2 and clean unsuppressed Valgrind. The frozen `2314de0`
+observer preserves its constructor refusal. Four root/type/visibility mutations
+await matching execution. The first frontend check found overlapping temporary
+borrows in the new control code. Separate locals correct those expressions,
+and both corrected frontend entries pass.
+
+The independent gen12 audit binds 195 consumed Git inputs, 46 tools, 88 native
+artifact references and 27 clean memory streams, retaining the raw ordinary
+count failure and separate passing supplement. Four earlier source observers
+are independently rebound to 107/107/109/109 consumed Git inputs and their raw
+outcomes. Their first audit attempt refuses upgraded host tool hashes. The
+corrected audit uses the authenticated original tool capsule.
+
+## Original enum channels and rebuild strategy observations
+
+A whole-original C0 syntax survey covers 190 sources and finds seven enum
+declarations with 250 payload-free variants. Exact original declarations plus
+a focused usage entry pass C0 O0/O2, LLVM generation and clean unsuppressed
+Valgrind. The earlier native host refuses the enum-returning function in Flow.
+C0's O0 definitions use a leading caller-provided sum-result pointer and
+`void` return for these results. Their memory shape is `{ i32, [0 x i8] }`,
+size/alignment 4. Enum parameters use pointers to copied sum storage. Source,
+Flow, sum transport, match control flow and independent physical qualification
+remain required work.
+
+Two simultaneous C0 jobs each use one thread at approximately one full CPU.
+The measured host has 32 logical CPUs and about 51 GiB available memory.
+The unchanged CLI exposes no parallel-build flag. A native-module build probe
+passes source semantics and refuses the enum-result channel needed at the
+proposed partition. The first probe's invalid namespace wrapper is preserved
+separately. Existing matched gen12 Core generation takes 67.70 seconds against
+its 3,111.53-second complete native development build. The additional cost lies
+after Core. Userspace `perf` sampling is refused by host access controls, with
+the raw refusal retained. These observations establish no rebuild speedup.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

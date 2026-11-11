@@ -409,6 +409,120 @@ bool template_shared_constructor_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+bool template_symbol_map_controls(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.generic_symbols) {
+		var plan = checked.direct_methods[s];
+		if (plan.state == 2 && plan.symbol_count >= 2) {
+			int gap = 0; int at = 1;
+			while (at < plan.symbol_count) {
+				int first = checked.generic_symbol_keys[plan.symbols + at];
+				int second = checked.generic_symbol_keys[plan.symbols + at + 1];
+				if (second > first + 1) gap = first + 1;
+				at = at + 1;
+			}
+			if (gap != 0) {
+				if (!generic_symbol_keys_verified(checked, plan) || generic_symbol(checked, plan, gap) != 0) return false;
+				at = 0;
+				while (at < plan.symbol_count) {
+					int slot = plan.symbols + at + 1;
+					if (generic_symbol(checked, plan, checked.generic_symbol_keys[slot]) != checked.generic_symbol_map[slot]) return false;
+					at = at + 1;
+				}
+				int first = checked.generic_symbol_keys[plan.symbols + 1];
+				int second = checked.generic_symbol_keys[plan.symbols + 2];
+				checked.generic_symbol_keys[plan.symbols + 1] = 0;
+				bool refused = !generic_symbol_keys_verified(checked, plan);
+				checked.generic_symbol_keys[plan.symbols + 1] = first;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_symbol_keys[plan.symbols + 2] = first;
+				refused = !generic_symbol_keys_verified(checked, plan);
+				checked.generic_symbol_keys[plan.symbols + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_symbol_keys[plan.symbols + 2] = gap;
+				refused = !generic_symbol_keys_verified(checked, plan);
+				checked.generic_symbol_keys[plan.symbols + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_symbol_keys[plan.symbols + 1] = second;
+				checked.generic_symbol_keys[plan.symbols + 2] = first;
+				refused = !generic_symbol_keys_verified(checked, plan);
+				checked.generic_symbol_keys[plan.symbols + 1] = first;
+				checked.generic_symbol_keys[plan.symbols + 2] = second;
+				if (!refused || !generic_verify(checked)) return false;
+				checked.generic_symbol_keys[plan.symbols] = first;
+				refused = !generic_symbol_keys_verified(checked, plan);
+				checked.generic_symbol_keys[plan.symbols] = 0;
+				if (!refused || !generic_verify(checked)) return false;
+				var short_plan = plan;
+				short_plan.symbol_count = short_plan.symbol_count - 1;
+				if (generic_symbol_keys_verified(checked, short_plan)) return false;
+				int mapped = checked.generic_symbol_map[plan.symbols + 1];
+				checked.generic_symbol_map[plan.symbols + 1] = 0;
+				refused = !generic_verify(checked);
+				checked.generic_symbol_map[plan.symbols + 1] = mapped;
+				if (!refused || !generic_verify(checked)) return false;
+				println("SYMBOL_MAP_CONTROLS keys=6 mapping=1 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+bool template_shared_parameter_controls(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var function = type_symbol(s);
+		var plan = checked_source_plan(checked, function);
+		if (plan.concrete.index == s && class_storage_initializing(checked, function)) {
+			var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+			if (checked.bindings.program.arena.token_is(owner.token, "SharedOwnedConstructor")) {
+				if (!recover_field_constructor_verified(checked, function)) return false;
+				var declaration = checked.bindings.symbol(function);
+				var body = checked.bindings.program.arena.get_node_body(declaration.node);
+				var statements = checked.bindings.program.arena.get_list_statements(body);
+				var statement = checked.bindings.program.arena.node_at(statements, 0);
+				var clone = checked.bindings.program.arena.get_node_initializer(statement);
+				if (checked_shared_action(checked, clone) != 2) return false;
+				var arguments = checked_call_arguments(checked, clone);
+				var operand = checked.bindings.program.arena.node_at(arguments, 0);
+				var receiver = recover_field_receiver(checked, operand, function);
+				if (receiver.index < 1 || receiver.index == class_storage_receiver(checked, function) || checked.bindings.symbol(receiver).kind != 7) return false;
+				var initialized = new bool[checked.bindings.symbol_count + 1];
+				if (!recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0)) return false;
+				int flags = checked.symbol_flags[receiver.index];
+				checked.symbol_flags[receiver.index] = 0;
+				bool refused = !recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[receiver.index] = flags;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				var root_type = checked.symbol_types[receiver.index];
+				checked.symbol_types[receiver.index] = type_id(1);
+				refused = !recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
+				checked.symbol_types[receiver.index] = root_type;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				var use = checked.uses[operand.index];
+				var changed = use;
+				changed.type = type_id(13);
+				checked.uses[operand.index] = changed;
+				refused = !recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
+				checked.uses[operand.index] = use;
+				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
+				var field = checked_target(checked, operand, checked.bindings.program.arena.get_token_field_name(operand));
+				int field_flags = checked.symbol_flags[field.index];
+				checked.symbol_flags[field.index] = field_flags | 256;
+				refused = !recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[field.index] = field_flags;
+				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
+				println("SHARED_PARAMETER_CONTROLS root=2 type=1 visibility=1 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
 bool template_match_copy_controls(CheckedIndex checked) throws Error {
 	int s = 1;
 	while (s <= checked.generic_symbols) {
@@ -513,11 +627,27 @@ int template_source_obligations(CheckedIndex checked) throws Error {
 	return 0;
 }
 
+void template_source_map_usage(CheckedIndex checked) throws Error {
+	int direct = 0; int s = 0;
+	while (s < len(checked.direct_methods)) {
+		if (checked.direct_methods[s].state == 2) direct = direct + 1;
+		s = s + 1;
+	}
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "SOURCE_MAP_USAGE nodes="); append_int(output, checked.generic_node_used);
+	source_append_text(output, " symbols="); append_int(output, checked.generic_symbol_used);
+	source_append_text(output, " scopes="); append_int(output, checked.generic_scope_used);
+	source_append_text(output, " instances="); append_int(output, checked.instance_count);
+	source_append_text(output, " direct="); append_int(output, direct);
+	var text = output.snapshot(); println(text.text);
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
+		template_source_map_usage(checked);
 		if (checked.failed()) {
 			var text = checked_observation(checked);
 			print(text.text);
@@ -537,6 +667,14 @@ int main(string[] args) {
 		}
 		if (args[1] == "--shared-constructor-controls") {
 			if (template_shared_constructor_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--symbol-map-controls") {
+			if (template_symbol_map_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--shared-parameter-controls") {
+			if (template_shared_parameter_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--match-copy-controls") {

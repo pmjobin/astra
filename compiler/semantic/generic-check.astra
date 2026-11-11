@@ -121,7 +121,7 @@ int generic_verify_failure(CheckedIndex index) {
 			continue;
 		}
 		if (direct && (storage.origin.index != ordinal - index.instance_count || !direct_method_source_verified(index, storage) || storage.concrete.index < 1 || storage.concrete.index >= len(index.direct_method_symbols) || index.direct_method_symbols[storage.concrete.index] != storage.origin.index)) return 33;
-		if (!generic_plan_bounds(index, storage)) return 3;
+		if (storage.sparse_symbols != direct || !generic_plan_bounds(index, storage) || !generic_symbol_keys_verified(index, storage)) return 3;
 		if (index.generic_node_map[storage.nodes] != 0 || index.generic_symbol_map[storage.symbols] != 0 || index.generic_scope_map[storage.scopes] != 0) return 28;
 		if (node_slots > index.generic_node_used - storage.node_count - 1 || symbol_slots > index.generic_symbol_used - storage.symbol_count - 1 || scope_slots > index.generic_scope_used - storage.scope_count - 1) return 29;
 		node_slots = node_slots + storage.node_count + 1; symbol_slots = symbol_slots + storage.symbol_count + 1; scope_slots = scope_slots + storage.scope_count + 1;
@@ -184,8 +184,9 @@ int generic_verify_failure(CheckedIndex index) {
 			}
 			n = n + 1;
 		}
-		n = storage.symbol_first;
-		while (n - storage.symbol_first < storage.symbol_count) {
+		int symbol_at = 0;
+		while (symbol_at < storage.symbol_count) {
+			n = generic_symbol_source(index, storage, symbol_at);
 			int mapped = generic_symbol(index, storage, n);
 			if (mapped != 0) {
 				if (mapped <= index.generic_symbols || mapped > index.bindings.symbol_count) return 16;
@@ -196,7 +197,7 @@ int generic_verify_failure(CheckedIndex index) {
 				if (owner != target.owner.index) return 18;
 				if ((source.kind == 6 || source.kind == 7) && (!source_type_matches(index, storage, index.symbol_types[n], index.symbol_types[mapped], 0) || generic_channel_flags(index, index.symbol_types[n], index.symbol_types[mapped], index.symbol_flags[n]) != index.symbol_flags[mapped])) return 19;
 			}
-			n = n + 1;
+			symbol_at = symbol_at + 1;
 		}
 		if (original.kind == 1 || method) {
 			if (!generic_checked_instance_verified(index, storage)) return 32;
@@ -526,5 +527,30 @@ bool generic_window_bounds(int first, int count, int originals, int base, int us
 }
 
 bool generic_plan_bounds(CheckedIndex index, GenericInstance plan) {
-	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && index.generic_node_used <= 8000000 && index.generic_symbol_used <= 8000000 && generic_window_bounds(plan.node_first, plan.node_count, index.generic_nodes, plan.nodes, index.generic_node_used, len(index.generic_node_map)) && generic_window_bounds(plan.symbol_first, plan.symbol_count, index.generic_symbols, plan.symbols, index.generic_symbol_used, len(index.generic_symbol_map)) && generic_window_bounds(plan.scope_first, plan.scope_count, index.generic_scopes, plan.scopes, index.generic_scope_used, len(index.generic_scope_map));
+	return plan.arguments >= 0 && plan.argument_count >= 0 && plan.argument_count <= 257 && plan.arguments <= len(index.generic_arguments) - plan.argument_count && index.generic_node_used <= 8000000 && index.generic_symbol_used <= 8000000 && len(index.generic_symbol_keys) == len(index.generic_symbol_map) && generic_window_bounds(plan.node_first, plan.node_count, index.generic_nodes, plan.nodes, index.generic_node_used, len(index.generic_node_map)) && generic_window_bounds(plan.symbol_first, plan.symbol_count, index.generic_symbols, plan.symbols, index.generic_symbol_used, len(index.generic_symbol_map)) && generic_window_bounds(plan.scope_first, plan.scope_count, index.generic_scopes, plan.scopes, index.generic_scope_used, len(index.generic_scope_map));
+}
+
+// Reconstruct the complete ordered source-key domain independently of the
+// allocator and binary-search lookup. Missing, extra and duplicate keys fail.
+bool generic_symbol_keys_verified(CheckedIndex index, GenericInstance plan) {
+	if (!generic_plan_bounds(index, plan) || index.generic_symbol_keys[plan.symbols] != 0) return false;
+	if (!plan.sparse_symbols) {
+		int at = 1;
+		while (at <= plan.symbol_count) {
+			if (index.generic_symbol_keys[plan.symbols + at] != 0) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+	int expected = 0; int first = index.generic_symbols + 1; int source = 1;
+	while (source <= index.generic_symbols) {
+		int node = index.bindings.symbol(type_symbol(source)).node.index;
+		if (node >= plan.node_first && node - plan.node_first < plan.node_count) {
+			if (expected == plan.symbol_count || index.generic_symbol_keys[plan.symbols + expected + 1] != source) return false;
+			if (expected == 0) first = source;
+			expected = expected + 1;
+		}
+		source = source + 1;
+	}
+	return expected == plan.symbol_count && first == plan.symbol_first;
 }

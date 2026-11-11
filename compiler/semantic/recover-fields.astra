@@ -196,8 +196,24 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	}
 	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) return false;
 	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
-	if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index) return false;
-	return recover_field_receiver(checked, node, function).index == class_storage_receiver(checked, function);
+	if (field.index < 1 || field.index >= len(initialized)) return false;
+	var member = checked.bindings.symbol(field);
+	if (member.kind != 6 || checked.uses[node.index].type.index != checked.symbol_types[field.index].index || !checked_field_accessible(checked, node, field)) return false;
+	var receiver = recover_field_receiver(checked, node, function);
+	if (receiver.index < 1 || receiver.index >= len(initialized)) return false;
+	var parent = checked.bindings.program.arena.get_node_aggregate(node);
+	if (parent.index == 0 && receiver.index == class_storage_receiver(checked, function)) return initialized[field.index] && member.owner.index == checked.types.row(aggregate).nominal.index;
+	var root = checked.bindings.symbol(receiver);
+	int flags = checked.symbol_flags[receiver.index];
+	if (root.owner.index != function.index || !checked.bindings.accessible(receiver, checked.bindings.scope_for_node(node))) return false;
+	if (root.kind != 7 && !(root.kind == 8 && initialized[receiver.index] && flags == 4)) return false;
+	if (flags != 2 && flags != 4) return false;
+	var owner_type = checked.symbol_types[receiver.index];
+	if (parent.index != 0) {
+		if (!recover_constructor_value(checked, parent, function, aggregate, initialized, depth + 1)) return false;
+		owner_type = checked.uses[parent.index].type;
+	}
+	return recover_storage_class(checked, owner_type) && member.owner.index == checked.types.row(owner_type).nominal.index;
 }
 
 // An indexed store does not initialize a field descriptor. Its actual own
