@@ -79,7 +79,7 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 	if (checked.bindings.program.arena.get_bool_exact_heap_class(node) && instance == 0) return false;
 	var policy = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
 	if (policy.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
-	var members = checked.bindings.program.arena.get_list_members(node); int initializers = 0; int m = 0;
+	var members = checked.bindings.program.arena.get_list_members(node); int initializers = 0; int finalizers = 0; int m = 0;
 	while (m < checked.bindings.program.arena.list_count(members)) {
 		var member = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(member);
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
@@ -92,8 +92,13 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 		if (kind != SyntaxKind.StructFieldDeclarationSyntax()) {
 			if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 			if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
-				if (!checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "init") || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
-				initializers = initializers + 1;
+				var name = checked.bindings.program.arena.get_token_name(member);
+				if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
+				if (checked.bindings.program.arena.token_is(name, "init")) initializers = initializers + 1;
+				else {
+					if (!checked.field_effects || instance != 0 || !checked.bindings.program.arena.token_is(name, "deinit") || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(member)) != 0 || checked.bindings.program.arena.get_node_return_type(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) == 0) return false;
+					finalizers = finalizers + 1;
+				}
 			}
 			var bound = checked.bindings.program.arena.get_node_throws_class(member);
 			if (bound.index != 0 && (kind != SyntaxKind.FunctionDeclarationSyntax() || !checked.semantic_admission || !checked_effect_subtype(checked, checked_effect_class(checked, bound), checked_effect_root(checked)))) return false;
@@ -101,7 +106,7 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 		}
 		m = m + 1;
 	}
-	if (initializers != 1) return false;
+	if (initializers != 1 || finalizers > 1) return false;
 	return class_storage_fields_verified(checked, type, depth + 1);
 }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Independent physical bounds consumers: exact argument identities, guards,
 // instruction inventories, and flag-free pointer arithmetic after validation.
-bool recover_array_helper_signature(void* function, int parameters, string name, void* element) {
+bool recover_array_helper_signature(void* function, int parameters, string name, void* element, bool record) {
 	if (!recover_llvm_helper_signature(function, parameters) || llvm13_named(function, name) != 1 || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0)))) return false;
 	int p = 1;
 	while (p < parameters) {
@@ -10,7 +10,11 @@ bool recover_array_helper_signature(void* function, int parameters, string name,
 		p = p + 1;
 	}
 	int kind = LLVMGetTypeKind(element);
-	if (kind != 8 && kind != 2 && kind != 3) return false;
+	if (record) {
+		if (kind != 10 || LLVMIsPackedStruct(element) != 0 || LLVMCountStructElementTypes(element) == 0) return false;
+	} else {
+		if (kind != 8 && kind != 2 && kind != 3) return false;
+	}
 	if (kind == 8) {
 		int width = LLVMGetIntTypeWidth(element);
 		if (width != 1 && width != 8 && width != 16 && width != 32 && width != 64) return false;
@@ -48,8 +52,8 @@ bool recover_array_fatal(void* block, void* trap) {
 	return len(instructions) == 2 && recover_llvm_call(instructions[0], trap, 0, 0) && recover_llvm_native_attributes(instructions[0], 0) && LLVMGetInstructionOpcode(instructions[1]) == 7;
 }
 
-bool recover_array_index_helper(void* function, void* element, string name, void* trap) {
-	if (!recover_array_helper_signature(function, 3, name, element) || !recover_shared_pointer(LLVMGetReturnType(LLVMGlobalGetValueType(function)))) return false;
+bool recover_array_index_helper(void* function, void* element, string name, void* trap, bool record) {
+	if (!recover_array_helper_signature(function, 3, name, element, record) || !recover_shared_pointer(LLVMGetReturnType(LLVMGlobalGetValueType(function)))) return false;
 	var blocks = recover_llvm_helper_blocks(function, 3);
 	if (len(blocks) != 3) return false;
 	var entry = recover_llvm_body(blocks[0], 8);
@@ -63,7 +67,7 @@ bool recover_array_index_helper(void* function, void* element, string name, void
 }
 
 bool recover_array_slice_helper(void* function, void* element, void* descriptor, string name, void* trap) {
-	if (!recover_array_helper_signature(function, 4, name, element) || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != descriptor || LLVMGetTypeKind(descriptor) != 10 || LLVMIsPackedStruct(descriptor) != 0 || LLVMCountStructElementTypes(descriptor) != 2 || !recover_shared_pointer(LLVMStructGetTypeAtIndex(descriptor, 0)) || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(descriptor, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(descriptor, 1)) != 32) return false;
+	if (!recover_array_helper_signature(function, 4, name, element, false) || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != descriptor || LLVMGetTypeKind(descriptor) != 10 || LLVMIsPackedStruct(descriptor) != 0 || LLVMCountStructElementTypes(descriptor) != 2 || !recover_shared_pointer(LLVMStructGetTypeAtIndex(descriptor, 0)) || LLVMGetTypeKind(LLVMStructGetTypeAtIndex(descriptor, 1)) != 8 || LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(descriptor, 1)) != 32) return false;
 	var blocks = recover_llvm_helper_blocks(function, 3);
 	if (len(blocks) != 3) return false;
 	var entry = recover_llvm_body(blocks[0], 15);

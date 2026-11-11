@@ -76,9 +76,21 @@ and error cleanup after transferring an array. `record-arrays-oracles1` verifies
 its raw C0 LLVM and records exit42 and clean unsuppressed memory at O0 and O2.
 The C0 semantic check of all 180 production modules passes in 50.98 seconds in
 `native-recordarraycheck2-O0`. The first check retains its owned-field alias
-diagnostic. The corrected code uses temporary borrows. Astra native qualification
-is pending. Fixed record arrays, record slices, and owning record elements retain
-their existing restrictions.
+diagnostic. The corrected code uses temporary borrows. The frozen `64ca46e`
+O0 host admits the 240-node array program through SSA, then refuses its LLVM
+physical contract with exit 5 and an intact sentinel. The hardware-breakpoint
+trace reaches the bounds helper signature after checking the nested layout
+and load/store helpers. The signature previously accepted only scalar
+elements. The candidate distinguishes scalar and independently verified record
+element types and retains the same exact GEP and bounds checks. Record element
+layouts are also available for arrays that occur only in local storage.
+
+`record-index-kernel2` binds 17 production declarations and checks actual LLVM
+graphs at O0 and O2. Both profiles accept the scalar and nested record helper
+and refuse six LLVM-valid controls, including wrong element identity, a packed
+layout, and modified bounds and GEP operands. The initial build retains its
+missing LLVM declaration diagnostic. The corrected full Astra native replay
+is pending.
 
 The frozen `2d63b55` observer accepted both original `Bag` payloads on all 190
 unchanged original inputs, including `Bag<FlowGraph>`. RecoverFlow advanced to
@@ -132,12 +144,39 @@ budget refusals, and the 8,192-block chain. The chain and its 2,048 queries use
 100,349 SSA work steps. All four memory runs are clean. The existing declaration
 lookup kernel also retains its 5,468 verified cases per profile. These kernel
 tests and `native-longpathcheck1-O0` establish focused checks. The integrated
-native results and full compiler performance measurement remain pending.
+`64ca46e` O0 host takes 50:37.65 to build at 2,290,888 KiB peak RSS. Both long
+paths now produce verified LLVM, relocatable ELF objects and native executables.
+The assignment and call cases emit 5,129 and 2,573 blocks, respectively, and
+both execute to 42 with clean Valgrind. The audit also retains the unrelated
+record-array refusal and rechecks 195 Git-bound inputs and 46 tool identities.
+`native-gen8-independent-audit.json` has SHA-256
+`c2bda8ec825491d39e51c65f3bd8654640e8bfa19babd4d04e33050f2c7e8fae`.
 
 A read-only stack sample of the in-flight frozen C0 build found bootstrap SSA
 owned-field loan verification during LLVM lowering. The sample identifies the
 active phase at that instant. It does not measure how much of the total build
 time that phase consumes.
+
+## Hosted-files Error and Class finalizer candidate
+
+The exact original `files.astra` plus client runs under C0 at O0 and O2. The
+prior Astra observer refuses the `FileError` declaration at bytes 840–1169.
+The candidate admits copied scalar getters on derived Error payloads and
+independently verifies their bound source field and result in the layout check.
+The private Error header and native result convention stay unchanged.
+
+For a fielded ordinary Class, the candidate verifies the source `deinit` body
+as a private void function with the concrete borrowed receiver. The LLVM drop
+helper calls it after the null guard and before field retirement. The physical
+consumer binds the exact source-derived function, receiver operand, call
+convention and instruction order. `original-file-handle-baseline3` uses the
+unmodified hosted-files library and exercises normal and throwing cleanup after
+opening an actual file. Both C0 profiles exit 42 with clean memory and zero
+leaked descriptors. The first fixture attempt retains its parser refusal, and
+the second retains the raw Valgrind output that used `inherited` in its descriptor
+summary. The finalizer source-binding check and complete C0 semantic run pass
+in 53.88 seconds at 360,404 KiB peak RSS. Integrated Astra qualification is
+pending.
 
 ## Per-function capacity and verifier work candidate
 

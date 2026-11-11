@@ -55,8 +55,11 @@ bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 		return text_storage_property(index, member, owner).index > 0 || scalar.field.index > 0;
 	}
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
-	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && !index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) return false;
-	if (kind == SyntaxKind.LifecycleDeclarationSyntax() && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
+	if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
+		var name = index.bindings.program.arena.get_token_name(member);
+		if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
+		if (!index.bindings.program.arena.token_is(name, "init") && (!index.field_effects || !index.bindings.program.arena.token_is(name, "deinit") || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_parameters(member)) != 0 || index.bindings.program.arena.get_node_return_type(member).index != 0)) return false;
+	}
 	var bound = index.bindings.program.arena.get_node_throws_class(member);
 	if (bound.index != 0) {
 		var symbol = index.node_symbols[member.index];
@@ -78,14 +81,21 @@ bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {
 	var concurrency = index.bindings.program.arena.get_concurrency_concurrency_policy(node);
 	if (concurrency.present || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_allocator(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_alignment(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_representation(node)) != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_node_foreign_export(node).index != 0 || index.bindings.program.arena.get_node_com_export(node).index != 0 || index.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
 	var members = index.bindings.program.arena.get_list_members(node);
-	int constructors = 0; int i = 0;
+	int constructors = 0; int finalizers = 0; int i = 0;
 	while (i < index.bindings.program.arena.list_count(members)) {
 		var member = index.bindings.program.arena.node_at(members, i);
 		if (!class_storage_member(index, member)) return false;
-		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax()) constructors = constructors + 1;
+		if (index.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax()) {
+			if (index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(member), "init")) constructors = constructors + 1;
+			else {
+				finalizers = finalizers + 1;
+			}
+		}
 		i = i + 1;
 	}
-	return constructors == 1 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node)) <= 128;
+	int fields = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node));
+	if (finalizers != 0 && (finalizers != 1 || fields == 0 || generic_instance_for(index, symbol) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0)) return false;
+	return constructors == 1 && fields <= 128;
 }
 
 // Recursive nominal ownership is deliberately outside this finite payload domain.
@@ -238,16 +248,21 @@ void class_storage_members(CheckedIndex index, TypeId type) throws Error {
 	}
 }
 
-SymbolId class_storage_constructor(CheckedIndex index, TypeId type) {
+SymbolId class_storage_lifecycle(CheckedIndex index, TypeId type, string name) {
 	if (!class_storage_class(index, type)) return type_symbol(0);
 	int i = 0;
 	while (i < index.instance_count) {
 		var plan = index.instances[i];
-		if (plan.enclosing.index == type.index && index.bindings.symbol(plan.origin).kind == 12) return plan.concrete;
+		if (plan.enclosing.index == type.index) {
+			var source = index.bindings.symbol(plan.origin);
+			if (source.kind == 12 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(source.node), name)) return plan.concrete;
+		}
 		i = i + 1;
 	}
 	return type_symbol(0);
 }
+
+SymbolId class_storage_constructor(CheckedIndex index, TypeId type) { return class_storage_lifecycle(index, type, "init"); }
 
 int class_storage_receiver(CheckedIndex index, SymbolId function) {
 	if (!index.class_storage) return 0;
@@ -262,7 +277,9 @@ int class_storage_receiver(CheckedIndex index, SymbolId function) {
 bool class_storage_initializing(CheckedIndex index, SymbolId function) {
 	if (!index.class_storage) return false;
 	int instance = generic_instance_for(index, function);
-	return instance > 0 && index.bindings.symbol(index.instances[instance - 1].origin).kind == 12;
+	if (instance == 0) return false;
+	var origin = index.bindings.symbol(index.instances[instance - 1].origin);
+	return origin.kind == 12 && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_name(origin.node), "init");
 }
 
 bool class_storage_construction(CheckedIndex checked, SyntaxNodeId node) {
@@ -400,6 +417,17 @@ owned ClassStoragePlan class_storage_plan(CheckedIndex index) throws Error {
 		var symbol = index.bindings.symbol(type_symbol(s)); var type = index.symbol_types[s];
 		if ((symbol.kind == 4 || symbol.kind == 8 || symbol.kind == 7) && class_storage_class(index, type)) class_storage_layout(plan, index, type, 0);
 		s = s + 1;
+	}
+	// An indexed record array can be confined to a local or parameter. Its
+	// memory layout must be verified even without a containing Class field.
+	int t = 1;
+	while (t <= index.types.count) {
+		var type = type_id(t);
+		if (checked_kind(index, type) == 22) {
+			var element = index.types.argument(index.types, type, 0);
+			if (element.flags == 0 && recover_storage_record(index, element.type)) class_storage_layout(plan, index, element.type, 0);
+		}
+		t = t + 1;
 	}
 	return move plan;
 }

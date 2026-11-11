@@ -69,7 +69,7 @@ bool recover_record_storage_verified(RecoverSsa ssa, void* module, void* layout,
 			if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, type_id(t), carrier) || !recover_record_helper_verified(record.load_function, record.memory, carrier, false) || !recover_record_helper_verified(record.store_function, record.memory, carrier, true)) return false;
 			if (indexed[t]) {
 				var index_name = llvm_name("astra.e25a.record.index.", t);
-				if (!llvm_storage_function_live(module, record.index_function) || !recover_array_index_helper(record.index_function, record.memory, index_name.text, trap)) return false;
+				if (!llvm_storage_function_live(module, record.index_function) || !recover_array_index_helper(record.index_function, record.memory, index_name.text, trap, true)) return false;
 			} else {
 				if (record.index_function != null) return false;
 			}
@@ -79,7 +79,7 @@ bool recover_record_storage_verified(RecoverSsa ssa, void* module, void* layout,
 	return true;
 }
 
-bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloads, void*[] destroyers, void*[] shared_drops, void*[] slot_functions, void* snapshot, void* allocate, void* free, void* copy) throws Error {
+bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] functions, void*[] payloads, void*[] destroyers, void*[] shared_drops, void*[] slot_functions, void* snapshot, void* allocate, void* free, void* copy) throws Error {
 	if (!class_storage_verify(ssa.cfg.core.flow.fields.layout, ssa.cfg.core.flow.checked) || len(payloads) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || len(destroyers) != len(payloads)) return false;
 	bool needs_snapshot = false; int s = 0;
 	while (s < len(payloads)) {
@@ -104,7 +104,26 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 		else {
 			var physical = payloads[s]; int count = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields); var source = ssa.cfg.core.flow.fields.layout.types[type.index];
 			if (physical == null || LLVMGetTypeKind(physical) != 10 || LLVMIsPackedStruct(physical) != 0 || LLVMCountStructElementTypes(physical) != count || LLVMABISizeOfType(layout, physical) != source.payload_size as u64 || LLVMABIAlignmentOfType(layout, physical) != source.payload_alignment) return false;
-			int instructions = 2; int i = 0;
+			int instructions = 2; int i = 0; int finalizer = 0;
+			var deinit_source = recover_class_deinit_source(ssa.cfg.core.flow.checked, type_symbol(s));
+			if (deinit_source.index > 0) {
+				var original = ssa.cfg.core.flow.checked.node_symbols[deinit_source.index];
+				if (original.index < 1 || original.index > ssa.cfg.core.flow.checked.bindings.symbol_count) return false;
+				var member = ssa.cfg.core.flow.checked.bindings.symbol(original);
+				if (member.kind != 12 || member.owner.index != s || member.node.index != deinit_source.index) return false;
+				int p = 0;
+				while (p < ssa.cfg.core.flow.checked.instance_count) {
+					var plan = ssa.cfg.core.flow.checked.instances[p];
+					if (plan.origin.index == original.index && plan.enclosing.index == type.index) {
+						if (finalizer != 0 || plan.state != 2 || plan.concrete.index < 1 || plan.concrete.index >= len(ssa.cfg.core.flow.data.symbols)) return false;
+						finalizer = ssa.cfg.core.flow.data.symbols[plan.concrete.index];
+						if (finalizer < 1 || finalizer > len(functions)) return false;
+					}
+					p = p + 1;
+				}
+				if (finalizer == 0 || functions[finalizer - 1] == null) return false;
+				instructions = instructions + 1;
+			}
 			while (i < count) {
 				var node = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var symbol = ssa.cfg.core.flow.checked.node_symbols[node.index]; var child = ssa.cfg.core.flow.checked.symbol_types[symbol.index]; var fact = ssa.cfg.core.flow.fields.layout.fields[symbol.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, child);
 				if (fact.ordinal != i || LLVMOffsetOfElement(layout, physical, i) != fact.offset as u64) return false;
@@ -131,6 +150,10 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] payloa
 			var object = LLVMGetParam(function, 0);
 			if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != object || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2]) || !recover_llvm_void_return(exit[0])) return false;
 			int at = 0; i = count - 1;
+			if (finalizer != 0) {
+				if (!recover_llvm_call(body[0], functions[finalizer - 1], 1, 8) || LLVMGetArgOperand(body[0], 0) != object) return false;
+				at = 1;
+			}
 			while (i >= 0) {
 				var node = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var symbol = ssa.cfg.core.flow.checked.node_symbols[node.index]; var child = ssa.cfg.core.flow.checked.symbol_types[symbol.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, child);
 				if ((ssa.cfg.core.flow.checked.symbol_flags[symbol.index] & 4) != 0 || kind == 15) {

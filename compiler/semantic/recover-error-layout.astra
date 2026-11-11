@@ -86,6 +86,17 @@ bool recover_error_layout_verified(ClassStoragePlan errors, ClassStoragePlan ord
 				size = base.payload_size;
 			}
 			if (error_storage_class(checked, type)) {
+				var members = checked.bindings.program.arena.get_list_members(declaration.node); int m = 0;
+				while (m < checked.bindings.program.arena.list_count(members)) {
+					var member = checked.bindings.program.arena.node_at(members, m);
+					if (checked.bindings.program.arena.kind(member) == SyntaxKind.PropertyDeclarationSyntax()) {
+						var symbol = checked.node_symbols[member.index];
+						if (symbol.index < 1 || checked.bindings.symbol(symbol).owner.index != shape.nominal.index) return false;
+						var projection = class_property_verified(checked, symbol);
+						if (projection.mode != 1) return false;
+					}
+					m = m + 1;
+				}
 				var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
 				if (row.fields != checked.bindings.program.arena.list_count(fields)) return false;
 				int i = 0;

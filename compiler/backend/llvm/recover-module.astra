@@ -1386,6 +1386,29 @@ class RecoverLlvm {
 		RecoverOwnerInstruction lowered = {value = result, operation = operation}; return lowered;
 	}
 
+	void class_finalizers(RecoverSsa ssa) throws Error {
+		int s = 1;
+		while (s < len(this.class_destroyers)) {
+			var destroy = this.class_destroyers[s];
+			if (destroy != null) {
+				var type = ssa.cfg.core.flow.checked.symbol_types[s];
+				var finalizer = class_storage_lifecycle(ssa.cfg.core.flow.checked, type, "deinit");
+				if (finalizer.index > 0) {
+					int function = ssa.cfg.core.flow.data.symbols[finalizer.index];
+					if (function < 1 || function > len(this.functions) || this.functions[function - 1] == null) {
+						throw new Error("LLVM_INVALID_IR: Class finalizer declaration");
+					}
+					var body = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(destroy));
+					var first = LLVMGetFirstInstruction(body);
+					LLVMPositionBuilderBefore(this.builder, first);
+					var arguments = new void*[1]; arguments[0] = LLVMGetParam(destroy, 0);
+					var call = this.call(this.functions[function - 1], arguments, true);
+				}
+			}
+			s = s + 1;
+		}
+	}
+
 	void build(RecoverSsa ssa) throws Error {
 		if (this.context != null || !recover_ssa_verify(ssa) || !type_owner_same(this.owner, ssa.cfg.core.identity)) {
 			throw new Error("LLVM_INVALID_UPSTREAM: recover SSA");
@@ -1400,6 +1423,7 @@ class RecoverLlvm {
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
+		this.class_finalizers(ssa);
 		var order = new int[ssa.cfg.block_count];
 		int emitted = recover_llvm_emission_order(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, ssa.data.reachable, order);
 		if (emitted == 0) {
@@ -1506,7 +1530,7 @@ class RecoverLlvm {
 				append_int(name, k + 1);
 				var text = name.snapshot();
 				var element = this.scalar(ssa.cfg.core.flow.checked, indexed);
-				if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function)) return false;
+				if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, indexed, element) || !recover_array_index_helper(this.index_functions[k], element, text.text, this.trap_function, false)) return false;
 			} else {
 				if (this.index_functions[k] != null) return false;
 			}
@@ -1570,7 +1594,7 @@ class RecoverLlvm {
 		if (!recover_error_snapshot_verified(this.snapshot_allocate_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
-		if (!recover_class_helpers_verified(ssa, this.layout, this.class_payloads, this.class_destroyers, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
+		if (!recover_class_helpers_verified(ssa, this.layout, this.functions, this.class_payloads, this.class_destroyers, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
 		if (!recover_record_storage_verified(ssa, this.module, this.layout, this.class_payloads, this.record_storage, this.trap_function)) return false;
 		if (len(this.foreign_functions) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || this.foreign_functions[0] != null) return false;
 		int foreign_count = 0;

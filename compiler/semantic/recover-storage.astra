@@ -242,10 +242,32 @@ bool recover_slot_template_source(CheckedIndex checked, SymbolId owner) {
 	return true;
 }
 
+SyntaxNodeId recover_class_deinit_source(CheckedIndex checked, SymbolId owner) {
+	var declaration = checked.bindings.symbol(owner);
+	var members = checked.bindings.program.arena.get_list_members(declaration.node); int i = 0;
+	while (i < checked.bindings.program.arena.list_count(members)) {
+		var member = checked.bindings.program.arena.node_at(members, i);
+		if (checked.bindings.program.arena.kind(member) == SyntaxKind.LifecycleDeclarationSyntax() && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(member), "deinit")) return member;
+		i = i + 1;
+	}
+	SyntaxNodeId absent = {index = 0}; return absent;
+}
+
 bool recover_class_declaration_source(CheckedIndex checked, SymbolId symbol) {
 	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 4) return false;
 	var type = checked.symbol_types[symbol.index];
-	return recover_error_shape(checked, symbol, 0) || recover_storage_class(checked, type) || error_storage_class(checked, type) && recover_error_record_memory_source(checked, symbol, 0) || recover_slot_template_source(checked, symbol);
+	if (recover_storage_class(checked, type)) {
+		var source = recover_class_deinit_source(checked, symbol);
+		if (source.index == 0) return true;
+		var origin = checked.node_symbols[source.index];
+		if (origin.index < 1 || origin.index > checked.bindings.symbol_count) return false;
+		var member = checked.bindings.symbol(origin);
+		if (member.kind != 12 || member.owner.index != symbol.index || member.node.index != source.index) return false;
+		var function = class_storage_lifecycle(checked, type, "deinit");
+		int instance = generic_instance_for(checked, function);
+		return instance > 0 && checked.instances[instance - 1].origin.index == origin.index;
+	}
+	return recover_error_shape(checked, symbol, 0) || error_storage_class(checked, type) && recover_error_record_memory_source(checked, symbol, 0) || recover_slot_template_source(checked, symbol);
 }
 
 // Owning slots are field storage, not a new callable carrier. Element source
