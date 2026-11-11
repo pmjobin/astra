@@ -35,8 +35,17 @@ def main():
 		assert all(not entry.is_symlink() for entry in (path, *path.parents))
 	host_identity = json.loads(args.reference_host.with_suffix('.identity.json').read_text())
 	assert sha(args.reference_host) == host_identity['sha256']
-	for group in ('sources', 'tools'):
-		assert all(sha(path) == expected for path, expected in host_identity['identity'][group].items())
+	assert all(sha(path) == expected for path, expected in host_identity['identity']['tools'].items())
+	reference_snapshot = json.loads((args.runtime_root / args.reference_host.parent.name / 'snapshot.json').read_text())
+	historical_recipes = []
+	for name, expected in host_identity['identity']['sources'].items():
+		path = Path(name)
+		if sha(path) != expected:
+			assert path.parent == ROOT / 'tests/selfhost-compiler-complete' and path.name in ('native-build.py', 'run.py', 'compile-plan.py')
+			relative = str(path.relative_to(ROOT))
+			raw = git('show', reference_snapshot['revision'] + ':' + relative)
+			assert hashlib.sha256(raw).hexdigest() == expected
+			historical_recipes.append(dict(path=name, sha256=expected, Git_revision=reference_snapshot['revision'], Git_blob=git('rev-parse', reference_snapshot['revision'] + ':' + relative).decode().strip()))
 	command = host_identity['identity']['argv']
 	links = command[command.index('--link-object'):command.index('-o')]
 	objects = [Path(links[i + 1]) for i, value in enumerate(links) if value == '--link-object']
@@ -168,7 +177,7 @@ def main():
 	sentinel = b'Full original compiler application output sentinel\n'
 	physical.write_bytes(sentinel)
 	code, stdout, _ = run('Astra-native', [args.component, '--native', physical, *inputs], working, None, 1800)
-	result = dict(component_sha256=sha(args.component), inputs_manifest_sha256=sha(leaf / 'inputs.json'), native_exit=code, profiles=[], full_original_library_object_qualification=0)
+	result = dict(component_sha256=sha(args.component), inputs_manifest_sha256=sha(leaf / 'inputs.json'), native_exit=code, profiles=[], historical_reference_recipes=historical_recipes, full_original_library_object_qualification=0)
 	if code:
 		assert physical.read_bytes() == sentinel
 		result.update(status='REFUSED', sentinel_preserved=True)

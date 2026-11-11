@@ -1990,6 +1990,13 @@ and library recipe are preserved. Direct entry checks and the guarded Python
 format check pass. In-flight development builds bind their exact earlier Git
 recipe bytes read-only, preserving their recorded compiler-product identities.
 
+The representative-use checker authenticates an earlier reference host's changed
+orchestration recipe through its exact historical Git blob and SHA-256.
+Physical tool and consumed compiler-source checks retain their byte comparisons.
+`representative-reference-recipes-check1.json` binds this path for the earlier
+`run.py`, after the current population repair. The preparing C0 applications
+retain their original recipe snapshot and manifest.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
