@@ -1483,6 +1483,39 @@ The source query retains no cached root. Restored controls compare it with the
 previous full-record reference scan, including changed kinds, absent and duplicate
 annotations and invalid range bounds. Runtime benefit awaits measurement.
 
+## Record-array field mutation candidate
+
+Record-array field writes now retain the actual container, subscript and nested
+source field path. The existing checked array target runs before the RHS. After
+successful RHS evaluation, the emitter reloads the current element through its
+verified record-memory helper, replaces the selected flattened leaves and stores
+the complete updated element. Sibling-field changes made by the RHS are retained.
+An error successor skips the update. Existing root, projection preservation,
+mutability, lifetime, bounds and SSA dominance checks cover the captured address.
+The physical consumer reconstructs leaf positions independently and checks both
+memory-helper calls and every intervening extraction and insertion.
+
+The focused C0 witness covers an owned local array, a borrowed array parameter,
+a private Class-owned buffer, nested scalar and subrecord updates, RHS mutation
+of another field, checked success and checked error, and final cleanup. Exact
+original C0 O0/O2 products return 42 with clean unsuppressed Valgrind. The earlier
+unchecked-only witness remains in its own read-only oracle. C0 separately refuses
+the negative where the RHS consumes the backing owner. Astra execution and ten
+restored source, CFG and LLVM-valid physical controls remain pending.
+
+The LLVM frame consumer also verifies that mutable and owning lexical frames
+occur in source storage order as distinct consecutive entry allocations. This
+uses a linear instruction-order check. A restored metadata control aliases two
+same-type record frame entries and requires refusal. Its control status remains
+separate from the four physical record-local mutation controls.
+
+The first record-array native preflight encountered an already existing build
+leaf and preserved it. The next attempt uses a new task-specific leaf. Its
+formatter and semantic-only observer check had completed successfully.
+The fresh native semantic check then required the array emitter's source-shape
+validation Error to propagate through its declared checked contract. After that
+correction, both development entries passed semantic and Core preflights.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

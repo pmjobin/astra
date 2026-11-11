@@ -15,16 +15,20 @@ SymbolId recover_record_root(CheckedIndex checked, SyntaxNodeId source, int dept
 
 // Consumer reconstruction uses source field leaf counts, independently of the
 // producer's RecoverRecordShape offsets and retained part ordering.
-int recover_record_destination(CheckedIndex checked, SyntaxNodeId source, SymbolId root, int depth) {
-	if (source.index < 1 || root.index < 1 || root.index > checked.bindings.symbol_count || depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
+int recover_record_destination_at(CheckedIndex checked, SyntaxNodeId source, TypeId root_type, SyntaxNodeId indexed, SymbolId root, int depth) {
+	if (source.index < 1 || depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
 	var parent = checked.bindings.program.arena.get_node_aggregate(source);
-	var type = checked.symbol_types[root.index]; int first = 0;
-	if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
-		if (recover_type_receiver(checked, source).index != root.index) return -1;
+	var type = root_type; int first = 0;
+	if (indexed.index > 0 && parent.index == indexed.index) {
+		if (!checked_flow_index_kind(checked.bindings.program.arena.kind(indexed)) || checked.uses[indexed.index].type.index != root_type.index) return -1;
 	} else {
-		first = recover_record_destination(checked, parent, root, depth + 1);
-		if (first < 0) return -1;
-		type = checked.uses[parent.index].type;
+		if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
+			if (indexed.index != 0 || root.index < 1 || root.index > checked.bindings.symbol_count || recover_type_receiver(checked, source).index != root.index || checked.symbol_types[root.index].index != root_type.index) return -1;
+		} else {
+			first = recover_record_destination_at(checked, parent, root_type, indexed, root, depth + 1);
+			if (first < 0) return -1;
+			type = checked.uses[parent.index].type;
+		}
 	}
 	int ordinal = recover_record_field(checked, type, checked.bindings.program.arena.get_token_field_name(source));
 	if (ordinal < 0) return -1;
@@ -35,6 +39,21 @@ int recover_record_destination(CheckedIndex checked, SyntaxNodeId source, Symbol
 	int offset = recover_record_value_first(checked, type, ordinal);
 	if (offset < 0 || first > 1024 - offset) return -1;
 	return first + offset;
+}
+
+int recover_record_destination(CheckedIndex checked, SyntaxNodeId source, SymbolId root, int depth) {
+	if (root.index < 1 || root.index > checked.bindings.symbol_count) return -1;
+	SyntaxNodeId absent = {index = 0};
+	return recover_record_destination_at(checked, source, checked.symbol_types[root.index], absent, root, depth);
+}
+
+SyntaxNodeId recover_record_index(CheckedIndex checked, SyntaxNodeId source, int depth) {
+	SyntaxNodeId absent = {index = 0};
+	if (source.index < 1 || depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return absent;
+	var parent = checked.bindings.program.arena.get_node_aggregate(source);
+	if (parent.index < 1 || !recover_storage_record(checked, checked.uses[parent.index].type)) return absent;
+	if (checked_flow_index_kind(checked.bindings.program.arena.kind(parent))) return parent;
+	return recover_record_index(checked, parent, depth + 1);
 }
 
 bool recover_record_write_source(CheckedIndex checked, SyntaxNodeId source, SymbolId root, SymbolId function) {

@@ -678,7 +678,7 @@ class RecoverLlvm {
 			value = operation;
 		}
 		if (op == 53) value = this.locals[row.symbol.index];
-		if (op >= 54 && op <= 58 || op == 61 || op == 64) {
+		if (op >= 54 && op <= 58 || op == 61 || op == 64 || op == 76) {
 			var lowered = this.array_instruction(ssa, block);
 			value = lowered.value;
 			operation = lowered.operation;
@@ -1285,7 +1285,7 @@ class RecoverLlvm {
 		}
 	}
 
-	RecoverOwnerInstruction array_instruction(RecoverSsa ssa, RecoverBlock block) {
+	RecoverOwnerInstruction array_instruction(RecoverSsa ssa, RecoverBlock block) throws Error {
 		var row = ssa.cfg.core.nodes[block.origin - 1].value;
 		int op = block.opcode;
 		void* value = null;
@@ -1369,6 +1369,18 @@ class RecoverLlvm {
 				operation = LLVMBuildStore(this.builder, this.values[row.c], this.operations[guard - 1]);
 				LLVMSetAlignment(operation, LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(this.values[row.c])));
 			}
+		}
+		if (op == 76) {
+			int guard = ssa.cfg.regions[row.b - 1].next;
+			var container = ssa.cfg.core.nodes[row.a - 1].value.type;
+			var record = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, container, 0).type;
+			var address = new void*[1]; address[0] = this.operations[guard - 1];
+			var previous = this.call(this.record_storage[record.index].load_function, address, true);
+			var target = ssa.cfg.core.flow.checked.bindings.program.arena.get_node_target(row.source);
+			var indexed = recover_record_index(ssa.cfg.core.flow.checked, target, 0);
+			var updated = recover_record_update_emit(ssa.cfg.core.flow.checked, record, target, indexed, type_symbol(0), this.builder, this.empty, previous, this.values[row.c]);
+			var arguments = new void*[2]; arguments[0] = address[0]; arguments[1] = updated;
+			operation = this.call(this.record_storage[record.index].store_function, arguments, true);
 		}
 		RecoverOwnerInstruction result = {value = value, operation = operation};
 		return result;

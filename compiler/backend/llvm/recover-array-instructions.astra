@@ -113,6 +113,13 @@ int recover_array_instruction_verified(RecoverSsa ssa, RecoverBlock block, void*
 		if (!recover_llvm_insert(first, LLVMGetOperand(first, 0), backing, 0) || LLVMIsNull(LLVMGetOperand(first, 0)) == 0 || !recover_llvm_insert(last, first, LLVMGetOperand(last, 1), 1) || !recover_llvm_bits(LLVMGetOperand(last, 1), 32, row.count as u64) || values[block.origin] != last || operation != last || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(last))) return 0;
 		return count;
 	}
+	if (op == 76) {
+		int guard = ssa.cfg.regions[row.b - 1].next;
+		if (guard < 1 || guard > ssa.cfg.block_count || ssa.cfg.blocks[guard - 1].opcode != 64 || ssa.cfg.blocks[guard - 1].origin != block.origin) return 0;
+		var container = ssa.cfg.core.nodes[row.a - 1].value.type;
+		var record = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, container, 0).type;
+		return recover_record_array_write_verified(ssa.cfg.core.flow.checked, row, record, physical, operation, operations[guard - 1], values[row.c], records[record.index]);
+	}
 	if (op == 61) {
 		int guard = ssa.cfg.regions[row.b - 1].next;
 		if (guard < 1 || guard > ssa.cfg.block_count || ssa.cfg.blocks[guard - 1].opcode != 64 || ssa.cfg.blocks[guard - 1].origin != block.origin) return 0;

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // The emitter selects a declared subtree in the verified producer shape.
-int recover_record_write_part(CheckedIndex checked, RecoverRecordShape shape, SyntaxNodeId source, SymbolId root, int depth) {
+int recover_record_write_part(CheckedIndex checked, RecoverRecordShape shape, SyntaxNodeId source, SyntaxNodeId indexed, SymbolId root, int depth) {
 	if (depth > 32 || checked.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax()) return -1;
 	var parent = checked.bindings.program.arena.get_node_aggregate(source); int part = 0;
-	if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
-		if (recover_type_receiver(checked, source).index != root.index) return -1;
-	} else {
-		part = recover_record_write_part(checked, shape, parent, root, depth + 1);
-		if (part < 0) return -1;
+	if (indexed.index == 0 || parent.index != indexed.index) {
+		if (parent.index == 0 || checked.bindings.program.arena.kind(parent) == SyntaxKind.NameExpressionSyntax()) {
+			if (indexed.index != 0 || recover_type_receiver(checked, source).index != root.index) return -1;
+		} else {
+			part = recover_record_write_part(checked, shape, parent, indexed, root, depth + 1);
+			if (part < 0) return -1;
+		}
 	}
 	int ordinal = recover_record_field(checked, shape.parts[part].type, checked.bindings.program.arena.get_token_field_name(source));
 	if (ordinal < 0) return -1;
@@ -19,41 +21,45 @@ int recover_record_write_part(CheckedIndex checked, RecoverRecordShape shape, Sy
 	return -1;
 }
 
-void* recover_record_write_emit(CheckedIndex checked, RecoverNode row, void* builder, void* empty, void* address, void* input) throws Error {
-	var type = checked.symbol_types[row.symbol.index];
+void* recover_record_update_emit(CheckedIndex checked, TypeId type, SyntaxNodeId target, SyntaxNodeId indexed, SymbolId root, void* builder, void* empty, void* previous, void* input) throws Error {
 	var shape = recover_record_shape(checked, type);
 	if (!recover_record_shape_verify(shape, checked)) {
 		throw new Error("LLVM_INVALID_IR: record update source shape");
 	}
-	var target = checked.bindings.program.arena.get_node_target(row.source);
-	int part = recover_record_write_part(checked, shape, target, row.symbol, 0);
-	if (part < 1 || address == null || input == null) {
+	int part = recover_record_write_part(checked, shape, target, indexed, root, 0);
+	if (part < 1 || previous == null || input == null) {
 		throw new Error("LLVM_INVALID_IR: record update destination");
 	}
 	var field = shape.parts[part];
 	bool record = checked_kind(checked, field.type) == 30;
-	void* value = LLVMBuildLoad2(builder, LLVMGetAllocatedType(address), address, empty); int leaf = 0;
+	void* value = previous; int leaf = 0;
 	while (leaf < field.count) {
 		void* element = input;
 		if (record) element = LLVMBuildExtractValue(builder, input, leaf, empty);
 		value = LLVMBuildInsertValue(builder, value, element, field.first + leaf, empty);
 		leaf = leaf + 1;
 	}
+	return value;
+}
+
+void* recover_record_write_emit(CheckedIndex checked, RecoverNode row, void* builder, void* empty, void* address, void* input) throws Error {
+	if (address == null) {
+		throw new Error("LLVM_INVALID_IR: record local address");
+	}
+	var target = checked.bindings.program.arena.get_node_target(row.source);
+	SyntaxNodeId absent = {index = 0};
+	var previous = LLVMBuildLoad2(builder, LLVMGetAllocatedType(address), address, empty);
+	var value = recover_record_update_emit(checked, checked.symbol_types[row.symbol.index], target, absent, row.symbol, builder, empty, previous, input);
 	return LLVMBuildStore(builder, value, address);
 }
 
-// Reconstruct each destination leaf from original source declarations. The
-// consumer checks actual load/insert/store order without using producer parts.
-int recover_record_write_verified(CheckedIndex checked, SymbolId function, RecoverNode row, void* block, void* operation, void* address, void* input) {
-	if (!recover_record_write_source(checked, row.source, row.symbol, function) || operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetInstructionParent(operation) != block || LLVMGetOperand(operation, 1) != address || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
-	var target = checked.bindings.program.arena.get_node_target(row.source);
-	int first = recover_record_destination(checked, target, row.symbol, 0);
-	var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
-	var type = checked.symbol_types[field.index];
+// Reconstruct destination leaves independently of the producer's shape parts.
+// Each update retains all other leaves of the actual current record value.
+int recover_record_update_verified(CheckedIndex checked, TypeId type, int first, void* updated, void* previous, void* input, void* block, void* following) {
 	bool record = checked_kind(checked, type) == 30;
 	int count = recover_record_value_count(checked, type, 0);
 	if (first < 0 || count < 1 || input == null || !recover_storage_llvm_type(checked, type, LLVMTypeOf(input))) return 0;
-	void* current = LLVMGetOperand(operation, 0); void* next = operation; int leaf = count - 1; int instructions = 3;
+	void* current = updated; void* next = following; int leaf = count - 1; int instructions = 0;
 	while (leaf >= 0) {
 		if (LLVMIsAInstruction(current) == null || LLVMGetInstructionOpcode(current) != 54 || LLVMGetInstructionParent(current) != block || LLVMGetNextInstruction(current) != next || LLVMHasMetadata(current) != 0 || llvm13_index(current, 0, first + leaf) != 1) return 0;
 		void* element = LLVMGetOperand(current, 1);
@@ -72,7 +78,34 @@ int recover_record_write_verified(CheckedIndex checked, SymbolId function, Recov
 		instructions = instructions + 1;
 		leaf = leaf - 1;
 	}
-	if (LLVMIsAInstruction(current) == null || LLVMGetInstructionOpcode(current) != 27 || LLVMGetInstructionParent(current) != block || LLVMGetFirstInstruction(block) != current || LLVMGetNextInstruction(current) != next || LLVMGetOperand(current, 0) != address || LLVMGetVolatile(current) != 0 || LLVMGetOrdering(current) != 0 || LLVMHasMetadata(current) != 0 || !recover_storage_llvm_type(checked, checked.symbol_types[row.symbol.index], LLVMTypeOf(current))) return 0;
-	if (LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(block)) return 0;
+	if (current != previous || LLVMIsAInstruction(previous) == null || LLVMGetInstructionParent(previous) != block || LLVMGetFirstInstruction(block) != previous || LLVMGetNextInstruction(previous) != next) return 0;
 	return instructions;
+}
+
+int recover_record_write_verified(CheckedIndex checked, SymbolId function, RecoverNode row, void* block, void* operation, void* address, void* input) {
+	if (!recover_record_write_source(checked, row.source, row.symbol, function) || operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetInstructionParent(operation) != block || LLVMGetOperand(operation, 1) != address || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
+	var target = checked.bindings.program.arena.get_node_target(row.source);
+	int first = recover_record_destination(checked, target, row.symbol, 0);
+	var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+	var previous = LLVMGetFirstInstruction(block);
+	if (previous == null || LLVMGetInstructionOpcode(previous) != 27 || LLVMGetOperand(previous, 0) != address || LLVMGetVolatile(previous) != 0 || LLVMGetOrdering(previous) != 0 || LLVMHasMetadata(previous) != 0 || !recover_storage_llvm_type(checked, checked.symbol_types[row.symbol.index], LLVMTypeOf(previous))) return 0;
+	if (LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(block)) return 0;
+	int introduced = recover_record_update_verified(checked, checked.symbol_types[field.index], first, LLVMGetOperand(operation, 0), previous, input, block, operation);
+	if (introduced == 0) return 0;
+	return introduced + 3;
+}
+
+int recover_record_array_write_verified(CheckedIndex checked, RecoverNode row, TypeId record, void* block, void* operation, void* address, void* input, RecoverRecordStorage memory) {
+	if (!recover_llvm_call(operation, memory.store_function, 2, 8) || LLVMGetInstructionParent(operation) != block || LLVMGetArgOperand(operation, 0) != address || LLVMHasMetadata(operation) != 0 || LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(block)) return 0;
+	var previous = LLVMGetFirstInstruction(block);
+	if (!recover_llvm_call(previous, memory.load_function, 1, 8) || LLVMGetArgOperand(previous, 0) != address || LLVMHasMetadata(previous) != 0 || !recover_storage_llvm_type(checked, record, LLVMTypeOf(previous))) return 0;
+	var target = checked.bindings.program.arena.get_node_target(row.source);
+	var indexed = recover_record_index(checked, target, 0);
+	if (indexed.index == 0) return 0;
+	int first = recover_record_destination_at(checked, target, record, indexed, type_symbol(0), 0);
+	var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+	if (field.index < 1) return 0;
+	int introduced = recover_record_update_verified(checked, checked.symbol_types[field.index], first, LLVMGetArgOperand(operation, 1), previous, input, block, operation);
+	if (introduced == 0) return 0;
+	return introduced + 3;
 }

@@ -4,7 +4,7 @@ bool recover_cfg_array_store(RecoverCfg cfg, int id, int next, bool[] seen, bool
 	var row = cfg.core.nodes[id - 1].value;
 	var region = cfg.regions[id - 1];
 	int store = region.operation;
-	if (row.kind != 61 || !recover_cfg_expect(cfg, store, recover_cfg_expected(row.function, id, 61, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.c, store, seen, nodes, depth + 1)) return false;
+	if (row.kind != 61 && row.kind != 76 || !recover_cfg_expect(cfg, store, recover_cfg_expected(row.function, id, row.kind, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.c, store, seen, nodes, depth + 1)) return false;
 	int guard = cfg.regions[row.b - 1].next;
 	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 64, row.a, row.b, cfg.regions[row.c - 1].entry, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.b, guard, seen, nodes, depth + 1) || !recover_cfg_check_tree(cfg, row.a, cfg.regions[row.b - 1].entry, seen, nodes, depth + 1)) return false;
 	return region.entry == cfg.regions[row.a - 1].entry;

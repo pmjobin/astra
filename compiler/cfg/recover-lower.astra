@@ -50,8 +50,8 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 	}
 	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 75) return recover_cfg_loop(cfg, id, next, depth);
 	int operation = 0; int head = next;
-	if (row.kind == 61) {
-		int store = cfg.block(row.function, id, 61, row.a, row.b, next, 0, 0, 0, 0);
+	if (row.kind == 61 || row.kind == 76) {
+		int store = cfg.block(row.function, id, row.kind, row.a, row.b, next, 0, 0, 0, 0);
 		int value = recover_cfg_tree(cfg, row.c, store, depth + 1);
 		int guard = cfg.block(row.function, id, 64, row.a, row.b, value, 0, 0, 0, 0);
 		int index = recover_cfg_tree(cfg, row.b, guard, depth + 1);

@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ArrayMutationLeaf {
+	bool active;
+	int value;
+	void* pointer;
+}
+
+struct ArrayMutationRecord {
+	ArrayMutationLeaf leaf;
+	int tail;
+}
+
+int array_mutation_rhs(ArrayMutationRecord[] rows) {
+	rows[0].tail = rows[0].tail + 1;
+	return 41;
+}
+
+void array_mutation_update(ArrayMutationRecord[] rows) {
+	rows[0].leaf.value = array_mutation_rhs(rows);
+	rows[0].leaf.active = true;
+	rows[1].leaf = rows[0].leaf;
+	rows[1].tail = rows[0].tail;
+}
+
+int array_mutation_checked_rhs(ArrayMutationRecord[] rows, bool fail) throws Error {
+	rows[0].tail = rows[0].tail + 1;
+	if (fail) {
+		throw new Error("record-array");
+	}
+	return 41;
+}
+
+void array_mutation_checked(ArrayMutationRecord[] rows, bool fail) throws Error {
+	rows[0].leaf.value = array_mutation_checked_rhs(rows, fail);
+}
+
+class RecordMutationBuffer {
+	private owned ArrayMutationRecord[] rows;
+
+	init() {
+		this.rows = new ArrayMutationRecord[2];
+	}
+
+	int result() {
+		array_mutation_update(this.rows);
+		if (!this.rows[1].leaf.active || this.rows[1].leaf.pointer != null) return 3;
+		bool caught = false;
+		try {
+			array_mutation_checked(this.rows, true);
+		} catch (Error error) {
+			if (error.message != "record-array") return 5;
+			caught = true;
+		}
+		if (!caught || this.rows[0].leaf.value != 41 || this.rows[0].tail != 2) return 6;
+		try {
+			array_mutation_checked(this.rows, false);
+		} catch (Error error) {
+			return 7;
+		}
+		return this.rows[0].leaf.value + this.rows[0].tail - 2;
+	}
+}
+
+int main() {
+	var rows = new ArrayMutationRecord[2];
+	array_mutation_update(rows);
+	if (rows[0].leaf.value + rows[0].tail != 42) return 4;
+	var buffer = new RecordMutationBuffer();
+	return buffer.result();
+}

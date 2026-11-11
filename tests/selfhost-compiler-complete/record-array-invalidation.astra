@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct InvalidatedLeaf {
+	int value;
+}
+
+struct InvalidatedRecord {
+	InvalidatedLeaf leaf;
+}
+
+int consume_record_array(owned InvalidatedRecord[] rows) {
+	return 41;
+}
+
+int main() {
+	var rows = new InvalidatedRecord[1];
+	rows[0].leaf.value = consume_record_array(move rows);
+	return 0;
+}

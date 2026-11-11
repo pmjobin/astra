@@ -229,6 +229,18 @@ bool recover_array_value_source(RecoverFlowData flow, CheckedIndex checked, Reco
 		}
 		return true;
 	}
+	if (row.kind == 76) {
+		if (kind != SyntaxKind.FieldAssignmentStatementSyntax() || row.symbol.index != 0 || row.type.index != 14 || row.count != 0) return false;
+		var target = checked.bindings.program.arena.get_node_target(source);
+		var indexed = recover_record_index(checked, target, 0);
+		var value = checked.bindings.program.arena.get_node_expression(source);
+		if (indexed.index < 1 || row.token.index != checked.bindings.program.arena.get_token_field_name(target).index || !recover_child(flow, checked, types, row.a, checked.bindings.program.arena.get_node_container(indexed), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.b, checked.bindings.program.arena.get_node_subscript(indexed), function, handler, caught, seen, edges, depth + 1) || !recover_child(flow, checked, types, row.c, value, function, handler, caught, seen, edges, depth + 1)) return false;
+		var container = flow.nodes[row.a - 1];
+		if (!recover_array_type(checked, container.type)) return false;
+		var record = checked.types.argument(checked.types, container.type, 0).type;
+		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+		return recover_storage_record(checked, record) && checked.uses[indexed.index].type.index == record.index && flow.nodes[row.b - 1].type.index == 1 && field.index > 0 && checked.symbol_types[field.index].index == flow.nodes[row.c - 1].type.index && checked.uses[source.index].type.index == flow.nodes[row.c - 1].type.index && recover_copy_channel(checked, flow.nodes[row.c - 1].type, checked.uses[value.index].flags, false) && recover_array_static_index(checked, container.type, checked.bindings.program.arena.get_node_subscript(indexed)) && recover_record_destination_at(checked, target, record, indexed, type_symbol(0), 0) >= 0;
+	}
 	if (row.kind == 61) {
 		if (kind != SyntaxKind.IndexedAssignmentSyntax()) return false;
 		var target = checked.bindings.program.arena.get_node_target(source);
@@ -245,10 +257,10 @@ bool recover_array_places_verified(RecoverFlow flow) {
 	int n = 0;
 	while (n < flow.data.node_count) {
 		var row = flow.data.nodes[n];
-		if (row.kind == 55 || row.kind == 56 || row.kind == 61) {
+		if (row.kind == 55 || row.kind == 56 || row.kind == 61 || row.kind == 76) {
 			int input = row.a;
 			if (row.kind == 56) input = flow.data.edges[row.first];
-			var root = recover_array_root(flow, input, row.kind == 61);
+			var root = recover_array_root(flow, input, row.kind == 61 || row.kind == 76);
 			if (root.index < 1) return false;
 			int unwrapped = input;
 			int depth = 0;
@@ -257,10 +269,10 @@ bool recover_array_places_verified(RecoverFlow flow) {
 				depth = depth + 1;
 			}
 			if (depth == 192) return false;
-			if (row.kind == 55 || row.kind == 61) {
+			if (row.kind == 55 || row.kind == 61 || row.kind == 76) {
 				if (!recover_borrow_preserved(flow.data, row.b, root, work, 0) || !recover_projection_preserved(flow, unwrapped, row.b, work)) return false;
 			}
-			if (row.kind == 61 && (!recover_borrow_preserved(flow.data, row.c, root, work, 0) || !recover_projection_preserved(flow, unwrapped, row.c, work))) return false;
+			if ((row.kind == 61 || row.kind == 76) && (!recover_borrow_preserved(flow.data, row.c, root, work, 0) || !recover_projection_preserved(flow, unwrapped, row.c, work))) return false;
 			if (row.kind == 56) {
 				int p = 1;
 				while (p < row.count) {

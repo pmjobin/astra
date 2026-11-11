@@ -125,7 +125,17 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 			row.symbol = record;
 			row.token = checked.bindings.program.arena.get_token_field_name(target);
 		}
-		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+		var indexed = recover_record_index(checked, target, 0);
+		if (indexed.index > 0) {
+			row.kind = 76;
+			row.symbol = type_symbol(0);
+			row.token = checked.bindings.program.arena.get_token_field_name(target);
+			row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_container(indexed), function, handler, caught, depth + 1);
+			row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_subscript(indexed), function, handler, caught, depth + 1);
+			row.c = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+		} else {
+			row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+		}
 	}
 	if (kind == SyntaxKind.StructInitializerSyntax()) {
 		row.kind = 8; var fields = checked.bindings.program.arena.get_list_fields(source); int count = checked.bindings.program.arena.list_count(fields); var children = new int[count]; int i = 0;
