@@ -1099,7 +1099,7 @@ bool template_binding_controls(RecoverFlow flow) {
 				var symbol = flow.checked.node_symbols[field.index];
 				if (symbol.index < 1 || !template_binding_name(flow, n + 1)) return false;
 				int field_flags = flow.checked.symbol_flags[symbol.index];
-				flow.checked.symbol_flags[symbol.index] = field_flags ^ 256;
+				flow.checked.symbol_flags[symbol.index] = field_flags | 8;
 				bool refused = !template_binding_name(flow, n + 1) && !recover_flow_verify(flow);
 				flow.checked.symbol_flags[symbol.index] = field_flags;
 				if (!refused || !template_binding_name(flow, n + 1) || !recover_flow_verify(flow)) return false;

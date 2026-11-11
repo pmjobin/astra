@@ -2047,6 +2047,20 @@ incorrect ELF-machine assertion and fails. The corrected auditor retains that
 attempt. Whole original and current Flow still return exit2. Individual body
 construction grants zero full-module native credit.
 
+The memoized observer passes 66 of 67 focused checks. The remaining control
+incorrectly requires storage qualification to reject a field visibility change.
+Storage qualification deliberately permits that bit and source use checks access
+separately. The corrected test introduces the unsupported storage qualifier8.
+Its original fixture also lacks the parameter Name read selected by the test.
+A focused C0-valid fixture forwards an actual Class parameter to another call.
+An isolated native process calls the actual legacy Name checker and whole Flow
+verifier on that valid fixture. Invalid field qualifier, parameter qualifier and
+parameter type are each rejected by both consumers. Each restoration passes both
+consumers, and the original program returns42 with Flow status0. The failed
+original control and failed diagnostic selections remain recorded. This separate
+corrected supplement grants zero Astra target-pipeline credit. The corrected CLI
+control source passes its C0 Core preflight. Its rebuilt CLI execution is pending.
+
 The next isolated native diagnostic identifies three concrete global refusals.
 The index for `program.data.block_count` descends into its containing Class while
 checking whether a captured array projection survives. A separate payload-call

@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class BindingRecheckBox {
+	int value;
+
+	init(int value) {
+		this.value = value;
+	}
+}
+
+int binding_recheck_value(BindingRecheckBox box) {
+	return box.value;
+}
+
+int binding_recheck_forward(BindingRecheckBox box) {
+	return binding_recheck_value(box);
+}
+
+int main() {
+	var box = new BindingRecheckBox(42);
+	return binding_recheck_forward(box);
+}
