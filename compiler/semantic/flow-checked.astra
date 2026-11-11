@@ -150,6 +150,16 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		if (index.class_storage) checked_mismatch(index, index.bindings.program.arena.header(subscript).span, type_id(1), actual, "array index");
 	}
 	int code = checked_kind(index, type);
+	if (index.class_storage && checked_flow_index_kind(kind) && code == 23) {
+		var element = index.types.argument(index.types, type, 0);
+		if (element.flags == 0 && checked_kind(index, element.type) == 31 && expected.index == element.type.index && class_storage_slot_element_verified(index, element.type, 0)) {
+			var use = index.uses[node.index];
+			use.flags = 2;
+			use.deferred = 19;
+			index.uses[node.index] = use;
+			return element.type;
+		}
+	}
 	if ((kind == SyntaxKind.DereferenceExpressionSyntax() && code == 20) || (checked_flow_index_kind(kind) && (code == 21 || code == 22))) {
 		return index.types.argument(index.types, type, 0).type;
 	}

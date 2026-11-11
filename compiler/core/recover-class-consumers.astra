@@ -24,6 +24,7 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerB
 			}
 		}
 		if (row.kind == 56 && recover_slice_consumer(flow, n + 1, work) < 1) return false;
+		if (row.kind == 55 && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0) && recover_slice_consumer(flow, n + 1, work) < 1) return false;
 		if (row.kind == 19 && flow.checked.uses[row.source.index].flags == 2 && recover_shared_borrow_consumer(flow, n + 1, work) < 1) return false;
 		if (row.kind == 5 || recover_constructor_kind(row.kind) || row.kind == 19 && (flow.checked.uses[row.source.index].flags & 4) != 0) {
 			int consumer = plan.consumers[n]; if (consumer < 1 || consumer > flow.data.node_count) return false;

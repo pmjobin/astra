@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Follow every actual path from a slice definition to its call consumer. A
-// retired backing or replacement of its captured field cannot reach that use.
+// Follow every actual path from an array view or indexed Class borrow to its
+// call consumer, checking the backing and every captured field along the path.
 bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverWork work) {
 	var row = ssa.cfg.core.nodes[value - 1].value;
-	if (row.kind != 56) return true;
-	var root = recover_array_root(ssa.cfg.core.flow, ssa.cfg.core.flow.data.edges[row.first], false);
+	bool slot_borrow = row.kind == 55 && row.a > 0 && row.a <= ssa.cfg.core.count && recover_storage_slots(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 0);
+	if (row.kind != 56 && !slot_borrow) return true;
+	int backing = row.a;
+	if (row.kind == 56) backing = ssa.cfg.core.flow.data.edges[row.first];
+	var root = recover_array_root(ssa.cfg.core.flow, backing, false);
 	if (root.index < 1 || root.index >= len(ssa.cfg.core.flow.storage.symbols)) return false;
 	int slot = ssa.cfg.core.flow.storage.symbols[root.index];
 	if (slot < 1 || slot > ssa.cfg.core.flow.storage.count || ssa.cfg.core.nodes[value - 1].result_role != 3 || ssa.cfg.core.nodes[value - 1].borrowed_owner != slot) return false;
@@ -17,7 +20,7 @@ bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverWork work) {
 	int use = ssa.cfg.regions[consumer - 1].operation;
 	int definition = ssa.data.values[value].block;
 	if (definition < 1 || definition > ssa.cfg.block_count || use < 1 || use > ssa.cfg.block_count) return false;
-	int input = recover_owner_unwrap(ssa.cfg.core.flow.data, ssa.cfg.core.flow.data.edges[row.first]);
+	int input = recover_owner_unwrap(ssa.cfg.core.flow.data, backing);
 	var seen = new bool[ssa.cfg.block_count * 2];
 	var pending = new int[ssa.cfg.block_count * 2];
 	int start = ssa.cfg.blocks[definition - 1].next;
@@ -35,6 +38,7 @@ bool recover_ssa_array_view(RecoverSsa ssa, int value, RecoverWork work) {
 		var block = ssa.cfg.blocks[id - 1];
 		if (id == definition) live = true;
 		if (block.opcode == 36 && block.b == slot || block.opcode == 38 && block.a == slot) live = false;
+		if (slot_borrow && block.opcode == 69) live = false;
 		if (block.opcode == 44) {
 			var target = ssa.cfg.core.flow.fields.facts[ssa.cfg.core.nodes[block.origin - 1].value.source.index];
 			int projection = input;

@@ -61,5 +61,15 @@ SymbolId recover_borrow_argument_root(RecoverFlowData flow, CheckedIndex checked
 	if (current < 1 || current > flow.node_count || steps == 192) return type_symbol(0);
 	var row = flow.nodes[current - 1];
 	if (row.kind == 2 || row.kind == 17 || row.kind == 66 && recover_error_borrow_binding(checked, row.symbol)) return row.symbol;
+	if (row.kind == 55 && row.a > 0 && row.a <= flow.node_count && recover_storage_slots(checked, flow.nodes[row.a - 1].type, 0)) {
+		int container = row.a;
+		while (flow.nodes[container - 1].kind == 7 && steps < 192) {
+			container = flow.nodes[container - 1].a;
+			if (container < 1 || container > flow.node_count) return type_symbol(0);
+			steps = steps + 1;
+		}
+		if (steps == 192 || flow.nodes[container - 1].kind != 17) return type_symbol(0);
+		return flow.nodes[container - 1].symbol;
+	}
 	return recover_shared_borrow_root(flow, checked, current);
 }

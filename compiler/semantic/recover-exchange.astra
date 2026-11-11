@@ -59,6 +59,11 @@ bool recover_projection_preserved(RecoverFlow flow, int projection, int other, i
 		var row = flow.data.nodes[current - 1];
 		if (row.kind == 7) current = row.a;
 		else {
+			if (row.kind == 55 && row.a > 0 && row.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0)) {
+				current = row.a;
+				depth = depth + 1;
+				continue;
+			}
 			if (row.kind != 17) return true;
 			var fact = flow.fields.facts[row.source.index];
 			if (!recover_payload_preserved(flow.data, other, fact.aggregate, work, 0)) return false;
@@ -70,6 +75,7 @@ bool recover_projection_preserved(RecoverFlow flow, int projection, int other, i
 }
 
 bool recover_payload_calls_verified(RecoverFlow flow) {
+	var slot_borrows = new bool[flow.data.node_count];
 	var work = new int[1]; work[0] = 8000000; int n = 0;
 	while (n < flow.data.node_count) {
 		var row = flow.data.nodes[n];
@@ -88,6 +94,21 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 					}
 					if (steps == 192) return false; var argument = flow.data.nodes[id - 1]; var root = type_symbol(0); TypeId aggregate = {index = 0};
 					int projection = 0;
+					bool slot_borrow = argument.kind == 55 && argument.a > 0 && argument.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[argument.a - 1].type, 0);
+					if (slot_borrow) {
+						if (row.kind != 4 || kind != 31 || channel.flags != 2) return false;
+						root = recover_array_root(flow, argument.a, false);
+						if (root.index == 0) return false;
+						projection = argument.a;
+						int container = argument.a; int container_steps = 0;
+						while (flow.data.nodes[container - 1].kind == 7 && container_steps < 192) {
+							container = flow.data.nodes[container - 1].a;
+							container_steps = container_steps + 1;
+						}
+						if (container_steps == 192 || flow.data.nodes[container - 1].kind != 17) return false;
+						aggregate = flow.fields.facts[flow.data.nodes[container - 1].source.index].aggregate;
+						slot_borrows[id - 1] = true;
+					}
 					if (argument.kind == 56) {
 						int input = flow.data.edges[argument.first];
 						root = recover_array_root(flow, input, false);
@@ -128,7 +149,7 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 						projection = input;
 						if (handle.kind == 17) aggregate = flow.fields.facts[handle.source.index].aggregate;
 					}
-					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19 && argument.kind != 66) return false;
+					if (argument.kind != 1 && argument.kind != 51 && argument.kind != 53 && argument.kind != 56 && argument.kind != 2 && argument.kind != 17 && argument.kind != 19 && argument.kind != 66 && !slot_borrow) return false;
 					int other = 0;
 					while (other < row.count) {
 						if (other != i) {
@@ -145,6 +166,12 @@ bool recover_payload_calls_verified(RecoverFlow flow) {
 				i = i + 1;
 			}
 		}
+		n = n + 1;
+	}
+	n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 55 && row.a > 0 && row.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0) && !slot_borrows[n]) return false;
 		n = n + 1;
 	}
 	return work[0] > 0;

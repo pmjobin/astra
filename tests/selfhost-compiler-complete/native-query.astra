@@ -447,8 +447,62 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 	return false;
 }
 
+bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
+	if (!module.check(ssa)) return false;
+	int b = 0;
+	while (b < ssa.cfg.block_count) {
+		var block = ssa.cfg.blocks[b];
+		if (ssa.data.reachable[b] && block.opcode == 55) {
+			var row = ssa.cfg.core.nodes[block.origin - 1];
+			if (recover_storage_slots(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.value.a - 1].value.type, 0)) {
+				ssa.cfg.core.nodes[block.origin - 1].result_role = 1;
+				bool role_rejected = !recover_core_verify(ssa.cfg.core);
+				ssa.cfg.core.nodes[block.origin - 1].result_role = row.result_role;
+				ssa.cfg.core.nodes[block.origin - 1].borrowed_owner = 0;
+				bool root_rejected = !recover_core_verify(ssa.cfg.core);
+				ssa.cfg.core.nodes[block.origin - 1].borrowed_owner = row.borrowed_owner;
+				if (!role_rejected || !root_rejected || !module.check(ssa)) return false;
+				int next = block.next;
+				if (next < 1 || next > ssa.cfg.block_count) return false;
+				var original = ssa.cfg.blocks[next - 1];
+				ssa.cfg.blocks[next - 1].opcode = 36;
+				ssa.cfg.blocks[next - 1].b = row.borrowed_owner;
+				var retired_work = new RecoverWork(8000000);
+				bool retired_rejected = !recover_ssa_array_view(ssa, block.origin, retired_work) && !retired_work.exhausted;
+				ssa.cfg.blocks[next - 1] = original;
+				ssa.cfg.blocks[next - 1].opcode = 69;
+				var mutation_work = new RecoverWork(8000000);
+				bool mutation_rejected = !recover_ssa_array_view(ssa, block.origin, mutation_work) && !mutation_work.exhausted;
+				ssa.cfg.blocks[next - 1] = original;
+				if (!retired_rejected || !mutation_rejected || !module.check(ssa)) return false;
+				var call = module.operations[b]; var index = LLVMGetArgOperand(call, 2);
+				u64 replacement = 1;
+				if (LLVMIsAConstantInt(index) != null && LLVMConstIntGetZExtValue(index) != 0) replacement = 0;
+				LLVMSetOperand(call, 2, LLVMConstInt(LLVMTypeOf(index), replacement, 0));
+				bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(call, 2, index);
+				if (!refused || !module.check(ssa)) return false;
+				var load = module.values[block.origin]; var address = LLVMGetOperand(load, 0);
+				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(load, 0, address);
+				if (!refused || !module.check(ssa)) return false;
+				var count = LLVMGetArgOperand(call, 1);
+				LLVMSetOperand(call, 1, LLVMConstNull(LLVMTypeOf(count)));
+				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
+				LLVMSetOperand(call, 1, count);
+				if (!refused || !module.check(ssa)) return false;
+				println("SLOT_BORROW_CONTROLS core=2 liveness=2 physical=3 restored=1");
+				return true;
+			}
+		}
+		b = b + 1;
+	}
+	return false;
+}
+
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls") return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--mutation-index-controls" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls" && args[1] != "--enum-transport-controls" && args[1] != "--record-mutation-controls" && args[1] != "--record-array-mutation-controls" && args[1] != "--slot-borrow-controls") return 9;
 	bool library = args[1] == "--native-module";
 	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
@@ -488,6 +542,10 @@ int main(string[] args) {
 		assert_that(recover_ssa_verify(ssa)); println("RECOVER_SSA_VALID");
 		if (args[1] == "--shared-stages") return 42;
 		var module = new RecoverLlvm(ssa); module.build(ssa);
+		if (args[1] == "--slot-borrow-controls") {
+			if (slot_borrow_controls(module, ssa)) return 42;
+			return 17;
+		}
 		if (args[1] == "--enum-transport-controls") {
 			if (enum_transport_controls(module, ssa)) return 42;
 			return 14;

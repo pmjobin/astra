@@ -1773,6 +1773,36 @@ Both compiler drivers pass semantic/Core preflights. Complete original
 Core/CFG/SSA/LLVM, representative linkage and owner-root qualification remain
 outstanding.
 
+## Continued source admission and indexed Class borrows
+
+The observer built from `598414d` passes all 54 focused cases, including the
+expanded mutable-text witness, floating casts and six storage correspondence
+controls. Its frozen 190-file original population retains 89 Class headers and
+2,392 runtime function headers. Isolated construction/source checks pass 2,345
+bodies, or 98.0 percent, with 47 refusals. Whole-original Flow retains exit2,
+internal status1 after 284,425 nodes. Complete original native qualification
+remains 0/2. These measurements supersede the earlier isolated-body count while
+preserving every earlier failed receipt.
+
+Direct borrowed inspections of owning Class slots account for many remaining
+original bodies. A focused witness covers nested backing fields, dynamic indices
+and two simultaneous inspection arguments. Original C0 O0/O2 executions exit42
+with clean unsuppressed Valgrind. The preceding observer refuses its Flow.
+Early witness attempts retain C0 refusals for indexed field extraction and a
+heap-field construction form, plus a runtime trap from omitted reserve capacity.
+
+The candidate admits an indexed Class value only as an exact-Class borrowed
+inspection argument. Source checks reconstruct the actual backing receiver,
+captured projections and other-argument preservation. Core records its borrowed
+role and real receiver storage slot. SSA follows the paths to its single call
+consumer and rejects retirement, captured-field replacement or intervening slot
+mutation. LLVM uses the existing checked pointer-index helper, with independent
+AS0 load, operand, bounds and closed-inventory checks. Source, Core, liveness
+and LLVM mutation controls are authored. Their updated Astra executions remain
+pending. The first Source-only test preflight reports an unavailable Core helper;
+the corrected test performs its own bounded parenthesis traversal. Raw receipts
+are retained.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

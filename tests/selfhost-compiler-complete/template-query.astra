@@ -1058,6 +1058,42 @@ bool template_storage_controls(RecoverFlow flow) {
 	return true;
 }
 
+bool template_slot_borrow_controls(RecoverFlow flow) {
+	if (!recover_flow_verify(flow)) return false;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 55 && recover_storage_slots(flow.checked, flow.data.nodes[row.a - 1].type, 0)) {
+			var original = flow.checked.uses[row.source.index]; var changed = original;
+			changed.flags = 0; flow.checked.uses[row.source.index] = changed;
+			bool flags_rejected = !recover_flow_verify(flow);
+			changed = original; changed.deferred = 0; flow.checked.uses[row.source.index] = changed;
+			bool pending_rejected = !recover_flow_verify(flow);
+			flow.checked.uses[row.source.index] = original;
+			flow.data.nodes[n].b = row.a;
+			bool index_rejected = !recover_flow_verify(flow);
+			flow.data.nodes[n].b = row.b;
+			int input = row.a; int depth = 0;
+			while (input > 0 && input <= flow.data.node_count && flow.data.nodes[input - 1].kind == 7 && depth < 192) {
+				input = flow.data.nodes[input - 1].a;
+				depth = depth + 1;
+			}
+			if (depth == 192) return false;
+			if (input < 1 || flow.data.nodes[input - 1].kind != 17) return false;
+			var field = flow.fields.facts[flow.data.nodes[input - 1].source.index].field;
+			int flags = flow.checked.symbol_flags[field.index];
+			flow.checked.symbol_flags[field.index] = flags & ~4;
+			bool backing_rejected = recover_array_root(flow, row.a, false).index == 0;
+			flow.checked.symbol_flags[field.index] = flags;
+			if (!flags_rejected || !pending_rejected || !index_rejected || !backing_rejected || !recover_flow_verify(flow)) return false;
+			println("SLOT_BORROW_SOURCE_CONTROLS source=3 backing=1 restored=1");
+			return true;
+		}
+		n = n + 1;
+	}
+	return false;
+}
+
 bool template_text_view_controls(RecoverFlow flow) {
 	if (!recover_flow_verify(flow) || !recover_text_views_verified(flow)) return false;
 	int n = 0;
@@ -1153,7 +1189,7 @@ bool template_record_initializer_controls(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--construction-inventory" && args[1] != "--slot-borrow-controls" && args[1] != "--text-view-controls" && args[1] != "--storage-controls" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--effect-root-controls" && args[1] != "--record-initializer-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -1283,6 +1319,10 @@ int main(string[] args) {
 		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
 		if (args[1] == "--storage-controls") {
 			if (template_storage_controls(flow)) return 42;
+			return 8;
+		}
+		if (args[1] == "--slot-borrow-controls") {
+			if (template_slot_borrow_controls(flow)) return 42;
 			return 8;
 		}
 		if (args[1] == "--text-view-controls") {

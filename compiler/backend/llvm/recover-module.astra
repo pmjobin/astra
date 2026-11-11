@@ -1275,6 +1275,7 @@ class RecoverLlvm {
 				if (block.opcode != 56) type = ssa.cfg.core.nodes[row.a - 1].value.type;
 				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+				if (block.opcode == 55 && recover_storage_slots(ssa.cfg.core.flow.checked, type, 0)) kind = 16;
 				if (kind == 30) {
 					if (block.opcode == 56) {
 						throw new Error("LLVM_INVALID_IR: record slice source");
@@ -1355,6 +1356,7 @@ class RecoverLlvm {
 			var type = ssa.cfg.core.nodes[input - 1].value.type;
 			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 			int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+			if (op == 55 && recover_storage_slots(ssa.cfg.core.flow.checked, type, 0)) kind = 16;
 			int count = 3;
 			if (op == 56) count = 4;
 			var arguments = new void*[count];
@@ -1608,9 +1610,14 @@ class RecoverLlvm {
 				var row = ssa.cfg.core.nodes[block.origin - 1].value;
 				var type = row.type;
 				if (block.opcode != 56) type = ssa.cfg.core.nodes[row.a - 1].value.type;
-				if (!recover_array_type(ssa.cfg.core.flow.checked, type)) return false;
+				bool slot_borrow = block.opcode == 55 && recover_storage_slots(ssa.cfg.core.flow.checked, type, 0);
+				if (!recover_array_type(ssa.cfg.core.flow.checked, type) && !slot_borrow) return false;
 				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+				if (slot_borrow) {
+					kind = 16;
+					element = type_id(16);
+				}
 				if (kind == 30 && block.opcode != 56) {
 					b = b + 1;
 					continue;

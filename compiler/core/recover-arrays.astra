@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// A temporary slice has one nonowning call use, tied to its real backing slot.
+// Temporary array views and indexed Class inspections have one borrowed call use.
 int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work) {
+	if (value < 1 || value > flow.data.node_count) return -1;
+	var input = flow.data.nodes[value - 1];
+	bool slot_borrow = input.kind == 55 && input.a > 0 && input.a <= flow.data.node_count && recover_storage_slots(flow.checked, flow.data.nodes[input.a - 1].type, 0);
 	int found = 0;
 	int n = 0;
 	while (n < flow.data.node_count) {
@@ -14,7 +17,12 @@ int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerBudget work)
 			while (p < row.count) {
 				if (recover_owner_unwrap(flow.data, flow.data.edges[row.first + p]) == value) {
 					var channel = flow.checked.types.argument(flow.checked.types, signature.callable, p + offset);
-					if (found != 0 || row.function != flow.data.nodes[value - 1].function || channel.flags != 0 && channel.flags != 2 || checked_kind(flow.checked, channel.type) != 22 || channel.type.index != flow.data.nodes[value - 1].type.index) return -1;
+					if (found != 0 || row.function != input.function || channel.type.index != input.type.index) return -1;
+					if (slot_borrow) {
+						if (row.kind != 4 || channel.flags != 2 || checked_kind(flow.checked, channel.type) != 31) return -1;
+					} else {
+						if (channel.flags != 0 && channel.flags != 2 || checked_kind(flow.checked, channel.type) != 22) return -1;
+					}
 					found = n + 1;
 				}
 				p = p + 1;

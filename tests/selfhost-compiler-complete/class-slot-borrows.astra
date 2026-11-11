@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class SlotBorrowEntry {
+	int value;
+
+	init(int input) {
+		this.value = input;
+	}
+}
+
+class SlotBorrowTable {
+	owned SlotBorrowEntry[slots] entries;
+
+	init() {
+		this.entries = new SlotBorrowEntry[slots];
+	}
+}
+
+class SlotBorrowOuter {
+	owned SlotBorrowTable table;
+
+	init() {
+		var table = new SlotBorrowTable();
+		this.table = move table;
+	}
+}
+
+bool slot_borrow_fill(SlotBorrowTable table) {
+	if (!table.entries.reserve(2)) return false;
+	var item = new SlotBorrowEntry(42);
+	table.entries.append(move item);
+	var second = new SlotBorrowEntry(17);
+	table.entries.append(move second);
+	return true;
+}
+
+int slot_borrow_value(borrowed SlotBorrowEntry item) {
+	return item.value;
+}
+
+int slot_borrow_argument(SlotBorrowTable table, int index) {
+	return slot_borrow_value(table.entries[index]);
+}
+
+int slot_borrow_pair(borrowed SlotBorrowEntry first, borrowed SlotBorrowEntry second) {
+	return first.value + second.value;
+}
+
+int slot_borrow_nested(SlotBorrowOuter outer, int index) {
+	return slot_borrow_value(outer.table.entries[index]);
+}
+
+int main() {
+	var table = new SlotBorrowTable();
+	var outer = new SlotBorrowOuter();
+	if (!slot_borrow_fill(table) || !slot_borrow_fill(outer.table)) return 3;
+	if (slot_borrow_argument(table, 0) != 42 || slot_borrow_argument(table, 1) != 17) return 1;
+	if (slot_borrow_nested(outer, 0) != 42 || slot_borrow_pair(table.entries[0], table.entries[1]) != 59) return 2;
+	return 42;
+}
