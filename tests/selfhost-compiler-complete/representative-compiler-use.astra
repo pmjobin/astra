@@ -21,7 +21,7 @@ owned SyntaxProgram representative_parse(string text) throws Error {
 	return move program;
 }
 
-int main() {
+int representative_run() {
 	try {
 		var bytes = representative_bytes("é\r\nx");
 		var buffer = source_buffer("m26/../m26/location.astra", move bytes, false);
@@ -66,4 +66,14 @@ int main() {
 	} catch (Error error) {
 		return 10;
 	}
+}
+
+// All compiler owners leave representative_run before the process-global
+// LLVM managed statics are released through the original public C API.
+extern(C) void LLVMShutdown();
+
+int main() {
+	int result = representative_run();
+	LLVMShutdown();
+	return result;
 }

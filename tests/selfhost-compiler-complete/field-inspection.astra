@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class InspectionToken {
+	bool active;
+
+	init() {
+		this.active = true;
+	}
+}
+
+class InspectionData {
+	owned int[] values;
+	owned InspectionToken token;
+	int stride;
+	bool ready;
+
+	init() {
+		this.values = new int[3];
+		this.values[1] = 20;
+		this.values[2] = 22;
+		var token = new InspectionToken();
+		this.token = move token;
+		this.stride = 1;
+		this.ready = true;
+	}
+}
+
+int inspection_stride(InspectionData data) {
+	data.ready = true;
+	return data.stride;
+}
+
+int inspection_refresh(InspectionData data) {
+	data.stride = inspection_stride(data);
+	return data.stride;
+}
+
+int inspection_read(int[] values, int index, bool ready, InspectionToken token) {
+	if (!ready || !token.active) return 1;
+	return values[index];
+}
+
+class InspectionRoot {
+	owned InspectionData data;
+
+	init() {
+		var data = new InspectionData();
+		this.data = move data;
+	}
+
+	int result() {
+		if (inspection_refresh(this.data) != 1) return 2;
+		return this.data.values[this.data.stride] + inspection_read(this.data.values, this.data.stride + 1, this.data.ready, this.data.token);
+	}
+}
+
+int main() {
+	var root = new InspectionRoot();
+	return root.result();
+}

@@ -519,7 +519,10 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 				if (checked_kind(checked, type_id(physical.semantic)) == 23 && !initializing) return false;
 				var work = new int[1]; work[0] = 8000000;
 				if (!recover_borrow_preserved(flow, row.a, fact.receiver, work, 0)) return false;
-				if (!recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;
+				// The scalar destination belongs to the retained receiver slot.
+				// Its address and stored value are selected after RHS evaluation.
+				// Receiver methods may update fields while producing that scalar.
+				if ((physical.semantic < 1 || physical.semantic > 13) && !recover_payload_preserved(flow, row.a, fact.aggregate, work, 0)) return false;
 				if ((physical.flags & 1) != 0) {
 					int producer = row.a; int steps = 0;
 					while (flow.nodes[producer - 1].kind == 7 && steps < 192) {

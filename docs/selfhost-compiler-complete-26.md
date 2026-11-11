@@ -2037,6 +2037,47 @@ zero complete-source or native qualification credit. A later diagnostic-driver
 attempt requests an optimized-away symbol and fails before execution. The next
 attempt uses retained native symbols to narrow the three global refusals.
 
+## Complete body inventory and global projection checks
+
+The `281c8d8` observer now constructs and source-tree-verifies all 2,392 original
+bodies, with zero individual refusals and 284,425 nodes. All 64 focused source
+checks pass. Independent audit12 binds the original 190 and current 204 inputs,
+actual host, Git blobs, tools and raw commands. Its first auditor attempt has an
+incorrect ELF-machine assertion and fails. The corrected auditor retains that
+attempt. Whole original and current Flow still return exit2. Individual body
+construction grants zero full-module native credit.
+
+The next isolated native diagnostic identifies three concrete global refusals.
+The index for `program.data.block_count` descends into its containing Class while
+checking whether a captured array projection survives. A separate payload-call
+check descends through `program.cfg.core.flow.checked.types`. The first field
+check rejects `graph.exit = graph.add(...)` when its scalar RHS borrows the
+retained receiver. The diagnostic preserves its refused plan and exit2.
+
+The candidate field-read query validates a bounded, pure field receiver chain.
+Calls, moves, slot mutation, extra child effects and changed receiver/function
+identities remain refused. The selected value still passes the existing captured
+aggregate escape check. Scalar field stores retain the original receiver-move
+and type checks. Their destination belongs to the retained receiver slot and is
+selected after RHS evaluation. Owning and aggregate field stores retain their
+existing payload restrictions. The independent owner-root deferral is unchanged.
+
+Exact production-helper kernels pass C0 O0/O2, unsuppressed memory, 79 rejected
+receiver operation kinds, escaping aggregate, bounds and work-limit controls.
+A C0-valid focused program exercises nested scalar indexing, borrowed field
+arguments and a scalar store whose RHS calls its receiver. Both C0 profiles
+execute42 with clean memory. Two earlier fixture forms are rejected by C0 and
+retained separately. Updated source controls and actual Astra execution are
+pending. These kernels and C0 oracles grant zero Astra-pipeline credit.
+
+The first representative compiler-service application executes42 under C0 O0/O2.
+Both strict Valgrind commands return99 for nine reachable LLVM managed-static
+allocations, with zero lost bytes. The failed raw receipts remain intact.
+A separate tiny original-library control reproduces that failure, while LLVM's
+public `LLVMShutdown` releases every allocation at both profiles without
+suppressions. The revised application invokes it after all compiler owners leave
+their scope. Complete revised application builds and execution remain pending.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its
