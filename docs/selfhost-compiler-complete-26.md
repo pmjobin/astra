@@ -1391,6 +1391,51 @@ O0/O2 generation, native identity, memory and acceptance gates remain separate
 receipts. The installed build/workflow scripts remain the ones that authenticate
 these snapshots and products.
 
+## Optimized observer costs and constructor source channels
+
+The ccc1ed1 O2 Typecore/Flow observer took 2,014.890 seconds to build. Its
+whole-original Typecore observation took 162.812 seconds, the Flow refusal
+185.874 seconds and the source-header inventory 172.894 seconds. The inventory
+included all 190 original inputs and reported 89 Classes, zero refused Class
+declarations, 2,392 functions and 22 refused function headers. Three refusals
+need string-array input channels and 19 need constructor source operations.
+Body translation and full native compilation remain separate obligations.
+The compared earlier O0 measurements use different source revisions.
+
+That observer passed 33 focused source cases. The pointer-record composite
+failed Flow with status 1 and 62 nodes. Its raw result is retained. A remaining
+producer refusal of pointer-containing records was removed, and constructor
+source validation now follows initialized copyable record locals, owned buffer
+locals, indexed reads and stores, unqualified Class parameter reads, actual
+Class method calls, owned factory results and scalar writes to initialized
+owned local Classes. Every receiver and field retains its actual Binder
+identity. Hidden constructor receivers remain confined to initialized fields.
+Flow, owner, Core, CFG, SSA and physical consumers still verify their respective
+obligations. Focused Astra execution of these constructor changes is pending.
+
+The new constructor-channel fixture returned 42 under original C0 at O0 and
+O2 with clean unsuppressed Valgrind results. The first oracle attempt's direct
+owned return was refused by C0 and is retained. The corrected fixture uses an
+owned local followed by an explicit move. Its read-only oracle snapshots bind
+the exact corrected source. Added restored mutation controls exercise
+initialization, local ownership and read-only field authority. The existing
+Shared parameter control now also checks valid unqualified parameter reads
+and uses an invalid flag value for its refusal mutation.
+
+The ccc1ed1 O0 native host built in 3,574.913 seconds. It generated and linked
+the original payload-free enum and enum ABI cases at both target profiles,
+each returning 42 with clean unsuppressed Valgrind results. Its pointer-record
+composite refusal remains raw. The corresponding O2 host build reached the
+recipe's 3,600-second timeout and failed after 3,602.217 seconds. An explicit
+compile-plan recipe permits a larger recorded budget for authenticated Git
+snapshots while retaining original build and timeout receipts. It validates
+the exact C0, source population, input bytes, tools and environment before
+execution and repeats input identity checks before recording a product.
+
+The old c13 source inventory was explicitly stopped with exit 143 after
+preserving partial output. It has no completed inventory verdict. The finished
+O2 inventory supplies the current source-header diagnostic counts above.
+
 ## Preserved obligations
 
 Historical R4 and initial R5 remain PARTIAL. R5 engineering G0–G11 remains its

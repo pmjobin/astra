@@ -97,17 +97,23 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 		var declaration = checked.bindings.symbol(symbol);
 		if (declaration.owner.index != function.index || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 		if (declaration.kind == 7) return symbol.index != class_storage_receiver(checked, function);
-		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && (recover_storage_class(checked, checked.symbol_types[symbol.index]) || recover_storage_shared(checked, checked.symbol_types[symbol.index])));
+		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && recover_storage_channel(checked, checked.symbol_types[symbol.index], 4, false));
 	}
 	if (kind == SyntaxKind.MoveExpressionSyntax()) {
 		var symbol = checked_target(checked, node, checked.bindings.program.arena.get_token_source(node));
 		if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).owner.index != function.index || checked.symbol_flags[symbol.index] != 4 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) != 0) return false;
 		var declaration = checked.bindings.symbol(symbol);
-		return declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index] && (recover_storage_class(checked, checked.symbol_types[symbol.index]) || recover_storage_shared(checked, checked.symbol_types[symbol.index])) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
+		return (declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index]) && recover_storage_channel(checked, checked.symbol_types[symbol.index], 4, false) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, depth + 1);
 	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, depth + 1) && recover_constructor_value(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, depth + 1);
+	if (checked_flow_index_kind(kind)) {
+		var container = checked.bindings.program.arena.get_node_container(node);
+		var subscript = checked.bindings.program.arena.get_node_subscript(node);
+		var type = checked.uses[container.index].type;
+		return recover_array_type(checked, type) && checked.types.argument(checked.types, type, 0).type.index == checked.uses[node.index].type.index && checked.uses[subscript.index].type.index == 1 && recover_array_static_index(checked, type, subscript) && recover_constructor_value(checked, container, function, aggregate, initialized, depth + 1) && recover_constructor_value(checked, subscript, function, aggregate, initialized, depth + 1);
+	}
 	if (kind == SyntaxKind.StructInitializerSyntax()) {
 		if (!recover_record_source(checked, node, checked.uses[node.index].type)) return false;
 		var fields = checked.bindings.program.arena.get_list_fields(node);
@@ -181,7 +187,7 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 			return recover_constructor_value(checked, operand, function, aggregate, initialized, depth + 1);
 		}
 		var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
-		if (target.index < 1 || target.index > checked.bindings.symbol_count || checked.bindings.symbol(target).owner.index != 0) return false;
+		if (target.index < 1 || target.index > checked.bindings.symbol_count) return false;
 		bool foreign = recover_foreign_source(checked, target);
 		if (foreign) {
 			if (!recover_foreign_call(checked, node, target, checked.uses[node.index].type)) return false;
@@ -189,29 +195,49 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 			if (!recover_call_source(checked, node, target, checked.uses[node.index].type)) return false;
 		}
 		var signature = checked.signatures[checked.symbol_signatures[target.index].index - 1];
-		if (!foreign && signature.flags != 0 || checked.types.argument(checked.types, signature.callable, 0).flags != 0) return false;
+		if (!foreign && signature.flags != 0) return false;
 		int p = 0;
 		while (p < checked.bindings.program.arena.list_count(arguments)) {
 			var channel = checked.types.argument(checked.types, signature.callable, p + 1);
-			if ((channel.flags & 4) != 0 || !recover_constructor_value(checked, checked.bindings.program.arena.node_at(arguments, p), function, aggregate, initialized, depth + 1)) return false;
+			var argument = checked.bindings.program.arena.node_at(arguments, p);
+			if ((channel.flags & 4) != 0 && (checked.uses[argument.index].flags & 4) == 0 || !recover_constructor_value(checked, argument, function, aggregate, initialized, depth + 1)) return false;
 			p = p + 1;
 		}
 		return true;
 	}
 	if (kind != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+	var record = recover_type_receiver(checked, node);
+	var parent = checked.bindings.program.arena.get_node_aggregate(node);
+	TypeId record_type = no_type();
+	if (record.index > 0) record_type = checked.symbol_types[record.index];
+	if (parent.index > 0) record_type = checked.uses[parent.index].type;
+	if (recover_storage_record(checked, record_type)) {
+		if (parent.index > 0) {
+			if (!recover_constructor_value(checked, parent, function, aggregate, initialized, depth + 1)) return false;
+		} else {
+			if (record.index < 1 || record.index >= len(initialized)) return false;
+			var root = checked.bindings.symbol(record);
+			if (root.owner.index != function.index || checked.symbol_flags[record.index] != 0 || !checked.bindings.accessible(record, checked.bindings.scope_for_node(node)) || root.kind != 7 && !(root.kind == 8 && initialized[record.index])) return false;
+		}
+		int ordinal = recover_record_field(checked, record_type, checked.bindings.program.arena.get_token_field_name(node));
+		if (ordinal < 0) return false;
+		var declaration = checked.bindings.symbol(checked.types.row(record_type).nominal);
+		var source = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(declaration.node), ordinal);
+		var member = checked.node_symbols[source.index];
+		return member.index > 0 && checked.symbol_types[member.index].index == checked.uses[node.index].type.index && checked_field_accessible(checked, node, member);
+	}
 	var field = checked_target(checked, node, checked.bindings.program.arena.get_token_field_name(node));
 	if (field.index < 1 || field.index >= len(initialized)) return false;
 	var member = checked.bindings.symbol(field);
 	if (member.kind != 6 || checked.uses[node.index].type.index != checked.symbol_types[field.index].index || !checked_field_accessible(checked, node, field)) return false;
 	var receiver = recover_field_receiver(checked, node, function);
 	if (receiver.index < 1 || receiver.index >= len(initialized)) return false;
-	var parent = checked.bindings.program.arena.get_node_aggregate(node);
 	if (parent.index == 0 && receiver.index == class_storage_receiver(checked, function)) return initialized[field.index] && member.owner.index == checked.types.row(aggregate).nominal.index;
 	var root = checked.bindings.symbol(receiver);
 	int flags = checked.symbol_flags[receiver.index];
 	if (root.owner.index != function.index || !checked.bindings.accessible(receiver, checked.bindings.scope_for_node(node))) return false;
 	if (root.kind != 7 && !(root.kind == 8 && initialized[receiver.index] && flags == 4)) return false;
-	if (flags != 2 && flags != 4) return false;
+	if (flags != 0 && flags != 2 && flags != 4) return false;
 	var owner_type = checked.symbol_types[receiver.index];
 	if (parent.index != 0) {
 		if (!recover_constructor_value(checked, parent, function, aggregate, initialized, depth + 1)) return false;
@@ -220,17 +246,22 @@ bool recover_constructor_value(CheckedIndex checked, SyntaxNodeId node, SymbolId
 	return recover_storage_class(checked, owner_type) && member.owner.index == checked.types.row(owner_type).nominal.index;
 }
 
-// An indexed store does not initialize a field descriptor. Its actual own
-// buffer field must already be initialized on the constructor's source path.
+// An indexed store retains an initialized owned local or own buffer field.
+// It does not initialize or transfer the backing descriptor.
 bool recover_constructor_indexed(CheckedIndex checked, SyntaxNodeId statement, SymbolId function, TypeId aggregate, bool[] initialized) {
 	if (checked.bindings.program.arena.kind(statement) != SyntaxKind.IndexedAssignmentSyntax()) return false;
 	var target = checked.bindings.program.arena.get_node_target(statement);
 	if (!checked_flow_index_kind(checked.bindings.program.arena.kind(target))) return false;
 	var container = checked.bindings.program.arena.get_node_container(target);
-	if (checked.bindings.program.arena.kind(container) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(container).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(container), "this")) return false;
-	var field = checked_target(checked, container, checked.bindings.program.arena.get_token_field_name(container));
-	if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index || (checked.symbol_flags[field.index] & ~256) != 4 || recover_field_receiver(checked, container, function).index != class_storage_receiver(checked, function)) return false;
-	var type = checked.symbol_types[field.index];
+	var type = checked.uses[container.index].type;
+	if (checked.bindings.program.arena.kind(container) == SyntaxKind.NameExpressionSyntax()) {
+		var local = checked_target(checked, container, checked.bindings.program.arena.get_token_identifier(container));
+		if (local.index < 1 || local.index >= len(initialized) || !initialized[local.index] || checked.bindings.symbol(local).kind != 8 || checked.bindings.symbol(local).owner.index != function.index || checked.symbol_flags[local.index] != 4 || checked.symbol_types[local.index].index != type.index || !checked.bindings.accessible(local, checked.bindings.scope_for_node(container))) return false;
+	} else {
+		if (checked.bindings.program.arena.kind(container) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(container).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(container), "this")) return false;
+		var field = checked_target(checked, container, checked.bindings.program.arena.get_token_field_name(container));
+		if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index || (checked.symbol_flags[field.index] & ~256) != 4 || recover_field_receiver(checked, container, function).index != class_storage_receiver(checked, function) || checked.symbol_types[field.index].index != type.index) return false;
+	}
 	if (checked_kind(checked, type) != 22 || checked.uses[container.index].type.index != type.index) return false;
 	var element = checked.types.argument(checked.types, type, 0);
 	if (!recover_array_type(checked, type)) return false;
@@ -276,8 +307,17 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	}
 	if (kind == SyntaxKind.IndexedAssignmentSyntax()) return recover_constructor_indexed(checked, node, function, aggregate, initialized);
 	if (kind == SyntaxKind.CallStatementSyntax()) return recover_constructor_value(checked, checked.bindings.program.arena.get_node_call(node), function, aggregate, initialized, depth + 1);
+	if (kind == SyntaxKind.FieldAssignmentStatementSyntax()) {
+		var target = checked.bindings.program.arena.get_node_target(node);
+		var receiver = recover_field_receiver(checked, target, function);
+		if (receiver.index < 1 || receiver.index >= len(initialized) || !initialized[receiver.index] || checked.bindings.symbol(receiver).kind != 8 || checked.bindings.symbol(receiver).owner.index != function.index || checked.symbol_flags[receiver.index] != 4 || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.accessible(receiver, checked.bindings.scope_for_node(target))) return false;
+		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+		if (field.index < 1 || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(checked.symbol_types[receiver.index]).nominal.index || (checked.symbol_flags[field.index] & 128) != 0 || !checked_field_accessible(checked, target, field)) return false;
+		var value = checked.bindings.program.arena.get_node_expression(node);
+		return value.index > 0 && recover_copy_channel(checked, checked.symbol_types[field.index], checked.symbol_flags[field.index] & ~256, false) && checked.uses[value.index].type.index == checked.symbol_types[field.index].index && recover_constructor_value(checked, value, function, aggregate, initialized, depth + 1);
+	}
 	bool assignment = kind == SyntaxKind.AssignmentStatementSyntax();
-	if (!assignment && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax()) return false;
+	if (!assignment && kind != SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.InferredLocalDeclarationSyntax() && kind != SyntaxKind.StructLocalDeclarationSyntax()) return false;
 	var symbol = checked.node_symbols[node.index];
 	SyntaxNodeId value = {index = 0};
 	if (assignment) {
@@ -288,11 +328,12 @@ bool recover_constructor_statement(CheckedIndex checked, SyntaxNodeId node, Symb
 	}
 	if (symbol.index < 1 || symbol.index >= len(initialized) || checked.bindings.symbol(symbol).kind != 8 || checked.bindings.symbol(symbol).owner.index != function.index || initialized[symbol.index] != assignment || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 	var type = checked.symbol_types[symbol.index];
-	bool owned_class = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, type) && value.index > 0 && checked.bindings.program.arena.kind(value) == SyntaxKind.HeapObjectConstructionSyntax();
+	bool owned_class = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_class(checked, type) && value.index > 0 && checked.uses[value.index].flags == 4 && recover_class_local_source(checked, node, symbol);
+	bool owned_buffer = !assignment && checked.symbol_flags[symbol.index] == 4 && checked_kind(checked, type) == 22 && recover_array_type(checked, type) && value.index > 0 && checked.uses[value.index].flags == 4 && checked.bindings.program.arena.kind(value) == SyntaxKind.BufferAllocationSyntax();
 	int shared = 0;
 	if (value.index > 0) shared = checked_shared_action(checked, value);
 	bool owned_shared = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_shared(checked, type) && (shared == 1 || shared == 2);
-	if (!owned_class && !owned_shared && (checked.symbol_flags[symbol.index] != 0 || !type_numeric(checked_kind(checked, type)) && type.index != 13 && !recover_storage_pointer(checked, type))) return false;
+	if (!owned_class && !owned_buffer && !owned_shared && !recover_copy_channel(checked, type, checked.symbol_flags[symbol.index], false)) return false;
 	if (value.index == 0 || checked.uses[value.index].type.index != type.index || !recover_constructor_value(checked, value, function, aggregate, initialized, depth + 1)) return false;
 	initialized[symbol.index] = true;
 	return true;
@@ -337,7 +378,12 @@ bool recover_field_constructor_source(CheckedIndex checked, SymbolId function) {
 			continue;
 		}
 		var target = checked.bindings.program.arena.get_node_target(statement);
-		if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this")) return false;
+		if (checked.bindings.program.arena.kind(target) != SyntaxKind.FieldAccessExpressionSyntax()) return false;
+		if (checked.bindings.program.arena.get_node_aggregate(target).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(target), "this")) {
+			if (!recover_constructor_statement(checked, statement, function, type, initialized, 0)) return false;
+			i = i + 1;
+			continue;
+		}
 		var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
 		if (field.index < 1 || initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(type).nominal.index || recover_field_receiver(checked, target, function).index != class_storage_receiver(checked, function)) return false;
 		var value = checked.bindings.program.arena.get_node_expression(statement);

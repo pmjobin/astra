@@ -145,7 +145,6 @@ bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) 
 	var fields = index.bindings.program.arena.get_list_fields(node); int i = 0;
 	while (i < index.bindings.program.arena.list_count(fields)) {
 		var field = index.bindings.program.arena.node_at(fields, i); var symbol = index.node_symbols[field.index];
-		if (kind == 30 && symbol.index > 0 && recover_storage_pointer(index, index.symbol_types[symbol.index])) return false;
 		if (kind == 31 && symbol.index > 0 && checked_kind(index, index.symbol_types[symbol.index]) == 30 && checked_record_owned(index, index.symbol_types[symbol.index], 0)) return false;
 		if (symbol.index == 0 || !class_storage_value(index, index.symbol_types[symbol.index], index.symbol_flags[symbol.index], depth + 1)) return false;
 		i = i + 1;

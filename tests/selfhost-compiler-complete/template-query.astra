@@ -570,6 +570,10 @@ bool template_shared_parameter_controls(CheckedIndex checked) throws Error {
 				if (!recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0)) return false;
 				int flags = checked.symbol_flags[receiver.index];
 				checked.symbol_flags[receiver.index] = 0;
+				bool unqualified = recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[receiver.index] = flags;
+				if (!unqualified) return false;
+				checked.symbol_flags[receiver.index] = 8;
 				bool refused = !recover_constructor_value(checked, operand, function, plan.enclosing, initialized, 0);
 				checked.symbol_flags[receiver.index] = flags;
 				if (!refused || !recover_field_constructor_verified(checked, function)) return false;
@@ -592,6 +596,59 @@ bool template_shared_parameter_controls(CheckedIndex checked) throws Error {
 				checked.symbol_flags[field.index] = field_flags;
 				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
 				println("SHARED_PARAMETER_CONTROLS root=2 type=1 visibility=1 restored=1");
+				return true;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
+bool template_constructor_channel_controls(CheckedIndex checked) throws Error {
+	int s = 1;
+	while (s <= checked.bindings.symbol_count) {
+		var function = type_symbol(s);
+		var plan = checked_source_plan(checked, function);
+		if (plan.concrete.index == s && class_storage_initializing(checked, function)) {
+			var owner = checked.bindings.symbol(checked.types.row(plan.enclosing).nominal);
+			if (checked.bindings.program.arena.token_is(owner.token, "ConstructorChannels")) {
+				if (!recover_field_constructor_verified(checked, function)) return false;
+				var declaration = checked.bindings.symbol(function);
+				var body = checked.bindings.program.arena.get_node_body(declaration.node);
+				var statements = checked.bindings.program.arena.get_list_statements(body);
+				if (checked.bindings.program.arena.list_count(statements) != 6) return false;
+				var initialized = new bool[checked.bindings.symbol_count + 1]; int i = 0;
+				while (i < 3) {
+					if (!recover_constructor_statement(checked, checked.bindings.program.arena.node_at(statements, i), function, plan.enclosing, initialized, 0)) return false;
+					i = i + 1;
+				}
+				var write = checked.bindings.program.arena.node_at(statements, 3);
+				var target = checked.bindings.program.arena.get_node_target(write);
+				var receiver = recover_field_receiver(checked, target, function);
+				var local = checked.node_symbols[checked.bindings.program.arena.node_at(statements, 2).index];
+				if (receiver.index < 1 || receiver.index != local.index || !initialized[local.index] || !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0)) return false;
+				initialized[local.index] = false;
+				bool refused = !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0);
+				initialized[local.index] = true;
+				if (!refused) return false;
+				int flags = checked.symbol_flags[local.index];
+				checked.symbol_flags[local.index] = 2;
+				refused = !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[local.index] = flags;
+				if (!refused) return false;
+				var field = checked_target(checked, target, checked.bindings.program.arena.get_token_field_name(target));
+				int field_flags = checked.symbol_flags[field.index];
+				checked.symbol_flags[field.index] = field_flags | 128;
+				refused = !recover_constructor_statement(checked, write, function, plan.enclosing, initialized, 0);
+				checked.symbol_flags[field.index] = field_flags;
+				if (!refused) return false;
+				var first = checked.node_symbols[checked.bindings.program.arena.node_at(statements, 0).index];
+				var acquire = checked.bindings.program.arena.get_node_initializer(checked.bindings.program.arena.node_at(statements, 2));
+				initialized[first.index] = false;
+				refused = !recover_constructor_value(checked, acquire, function, plan.enclosing, initialized, 0);
+				initialized[first.index] = true;
+				if (!refused || !recover_field_constructor_verified(checked, function) || !generic_verify(checked)) return false;
+				println("CONSTRUCTOR_CHANNEL_CONTROLS initialized=2 owner=1 readonly=1 restored=1");
 				return true;
 			}
 		}
@@ -818,7 +875,7 @@ void template_source_map_usage(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--constructor-channel-controls" && args[1] != "--shared-constructor-controls" && args[1] != "--shared-parameter-controls" && args[1] != "--symbol-map-controls" && args[1] != "--scope-map-controls" && args[1] != "--enum-source-controls" && args[1] != "--receiver-class-controls" && args[1] != "--match-copy-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -838,6 +895,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--constructor-local-controls") {
 			if (template_constructor_local_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--constructor-channel-controls") {
+			if (template_constructor_channel_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--shared-constructor-controls") {

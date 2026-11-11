@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+struct ConstructorCell {
+	int value;
+}
+
+class ConstructorInput {
+	owned ConstructorCell[] cells;
+
+	init(int value) {
+		this.cells = new ConstructorCell[1];
+		ConstructorCell cell = {value = value};
+		this.cells[0] = cell;
+	}
+
+	ConstructorCell read(int index) {
+		return this.cells[index];
+	}
+}
+
+class ConstructorStorage {
+	int value;
+	bool active;
+
+	init(int value) {
+		this.value = value;
+		this.active = true;
+	}
+}
+
+owned ConstructorStorage constructor_storage(int value) {
+	var storage = new ConstructorStorage(value);
+	return move storage;
+}
+
+class ConstructorChannels {
+	owned ConstructorStorage storage;
+	ConstructorCell cell;
+
+	init(ConstructorInput input) {
+		var first = input.cells[0];
+		var second = input.read(0);
+		var storage = constructor_storage(first.value + second.value);
+		storage.active = false;
+		this.storage = move storage;
+		this.cell = first;
+	}
+
+	int result() {
+		if (this.storage.active) return 3;
+		return this.storage.value + this.cell.value;
+	}
+}
+
+int main() {
+	var input = new ConstructorInput(14);
+	var channels = new ConstructorChannels(input);
+	return channels.result();
+}
