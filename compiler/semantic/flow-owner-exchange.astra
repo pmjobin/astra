@@ -36,8 +36,10 @@ void flow_owner_capture_check(borrowed FlowGraph graph, CheckedIndex checked, Fl
 // arguments, including the hidden receiver. Whole-Class loans alone are valid.
 SyntaxNodeId owner_exchange_call_argument(CheckedIndex checked, SyntaxNodeId node, int ordinal) {
 	SyntaxNodeId absent = {index = 0};
-	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return absent;
+	bool getter = class_getter_call_present(checked, node);
+	if (!checked.class_storage || checked.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() && !getter) return absent;
 	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (getter) target = checked.generic_calls[node.index];
 	if (target.index == 0 || checked.symbol_signatures[target.index].index == 0) return absent;
 	var signature = checked.signatures[checked.symbol_signatures[target.index].index - 1]; var arguments = checked_call_arguments(checked, node);
 	if (ordinal < 0 || ordinal >= checked.bindings.program.arena.list_count(arguments) || ordinal + 1 >= checked.types.row(signature.callable).count) return absent;

@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A computed getter has an ordinary source-copied body and a real borrowed
+// receiver. Projection-only getters retain their existing representation.
+bool class_getter_call_present(CheckedIndex index, SyntaxNodeId node) {
+	return index.native_abi && node.index > 0 && node.index < len(index.generic_calls) && index.bindings.program.arena.kind(node) == SyntaxKind.FieldAccessExpressionSyntax() && index.generic_calls[node.index].index > 0;
+}
+
+bool class_getter_source(CheckedIndex index, SymbolId property) {
+	if (!index.native_abi || !index.class_storage || !index.field_effects || property.index < 1 || property.index > index.generic_symbols) return false;
+	var declaration = index.bindings.symbol(property);
+	var node = declaration.node;
+	if (declaration.kind != 14 || index.bindings.program.arena.kind(node) != SyntaxKind.PropertyDeclarationSyntax()) return false;
+	var data = index.bindings.program.arena.property_declaration(node);
+	if (data.f_setter.index != 0 || data.f_throws_class.index != 0 || data.f_factory_syntax.index != 0 || data.f_lazy_keyword.index != 0 || data.f_owned_keyword.index != 0 || data.f_is_borrowed || data.f_dispatch != 0 || data.f_getter.index == 0 || class_property_builtin(index, data.f_type_name) == 0) return false;
+	if (index.bindings.program.arena.get_node_foreign_member(node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(node)) != 0 || index.bindings.program.arena.kind(data.f_getter) != SyntaxKind.PropertyAccessorSyntax()) return false;
+	var getter = index.bindings.program.arena.property_accessor(data.f_getter);
+	if (!index.bindings.program.arena.token_is(getter.f_keyword, "get") || getter.f_parameter.index != 0 || getter.f_body.index == 0 || index.bindings.program.arena.kind(getter.f_body) != SyntaxKind.BlockStatementSyntax() || index.bindings.program.arena.get_node_foreign_member(data.f_getter).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(data.f_getter)) != 0) return false;
+	var projection = class_property_source(index, node, declaration.owner);
+	return projection.field.index == 0;
+}
+
+SymbolId class_getter_property(CheckedIndex index, SymbolId accessor) {
+	if (accessor.index < 1 || accessor.index > index.generic_symbols) return type_symbol(0);
+	var source = index.bindings.symbol(accessor);
+	if (source.kind != 18 || source.owner.index < 1 || source.owner.index > index.generic_symbols) return type_symbol(0);
+	var property = index.bindings.symbol(source.owner);
+	if (property.kind != 14 || index.bindings.program.arena.kind(property.node) != SyntaxKind.PropertyDeclarationSyntax() || index.bindings.program.arena.get_node_getter(property.node).index != source.node.index) return type_symbol(0);
+	return source.owner;
+}
+
+SymbolId class_getter_lower(CheckedIndex index, SymbolId property, TypeId enclosing) throws Error {
+	if (!class_getter_source(index, property) || !index.types.valid_id(enclosing)) return type_symbol(0);
+	var declaration = index.bindings.symbol(property);
+	var shape = index.types.row(enclosing);
+	if (shape.kind != 31 || shape.nominal.index != declaration.owner.index || !class_storage_class(index, enclosing)) return type_symbol(0);
+	var getter = index.bindings.program.arena.get_node_getter(declaration.node);
+	var origin = index.node_symbols[getter.index];
+	if (class_getter_property(index, origin).index != property.index) return type_symbol(0);
+	var previous = index.direct_methods[origin.index];
+	if (previous.state == 2 && previous.origin.index == origin.index && previous.enclosing.index == enclosing.index) return previous.concrete;
+	if (index.generic_active[origin.index]) {
+		index.fail(index.bindings.program.arena.header(getter).span, "recursive getter normalization");
+		return type_symbol(0);
+	}
+	// The declared result is part of the property, outside the accessor span.
+	// Its exact node remains a source-map key in this bounded property window.
+	var plan = generic_window(index, property, enclosing, 0);
+	plan.origin = origin;
+	if (index.generic_node_used > 8000000 - plan.node_count - 1 || index.generic_symbol_used > 8000000 - plan.symbol_count - 1) {
+		index.fail(index.bindings.program.arena.header(getter).span, "getter source map resource limit");
+		return type_symbol(0);
+	}
+	index.generic_active[origin.index] = true;
+	generic_grow_maps(index, plan);
+	var data = syntax_empty_function_declaration();
+	data.f_name = index.bindings.program.arena.get_token_keyword(getter);
+	data.f_return_type = generic_copy_node(index, plan, index.bindings.program.arena.get_node_type_name(declaration.node), 0);
+	data.f_body = generic_copy_node(index, plan, index.bindings.program.arena.get_node_body(getter), 0);
+	SyntaxNodeId clone = {index = 0};
+	if (!index.failed() && generic_copy_room(index, getter)) {
+		var header = index.bindings.program.arena.header(getter);
+		clone = index.bindings.program.arena.add_function_declaration(data, header.span, header.depth);
+		index.bindings.program.arena.set_bool_module_internal(clone, header.module_internal);
+		generic_store_node(index, plan, getter, clone);
+		plan = generic_copy_bindings(index, plan);
+		var function = index.bindings.symbol(plan.concrete);
+		function.kind = 1;
+		index.bindings.replace_instance_symbol(plan.concrete, function);
+		var scope = index.bindings.scope_for_node(clone);
+		var context = index.bindings.scope(scope);
+		context.kind = 4;
+		index.bindings.replace_instance_scope(scope.index, context);
+		int n = plan.node_first;
+		while (n - plan.node_first < plan.node_count && !index.failed()) {
+			int mapped = generic_node(index, plan, n);
+			SyntaxNodeId source = {index = n};
+			if (mapped > 0 && syntax_kind_accepts(index.bindings.program.arena.kind(source), SyntaxKind.TypeNameSyntax()) && index.uses[n].type.index > 0) {
+				SyntaxNodeId target = {index = mapped};
+				var ignored = index.record(target, index.uses[n].type, index.uses[n].flags);
+			}
+			n = n + 1;
+		}
+		var hidden = generic_hidden_parameter(index, plan);
+		if (!index.failed()) checked_signature(index, plan.concrete);
+	}
+	index.generic_active[origin.index] = false;
+	if (index.failed() || clone.index == 0) return type_symbol(0);
+	plan.state = 2;
+	index.direct_methods[origin.index] = plan;
+	index.direct_method_symbols[plan.concrete.index] = origin.index;
+	return plan.concrete;
+}
+
+TypeId class_getter_read(CheckedIndex index, SyntaxNodeId source, SymbolId property, int depth) throws Error {
+	var declaration = index.bindings.symbol(property);
+	var getter = index.bindings.program.arena.get_node_getter(declaration.node);
+	var origin = index.node_symbols[getter.index];
+	if (origin.index < 1 || origin.index >= len(index.direct_methods)) return index.defer(source, 12);
+	var plan = index.direct_methods[origin.index];
+	if (plan.state != 2 || plan.origin.index != origin.index || plan.concrete.index < 1) return index.defer(source, 12);
+	if (index.generic_calls[source.index].index == plan.concrete.index && index.generic_argument_lists[source.index].index != 0) return index.symbol_types[property.index];
+	var receiver = index.bindings.program.arena.get_node_aggregate(source);
+	bool projected = receiver.index != 0;
+	if (!projected) {
+		var token = index.bindings.program.arena.get_token_identifier(source);
+		var symbol = checked_target(index, source, token);
+		if (symbol.index < 1 || !generic_copy_room(index, source)) return index.defer(source, 12);
+		NameExpressionSyntaxData data = {f_identifier = token};
+		receiver = index.bindings.program.arena.add_name_expression(data, index.bindings.program.arena.token_span(token), 0);
+		var scope = index.bindings.scope_for_node(source);
+		BindingReference reference = {node = receiver, token = token, span = index.bindings.program.arena.token_span(token), scope = scope, target = symbol, alternative = {index = 0}, state_code = 1, reason = 0, domain = 2, next_reference = 0};
+		index.bindings.add_reference(reference);
+		int number = index.bindings.reference_count;
+		generic_resize(index);
+		index.bindings.set_instance_node_scope(receiver, scope);
+		index.node_references[receiver.index] = number;
+		index.reference_next[number] = 0;
+	}
+	var actual = checked_expression(index, receiver, plan.enclosing, depth + 1);
+	if (actual.index != plan.enclosing.index) return index.defer(source, 12);
+	var arguments = index.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax()));
+	index.bindings.program.arena.append_node(arguments, receiver);
+	index.generic_argument_lists[source.index] = arguments;
+	index.generic_calls[source.index] = plan.concrete;
+	return index.symbol_types[property.index];
+}

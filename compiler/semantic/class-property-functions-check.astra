@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct getter metadata, source edges, signature and scope independently
+// of the source selector and lowering routine.
+bool class_getter_source_verified(CheckedIndex index, SymbolId property) {
+	if (!index.native_abi || !index.class_storage || !index.field_effects || property.index < 1 || property.index > index.generic_symbols) return false;
+	var source = index.bindings.symbol(property);
+	if (source.kind != 14 || index.bindings.program.arena.kind(source.node) != SyntaxKind.PropertyDeclarationSyntax() || (index.symbol_flags[property.index] & ~256) != 0) return false;
+	var data = index.bindings.program.arena.property_declaration(source.node);
+	var result = index.symbol_types[property.index];
+	int kind = checked_kind(index, result);
+	if ((!type_numeric(kind) && kind != 13) || index.uses[data.f_type_name.index].type.index != result.index || data.f_is_borrowed || data.f_owned_keyword.index != 0 || data.f_factory_syntax.index != 0 || data.f_lazy_keyword.index != 0 || data.f_throws_class.index != 0 || data.f_dispatch != 0 || data.f_getter.index == 0 || data.f_setter.index != 0) return false;
+	if (index.bindings.program.arena.get_node_foreign_member(source.node).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(source.node)) != 0 || index.bindings.program.arena.kind(data.f_getter) != SyntaxKind.PropertyAccessorSyntax()) return false;
+	var getter = index.bindings.program.arena.property_accessor(data.f_getter);
+	return index.bindings.program.arena.token_is(getter.f_keyword, "get") && getter.f_parameter.index == 0 && getter.f_body.index > 0 && index.bindings.program.arena.kind(getter.f_body) == SyntaxKind.BlockStatementSyntax() && index.bindings.program.arena.get_node_foreign_member(data.f_getter).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_foreign_channels(data.f_getter)) == 0;
+}
+
+bool class_getter_plan_verified(CheckedIndex index, GenericInstance plan) {
+	if (plan.origin.index < 1 || plan.origin.index > index.generic_symbols || plan.argument_count != 0 || !index.types.valid_id(plan.enclosing)) return false;
+	var accessor = index.bindings.symbol(plan.origin);
+	var property = class_getter_property(index, plan.origin);
+	if (accessor.kind != 18 || property.index == 0 || !class_getter_source_verified(index, property)) return false;
+	var declaration = index.bindings.symbol(property);
+	var type = index.types.row(plan.enclosing);
+	if (type.kind != 31 || type.nominal.index != declaration.owner.index || declaration.owner.index < 1 || declaration.owner.index > index.generic_symbols) return false;
+	var owner = index.bindings.symbol(declaration.owner);
+	return owner.kind == 4 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(owner.node)) == 0 && class_storage_source_verified(index, plan.enclosing, false, 0);
+}
+
+bool class_getter_signature_verified(CheckedIndex index, GenericInstance plan) {
+	var property = class_getter_property(index, plan.origin);
+	if (property.index == 0 || plan.concrete.index < 1 || plan.concrete.index > index.bindings.symbol_count) return false;
+	int id = index.symbol_signatures[plan.concrete.index].index;
+	if (id < 1 || id > index.signature_count) return false;
+	var signature = index.signatures[id - 1];
+	var type = index.symbol_types[plan.concrete.index];
+	if (signature.declaration.index != plan.concrete.index || signature.callable.index != type.index || signature.flags != 0 || signature.error.index != 0 || signature.dispatch != 0 || checked_kind(index, type) != 25 || index.types.row(type).count != 2) return false;
+	var result = index.types.argument(index.types, type, 0);
+	var receiver = index.types.argument(index.types, type, 1);
+	return result.type.index == index.symbol_types[property.index].index && result.flags == 0 && receiver.type.index == plan.enclosing.index && receiver.flags == 2;
+}
+
+bool class_getter_node_verified(CheckedIndex index, GenericInstance plan, SyntaxNodeId original) {
+	if (!class_getter_plan_verified(index, plan)) return false;
+	var source = index.bindings.symbol(plan.origin);
+	var property_id = class_getter_property(index, plan.origin);
+	var property = index.bindings.symbol(property_id);
+	if (original.index != source.node.index) return false;
+	SyntaxNodeId concrete = {index = generic_node(index, plan, original.index)};
+	if (concrete.index <= index.generic_nodes || concrete.index >= len(index.uses) || index.bindings.program.arena.kind(concrete) != SyntaxKind.FunctionDeclarationSyntax()) return false;
+	var first = index.bindings.program.arena.header(original);
+	var second = index.bindings.program.arena.header(concrete);
+	if (first.span.source.index != second.span.source.index || first.span.start != second.span.start || first.span.end != second.span.end || first.depth != second.depth || first.module_internal != second.module_internal || first.foreign_member.index != 0 || second.foreign_member.index != 0 || index.bindings.program.arena.list_count(first.foreign_channels) != 0 || index.bindings.program.arena.list_count(second.foreign_channels) != 0) return false;
+	var actual = index.bindings.program.arena.function_declaration(concrete);
+	var getter = index.bindings.program.arena.property_accessor(original);
+	if (actual.f_name.index != getter.f_keyword.index || actual.f_is_signal || actual.f_utf8_factory || actual.f_async_keyword.index != 0 || actual.f_dispatch != 0 || actual.f_foreign_policy.index != 0 || actual.f_throws_class.index != 0 || actual.f_owned_keyword.index != 0 || actual.f_open_paren.index != 0 || actual.f_close_paren.index != 0 || actual.f_extern_keyword.index != 0 || actual.f_export_keyword.index != 0 || actual.f_abi_identifier.index != 0 || actual.f_semicolon.index != 0) return false;
+	if (index.bindings.program.arena.list_count(actual.f_ccode) != 0 || index.bindings.program.arena.list_count(actual.f_floating_point) != 0 || index.bindings.program.arena.list_count(actual.f_where_clauses) != 0 || index.bindings.program.arena.list_count(actual.f_type_parameters) != 0 || index.bindings.program.arena.list_count(actual.f_commas) != 0) return false;
+	SyntaxListId empty = {index = 0};
+	if (!generic_parameters_verified(index, plan, empty, actual.f_parameters) || !generic_check_child(index, plan, index.bindings.program.arena.get_node_type_name(property.node), actual.f_return_type) || !generic_check_child(index, plan, getter.f_body, actual.f_body)) return false;
+	var original_scope = index.bindings.scope_for_node(original);
+	var actual_scope = index.bindings.scope_for_node(concrete);
+	if (original_scope.index < 1 || actual_scope.index != generic_scope(index, plan, original_scope.index)) return false;
+	var a = index.bindings.scope(original_scope);
+	var b = index.bindings.scope(actual_scope);
+	int parent = a.parent.index;
+	if (generic_scope(index, plan, parent) != 0) parent = generic_scope(index, plan, parent);
+	return a.kind == 5 && b.kind == 4 && b.node.index == concrete.index && b.owner.index == plan.concrete.index && b.parent.index == parent && a.unit.index == b.unit.index && a.namespace_name == b.namespace_name;
+}
+
+bool source_copy_node_verified(CheckedIndex index, GenericInstance plan, SyntaxNodeId source) {
+	if (index.bindings.program.arena.kind(source) == SyntaxKind.PropertyAccessorSyntax()) return class_getter_node_verified(index, plan, source);
+	return generic_check_node(index, plan, source);
+}
+
+bool class_getter_call_verified(CheckedIndex index, SyntaxNodeId source, SymbolId target) {
+	if (source.index < 1 || source.index >= len(index.generic_calls) || index.bindings.program.arena.kind(source) != SyntaxKind.FieldAccessExpressionSyntax() || index.generic_calls[source.index].index != target.index) return false;
+	var plan = checked_source_plan(index, target);
+	if (plan.concrete.index != target.index || plan.state != 2 || !class_getter_plan_verified(index, plan) || !class_getter_signature_verified(index, plan)) return false;
+	var property = class_getter_property(index, plan.origin);
+	var declaration = index.bindings.symbol(property);
+	var field = index.bindings.program.arena.get_token_field_name(source);
+	if (!generic_token_equal(index, field, declaration.token) || checked_target(index, source, field).index != property.index || !index.bindings.accessible(property, index.bindings.scope_for_node(source))) return false;
+	if (source.index >= len(index.generic_argument_lists)) return false;
+	var arguments = index.generic_argument_lists[source.index];
+	if (index.bindings.program.arena.list_count(arguments) != 1) return false;
+	var argument = index.bindings.program.arena.node_at(arguments, 0);
+	var aggregate = index.bindings.program.arena.get_node_aggregate(source);
+	if (index.uses[argument.index].type.index != plan.enclosing.index) return false;
+	if (aggregate.index > 0) {
+		if (argument.index != aggregate.index) return false;
+	} else {
+		var token = index.bindings.program.arena.get_token_identifier(source);
+		var symbol = checked_target(index, source, token);
+		if (symbol.index < 1 || index.bindings.program.arena.kind(argument) != SyntaxKind.NameExpressionSyntax() || index.bindings.program.arena.get_token_identifier(argument).index != token.index || checked_target(index, argument, token).index != symbol.index) return false;
+	}
+	return index.uses[source.index].type.index == index.symbol_types[property.index].index && index.uses[source.index].flags == 0;
+}

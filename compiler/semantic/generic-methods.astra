@@ -40,6 +40,11 @@ bool generic_empty_class(CheckedIndex index, TypeId type) {
 }
 
 SyntaxListId checked_call_arguments(CheckedIndex index, SyntaxNodeId node) {
+	if (index.native_abi && index.bindings.program.arena.kind(node) == SyntaxKind.FieldAccessExpressionSyntax()) {
+		SyntaxListId absent = {index = 0};
+		if (node.index > 0 && node.index < len(index.generic_argument_lists)) return index.generic_argument_lists[node.index];
+		return absent;
+	}
 	if (index.native_abi && node.index < len(index.generic_argument_lists) && index.generic_argument_lists[node.index].index != 0) return index.generic_argument_lists[node.index];
 	return index.bindings.program.arena.get_list_arguments(node);
 }

@@ -174,6 +174,13 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	if (existing.index != 0) {
 		var declaration = index.bindings.symbol(existing);
 		if (index.class_storage && declaration.kind == 14) {
+			if (class_getter_source(index, existing)) {
+				if (!checked_field_accessible(index, node, existing)) {
+					index.fail(index.bindings.program.arena.token_span(field), "private property is accessible only from its declaring Class");
+					return no_type();
+				}
+				return class_getter_read(index, node, existing, depth);
+			}
 			var scalar = class_property_source(index, declaration.node, declaration.owner);
 			if (scalar.field.index > 0) {
 				if (!checked_field_accessible(index, node, existing)) {
@@ -218,6 +225,14 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 	}
 	var member = index.bindings.symbol(selected);
 	if (index.class_storage && member.kind == 14) {
+		if (class_getter_source(index, selected)) {
+			if (!checked_field_accessible(index, node, selected)) {
+				index.fail(index.bindings.program.arena.token_span(field), "private property is accessible only from its declaring Class");
+				return no_type();
+			}
+			checked_complete_member(index, node, field, selected);
+			return class_getter_read(index, node, selected, depth);
+		}
 		var scalar = class_property_source(index, member.node, member.owner);
 		if (scalar.field.index > 0) {
 			if (!checked_field_accessible(index, node, selected)) {

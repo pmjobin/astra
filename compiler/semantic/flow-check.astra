@@ -78,7 +78,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 				return false;
 			}
 		} else {
-			if (loan.call.index <= 0 || loan.call.index > checked.bindings.program.arena.node_count || (checked.bindings.program.arena.kind(loan.call) != SyntaxKind.CallExpressionSyntax() && !(checked.semantic_flow && checked.bindings.program.arena.kind(loan.call) == SyntaxKind.HeapObjectConstructionSyntax()))) {
+			if (loan.call.index <= 0 || loan.call.index > checked.bindings.program.arena.node_count || (checked.bindings.program.arena.kind(loan.call) != SyntaxKind.CallExpressionSyntax() && !(checked.semantic_flow && checked.bindings.program.arena.kind(loan.call) == SyntaxKind.HeapObjectConstructionSyntax()) && !(class_getter_call_present(checked, loan.call) && class_getter_call_verified(checked, loan.call, checked.generic_calls[loan.call.index])))) {
 				return false;
 			}
 			var args = checked_call_arguments(checked, loan.call);
@@ -196,7 +196,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 				return false;
 			}
 		}
-		if (event.operation == 8 && ((kind != SyntaxKind.CallExpressionSyntax() && !(checked.semantic_flow && kind == SyntaxKind.HeapObjectConstructionSyntax())) || event.call != event.node.index)) {
+		if (event.operation == 8 && ((kind != SyntaxKind.CallExpressionSyntax() && !(checked.semantic_flow && kind == SyntaxKind.HeapObjectConstructionSyntax()) && !(class_getter_call_present(checked, event.node) && class_getter_call_verified(checked, event.node, checked.generic_calls[event.node.index]))) || event.call != event.node.index)) {
 			return false;
 		}
 		if (event.operation == 9 || event.operation == 17) {

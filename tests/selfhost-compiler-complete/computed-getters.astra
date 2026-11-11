@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class ComputedCounter {
+	private int used;
+
+	init() { this.used = 20; }
+
+	property int count { get { return this.used - 1; } }
+}
+
+class CounterChild {
+	private int used;
+
+	init() { this.used = 13; }
+
+	property int count { get { return this.used; } }
+}
+
+class CounterParent {
+	private owned CounterChild child;
+
+	init() {
+		var child = new CounterChild();
+		this.child = move child;
+	}
+
+	property int count { get { return this.child.count; } }
+}
+
+class MethodCounter {
+	private int used;
+
+	init() { this.used = 10; }
+
+	int read() { return this.used; }
+
+	property int count { get { return this.read(); } }
+}
+
+int main() {
+	var arithmetic = new ComputedCounter();
+	var nested = new CounterParent();
+	var method = new MethodCounter();
+	return arithmetic.count + nested.count + method.count;
+}

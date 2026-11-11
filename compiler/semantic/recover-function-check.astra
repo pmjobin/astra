@@ -25,7 +25,12 @@ bool recover_static_method(CheckedIndex checked, SymbolId function) {
 	var plan = checked_source_plan(checked, function); if (plan.origin.index < 1 || plan.concrete.index != function.index) return false;
 	var origin = checked.bindings.symbol(plan.origin);
 	bool finalizer = origin.kind == 12 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(origin.node), "deinit");
-	if (plan.concrete.index != function.index || plan.state != 2 || origin.kind != 11 && !finalizer || !recover_storage_class(checked, plan.enclosing) && (finalizer || !error_storage_class(checked, plan.enclosing)) || origin.owner.index != class_storage_origin(checked, plan.enclosing).index) return false;
+	bool getter = origin.kind == 18 && class_getter_plan_verified(checked, plan); var owner = origin.owner;
+	if (getter) {
+		var property = class_getter_property(checked, plan.origin);
+		owner = checked.bindings.symbol(property).owner;
+	}
+	if (plan.concrete.index != function.index || plan.state != 2 || origin.kind != 11 && !finalizer && !getter || !recover_storage_class(checked, plan.enclosing) && (finalizer || getter || !error_storage_class(checked, plan.enclosing)) || owner.index != class_storage_origin(checked, plan.enclosing).index) return false;
 	var declaration = checked.bindings.symbol(function); var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);
 	if (checked.bindings.program.arena.list_count(parameters) < 1) return false;
 	if (finalizer && (checked.bindings.program.arena.list_count(parameters) != 1 || plan.argument_count != 0 || checked.bindings.program.arena.get_node_return_type(declaration.node).index != 0 || checked.bindings.program.arena.get_node_throws_class(declaration.node).index != 0)) return false;

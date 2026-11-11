@@ -220,10 +220,11 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 }
 
 int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
+	bool getter = class_getter_call_present(checked, node);
 	if (class_storage_construction(checked, node)) return flowsem_construction(graph, checked, class_origins, node, region, next, depth + 1);
 	if (class_storage_slot_call_present(checked, node)) return class_storage_slot_flow(graph, checked, class_origins, node, region, next, depth + 1);
 	var arguments = checked_call_arguments(checked, node);
-	if (checked_flow_intrinsic(checked, node)) {
+	if (!getter && checked_flow_intrinsic(checked, node)) {
 		if (checked.bindings.program.arena.list_count(arguments) != 1 || checked.uses[node.index].type.index == 0) {
 			graph.defer(node, 6);
 			return next;
@@ -231,6 +232,7 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, 0), region, next, 0, depth + 1);
 	}
 	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+	if (getter) target = checked.generic_calls[node.index];
 	if (target.index == 0 || checked.symbol_signatures[target.index].index == 0) {
 		graph.defer(node, 6);
 		return graph.add(flow_event(checked, node, 14, 0, region, next));
@@ -238,7 +240,7 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	var symbol = checked.bindings.symbol(target);
 	var signature = checked.signatures[checked.symbol_signatures[target.index].index - 1];
 	int reason = 0;
-	if (symbol.kind != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0 || (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0 && !(node.index < len(checked.generic_calls) && checked.generic_calls[node.index].index > 0))) {
+	if (symbol.kind != 1 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(symbol.node)) != 0 || (!getter && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0 && !(node.index < len(checked.generic_calls) && checked.generic_calls[node.index].index > 0))) {
 		reason = 5;
 	}
 	if ((signature.flags & 16) != 0 && !checked_c_scalar_signature(checked, target)) {
@@ -415,7 +417,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		event.call = call;
 		return graph.add(event);
 	}
-	if (kind == SyntaxKind.CallExpressionSyntax()) {
+	if (kind == SyntaxKind.CallExpressionSyntax() || class_getter_call_present(checked, node)) {
 		return flow_call(graph, checked, class_origins, node, region, next, depth + 1);
 	}
 	if (kind == SyntaxKind.BufferAllocationSyntax()) {

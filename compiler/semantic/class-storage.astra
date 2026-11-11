@@ -52,7 +52,7 @@ bool class_storage_member(CheckedIndex index, SyntaxNodeId member) {
 		if (symbol.index == 0) return false;
 		if (!index.field_effects) return text_storage_property(index, member, index.bindings.symbol(symbol).owner).index > 0;
 		var owner = index.bindings.symbol(symbol).owner; var scalar = class_property_source(index, member, owner);
-		return text_storage_property(index, member, owner).index > 0 || scalar.field.index > 0;
+		return text_storage_property(index, member, owner).index > 0 || scalar.field.index > 0 || class_getter_source(index, symbol);
 	}
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	if (kind == SyntaxKind.LifecycleDeclarationSyntax()) {
@@ -242,6 +242,10 @@ void class_storage_members(CheckedIndex index, TypeId type) throws Error {
 	var owner = class_storage_origin(index, type); int s = 1;
 	while (s <= index.generic_symbols && !index.failed()) {
 		var symbol = index.bindings.symbol(type_symbol(s));
+		if (symbol.owner.index == owner.index && symbol.kind == 14 && class_getter_source(index, type_symbol(s))) {
+			var getter = class_getter_lower(index, type_symbol(s), type);
+			if (getter.index == 0 && !index.failed()) index.fail(index.bindings.program.arena.header(symbol.node).span, "computed getter source binding is invalid");
+		}
 		if (symbol.owner.index == owner.index && (symbol.kind == 11 || symbol.kind == 12) && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(symbol.node)) == 0) {
 			if (index.symbol_types[s].index == 0) checked_signature(index, type_symbol(s));
 			var arguments = new TypeEdge[0];

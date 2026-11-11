@@ -4,6 +4,9 @@
 // discharge result initialization and every owner obligation.
 // The Flow pass has already independently checked the complete generic map.
 bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId target, TypeId result) {
+	if (checked.bindings.program.arena.kind(source) == SyntaxKind.FieldAccessExpressionSyntax()) {
+		return class_getter_call_verified(checked, source, target) && recover_function_source(checked, target) && checked.uses[source.index].type.index == result.index && checked.uses[source.index].flags == 0;
+	}
 	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || target.index < 1 || target.index > checked.bindings.symbol_count || checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index != target.index) return false;
 	var declaration = checked.bindings.symbol(target); int ordinal = checked.symbol_signatures[target.index].index;
 	if (declaration.kind != 1 || ordinal < 1 || ordinal > checked.signature_count || !recover_function_source(checked, target)) return false;

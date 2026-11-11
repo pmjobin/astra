@@ -324,6 +324,51 @@ bool template_class_layout_controls(CheckedIndex checked) throws Error {
 	return false;
 }
 
+bool template_getter_controls(CheckedIndex checked) throws Error {
+	if (!generic_verify(checked)) return false;
+	int s = 1;
+	while (s < len(checked.direct_methods)) {
+		var plan = checked.direct_methods[s];
+		if (plan.state == 2 && checked.bindings.symbol(plan.origin).kind == 18) {
+			var changed = plan; changed.origin = type_symbol(0); checked.direct_methods[s] = changed;
+			bool refused = !generic_verify(checked); checked.direct_methods[s] = plan;
+			if (!refused || !generic_verify(checked)) return false;
+			var declaration = checked.bindings.symbol(plan.concrete); var original = checked.bindings.symbol(plan.origin);
+			var body = checked.bindings.program.arena.get_node_body(declaration.node); var source_body = checked.bindings.program.arena.get_node_body(original.node);
+			checked.bindings.program.arena.set_node_body(declaration.node, source_body);
+			refused = !generic_verify(checked); checked.bindings.program.arena.set_node_body(declaration.node, body);
+			if (!refused || !generic_verify(checked)) return false;
+			var scope = checked.bindings.scope_for_node(declaration.node); var context = checked.bindings.scope(scope); var other = context; other.kind = 5; checked.bindings.replace_instance_scope(scope.index, other);
+			refused = !generic_verify(checked); checked.bindings.replace_instance_scope(scope.index, context);
+			if (!refused || !generic_verify(checked)) return false;
+			int id = checked.symbol_signatures[plan.concrete.index].index; var signature = checked.signatures[id - 1]; var altered = signature; altered.flags = 64; checked.signatures[id - 1] = altered;
+			refused = !generic_verify(checked); checked.signatures[id - 1] = signature;
+			if (!refused || !generic_verify(checked)) return false;
+			int receiver = class_storage_receiver(checked, plan.concrete);
+			if (receiver < 1 || receiver > checked.bindings.symbol_count) return false;
+			int flags = checked.symbol_flags[receiver]; checked.symbol_flags[receiver] = 4;
+			refused = !generic_verify(checked); checked.symbol_flags[receiver] = flags;
+			if (!refused || !generic_verify(checked)) return false;
+			int n = 1;
+			while (n < len(checked.generic_calls)) {
+				if (checked.generic_calls[n].index == plan.concrete.index) {
+					var arguments = checked.generic_argument_lists[n]; SyntaxListId empty = {index = 0}; checked.generic_argument_lists[n] = empty;
+					refused = !generic_verify(checked); checked.generic_argument_lists[n] = arguments;
+					if (!refused || !generic_verify(checked)) return false;
+					checked.generic_calls[n] = type_symbol(0);
+					refused = !generic_verify(checked); checked.generic_calls[n] = plan.concrete;
+					if (!refused || !generic_verify(checked)) return false;
+					println("GETTER_CONTROLS source=4 receiver=1 calls=2 restored=1");
+					return true;
+				}
+				n = n + 1;
+			}
+		}
+		s = s + 1;
+	}
+	return false;
+}
+
 int template_source_obligations(CheckedIndex checked) throws Error {
 	int s = 1; int classes = 0; int functions = 0; int rejected_classes = 0; int rejected_functions = 0;
 	while (s <= checked.bindings.symbol_count) {
@@ -364,7 +409,7 @@ int template_source_obligations(CheckedIndex checked) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
+	if (len(args) < 3 || args[1] != "--templates" && args[1] != "--flow" && args[1] != "--module-flow" && args[1] != "--obligations" && args[1] != "--direct-method-controls" && args[1] != "--constructor-local-controls" && args[1] != "--foreign-source-controls" && args[1] != "--class-layout-controls" && args[1] != "--getter-controls" && args[1] != "--mutations" && args[1] != "--records") return 9;
 	try {
 		var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
@@ -391,6 +436,10 @@ int main(string[] args) {
 		}
 		if (args[1] == "--class-layout-controls") {
 			if (template_class_layout_controls(checked)) return 42;
+			return 8;
+		}
+		if (args[1] == "--getter-controls") {
+			if (template_getter_controls(checked)) return 42;
 			return 8;
 		}
 		if (args[1] == "--records") return record_shape_cli(checked);

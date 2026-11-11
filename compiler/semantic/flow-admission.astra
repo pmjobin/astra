@@ -154,8 +154,10 @@ void admit_write_graph(borrowed FlowGraph graph, CheckedIndex checked, Utf8ByteB
 			binding_write_span(checked.bindings, event.span, output);
 			source_append_text(output, "\n");
 		}
-		if (event.operation == 8 && checked.bindings.program.arena.kind(event.node) == SyntaxKind.CallExpressionSyntax() && !checked_flow_intrinsic(checked, event.node)) {
+		bool getter = class_getter_call_present(checked, event.node);
+		if (event.operation == 8 && (checked.bindings.program.arena.kind(event.node) == SyntaxKind.CallExpressionSyntax() && !checked_flow_intrinsic(checked, event.node) || getter)) {
 			var target = checked_target(checked, event.node, checked.bindings.program.arena.get_token_identifier(event.node));
+			if (getter) target = checked.generic_calls[event.node.index];
 			source_append_text(output, "CALL");
 			flow_number(output, graph.ordinal);
 			flow_number(output, i + 1);

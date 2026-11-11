@@ -328,6 +328,11 @@ controls perturb the actual field binding, qualifier, field population,
 payload extent, ordinal and offset, restoring each before continuing.
 Their execution and native integration remain pending.
 
+The frozen `29d9ea4` observer subsequently passes all three 128/129/186-field
+sources through Flow. Each passes two restored source controls and four
+restored layout-table controls. The constructor-local controls also pass.
+These are actual semantic/Flow results, with native integration still pending.
+
 `direct-source-independent-audit1` reauthenticates the frozen `2569232`
 observer's 107 consumed archived Git inputs and its tool identities, all 190
 unchanged original target inputs, eight original-C0 oracle ELFs and their
@@ -340,6 +345,41 @@ Original C0 executes all six O0/O2 ELFs to 42 with clean memory. The previous
 Astra host refuses each. The first oracle attempt retains its C0 rejection
 of a direct field allocation. The successor uses the required owned local
 and explicit move. Computed getters remain a source-admission obligation.
+
+## Computed getter body candidate
+
+The frozen `bd06bf8` observer passes all eleven focused source/Flow checks,
+including the seven ordinary-method controls, the real 256/257 generic
+boundary, the corrected pointer constructor, five constructor-local controls
+and the foreign-declaration scan. A separate all-190-original-input module
+Flow attempt takes 230.04 seconds and refuses `CfgProgram`, bytes 2815–3211.
+Its owned dependency chain reaches the still-unadmitted original `SyntaxArena`.
+The detailed declaration survey remains a separate in-flight observation.
+
+The getter candidate copies the actual accessor body and declared result into
+an ordinary private function with one real borrowed Class receiver. The source
+accessor's Binder symbol keys the direct-method table. The property window
+retains the exact result-type node and body edges. The independent consumer
+checks their correspondence, normalized function scope, signature, receiver
+and every completed property call, including a missing-call-table refusal.
+Existing single-field and counted-length projections keep their route.
+
+Computed scalar reads use the ordinary retained call operation throughout
+Flow/Core/CFG/SSA/LLVM. Semantic Flow creates the normal call-scoped loan and
+containing-owner guard for the actual receiver argument. Its independent
+consumer verifies the property-to-accessor correspondence. No lexical owner
+root is supplied by property syntax or Class layout admission. Getter source
+coverage requires its concrete function, which must pass the normal body and
+ownership consumers. No public ABI or generic-instance ceiling is changed.
+
+The all-182-production-module and observer C0 frontend checks pass. The initial
+checks retain two rejected temporary containing-object borrow expressions,
+corrected by computing their scalar IDs before borrowing the relevant field.
+The combined tracked fixture uses distinct results 19, 13 and 10 for its
+arithmetic, child-property and method-call getters. Its two original-C0 ELFs
+return 42 with clean unsuppressed Valgrind. The previous Astra host refuses it.
+The new observer defines seven source, receiver and call-table controls.
+Matching candidate execution and native qualification remain pending.
 
 ## Core work and LLVM traversal candidate
 

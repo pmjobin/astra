@@ -85,7 +85,7 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 		if (kind == SyntaxKind.PropertyDeclarationSyntax()) {
 			var id = checked.node_symbols[member.index]; if (id.index < 1 || checked.bindings.symbol(id).owner.index != descriptor.nominal.index) return false;
 			var scalar = class_property_verified(checked, id);
-			if (!text_storage_accessor_verified(checked, member, descriptor.nominal) && scalar.field.index == 0) return false;
+			if (!text_storage_accessor_verified(checked, member, descriptor.nominal) && scalar.field.index == 0 && !class_getter_source_verified(checked, id)) return false;
 			m = m + 1;
 			continue;
 		}

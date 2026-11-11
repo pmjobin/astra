@@ -62,7 +62,11 @@ bool recover_child(RecoverFlowData flow, CheckedIndex checked, RecoverTypes type
 		if (row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
 		var arguments = checked_call_arguments(checked, source);
 		if (row.kind == 4) {
-			if (kind != SyntaxKind.CallExpressionSyntax() || row.symbol.index != checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index) return false;
+			if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+				if (!class_getter_call_verified(checked, source, row.symbol)) return false;
+			} else {
+				if (kind != SyntaxKind.CallExpressionSyntax() || row.symbol.index != checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source)).index) return false;
+			}
 			int callee = flow.symbols[row.symbol.index]; if (callee < 1 || callee > flow.function_count) return false;
 			var function_row = flow.functions[callee - 1];
 			if (row.type.index != function_row.result.index || !recover_call_source(checked, source, row.symbol, row.type)) return false;

@@ -63,7 +63,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 	if (source.concrete.index == plan.declaration.index && source.enclosing.index != 0) {
 		var origin = checked.bindings.symbol(source.origin);
 		bool error = error_storage_class(checked, source.enclosing);
-		if (origin.kind != 11 && origin.kind != 12 || !class_storage_class(checked, source.enclosing) && !error || !generic_verify(checked)) return false;
+		if (origin.kind != 11 && origin.kind != 12 && !(origin.kind == 18 && class_getter_plan_verified(checked, source)) || !class_storage_class(checked, source.enclosing) && !error || !generic_verify(checked)) return false;
 		if (error) {
 			// Error members use the same borrowed one-pointer group, with the
 			// actual independently checked source copy and hidden parameter.

@@ -257,6 +257,23 @@ bool recover_class_declaration_source(CheckedIndex checked, SymbolId symbol) {
 	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count || checked.bindings.symbol(symbol).kind != 4) return false;
 	var type = checked.symbol_types[symbol.index];
 	if (recover_storage_class(checked, type)) {
+		var declaration = checked.bindings.symbol(symbol);
+		var members = checked.bindings.program.arena.get_list_members(declaration.node); int i = 0;
+		while (i < checked.bindings.program.arena.list_count(members)) {
+			var member = checked.bindings.program.arena.node_at(members, i);
+			if (checked.bindings.program.arena.kind(member) == SyntaxKind.PropertyDeclarationSyntax()) {
+				var property = checked.node_symbols[member.index]; var projection = class_property_verified(checked, property);
+				if (projection.field.index == 0 && !text_storage_accessor_verified(checked, member, symbol)) {
+					if (!class_getter_source_verified(checked, property)) return false;
+					var accessor = checked.bindings.program.arena.get_node_getter(member);
+					var getter = checked.node_symbols[accessor.index];
+					if (getter.index < 1 || getter.index >= len(checked.direct_methods)) return false;
+					var plan = checked.direct_methods[getter.index];
+					if (plan.state != 2 || plan.origin.index != getter.index || plan.enclosing.index != type.index || plan.concrete.index < 1 || !class_getter_signature_verified(checked, plan)) return false;
+				}
+			}
+			i = i + 1;
+		}
 		var source = recover_class_deinit_source(checked, symbol);
 		if (source.index == 0) return true;
 		var origin = checked.node_symbols[source.index];
