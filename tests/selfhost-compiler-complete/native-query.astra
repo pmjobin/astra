@@ -144,16 +144,17 @@ bool class_finalizer_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 }
 
 int main(string[] args) {
-	if (len(args) < 3 || args[1] != "--native" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
-	if (args[1] == "--native" && len(args) < 4) return 9;
+	if (len(args) < 3 || args[1] != "--native" && args[1] != "--native-module" && args[1] != "--shared-stages" && args[1] != "--template-cache-controls" && args[1] != "--record-value-controls" && args[1] != "--class-finalizer-controls") return 9;
+	bool library = args[1] == "--native-module";
+	if ((args[1] == "--native" || library) && len(args) < 4) return 9;
 	try {
-		int start = 2; if (args[1] == "--native") start = 3;
+		int start = 2; if (args[1] == "--native" || library) start = 3;
 		var program = binding_load_program(args, start); var bindings = binding_index(move program, 0);
 		var checked = checked_build_effects_profile(move bindings, 0);
 		if (checked.failed()) {
 			var observation = checked_observation(checked); print(observation.text); return 4;
 		}
-		var flow = recover_flow_lower(move checked, 8192);
+		var flow = recover_flow_lower_mode(move checked, 8192, library);
 		var output = new Utf8ByteBuilder(); source_append_text(output, "RECOVER_FLOW "); append_int(output, flow.data.status); source_append_text(output, " "); append_int(output, flow.data.boundary.index); source_append_text(output, " "); append_int(output, flow.data.node_count);
 		var text = output.snapshot(); println(text.text);
 		if (flow.data.status != 0) {

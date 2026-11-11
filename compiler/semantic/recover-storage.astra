@@ -300,7 +300,7 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 						if (kind == 30) {
 							if (!recover_storage_record(checked, value)) return false;
 						} else {
-							if (!type_numeric(kind) && kind != 13 && kind != 15) return false;
+							if (!type_numeric(kind) && kind != 13 && kind != 15 && !recover_storage_pointer(checked, value)) return false;
 						}
 					}
 				}

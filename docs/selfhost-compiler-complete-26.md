@@ -204,6 +204,45 @@ summary. The finalizer source-binding check and complete C0 semantic run pass
 in 53.88 seconds at 360,404 KiB peak RSS. Integrated Astra qualification is
 pending.
 
+## Original compiler module object candidate
+
+The exact original production population has no `main`. The independent C0
+`library-object-baseline2` accepts a function-only source and produces verified
+LLVM and native objects at both profiles. Its O2 object has no defined source
+function after dead-code elimination. The earlier Astra executable route
+refuses that same source with status 1 and preserves the destination.
+
+The explicit `--native-module` development route requires zero source entry
+points. The ordinary route continues to require exactly one. Every admitted
+source function in module mode is retained in an ordered `llvm.used` table.
+The mechanical C shim constructs the table from passed LLVM functions. The
+independent Astra consumer checks its exact entries, module, private linkage,
+pointer types, array length, section and appending linkage. This introduces no
+source-name selection or owner authority.
+
+`library-roots-kernel3` executes the actual consumer and C shim at O0 and O2.
+Both private functions remain in the optimized native object. Its symbol table
+has no exports. The unused third fixture function disappears at O2. Six
+LLVM-valid negative cases exercise missing, reordered, extra, substituted,
+wrong-section and wrong-linkage roots. Unsuppressed Valgrind passes after
+explicit module-context destruction and LLVM shutdown. The first fixture
+retains its deprecated global-context API build failure. The second retains
+its real context leak. The complete C0 semantic check initially refused a
+projected flag write. Routing that write through the actual field owner's
+method passes in 53.81 seconds. Full candidate module integration is pending.
+
+Source review also found that the recursive Class-field admission query still
+rejected the canonical non-owning `void*` type after its separate layout
+consumer admitted it. The query now uses the same canonical pointer predicate.
+The frozen earlier opaque observer retains its original source and outcome.
+
+The observer also has explicit `--obligations` and `--module-flow` modes. The
+first reports every Class and every refused runtime-function source predicate,
+with original source spans, using one checked input population. It provides
+diagnosis only. The second applies the explicit zero-entry Flow mode. Both
+avoid treating a first refusal as a complete source assessment. Full source
+and object qualification still require their independent downstream consumers.
+
 ## Per-function capacity and verifier work candidate
 
 `module-unit-baseline2` exercises the former aggregate limit with two actual
@@ -241,6 +280,25 @@ and read concrete call and receiver facts at each use. The all-module C0
 semantic check `native-moduleunitscheck1-O0` passes in 53.51 seconds at 360,604
 KiB peak RSS. The kernel measurements establish bounded behavior on their
 fixtures. Native integration and matched complete-original timing are pending.
+
+The frozen `2242bb9` O0 candidate now passes the actual 19-function program
+through Flow, Core, CFG, SSA, LLVM verification, optimization, object emission,
+linking, execution and clean unsuppressed Valgrind. It has 11,749 LLVM blocks.
+The single oversized function is refused at 8,192 Flow nodes and preserves its
+destination. The same candidate executes the original focused `Vector` client
+to 42 with clean Valgrind. Its complete-original attempt retains the earlier
+`Vector` refusal. Its array probe retains the earlier physical-contract refusal.
+The raw overall focused sequence has two failed steps. Separate Class-memory,
+flat-record and owner-slot steps pass. The C0-produced test host build takes
+50 minutes 23.89 seconds and 2,295,416 KiB peak RSS. The original complete
+compiler native profiles proved remain 0/2.
+
+`native-gen9-independent-audit.json` rechecks 195 consumed archived Git inputs,
+all 46 tool identities, the five focused result sets and their raw command
+streams. It independently binds the x86-64 ELF, LLVM and object hashes, clean
+memory receipts and preserved refusal sentinels. Its five result sets have
+2/2/2/2/3 native positives and 1/2/0/0/5 sentinel-preserving refusals. The two
+library-kernel Astra declarations also match the actual source AST exactly.
 
 ## Earlier progress snapshot — 2026-11-10, candidate4 and template work
 

@@ -263,6 +263,50 @@ void *llvm12_handle_offset(void *p, int32_t i) {
 	return p && i >= 0 && i < 1024 ? (void *)((void **)p + i) : NULL;
 }
 
+struct RecoverLibraryRoots {
+	int32_t count;
+	LLVMValueRef entries[];
+};
+
+void *llvm_recover_roots_alloc(int32_t count) {
+	if (count < 1 || count > 8192) return NULL;
+	struct RecoverLibraryRoots *roots = calloc(1, sizeof(*roots) + (size_t)count * sizeof(LLVMValueRef));
+	if (roots) roots->count = count;
+	return roots;
+}
+
+int32_t llvm_recover_roots_set(void *p, int32_t index, LLVMValueRef entry) {
+	struct RecoverLibraryRoots *roots = p;
+	if (!roots || index < 0 || index >= roots->count || !entry) return 0;
+	roots->entries[index] = entry;
+	return 1;
+}
+
+LLVMValueRef llvm_recover_roots_finish(LLVMModuleRef module, void *p) {
+	struct RecoverLibraryRoots *roots = p;
+	if (!module || !roots || LLVMGetNamedGlobal(module, "llvm.used")) return NULL;
+	LLVMTypeRef pointer = LLVMPointerTypeInContext(LLVMGetModuleContext(module), 0);
+	for (int32_t i = 0; i < roots->count; ++i) {
+		LLVMValueRef entry = roots->entries[i];
+		if (!entry || !LLVMIsAFunction(entry) || LLVMGetGlobalParent(entry) != module || LLVMTypeOf(entry) != pointer) return NULL;
+	}
+	LLVMValueRef initializer = LLVMConstArray2(pointer, roots->entries, (uint64_t)roots->count);
+	LLVMValueRef global = LLVMAddGlobal(module, LLVMTypeOf(initializer), "llvm.used");
+	LLVMSetLinkage(global, LLVMAppendingLinkage);
+	LLVMSetSection(global, "llvm.metadata");
+	LLVMSetInitializer(global, initializer);
+	return global;
+}
+
+LLVMValueRef llvm_recover_roots_get(LLVMModuleRef module) {
+	return LLVMGetNamedGlobal(module, "llvm.used");
+}
+
+int32_t llvm_recover_roots_section(LLVMValueRef global) {
+	const char *section = LLVMGetSection(global);
+	return section && !strcmp(section, "llvm.metadata");
+}
+
 void *llvm12_seal(LLVMModuleRef m, int32_t limit) {
 	char *s = LLVMPrintModuleToString(m);
 	if (s && (limit < 1 || strlen(s) > (size_t)limit)) {

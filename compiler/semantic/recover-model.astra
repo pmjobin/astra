@@ -49,6 +49,7 @@ class RecoverFlowData {
 	int unit;
 	int first_node;
 	int first_edge;
+	bool library;
 
 	init(int symbols, int limit) {
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
@@ -57,6 +58,7 @@ class RecoverFlowData {
 		this.catch_owners = new int[symbols];
 		this.function_count = 0; this.node_count = 0; this.edge_count = 0; this.limit = limit;
 		this.unit = 0; this.first_node = 0; this.first_edge = 0;
+		this.library = false;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
 	}
@@ -67,6 +69,8 @@ class RecoverFlowData {
 		} }
 
 	void fail(int status, SyntaxNodeId source) { this.status = status; this.boundary = source; }
+
+	void library_mode(bool library) { this.library = library; }
 
 	void function_row(int ordinal, RecoverFunction row) { this.functions[ordinal] = row; }
 

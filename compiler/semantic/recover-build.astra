@@ -202,10 +202,11 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	flow.nodes[id - 1] = row; return id;
 }
 
-owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) throws Error {
+owned RecoverFlow recover_flow_lower_mode(owned CheckedIndex checked, int limit, bool library) throws Error {
 	var layout = class_storage_plan(checked);
 	var errors = recover_error_layout(checked, layout);
 	var flow = new RecoverFlow(move checked, limit, move layout, move errors);
+	flow.data.library_mode(library);
 	if (!flow.checked.validate() || flow.checked.failed() || !flow.checked.native_abi || !flow.checked.semantic_admission || !flow.checked.semantic_flow || !flow.checked.class_storage) {
 		flow.data.fail(4, flow.data.boundary);
 		return move flow;
@@ -258,4 +259,8 @@ owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) thro
 	if (flow.data.status == 0) recover_fields_build(flow.fields, flow.checked, flow.storage, flow.data);
 	if (flow.data.status == 0 && !recover_flow_verify(flow)) flow.data.fail(1, flow.data.boundary);
 	return move flow;
+}
+
+owned RecoverFlow recover_flow_lower(owned CheckedIndex checked, int limit) throws Error {
+	return recover_flow_lower_mode(move checked, limit, false);
 }

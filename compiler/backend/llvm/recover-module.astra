@@ -1409,6 +1409,27 @@ class RecoverLlvm {
 		}
 	}
 
+	void retain_library_functions(RecoverSsa ssa) throws Error {
+		if (!ssa.cfg.core.flow.data.library) return;
+		var roots = llvm_recover_roots_alloc(len(this.functions));
+		if (roots == null) {
+			throw new Error("LLVM_RESOURCE_EXHAUSTED: library roots");
+		}
+		int i = 0;
+		while (i < len(this.functions)) {
+			if (llvm_recover_roots_set(roots, i, this.functions[i]) != 1) {
+				llvm12_handles_dispose(roots);
+				throw new Error("LLVM_INVALID_IR: library root function");
+			}
+			i = i + 1;
+		}
+		var retained = llvm_recover_roots_finish(this.module, roots);
+		llvm12_handles_dispose(roots);
+		if (retained == null) {
+			throw new Error("LLVM_INVALID_IR: library roots");
+		}
+	}
+
 	void build(RecoverSsa ssa) throws Error {
 		if (this.context != null || !recover_ssa_verify(ssa) || !type_owner_same(this.owner, ssa.cfg.core.identity)) {
 			throw new Error("LLVM_INVALID_UPSTREAM: recover SSA");
@@ -1424,6 +1445,7 @@ class RecoverLlvm {
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
 		this.class_finalizers(ssa);
+		this.retain_library_functions(ssa);
 		var order = new int[ssa.cfg.block_count];
 		int emitted = recover_llvm_emission_order(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, ssa.data.reachable, order);
 		if (emitted == 0) {
