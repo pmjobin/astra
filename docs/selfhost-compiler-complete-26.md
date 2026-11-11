@@ -1594,6 +1594,23 @@ driver's first preflight caught its missing checked Error declaration. The
 corrected driver passes a fresh preflight. Exact source/tool checks reuse the
 already passing native entry checks after the observer-only edit.
 
+The 45b2bed O2 native development host completes its C0 compilation in
+4,410.885 seconds. Its 18 focused source programs produce actual target O0/O2
+objects and 36 linked exit42 ELFs, with 38 clean unsuppressed memory streams
+including FileHandle descriptor checks. Constructor channels, pointer records,
+record-local mutation and record-array mutation all pass. Restored controls
+cover 13 enum transport, nine record-local, one frame-metadata, ten record-array
+and three finalizer alternatives. The backing-invalidation source retains its
+actual Flow status 1 refusal and unchanged output sentinel.
+
+The independent native audit authenticates both target profiles, compile
+identity, every consumed Git input and the complete source attempts. The
+190-input original module stops at Flow status 2 after 38,352 nodes. The
+199-input current module stops at Flow status 2 after 43,501 nodes. Both retain
+their output sentinels. The genuine 257-instance case and copied-payload Match
+source keep their separate refusals. Full original compiler native
+qualification remains 0/2 profiles.
+
 ## Bounded parallel regression execution
 
 The milestone regression wrapper accepts `--jobs 1` through `--jobs 8` and
@@ -1620,8 +1637,8 @@ The independent audit authenticates Git inputs, tools, compile plans and
 56 total Astra fixture ELFs. Both hosts retain the raw record-local Flow
 refusal, constructor source refusal and pointer-record LLVM-helper refusal,
 plus the genuine257 and copied-payload Match refusals. Their whole-original
-attempts remain deferred after focused failures. The current source correction
-is still undergoing focused execution.
+attempts remain deferred after focused failures. The subsequent 45b2bed results
+above retain their separate source and product identities.
 
 ## Preserved obligations
 
