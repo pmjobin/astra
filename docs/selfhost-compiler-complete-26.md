@@ -387,6 +387,37 @@ successor checks that relationship through the actual getter source plan before
 granting private-field access. The focused C0 observer check passes. The
 earlier `795ac1f` build snapshot is retained separately.
 
+That earlier observer subsequently passes the method-call getter through Flow
+and all seven getter controls. Its arithmetic and child-property getters fail
+with the literal private-field diagnostic. Those failures remain attached to
+`795ac1f`. The declaring-Class visibility successor is a separate build.
+
+## Direct finalizer physical consumer candidate
+
+The frozen `bd06bf8` native host passes the pointer constructor, record arrays,
+both long paths, local record arrays, forward Vector, Class memory, flat values
+and slot checks. The genuine 256-instance and nested-constructor sources produce
+real O0/O2 objects and linked exit42 ELFs with clean unsuppressed Valgrind.
+The genuine 257-instance refusal remains. Its original-source attempts still
+stop at the `CfgProgram` Class declaration.
+
+The ordinary 262-member native attempt initially fails its test's count of
+private functions. The source `main` has public C calling convention zero.
+The separate `ordinary-methods-nativegen12-supplement1-O0` receipt counts
+262 private members plus that entry, then verifies actual O0/O2 objects,
+linkage, exit42 and clean memory. The original failed receipt stays unchanged.
+
+The original hosted `FileHandle` case reaches SSA and passes LLVM verification,
+then retains the physical-contract refusal. Read-only diagnosis captures the
+actual LLVM module through the LLVM print API and watches the natural verifier
+outputs. The Class-helper consumer returns false before the global body
+consumer runs. Its finalizer lookup still searches only the generic table,
+while the emitter uses the real direct source plan. The candidate adds that
+direct entry to the independent unique-callee check and retains the generic
+search, function-table bounds, calling convention and actual instruction checks.
+Its all-production C0 frontend check passes. Matching native qualification,
+including descriptor cleanup and finalizer mutations, remains pending.
+
 ## Core work and LLVM traversal candidate
 
 The previous O0 host admits both long-path fixtures to Flow and refuses them in

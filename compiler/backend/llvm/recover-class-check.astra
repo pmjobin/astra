@@ -111,6 +111,14 @@ bool recover_class_helpers_verified(RecoverSsa ssa, void* layout, void*[] functi
 				if (original.index < 1 || original.index > ssa.cfg.core.flow.checked.bindings.symbol_count) return false;
 				var member = ssa.cfg.core.flow.checked.bindings.symbol(original);
 				if (member.kind != 12 || member.owner.index != s || member.node.index != deinit_source.index) return false;
+				if (original.index < len(ssa.cfg.core.flow.checked.direct_methods)) {
+					var plan = ssa.cfg.core.flow.checked.direct_methods[original.index];
+					if (plan.state != 0 || plan.concrete.index != 0) {
+						if (plan.origin.index != original.index || plan.enclosing.index != type.index || plan.state != 2 || plan.concrete.index < 1 || plan.concrete.index >= len(ssa.cfg.core.flow.data.symbols)) return false;
+						finalizer = ssa.cfg.core.flow.data.symbols[plan.concrete.index];
+						if (finalizer < 1 || finalizer > len(functions)) return false;
+					}
+				}
 				int p = 0;
 				while (p < ssa.cfg.core.flow.checked.instance_count) {
 					var plan = ssa.cfg.core.flow.checked.instances[p];
