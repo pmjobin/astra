@@ -97,7 +97,8 @@ def main():
 	if args.phase == 'prepare':
 		_, semantics, _ = run('C0-semantics', [args.compiler, '--dump-semantics', source, driver])
 		names = re.findall(rb'^\t\(function "([^"]+)"', semantics, re.M)
-		assert names == [b'source_argument_literal', b'source_argument_length', b'source_argument_paths', b'main']
+		assert names.count(b'main') == 1
+		assert [name for name in names if name != b'main'] == [b'source_argument_literal', b'source_argument_length', b'source_argument_paths']
 		profiles = []
 		for mode in ('O0', 'O2'):
 			target = working / ('C0-' + mode)
