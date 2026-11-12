@@ -56,6 +56,7 @@ bool dominance_case(RecoverBlock[] blocks, int[] entries) {
 		int use = 1;
 		while (use <= len(blocks)) {
 			int entry = entries[blocks[use - 1].function - 1];
+			if ((work.dominance_first[use] > 0) == dominance_oracle(blocks, entry, 0, use)) return false;
 			if (recover_ssa_dominates(definition, use, work) != dominance_oracle(blocks, entry, definition, use)) return false;
 			use = use + 1;
 		}
@@ -111,6 +112,45 @@ int dominance_exhaustive() {
 	if (recover_ssa_build_dominance(separate, 4, roots, starved) || !starved.exhausted || len(starved.dominance_first) != 0) return 4;
 	var forbidden = new RecoverWork(8000001);
 	if (recover_ssa_build_dominance(separate, 4, roots, forbidden)) return 5;
+	var zero = new RecoverWork(0);
+	if (recover_ssa_build_dominance(separate, 4, roots, zero) || !zero.exhausted) return 12;
+	separate[1].other = 3;
+	var crossing = new RecoverWork(8000000);
+	if (recover_ssa_build_dominance(separate, 4, roots, crossing)) return 13;
+	separate[1].other = 0; roots[1] = 2;
+	var wrong_root = new RecoverWork(8000000);
+	if (recover_ssa_build_dominance(separate, 4, roots, wrong_root)) return 14;
+	return 42;
+}
+
+int dominance_generated() {
+	// Exercise larger joins, irreducible cycles, duplicate edges, unreachable
+	// predecessors and roots away from block one against the deletion oracle.
+	int seed = 17; int graph = 0;
+	while (graph < 4096) {
+		int size = 5 + graph % 8;
+		var blocks = new RecoverBlock[size]; var entries = new int[1]; entries[0] = 1 + graph % size;
+		int node = 0;
+		while (node < size) {
+			blocks[node].function = 1;
+			seed = (seed * 109 + 89) % 32749; blocks[node].next = seed % (size + 1);
+			seed = (seed * 109 + 89) % 32749; blocks[node].other = seed % (size + 1);
+			node = node + 1;
+		}
+		if (!dominance_case(blocks, entries)) return 15;
+		graph = graph + 1;
+	}
+	// One cyclic function must still converge while a disjoint DAG can finish
+	// after its first pass, including when their physical blocks interleave.
+	var mixed = new RecoverBlock[8]; var roots = new int[2]; roots[0] = 1; roots[1] = 2;
+	int i = 0;
+	while (i < len(mixed)) {
+		mixed[i].function = 1 + i % 2;
+		i = i + 1;
+	}
+	mixed[0].next = 3; mixed[0].other = 5; mixed[2].next = 7; mixed[4].next = 7;
+	mixed[1].next = 4; mixed[1].other = 6; mixed[3].next = 8; mixed[5].next = 8; mixed[7].next = 4;
+	if (!dominance_case(mixed, roots)) return 16;
 	return 42;
 }
 
@@ -132,7 +172,7 @@ int dominance_chain() {
 		if (!recover_ssa_dominates(use - 1, use, work) || recover_ssa_dominates(use, use - 1, work)) return 7;
 		i = i + 1;
 	}
-	if (work.exhausted || work.remaining < 7899000) return 8;
+	if (work.exhausted || work.remaining < 7920000) return 8;
 	var order = new int[8192];
 	if (recover_llvm_emission_order(blocks, len(blocks), entries, reachable, order) != len(blocks)) return 10;
 	i = 0;
@@ -147,6 +187,7 @@ int dominance_chain() {
 int main(string[] args) {
 	if (len(args) != 2) return 9;
 	if (args[1] == "--exhaustive") return dominance_exhaustive();
+	if (args[1] == "--generated") return dominance_generated();
 	if (args[1] == "--chain") return dominance_chain();
 	return 9;
 }

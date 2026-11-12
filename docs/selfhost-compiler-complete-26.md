@@ -2400,3 +2400,66 @@ optimization, native object/link execution and generated-program Valgrind using
 exact23.1.4 frontends. The original reference manifests and receipts remain
 unchanged. The actual Astra check uses this separate reference and an explicit
 7200-second observation budget; generic256 and SSA8M budgets are unchanged.
+
+## Completed source lookup measurement and SSA budget diagnosis
+
+The rebuilt `f50ad8a` O2 source observer passes79/79 focused outcomes and all
+nine independent Flow consumers on both complete modules: original190 inputs,
+284425 nodes,270.94seconds; current204 inputs,319061 nodes,326.74seconds.
+`source-observers-independent-audit19.json` independently binds the executable,
+114 consumed Git-authenticated archived inputs, tool bytes, target source bytes,
+commands and raw streams. Its SHA256 is
+`ebc83da37a18fd4c45dbafd71b07ce08f6f4aa6ffa0c3cf44c1dcb034bebcff8`.
+This is complete Typecore/Flow evidence; it grants no full native object credit.
+
+A separately matched `--module-flow` comparison uses the same original190
+read-only inputs, O2 observer profile, tool identities and sampling command.
+Elapsed time changes from457.1233 to232.6821seconds, a49.10% reduction in these
+two observed runs, with byte-identical output. Peak RSS changes from284396 to
+289308KiB. The sole changed production input is the private class-candidate
+index; the other changed input adds query controls outside this command.
+`rootindex-matched-performance-independent-audit1.json` SHA256
+`02f494bae66bd925f43f3136b253ce75c4b821772bba9d1c3ac63e78e84647e4`
+records the comparison. It is one run per revision, not a repeated statistical
+qualification or a whole native compiler speedup. The first audit's incorrect
+assumption that FLOW was the first output line remains a failed harness receipt;
+the second checks the actual line after the source inventory.
+
+Actual original and current complete native pipelines pass Core and CFG, then
+refuse at SSA with exit8. The representative191-input application does the same
+after Flow0/0/284699; its output sentinel survives and no native object profile
+is admitted. A read-only debugger run on the original graph records375907 blocks,
+388369 edges,284425 Core nodes and2392 functions. Reachability spends369354 work;
+dominator reconstruction spends5786293; only270475 work remains before the old
+388369-edge phi-index scan. The fixed8,000,000 budget exhausts there. These are
+actual refusals, not passing native compiler receipts.
+
+The SSA candidate reconstructs reachability from its independent dominator DFS
+and still compares every producer reachability bit. It converges disjoint
+function graphs separately, avoids an acyclic function's redundant confirmation
+pass only when every predecessor was already resolved, and skips empty/visited
+successor stack frames. Root/sibling dominator intersections finish directly.
+The existing definition scan now builds incoming Error-phi lists in reverse
+physical block/edge order, retaining the prior ascending verification order and
+the same verified CFG edge identities. Source, CFG, owner, operand, dominance,
+Error-phi and slot checks remain independent; the work ceiling is unchanged.
+
+Before any integrated rebuild, exact production dominance/emission bodies pass
+original C0 O0/O2 against independent graph-deletion and recursive DFS oracles:
+15002 exhaustive graphs/237409 dominance queries,4096 larger generated graphs,
+an interleaved mixed DAG/cyclic function case, invalid cross-function/root and
+budget controls, and an8192-block chain. All six strict unsuppressed Valgrind
+streams are clean. Chain work is75773, previously100349. The new portable recipe
+is `tests/selfhost-compiler-complete/ssa-dominance.py`; its focused kernel grants
+zero integrated SSA/native credit. The complete normal semantic context passes
+in64.56seconds. Full-module SSA and subsequent LLVM/native gates remain pending.
+
+The exact f50 baseline and candidate dominator bodies also execute under C0
+O0/O2 on the actual375907-block/2392-function original CFG dump. Every interval
+is byte-identical across all four executions; actual dominance work falls from
+5786293 to5011192, saving775101 units. Both candidate large-graph Valgrind streams
+are strictly clean. `ssa-graph-differential3/result.json` records these results.
+Two preliminary harness attempts remain failed: the first enables ccache inside
+a read-only home; the second selects the older8192-block-bounded kernel, which
+correctly refuses the full graph. The third extracts the exact f50 Git baseline.
+This differential is full-size dominance evidence, not integrated SSA acceptance.

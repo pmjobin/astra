@@ -67,34 +67,45 @@ bool recover_ssa_reach(RecoverCfg cfg, bool[] reachable, RecoverWork work) {
 
 // Walk the checked successor graph once. The rank table is also the discovery
 // mark until the postorder is complete.
-int recover_ssa_dominance_order(RecoverBlock[] blocks, int count, int[] entries, int[] post, int[] rank, RecoverWork work) {
+int recover_ssa_dominance_order(RecoverBlock[] blocks, int count, int[] entries, int[] post, int[] rank, int[] limits, RecoverWork work) {
 	var stack = new int[count]; var next_edge = new int[count + 1]; int reached = 0;
 	int f = 0;
 	while (f < len(entries)) {
 		int root = entries[f];
-		if (root < 1 || root > count || rank[root] != 0) return -1;
+		if (root < 1 || root > count || rank[root] != 0 || blocks[root - 1].function != f + 1) return -1;
+		limits[f] = reached;
 		int depth = 1; stack[0] = root; rank[root] = -1;
 		while (depth > 0) {
 			if (!work.take()) return -1;
 			int node = stack[depth - 1];
-			int edge = next_edge[node];
-			if (edge == 2) {
-				post[reached] = node;
-				reached = reached + 1;
-				depth = depth - 1;
-			} else {
+			if (next_edge[node] == 0) {
+				next_edge[node] = 1;
 				int target = blocks[node - 1].next;
-				if (edge == 1) target = blocks[node - 1].other;
-				next_edge[node] = edge + 1;
 				if (target < 0 || target > count) return -1;
 				if (target > 0 && rank[target] == 0) {
 					rank[target] = -1;
 					stack[depth] = target;
 					depth = depth + 1;
+					continue;
 				}
 			}
+			if (next_edge[node] == 1) {
+				next_edge[node] = 2;
+				int target = blocks[node - 1].other;
+				if (target < 0 || target > count) return -1;
+				if (target > 0 && rank[target] == 0) {
+					rank[target] = -1;
+					stack[depth] = target;
+					depth = depth + 1;
+					continue;
+				}
+			}
+			post[reached] = node;
+			reached = reached + 1;
+			depth = depth - 1;
 		}
 		f = f + 1;
+		limits[f] = reached;
 	}
 	return reached;
 }
@@ -117,6 +128,7 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 			if (p == 1) target = blocks[b - 1].other;
 			if (target < 0 || target > count) return false;
 			if (target > 0) {
+				if (blocks[target - 1].function != blocks[b - 1].function) return false;
 				int edge = (b - 1) * 2 + p + 1;
 				links[edge] = incoming[target];
 				incoming[target] = edge;
@@ -125,8 +137,8 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 		}
 		b = b + 1;
 	}
-	var post = new int[count]; var rank = new int[count + 1];
-	int reached = recover_ssa_dominance_order(blocks, count, entries, post, rank, work);
+	var post = new int[count]; var rank = new int[count + 1]; var limits = new int[len(entries) + 1];
+	int reached = recover_ssa_dominance_order(blocks, count, entries, post, rank, limits, work);
 	if (reached < 1) return false;
 	var parent = new int[count + 1];
 	int i = 0;
@@ -140,37 +152,63 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 		parent[entries[f]] = entries[f];
 		f = f + 1;
 	}
-	bool changed = true;
-	while (changed) {
-		changed = false;
-		i = reached - 1;
-		while (i >= 0) {
-			if (!work.take()) return false;
-			int node = post[i]; i = i - 1;
-			if (parent[node] == node) continue;
-			int candidate = 0; int edge = incoming[node];
-			while (edge > 0) {
+	// Functions have disjoint successor graphs. Converge each postorder range
+	// separately so a loop in one function cannot rescan every other function.
+	f = 0;
+	while (f < len(entries)) {
+		bool changed = true; bool initial = true;
+		while (changed) {
+			changed = false; bool unknown = false;
+			i = limits[f + 1] - 1;
+			while (i >= limits[f]) {
 				if (!work.take()) return false;
-				int predecessor = (edge - 1) / 2 + 1; edge = links[edge];
-				if (parent[predecessor] == 0) continue;
-				if (candidate == 0) {
-					candidate = predecessor;
-					continue;
-				}
-				while (candidate != predecessor) {
+				int node = post[i]; i = i - 1;
+				if (parent[node] == node) continue;
+				int candidate = 0; int edge = incoming[node];
+				while (edge > 0) {
 					if (!work.take()) return false;
-					if (rank[candidate] > rank[predecessor]) candidate = parent[candidate];
-					else {
-						predecessor = parent[predecessor];
+					int predecessor = (edge - 1) / 2 + 1; edge = links[edge];
+					if (parent[predecessor] == 0) {
+						unknown = true;
+						continue;
+					}
+					if (candidate == 0) {
+						candidate = predecessor;
+						continue;
+					}
+					while (candidate != predecessor) {
+						if (!work.take()) return false;
+						if (parent[candidate] == candidate) {
+							predecessor = candidate;
+							continue;
+						}
+						if (parent[predecessor] == predecessor) {
+							candidate = predecessor;
+							continue;
+						}
+						if (parent[candidate] == parent[predecessor]) {
+							candidate = parent[candidate];
+							predecessor = candidate;
+							continue;
+						}
+						if (rank[candidate] > rank[predecessor]) candidate = parent[candidate];
+						else {
+							predecessor = parent[predecessor];
+						}
 					}
 				}
+				if (candidate == 0 || rank[candidate] >= rank[node]) return false;
+				if (parent[node] != candidate) {
+					parent[node] = candidate;
+					changed = true;
+				}
 			}
-			if (candidate == 0 || rank[candidate] >= rank[node]) return false;
-			if (parent[node] != candidate) {
-				parent[node] = candidate;
-				changed = true;
-			}
+			// With no unknown predecessor on the first pass, each dependency
+			// was already final in this range. No confirmation pass is needed.
+			if (initial && !unknown) changed = false;
+			initial = false;
 		}
+		f = f + 1;
 	}
 	var children = new int[count + 1]; var sibling = new int[count + 1];
 	i = 0;
@@ -350,18 +388,36 @@ owned int[] recover_ssa_local_definitions(RecoverCfg cfg, RecoverWork work) {
 
 bool recover_ssa_verify(RecoverSsa ssa) {
 	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
-	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count]; if (!recover_ssa_reach(ssa.cfg, reachable, work)) return false;
+	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count];
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
-	var definitions = new bool[len(ssa.data.values)]; int b = 1;
-	while (b <= ssa.cfg.block_count) {
+	// The independently reconstructed dominator traversal also proves reach.
+	// Reverse block order builds incoming phi lists in their original edge order
+	// during the definition scan instead of scanning the CFG a second time.
+	var phi_head = new int[ssa.cfg.block_count + 1]; var phi_next = new int[ssa.cfg.edge_count + 1]; int e = ssa.cfg.edge_count;
+	var definitions = new bool[len(ssa.data.values)]; int b = ssa.cfg.block_count;
+	while (b > 0) {
+		reachable[b - 1] = work.dominance_first[b] > 0;
 		if (!work.take() || reachable[b - 1] != ssa.data.reachable[b - 1]) return false;
 		int id = recover_ssa_definition(ssa.cfg, b);
 		if (id != 0) {
 			if (definitions[id]) return false; definitions[id] = true; var value = ssa.data.values[id]; var expected = recover_ssa_expected(ssa.cfg, b);
 			if (value.function != expected.function || value.block != b || value.type.index != expected.type.index || value.channel != expected.channel || value.edge != expected.edge) return false;
 		}
-		b = b + 1;
+		var row = ssa.cfg.blocks[b - 1]; int p = 1;
+		while (p >= 0) {
+			int target = row.other; if (p == 0) target = row.next;
+			if (target > 0) {
+				if (ssa.cfg.blocks[target - 1].opcode == 33 && reachable[b - 1]) {
+					phi_next[e] = phi_head[target];
+					phi_head[target] = e;
+				}
+				e = e - 1;
+			}
+			p = p - 1;
+		}
+		b = b - 1;
 	}
+	if (e != 0) return false;
 	int v = 0;
 	while (v < len(definitions)) {
 		if (!definitions[v]) {
@@ -382,19 +438,6 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	}
 	var locals = recover_ssa_local_definitions(ssa.cfg, work);
 	if (work.exhausted || len(locals) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1) return false;
-	// Record incoming reachable edges of each Error phi from the verified CFG.
-	// Descending insertion retains the original ascending verification order.
-	var phi_head = new int[ssa.cfg.block_count + 1]; var phi_next = new int[ssa.cfg.edge_count + 1];
-	int e = ssa.cfg.edge_count;
-	while (e > 0) {
-		if (!work.take()) return false;
-		var edge = ssa.cfg.edges[e - 1];
-		if (ssa.cfg.blocks[edge.target - 1].opcode == 33 && reachable[edge.source - 1]) {
-			phi_next[e] = phi_head[edge.target];
-			phi_head[edge.target] = e;
-		}
-		e = e - 1;
-	}
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
