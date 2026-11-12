@@ -13,8 +13,10 @@ import signal
 import subprocess
 from threading import RLock
 import time
+from types import SimpleNamespace
 
 from run import BASE, C0_SHA256, ROOT, WORK, git, sha, write
+from accelerate import authenticated_inputs
 
 
 def main():
@@ -23,11 +25,13 @@ def main():
 	parser.add_argument('--reference-host', type=Path, required=True)
 	parser.add_argument('--native-timeout-seconds', type=int, default=1800)
 	parser.add_argument('--component', type=Path)
+	parser.add_argument('--current-inputs', type=Path, help='Check the authenticated full current closure using this already-built C0 component as the current implementation oracle')
 	parser.add_argument('--build-root', type=Path, required=True)
 	parser.add_argument('--runtime-root', type=Path, required=True)
 	parser.add_argument('--version', required=True)
 	parser.add_argument('--phase', choices=('prepare', 'check'), required=True)
 	args = parser.parse_args()
+	assert not args.current_inputs or args.phase == 'check'
 	assert args.version.isalnum() and sha(args.compiler) == C0_SHA256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	assert sha('/usr/lib64/libLLVM.so.23.1') == '3149b73c3118dee2d2829a210b422ca89a4aa0064b57e77936ede12bdcfe750d'
@@ -102,10 +106,21 @@ def main():
 		inputs = manifest['inputs']
 		assert manifest['tools'] == tools and manifest['link_objects'] == {str(path):sha(path) for path in objects}
 		assert len(inputs) == 191 and all(sha(path) == expected and Path(path).stat().st_mode & 0o222 == 0 for path, expected in inputs.items())
-		output = leaf / ('check-' + sha(args.component)[:16])
+		if args.current_inputs:
+			current = authenticated_inputs(SimpleNamespace(inputs=args.current_inputs, scope='current'))
+			assert identity['identity']['argv'][0] == str(args.compiler)
+			assert all(identity['identity']['sources'].get(path) == digest for path, digest in current.items()), 'C0 oracle must contain the exact current implementation'
+			inputs = {**current, manifest['fixture']:manifest['inputs'][manifest['fixture']]}
+			current_command = identity['identity']['argv']
+			current_links = current_command[current_command.index('--link-object'):current_command.index('-o')]
+			objects = [Path(current_links[i + 1]) for i, value in enumerate(current_links) if value == '--link-object']
+			assert len(objects) == 6 and {p.name:sha(p) for p in objects if p.name != 'llvm-capi.o'} == {p.name:sha(p) for p in providers}
+			assert [current_links[i + 1] for i, value in enumerate(current_links) if value == '--link-library'] == libraries
+		output = leaf / (('check-current-' if args.current_inputs else 'check-') + sha(args.component)[:16])
 		working = build / output.name
 		output.mkdir()
 		working.mkdir()
+		(output/'recipe.py.txt').write_bytes(Path(__file__).read_bytes())
 	commands = []
 	lock = RLock()
 	environment = dict(os.environ, CCACHE_DISABLE='1')
@@ -174,12 +189,36 @@ def main():
 		return
 	oracles = json.loads((leaf / 'oracles.json').read_text())
 	assert oracles['manifest_sha256'] == sha(leaf / 'inputs.json')
+	current_oracle = None
+	if args.current_inputs:
+		# Same compiler implementation, compiled independently by original C0.
+		# The CLI loader and fixture both create SourceBuffer(path, bytes, false),
+		# then invoke the same parser/binder/effects/Flow/Core/CFG/SSA/LLVM chain.
+		# SourceBuffer/UTF8 location code remains byte-exact to the old C0 oracle.
+		for name in git('ls-tree', '-r', '--name-only', BASE, 'compiler/source').decode().splitlines():
+			if name.endswith('.astra'):
+				selected = [Path(path) for path in inputs if path.endswith('/'+name)]
+				assert len(selected) == 1 and selected[0].read_bytes() == git('show', BASE+':'+name)
+		text = ''.join('int usage_'+str(i)+'(int value) { return value + 1; }\n' for i in range(128))+'int main() { return usage_127(41); }\n'
+		program = working/'m26/representative.astra'; program.parent.mkdir(); program.write_text(text); program.chmod(0o444)
+		oracle_ir = working/'C0-current-representative.ll'
+		run('C0-current-implementation', [args.component, '--native', oracle_ir, 'm26/representative.astra'], working)
+		run('C0-current-verify', ['opt', '-passes=verify', '-disable-output', oracle_ir], working)
+		current_oracle = dict(component_sha256=sha(args.component), exact_current_manifest_sha256=sha(args.current_inputs), generated_input_sha256=sha(program), virtual_path='m26/representative.astra', raw_LLVM_sha256=sha(oracle_ir), profiles=[])
+		for mode in ('O0', 'O2'):
+			optimized = working/('C0-current-'+mode+'.ll'); obj = working/('C0-current-'+mode+'.o'); target = working/('C0-current-'+mode)
+			run('C0-current-'+mode+'-opt', ['opt', '-passes=default<'+mode+'>', '-S', oracle_ir, '-o', optimized], working)
+			run('C0-current-'+mode+'-object', ['llc', '-filetype=obj', '-'+mode, optimized, '-o', obj], working)
+			run('C0-current-'+mode+'-link', ['cc', '-no-pie', obj, *providers, '-o', target], working)
+			run('C0-current-'+mode+'-execute', [target], working, 42); memory('C0-current-'+mode+'-memory', target, working)
+			current_oracle['profiles'].append(dict(profile=mode, ELF_sha256=sha(target), execution=42, strict_memory=True))
+		write(output/'current-oracle.json', current_oracle)
 	physical = working / 'compiler-use.ll'
 	sentinel = b'Full original compiler application output sentinel\n'
 	physical.write_bytes(sentinel)
 	assert args.native_timeout_seconds > 0
 	code, stdout, _ = run('Astra-native', [args.component, '--native', physical, *inputs], working, None, args.native_timeout_seconds)
-	result = dict(component_sha256=sha(args.component), inputs_manifest_sha256=sha(leaf / 'inputs.json'), native_exit=code, profiles=[], historical_reference_recipes=historical_recipes, full_original_library_object_qualification=0)
+	result = dict(component_sha256=sha(args.component), inputs_manifest_sha256=sha(args.current_inputs if args.current_inputs else leaf / 'inputs.json'), source_scope='current' if args.current_inputs else 'original', actual_inputs=inputs, target_link_objects={str(p):sha(p) for p in objects}, recipe_sha256=sha(output/'recipe.py.txt'), current_C0_oracle=current_oracle, native_exit=code, profiles=[], historical_reference_recipes=historical_recipes, full_original_library_object_qualification=0)
 	if code:
 		assert physical.read_bytes() == sentinel
 		result.update(status='REFUSED', sentinel_preserved=True)
@@ -199,10 +238,11 @@ def main():
 			run(label + '-link', ['cc', '-no-pie', obj, *objects, *['-l' + name for name in libraries], '-o', target], directory)
 			profile = execute_application(label, target, directory, mode)
 			oracle = next(row for row in oracles['profiles'] if row['profile'] == mode)
-			assert all(profile[key] == oracle[key] for key in ('stdout_sha256', 'stderr_sha256', 'generated_LLVM_sha256'))
+			assert all(profile[key] == oracle[key] for key in ('stdout_sha256', 'stderr_sha256'))
+			assert profile['generated_LLVM_sha256'] == (current_oracle['raw_LLVM_sha256'] if current_oracle else oracle['generated_LLVM_sha256'])
 			profile.update(object_sha256=sha(obj), optimized_LLVM_sha256=sha(optimized))
 			result['profiles'].append(profile)
-		result['status'] = 'LINKED_ORIGINAL_COMPILER_USAGE_PASS'
+		result['status'] = 'LINKED_CURRENT_COMPILER_USAGE_PASS' if args.current_inputs else 'LINKED_ORIGINAL_COMPILER_USAGE_PASS'
 	assert all(sha(path) == expected for path, expected in tools.items())
 	write(output / 'result.json', result)
 

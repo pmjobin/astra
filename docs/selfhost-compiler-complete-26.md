@@ -48,6 +48,33 @@ using that default for a final O0 source run after the older O0 refusal already
 took7140.682s. `native-probe-boundedpositive1` passes an actual retained library
 probe and both objects with30s; zero is refused before producer creation.
 
+## Linked original service and current implementation oracle
+
+`representative-use-third1/check-97eb6e167ae5545f` now reports
+`LINKED_ORIGINAL_COMPILER_USAGE_PASS`: the actual Astra-generated original
+compiler application and its generated integer program return42 at O0/O2.
+All four strict returning memory streams are clean. Generated IR is byte-exact
+to both original C0 application oracles. The fixture also exercises UTF8/source
+bounds, invalid syntax, and129 signatures (initial capacity16), including real
+`CheckedIndex.add_signature` growth. The independent graph55 controls remain
+pending; this runtime result does not relabel the historical deferral.
+
+The same recipe has a current-closure check. It authenticates every current
+input against Git and the exact source hashes consumed by the C0-built host,
+reuses that already-built current implementation as its integer-program oracle,
+and links the current adapter required by `llvm26_write_ir`. Its CLI loader and
+the service fixture both produce the same SourceBuffer(path, bytes, false) and
+invoke the same parser/binder/IR chain. The actual129-function input has SHA-256
+`a4d92b42f3c9680d42f9ade3f66acdc56dc8f7801899a75adaec8cad78c549c0`;
+current C0 generated IR matches the original C0 oracle exactly:
+`f5cc2e02a14935c8985dd0c847e997f2f0c6ee5d8c9586c2fef665450b4fa463`.
+Both current C0-generated target profiles execute42 with clean strict memory.
+SourceBuffer code is checked against the unchanged baseline; the old C0
+service's bounds/UTF8 assertions remain independent. Current Astra service
+translation/execution is running separately, not predeclared PASS. Each check
+retains its loaded recipe separately; extending the recipe does not rewrite
+or restart the useful original-source check.
+
 ## Post-restart O0 results
 
 The fresh build at `7830a0d` took 47:25.62 with 2,215,952 KiB peak RSS. Its
