@@ -45,6 +45,20 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.kind != 76 && row.token.index != 0) return false;
 	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.symbol.index != 0) return false;
 	if (row.kind == 71 || row.kind == 72 || row.kind == 73) return recover_enum_source_with_bindings(flow, checked, types, row, child, seen, edges, bindings, depth);
+	if (row.kind == 1 || row.kind == 2 || row.kind == 62 || row.kind == 3) return recover_child_scalars_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
+	if (row.kind == 4 || row.kind == 5 || row.kind == 50) return recover_child_calls_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
+	if (row.kind == 6 || row.kind == 8 || row.kind == 12 || row.kind == 75 || row.kind == 17 || row.kind == 18 || row.kind == 44 || row.kind == 45 || row.kind == 27) return recover_child_records_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
+	if (row.kind == 69 || row.kind == 70) return recover_slot_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	if (row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind) || row.kind == 13 || row.kind == 14) return recover_owner_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	if (row.kind == 65 || row.kind == 66) return recover_error_value_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	if (row.kind == 52 || row.kind == 53) return recover_utf8_value_source(checked, row, flow.functions[function - 1].symbol);
+	if (row.kind == 19) return recover_shared_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 43) return recover_loop_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	if (row.kind == 7 || row.kind == 15 || row.kind == 20 || row.kind == 24 || row.kind == 21 || row.kind == 22 || row.kind == 23 || row.kind == 25 || row.kind == 26) return recover_child_control_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
+	return false;
+}
+
+bool recover_child_scalars_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, int child, SyntaxNodeId source, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth, RecoverNode row, SyntaxKind kind) {
 	if (row.kind == 1) {
 		if (row.a != 0) return false;
 		if (kind == SyntaxKind.TextLiteralExpressionSyntax()) return row.token.index == checked.bindings.program.arena.get_token_token(source).index && row.type.index == 15;
@@ -92,6 +106,10 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 		if ((checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^")) && !type_integer(code) && code != 13) return false;
 		return compare && row.type.index == 13 || !compare && code != 15 && row.type.index == left.type.index;
 	}
+	return false;
+}
+
+bool recover_child_calls_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, int child, SyntaxNodeId source, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth, RecoverNode row, SyntaxKind kind) {
 	if (row.kind == 4 || row.kind == 5) {
 		if (row.a != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;
 		var arguments = checked_call_arguments(checked, source);
@@ -174,6 +192,10 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 		}
 		return true;
 	}
+	return false;
+}
+
+bool recover_child_records_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, int child, SyntaxNodeId source, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth, RecoverNode row, SyntaxKind kind) {
 	if (row.kind == 6) {
 		if (kind != SyntaxKind.FieldAccessExpressionSyntax() || row.a != 0 || caught < 1 || caught > flow.node_count || row.type.index != 15 || !checked.bindings.program.arena.token_is(row.token, "message") || row.token.index != checked.bindings.program.arena.get_token_field_name(source).index) return false;
 		int owner = recover_caught_owner(flow, row.symbol);
@@ -225,12 +247,10 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 		if (!recover_class_local_source(checked, source, row.symbol)) return false;
 		return recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_initializer(source), function, handler, caught, seen, edges, bindings, depth + 1) && flow.nodes[row.a - 1].type.index == checked.symbol_types[row.symbol.index].index;
 	}
-	if (row.kind == 69 || row.kind == 70) return recover_slot_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
-	if (row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind) || row.kind == 13 || row.kind == 14) return recover_owner_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
-	if (row.kind == 65 || row.kind == 66) return recover_error_value_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
-	if (row.kind == 52 || row.kind == 53) return recover_utf8_value_source(checked, row, flow.functions[function - 1].symbol);
-	if (row.kind == 19) return recover_shared_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
-	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 43) return recover_loop_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
+	return false;
+}
+
+bool recover_child_control_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, int child, SyntaxNodeId source, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth, RecoverNode row, SyntaxKind kind) {
 	if (row.kind == 7) return kind == SyntaxKind.ParenthesizedExpressionSyntax() && recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, seen, edges, bindings, depth + 1);
 	if (row.kind == 15) {
 		if (kind != SyntaxKind.PrefixExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index) return false;

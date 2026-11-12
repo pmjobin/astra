@@ -2856,3 +2856,117 @@ boundary. All four strict unsuppressed Valgrind streams are clean. Receipt
 `llvm-backing-index-focused2/result.json` grants helper evidence only; the first
 test-driver attempt's unsupported parameter assignment remains a failed
 harness receipt. Integrated LLVM/native qualification is still pending.
+
+Independent audit `llvm-backing-independent-audit2.json`, SHA-256
+`8f9d9699353c8f6b21425484caac73bb320fd8f7951841826628f28af27d6bac`,
+checks both real ELF64/x86-64 products and all15 exact command/output/time
+receipts, four memory streams and the closed-form work bound. ForK non-null
+backings, the candidate's total successful work is
+`N + K*(K-1)/2 + S+L + (K-1)*(non-null successes + non-null locals)` whenK>0,
+andN otherwise. Subtracting it from the old checker gives the nonnegative sum
+of removed null backing positions and repeated null success/local visits.
+The first audit script mistakes the toolchain's
+`EXACT_BASELINE_AUTHENTICATED` enum for`PASS`; its failed script and explicit
+enum-mismatch receipt are retained. The engineering receipts are unchanged.
+
+The committed0823591 immutable current snapshot also passes its complete C0
+frontend-only preflight in57.764seconds. All195 compiler and10 library source
+paths pass the fresh Git closure check. Its separate current Flow execution
+and original physical diagnostic remain in progress at this checkpoint.
+
+The retained complete78ecc6c cold-build perf recording contains about223K
+user-cycle samples with zero reported lost samples. Six GLib/GObject reference,
+weak-reference and locking symbols account for50.49% of self samples. The
+profile also observes SSA successor queries and LLVM verification. No call
+graph was recorded, so those shared-library samples cannot be attributed to
+particular compiler source methods. These are sample shares, not wall-clock
+stage percentages or a demonstrated cold-build speedup. Analysis receipt
+`full-cold-perf-analysis1/result.json`, SHA-256
+`83907b0ec18aaf6068e4da8011f29e8774cead839458e46c67c3e1008fd9315d`,
+retains the raw report and original recording/result hashes. Original C0,
+installed tools and host settings remain unchanged.
+
+## Original physical refusal confirmed on actual handle vectors
+
+The sparse original-source run finishes after1085.356seconds with actual native
+exit5 and an intact output sentinel. Flow and integrated SSA pass. The direct
+nonthrowing `recover_array_backings_distinct` returns false; the Error-type
+checker is never entered. Captured arrays contain284425 backing lanes,284425
+success lanes and36507 local lanes. Exactly16 backings,8708 successes and5795
+locals are non-null. An independent set comparison finds no duplicate backing
+and no backing/success or backing/local identity alias.
+
+The exact old loops would require8515466 work units to finish those nonaliasing
+vectors, exceeding the unchanged8M guard. The candidate's exact loop costs are
+823022, a90.335% reduction in reconstructed work. This is a work count, not an
+elapsed-time speedup. Original C0 O0/O2 replay the actual opaque handles: the
+old body refuses and the candidate passes. All six strict unsuppressed memory
+streams, including the earlier exhaustive and boundary controls, are clean.
+The combined captured replay takes0.0446seconds at O0 and0.0197seconds at O2;
+these include input loading and both bodies, so they do not isolate helper
+speedup or compiler rebuild cost.
+
+Independent audit `array-capture-independent-audit2.json`, SHA-256
+`2799e9e5fd992ec9b9cdc256d2c1526f16d05c0d23619b87b8128fc4d2c27d2d`,
+checks the native refusal, source/array/ELF/receipt identities and all19 replay
+commands. Its first script's command-count mistake remains a failed audit
+harness attempt. `array-distinct-native1/INTERPRETATION.json` also flags a raw
+checked-method result byte64 as uninterpretable: the presumed register actually
+points to its SSA argument. That raw observation is unchanged and is not used
+as a boolean verdict. The direct nonthrowing identity result and native exit5
+provide the refusal evidence. Integrated candidate LLVM/native acceptance
+remains outstanding.
+
+The0823591 current-source Flow job separately finishes with actual exit42 in
+294.542seconds,273.79 user seconds and330860KiB peak RSS. All nine consumers
+pass on every195 compiler and10 library source files. Its symbol and scope
+counts are535402 and1058429, and its Flow node count is320975. The immutable
+0823591 development cold build continues; its exact Core map completes in
+74.543seconds concurrently. These observations supersede the earlier pending
+checkpoint without granting a newer-source native product or Stage1 result.
+
+## Function-level cold-build measurements and targeted factoring
+
+Sparse read-only function-boundary hooks now time the remaining SSA verification
+portion of the exact ongoing C0 build. They use the retained C0 DWARF and read
+actual function name, source span and block count. They do not trace individual
+values or loans, call inferior functions, alter verifier decisions, change C0
+or modify source inputs. The first in-progress function has no complete entry
+interval; later passes supply complete measurements. The cold-build wall time
+includes this diagnostic overhead.
+
+| Original current-source routine | C0 SSA blocks | One complete verification pass |
+|---|---:|---:|
+| `recover_llvm_check` |1241|132.182seconds|
+| `recover_child_with_bindings` |1192|122.372seconds|
+| `RecoverLlvm.emit_block` |343|11.964seconds|
+
+These are intervals within C0 SSA verification, not total compilation times
+for those functions. C0 revisits SSA in multiple pipeline stages; the live
+trace already observes multiple passes. This distinguishes the two larger
+measured costs from an earlier `emit_block` stack sample. No per-function
+measurement is inferred from that sample alone.
+
+The live source now factors the source checker's original scalar, call, record
+and control branches into four helpers. Its common source/seen/type/edge checks
+stay at the entry; helper dispatch sets are disjoint and the complete original
+body reconstructs byte-for-byte. All recursive arguments, depth limits,
+binding/seen/edge arrays and branch statements retain their original meanings.
+
+The physical checker similarly retains its fresh SSA/source-owner/module checks
+before every original function and block. Four helpers carry function-entry
+proofs, value instruction counts, ownership instruction counts and block proofs.
+The two instruction families have disjoint opcode sets. A zero count transports
+the former false result; a valid block contains its already-required terminator
+and therefore at least one instruction. Every original statement and loop body
+reconstructs exactly, with the original iteration order and refusal behavior.
+The module owns its LLVM layout-cache lifetime throughout. No ownership root,
+public/approved private ABI, generic ceiling or SSA work ceiling changes.
+
+`compile-cost-check-both2` proves the mechanical reconstruction and parses the
+old and new complete source files with original C0. The full current-source C0
+semantic preflight passes in58.824seconds (`native-costfactorsem3-O0`). The
+first physical factoring attempt lacks parser-required braces on an else body;
+its formatter/parser/frontend refusals remain preserved. The earlier source-only
+preflight also passes in58.502seconds. These are focused prerequisites, not a
+measured rebuild improvement or integrated current-source native qualification.
