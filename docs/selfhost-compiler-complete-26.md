@@ -107,6 +107,16 @@ credit. Both normal final products use the unchanged production candidate;
 the eight historical input fixtures are prepared read-only before their final
 campaign, preventing repetition of the known missing-input harness failures.
 
+`candidate-preservation-complete1.json` independently reconfirms451 protected
+paths,6622 donor files,1044 historical hashes, six installed workflow files,
+fourteen hooks and Git configuration. The final auditor now consumes the
+corrected R5 frontend supplement rather than the earlier incomplete verdict
+alone. `g12-corrected-consumer1.json` rebinds eight original IR/Astra/C0 products
+and sixteen strict memory streams; a changed-replay digest is rejected.
+The prior frontend gap and the fact that some milestone26 engineering preceded
+its correction remain explicit. No historical report or failed receipt is
+relabelled, and no milestone26 final gate follows from this consumer check.
+
 ## Post-restart O0 results
 
 The fresh build at `7830a0d` took 47:25.62 with 2,215,952 KiB peak RSS. Its

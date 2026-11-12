@@ -16,6 +16,50 @@ import zipfile
 from run import BASE, ROOT, WORK, git, sha, write
 
 
+def r5_delivery(runtime):
+	"""Consume the corrected native replay, retaining the earlier provenance gap."""
+	prior = WORK/'runtime/compiler26-g12-audit-20261109/final-verdict.json'
+	assert sha(prior) == 'd87315df0c6602abd2895897585f2ca0f9fe4a0d1759015e00e30c1f32c5789a'
+	leaf = runtime/'g12-frontends-supplement6'
+	verdict = leaf/'verdict.json'
+	assert sha(verdict) == '47b4ee92bba7f2a75e8b44f4079c3e95e562a55855c0a5aac4d363fa193f5908'
+	correction = json.loads(verdict.read_text())
+	assert correction['prior_verdict_sha256'] == sha(prior) and correction['prior_verdict_and_raw_receipts_preserved']
+	assert correction['canonical_R5_report_sha256'] == '69a1f817f1448ab8eed5cac5db8f6f8e7d262385a9c0b959a8750f573bfeb2a9'
+	replay = leaf/'native-replay.json'
+	assert sha(replay) == correction['replay_sha256']
+	data = json.loads(replay.read_text())
+	assert data['status'] == 'PASS' and set(data['profiles']) == {'O0', 'O2'}
+	commands = json.loads((leaf/'native-commands.json').read_text())
+	assert len({row['name'] for row in commands}) == len(commands)
+	for row in commands:
+		for stream in ('stdout', 'stderr'): assert sha(leaf/(row['name']+'.'+stream)) == row[stream+'_sha256']
+	observed = {row['name']:row for row in commands}
+	memory_count = 0
+	for mode, profile in data['profiles'].items():
+		assert sha(profile['component']) == profile['component_sha256'] and sha(Path(profile['component']).with_suffix('.identity.json')) == profile['component_identity_sha256']
+		original = json.loads((WORK/('runtime/effects25-r5-resume/native-frontiers-repair2-'+mode+'/result.json')).read_text())
+		original = {row['name']:row for row in original['programs']}
+		assert len(profile['programs']) == 4
+		for row in profile['programs']:
+			name = row['name']; historical = original[name]
+			assert row['exit'] == 42 and all(row[key] for key in ('historical_raw_LLVM_equal', 'historical_Astra_ELF_equal', 'historical_C0_ELF_equal'))
+			assert row['raw_LLVM_sha256'] == historical['Astra']['raw_LLVM_sha256']
+			physical = observed[mode+'-'+name+'-Astra-emit']['argv'][2]
+			assert sha(physical) == row['raw_LLVM_sha256']
+			for producer in ('C0', 'Astra'):
+				label = mode+'-'+name+'-'+producer
+				execution, memory = observed[label+'-execute'], observed[label+'-memory']
+				assert execution['exit'] == memory['exit'] == 42 and '--default-suppressions=no' in memory['argv']
+				assert sha(execution['argv'][0]) == row[producer+'_ELF_sha256'] == historical[producer]['ELF_sha256']
+				assert memory['argv'][-1] == execution['argv'][0]
+				log = (leaf/(label+'-memory.stderr')).read_bytes()
+				assert all(marker in log for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+				memory_count += 1
+	assert memory_count == 16 and data['ABI_observer']['exit'] == observed['source-ABI-independent-observer']['exit'] == 42
+	return dict(status=correction['status'], receipt=str(verdict), sha256=sha(verdict), prior_receipt=str(prior), prior_sha256=sha(prior), replay=dict(path=str(replay), sha256=sha(replay), native_programs=8, clean_memory_streams=memory_count), limitation=correction['limitation'], chronology='Some milestone26 engineering preceded the corrected frontend supplement. This does not assert that the original pre-edit gate was completely satisfied, relabel the historical report, or qualify milestone26.')
+
+
 def module_inventory(probe, manifest, scope, output):
 	"""Independent object retention check; deliberately grants no final PASS."""
 	from accelerate import authenticated_inputs
@@ -201,9 +245,7 @@ def main():
 	c0_path = a.runtime_root/'whole-context-C0/result.json'
 	c0 = json.loads(c0_path.read_text())
 	assert c0['timed_out'] and c0['exit'] == -9 and c0['seconds'] >= 2400
-	g12 = WORK/'runtime/compiler26-g12-audit-20261109/final-verdict.json'
-	assert sha(g12) == 'd87315df0c6602abd2895897585f2ca0f9fe4a0d1759015e00e30c1f32c5789a'
-	assert json.loads(g12.read_text())['R5_G12']['status'] == 'PASS'
+	g12 = r5_delivery(a.runtime_root)
 	assert sha(ROOT/'docs/selfhost-effects-25-abi-proposal.md') == 'd77c02f3144ab5dc3da41eb310b29cd02629b49876042934ea5071a1549ac66e'
 	# Scope and protection are checked independently of the compiler being tested.
 	old = json.loads((WORK/'runtime/effects25-r5-resume/initial.json').read_text())
@@ -224,7 +266,7 @@ def main():
 	proofs = json.loads((WORK/'runtime/indexpath18/historical-proof-outputs.json').read_text())
 	assert proofs['count'] == len(proofs['outputs']) == 1044
 	assert all(sha(name) == row['sha256'] for name, row in proofs['outputs'].items())
-	result = dict(status='PARTIAL', final_commit=git('rev-parse', 'HEAD').decode().strip(), final_tree=git('rev-parse', 'HEAD^{tree}').decode().strip(), original_packet_sha256='43c89a44a04912f3fdefa4f4c73380095874301eea44cb5684ff0406368e2b11', native_submission_sha256=intake['submission_sha256'], R5_post_delivery_G12=dict(status='PASS', receipt=str(g12), sha256=sha(g12)), protection=dict(paths=451, donor_files=6622, historical_proof_hashes=1044), profiles=profiles, whole_original_compiler=whole, whole_source_population_sha256=sha(a.whole_source_result.parent/'population.json'), original_context_C0=dict(receipt=str(c0_path), sha256=sha(c0_path), observation=c0, semantic_qualification=False), limitation='PARTIAL for the entire contracted compiler-complete scope. Bounded 411-program regressions and rebuilt C0-produced hosts do not prove original full compiler source-to-native translation. The original full compiler is actually refused with output preserved. Generic slots, independent root0/slot6 proof, full SSA scaling, linked compiler usage and incremental compiler costs remain unqualified. G12 for this new report is pending actual installed publication and a separate after-delivery check.')
+	result = dict(status='PARTIAL', final_commit=git('rev-parse', 'HEAD').decode().strip(), final_tree=git('rev-parse', 'HEAD^{tree}').decode().strip(), original_packet_sha256='43c89a44a04912f3fdefa4f4c73380095874301eea44cb5684ff0406368e2b11', native_submission_sha256=intake['submission_sha256'], R5_post_delivery_G12=g12, protection=dict(paths=451, donor_files=6622, historical_proof_hashes=1044), profiles=profiles, whole_original_compiler=whole, whole_source_population_sha256=sha(a.whole_source_result.parent/'population.json'), original_context_C0=dict(receipt=str(c0_path), sha256=sha(c0_path), observation=c0, semantic_qualification=False), limitation='PARTIAL for the entire contracted compiler-complete scope. Bounded 411-program regressions and rebuilt C0-produced hosts do not prove original full compiler source-to-native translation. The original full compiler is actually refused with output preserved. Generic slots, independent root0/slot6 proof, full SSA scaling, linked compiler usage and incremental compiler costs remain unqualified. G12 for this new report is pending actual installed publication and a separate after-delivery check.')
 	write(a.output, result)
 	print('PARTIAL: whole original compiler refused; bounded current regressions independently rebound', flush=True)
 
