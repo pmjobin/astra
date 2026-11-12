@@ -21,6 +21,7 @@ def main():
 	parser = argparse.ArgumentParser(description=__doc__)
 	parser.add_argument('--compiler', type=Path, required=True)
 	parser.add_argument('--reference-host', type=Path, required=True)
+	parser.add_argument('--native-timeout-seconds', type=int, default=1800)
 	parser.add_argument('--component', type=Path)
 	parser.add_argument('--build-root', type=Path, required=True)
 	parser.add_argument('--runtime-root', type=Path, required=True)
@@ -176,7 +177,8 @@ def main():
 	physical = working / 'compiler-use.ll'
 	sentinel = b'Full original compiler application output sentinel\n'
 	physical.write_bytes(sentinel)
-	code, stdout, _ = run('Astra-native', [args.component, '--native', physical, *inputs], working, None, 1800)
+	assert args.native_timeout_seconds > 0
+	code, stdout, _ = run('Astra-native', [args.component, '--native', physical, *inputs], working, None, args.native_timeout_seconds)
 	result = dict(component_sha256=sha(args.component), inputs_manifest_sha256=sha(leaf / 'inputs.json'), native_exit=code, profiles=[], historical_reference_recipes=historical_recipes, full_original_library_object_qualification=0)
 	if code:
 		assert physical.read_bytes() == sentinel

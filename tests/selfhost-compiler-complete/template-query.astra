@@ -656,7 +656,28 @@ bool template_effect_root_controls(CheckedIndex checked) throws Error {
 	refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
 	checked.generic_symbols = maximum;
 	if (!refused || checked_effect_root(checked).index != root.index || !generic_verify(checked)) return false;
+	bool promoted = false; s = 1;
+	while (s <= maximum && !promoted) {
+		var other = checked.bindings.symbol(type_symbol(s));
+		if (other.kind != 4) {
+			changed = other; changed.kind = 4; changed.node = declaration.node;
+			checked.bindings.replace_instance_symbol(type_symbol(s), changed);
+			refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+			checked.bindings.replace_instance_symbol(type_symbol(s), other);
+			if (!refused || checked_effect_root(checked).index != root.index) return false;
+			promoted = true;
+		}
+		s = s + 1;
+	}
+	if (!promoted) return false;
+	checked.generic_symbols = root.index - 1;
+	refused = checked_effect_root(checked).index == 0 && template_effect_root_reference(checked).index == 0;
+	checked.generic_symbols = root.index;
+	bool included = checked_effect_root(checked).index == root.index && template_effect_root_reference(checked).index == root.index;
+	checked.generic_symbols = maximum;
+	if (!refused || !included || checked_effect_root(checked).index != root.index || !generic_verify(checked)) return false;
 	println("EFFECT_ROOT_CONTROLS kind=1 source=2 bounds=2 reference=1 restored=1");
+	println("EFFECT_ROOT_INDEX_CONTROLS promoted=1 prefix=2 restored=1");
 	return true;
 }
 

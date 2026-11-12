@@ -2350,3 +2350,53 @@ mount routing errors, and reuse of the earlier failed provider-source routing.
 They are not passing replay receipts. The sixth uses the preserved corrected
 R5 driver and independently verified read-only source mappings. No source edit
 was made while this newly discovered toolchain gap was being closed.
+
+## Measured exception-class lookup cost
+
+An actual complete-original source verification profile under the `52742c3` O2
+observer returns42 in457.12seconds with peak284,396KiB RSS. User-space hardware
+cycle sampling records zero lost samples. `checked_effect_root` accounts for
+49.30% of sampled cycles; `generic_resize` accounts for4.99%. The exact C0 Core
+map independently binds sampled function ordinals to those names. Attaching
+the sampler to the surviving process is denied by host policy; a separately
+launched child is permitted. No host security setting is changed.
+
+The candidate indexes Class candidates inside `BindingIndex`'s private symbol
+table. All three writers that can introduce or replace a kind maintain the
+index; reference-only writers preserve kind and node. Growth copies candidate
+links with their symbol slots. Replaced former Classes remain candidates and
+are filtered by their current kind. Each query reads current source nomination
+tokens, detects duplicates and honors the requested original-symbol prefix.
+It caches no nominated root or verifier result. This exception-class query does
+not change any ownership root, graph55/symbol2053/predicate26 or its deferral.
+
+The actual full native C0 semantic preflight passes in60.26seconds. The source
+observer context also passes. Exact production query/append/replace/read bodies
+pass a focused C0 O0/O2 kernel against the independent full-scan reference, with
+strict unsuppressed memory clean. It covers4096 symbols, growth, kind changes,
+live nomination removal/duplication, promotion of a non-Class slot and bounds.
+The kernel has a minimal surrounding data model and grants zero complete-source
+or Astra native qualification. Actual rebuilt source/native execution and a
+matched performance comparison remain pending.
+
+Three preliminary failures remain preserved: a proposed private method is
+refused by C0's fields-only private rule, the kernel initially lacks its
+test-only assertion declaration, and an added source control initially shadows
+an existing local. The implementation keeps updates in the existing writers;
+the corrected kernel and source preflight are separate passing receipts.
+
+The completed `52742c3` native host separately passes all14 new actual source
+programs at O0/O2, including checked record/field results and pointer-buffer
+replacement. The real string-descriptor bridge now passes raw LLVM verification,
+object/link execution42, short-input execution1 and strict memory checks at both
+profiles. Its earlier exit5 remains a failed physical-contract receipt.
+
+The first updated representative check stops before native invocation because
+its old reference manifest binds the host's23.1.5 frontend bytes. A new `third1`
+reference preserves the original191 read-only input paths and reuses verified
+original C0 application ELFs byte-for-byte, explicitly without a cold-build claim.
+It freshly replays both applications, strict Valgrind, generated LLVM verification,
+optimization, native object/link execution and generated-program Valgrind using
+exact23.1.4 frontends. The original reference manifests and receipts remain
+unchanged. The actual Astra check uses this separate reference and an explicit
+7200-second observation budget; generic256 and SSA8M budgets are unchanged.

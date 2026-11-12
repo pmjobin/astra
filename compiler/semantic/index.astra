@@ -4,6 +4,11 @@ class BindingIndex {
 	owned SyntaxProgram program;
 	owned BindingNames names;
 	private owned BindingSymbol[] symbols;
+	// Intrusive candidate links belong to the private symbol table. A tracked
+	// slot stays a candidate after replacement; queries read its current kind
+	// and source annotation. Zero is untracked, next + 1 terminates at one.
+	private owned int[] class_links;
+	private int class_head;
 	private owned BindingScope[] scopes;
 	private owned BindingReference[] references;
 	private owned BindingWork[] work;
@@ -31,6 +36,8 @@ class BindingIndex {
 		var names = new BindingNames();
 		this.names = move names;
 		this.symbols = new BindingSymbol[16];
+		this.class_links = new int[16];
+		this.class_head = 0;
 		this.scopes = new BindingScope[16];
 		this.references = new BindingReference[16];
 		this.work = new BindingWork[16];
@@ -57,15 +64,22 @@ class BindingIndex {
 	// absent from source lexical lookup maps. The generic plan owns their origin.
 	SymbolId append_instance_symbol(BindingSymbol original, SyntaxNodeId node) {
 		if (this.symbol_count == len(this.symbols)) {
-			var grown = new BindingSymbol[syntax_grown_capacity(len(this.symbols), this.symbol_count + 1)]; int i = 0;
+			var grown = new BindingSymbol[syntax_grown_capacity(len(this.symbols), this.symbol_count + 1)];
+			var links = new int[len(grown)]; int i = 0;
 			while (i < this.symbol_count) {
 				grown[i] = this.symbols[i];
+				links[i] = this.class_links[i];
 				i = i + 1;
 			}
 			swap(this.symbols, grown);
+			swap(this.class_links, links);
 		}
 		var row = original; row.node = node; row.first_reference = 0;
 		this.symbols[this.symbol_count] = row; this.symbol_count = this.symbol_count + 1;
+		if (row.kind == 4 && this.class_links[this.symbol_count - 1] == 0) {
+			this.class_links[this.symbol_count - 1] = this.class_head + 1;
+			this.class_head = this.symbol_count;
+		}
 		SymbolId result = {index = this.symbol_count};
 		return result;
 	}
@@ -85,7 +99,13 @@ class BindingIndex {
 
 	void replace_instance_reference(int ordinal, BindingReference row) { this.references[ordinal - 1] = row; }
 
-	void replace_instance_symbol(SymbolId id, BindingSymbol row) { this.symbols[id.index - 1] = row; }
+	void replace_instance_symbol(SymbolId id, BindingSymbol row) {
+		this.symbols[id.index - 1] = row;
+		if (row.kind == 4 && this.class_links[id.index - 1] == 0) {
+			this.class_links[id.index - 1] = this.class_head + 1;
+			this.class_head = id.index;
+		}
+	}
 
 	void replace_instance_scope(int ordinal, BindingScope row) { this.scopes[ordinal - 1] = row; }
 
@@ -110,21 +130,21 @@ class BindingIndex {
 		return this.symbols[id.index - 1];
 	}
 
-	// Scan current declaration facts directly. The frequent effect query needs
-	// only a kind discriminator for each non-Class symbol, without copying its
-	// complete BindingSymbol and source span across the method boundary.
+	// Enumerate the private table's Class candidates, including later kind
+	// promotions. Never cache a nominated root: every query reads current
+	// declaration kind and source annotations, and detects duplicate nominees.
 	SymbolId exception_root(int maximum) {
 		if (maximum < 0 || maximum > this.symbol_count) return type_symbol(0);
-		var root = type_symbol(0); int symbol = 0;
-		while (symbol < maximum) {
-			if (this.symbols[symbol].kind == 4) {
-				var declaration = this.symbols[symbol];
+		var root = type_symbol(0); int symbol = this.class_head;
+		while (symbol > 0) {
+			if (symbol <= maximum && this.symbols[symbol - 1].kind == 4) {
+				var declaration = this.symbols[symbol - 1];
 				if (this.program.arena.get_token_exception_root(declaration.node).index != 0) {
 					if (root.index != 0) return type_symbol(0);
-					root = type_symbol(symbol + 1);
+					root = type_symbol(symbol);
 				}
 			}
-			symbol = symbol + 1;
+			symbol = this.class_links[symbol - 1] - 1;
 		}
 		return root;
 	}
@@ -411,12 +431,15 @@ class BindingIndex {
 		}
 		if (this.symbol_count == len(this.symbols)) {
 			var replacement = new BindingSymbol[syntax_grown_capacity(len(this.symbols), this.symbol_count + 1)];
+			var links = new int[len(replacement)];
 			int i = 0;
 			while (i < this.symbol_count) {
 				replacement[i] = this.symbols[i];
+				links[i] = this.class_links[i];
 				i = i + 1;
 			}
 			swap(this.symbols, replacement);
+			swap(this.class_links, links);
 		}
 		bool restricted = this.program.arena.header(node).module_internal;
 		BindingSymbol record = {
@@ -424,6 +447,10 @@ class BindingIndex {
 		};
 		this.symbols[this.symbol_count] = record;
 		this.symbol_count = this.symbol_count + 1;
+		if (record.kind == 4 && this.class_links[this.symbol_count - 1] == 0) {
+			this.class_links[this.symbol_count - 1] = this.class_head + 1;
+			this.class_head = this.symbol_count;
+		}
 		SymbolId result = {
 			index = this.symbol_count
 		};
