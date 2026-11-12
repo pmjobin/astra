@@ -173,19 +173,38 @@ def status(args):
 	print(json.dumps(dict(UTC_ns=time.time_ns(), receipts=rows), indent=2))
 
 
-def probe(args):
-	identity = json.loads(args.component.with_suffix('.identity.json').read_text())
-	assert sha(args.component) == identity['sha256']
-	authenticate(identity['identity'])
-	inputs = json.loads(args.inputs.read_text())
-	inputs = inputs.get('original', inputs.get('inputs', inputs))
+def authenticated_inputs(args):
+	manifest = json.loads(args.inputs.read_text())
+	inputs = manifest.get('original', manifest.get('inputs', manifest))
 	assert inputs and all(sha(path) == digest and Path(path).stat().st_mode & 0o222 == 0 for path, digest in inputs.items())
 	if args.scope == 'original':
 		from run import BASE, population, git
 		expected = {row['path']:row['baseline_sha256'] for row in population()['files']}
 		actual = {path.split('/original-inputs/', 1)[1]:digest for path, digest in inputs.items()}
-		assert actual == expected, 'original full source closure differs'
+		assert len(actual) == len(inputs) and actual == expected, 'original full source closure differs'
 		assert all(__import__('hashlib').sha256(git('show', BASE+':'+path)).hexdigest() == digest for path, digest in actual.items())
+	if args.scope == 'current':
+		from run import population, git
+		assert manifest['format'] == 'astra-current-inputs/1'
+		revision = manifest['revision']; assert git('rev-parse', '--verify', revision).decode().strip() == revision
+		expected = {name for name in git('ls-tree', '-r', '--name-only', revision, 'compiler').decode().splitlines() if name.endswith('.astra')}
+		expected.update(row['path'] for row in population()['files'] if row['path'].startswith('lib/astra/'))
+		actual = {path.split('/source-inputs/', 1)[1]:digest for path, digest in inputs.items()}
+		assert len(actual) == len(inputs) and set(actual) == expected, 'current full source closure differs'
+		assert all(__import__('hashlib').sha256(git('show', revision+':'+path)).hexdigest() == digest for path, digest in actual.items())
+	return inputs
+
+
+def source_scope(args):
+	inputs = authenticated_inputs(args)
+	print(json.dumps(dict(status='VALIDATED_SOURCE_SCOPE', scope=args.scope, input_count=len(inputs), manifest_sha256=sha(args.inputs), full_original_native_credit=0), indent=2))
+
+
+def probe(args):
+	identity = json.loads(args.component.with_suffix('.identity.json').read_text())
+	assert sha(args.component) == identity['sha256']
+	authenticate(identity['identity'])
+	inputs = authenticated_inputs(args)
 	tools = dict(identity['identity']['tools']); tools[str(args.component)] = sha(args.component)
 	for name in ('opt', 'llc', 'readelf'):
 		path = Path(shutil.which(name)).resolve(); tools[str(path)] = sha(path)
@@ -282,12 +301,14 @@ def main():
 	c.add_argument('--component', type=Path, required=True); c.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	c.add_argument('--build-version', required=True); c.add_argument('--focus', action='append'); c.set_defaults(run=qualification)
 	c = subs.add_parser('status'); c.add_argument('--receipt', type=Path, action='append', required=True); c.set_defaults(run=status)
+	c = subs.add_parser('scope'); c.add_argument('--inputs', type=Path, required=True)
+	c.add_argument('--scope', choices=('original', 'current', 'focused'), required=True); c.set_defaults(run=source_scope)
 	c = subs.add_parser('probe'); common(c); c.add_argument('--build-root', type=Path, required=True)
 	c.add_argument('--component', type=Path, required=True); c.add_argument('--inputs', type=Path, required=True)
-	c.add_argument('--core-map', type=Path); c.add_argument('--scope', choices=('original', 'focused'), required=True); c.set_defaults(run=probe)
+	c.add_argument('--core-map', type=Path); c.add_argument('--scope', choices=('original', 'current', 'focused'), required=True); c.set_defaults(run=probe)
 	c = subs.add_parser('cycle'); common(c); c.add_argument('--build-root', type=Path, required=True)
 	c.add_argument('--identity', type=Path, required=True); c.add_argument('--inputs', type=Path, required=True)
-	c.add_argument('--scope', choices=('original', 'focused'), default='original')
+	c.add_argument('--scope', choices=('original', 'current', 'focused'), default='original')
 	c.add_argument('--core-map', type=Path); c.add_argument('--profile', action='store_true')
 	c.add_argument('--selection', type=Path); c.add_argument('--alternate-identity', type=Path)
 	c.add_argument('--join-result', type=Path); c.add_argument('--join-running', type=Path)

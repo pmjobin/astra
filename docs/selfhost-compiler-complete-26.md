@@ -2690,3 +2690,12 @@ The next step is one fresh complete production development build, followed by
 the actual original-source SSA/LLVM/object probe. Native qualification remains0/2
 until that pipeline and the separate final linked/ABI/memory/regression gates
 are proved.
+
+The `78ecc6c` immutable snapshot also passes its required fresh frontend-only
+preflight. The new read-only `accelerate.py scope` command authenticates all190
+original inputs and all205 current inputs (every195 compiler source plus the10
+actual libraries) against their recorded Git blobs. An omitted current source
+is independently refused before compiler execution. `probe --scope current`
+performs the same check; its receipt keeps the explicit source revision and
+manifest identity. Live status now shows job totals, completed/active/pending
+work, actual outcomes and update age instead of only a process-level status.
