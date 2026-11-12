@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Phi input uses belong to their actual predecessor edges, not the join.
-bool recover_ssa_short_inputs(RecoverSsa ssa, int join, RecoverWork work) {
+bool recover_ssa_short_inputs(RecoverSsa ssa, int join, int[] incoming_head, int[] incoming_next, RecoverWork work) {
+	if (join < 1 || join > ssa.cfg.block_count || len(incoming_head) != ssa.cfg.block_count + 1 || len(incoming_next) != ssa.cfg.edge_count + 1) return false;
 	var block = ssa.cfg.blocks[join - 1];
 	var row = ssa.cfg.core.nodes[block.origin - 1].value;
 	if (block.opcode != 62 || row.kind != 62) return false;
 	int short_edges = 0;
 	int right_edges = 0;
-	int e = 0;
-	while (e < ssa.cfg.edge_count) {
-		if (!work.take()) return false;
-		var edge = ssa.cfg.edges[e];
-		if (edge.target == join && ssa.data.reachable[edge.source - 1]) {
-			var source = ssa.cfg.blocks[edge.source - 1];
-			if (source.opcode == 63 && source.origin == block.origin) {
-				if (!recover_ssa_use(ssa.data, ssa.cfg, row.a, edge.source, work)) return false;
-				short_edges = short_edges + 1;
-			} else {
-				if (!recover_ssa_use(ssa.data, ssa.cfg, row.b, edge.source, work)) return false;
-				right_edges = right_edges + 1;
-			}
+	// Only verifier-reconstructed incoming edges are indexed. Still check each
+	// physical edge and its actual predecessor use; no phi certificate is trusted.
+	int e = incoming_head[join];
+	while (e > 0) {
+		if (!work.take() || e > ssa.cfg.edge_count) return false;
+		var edge = ssa.cfg.edges[e - 1];
+		if (edge.target != join || !ssa.data.reachable[edge.source - 1]) return false;
+		var source = ssa.cfg.blocks[edge.source - 1];
+		if (source.opcode == 63 && source.origin == block.origin) {
+			if (!recover_ssa_use(ssa.data, ssa.cfg, row.a, edge.source, work)) return false;
+			short_edges = short_edges + 1;
+		} else {
+			if (!recover_ssa_use(ssa.data, ssa.cfg, row.b, edge.source, work)) return false;
+			right_edges = right_edges + 1;
 		}
-		e = e + 1;
+		e = incoming_next[e];
 	}
 	return short_edges == 1 && right_edges == 1;
 }

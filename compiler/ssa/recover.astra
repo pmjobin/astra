@@ -391,7 +391,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count];
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
 	// The independently reconstructed dominator traversal also proves reach.
-	// Reverse block order builds incoming phi lists in their original edge order
+	// Reverse block order builds Error and short-circuit phi lists in edge order
 	// during the definition scan instead of scanning the CFG a second time.
 	var phi_head = new int[ssa.cfg.block_count + 1]; var phi_next = new int[ssa.cfg.edge_count + 1]; int e = ssa.cfg.edge_count;
 	var definitions = new bool[len(ssa.data.values)]; int b = ssa.cfg.block_count;
@@ -407,7 +407,8 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		while (p >= 0) {
 			int target = row.other; if (p == 0) target = row.next;
 			if (target > 0) {
-				if (ssa.cfg.blocks[target - 1].opcode == 33 && reachable[b - 1]) {
+				int opcode = ssa.cfg.blocks[target - 1].opcode;
+				if ((opcode == 33 || opcode == 62) && reachable[b - 1]) {
 					phi_next[e] = phi_head[target];
 					phi_head[target] = e;
 				}
@@ -447,7 +448,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			int guard = ssa.cfg.regions[source.b - 1].next;
 			if (!recover_ssa_use(ssa.data, ssa.cfg, source.c, b, work) || guard < 1 || guard > ssa.cfg.block_count || !recover_ssa_dominates(guard, b, work)) return false;
 		}
-		if (row.opcode == 62 && !recover_ssa_short_inputs(ssa, b, work)) return false;
+		if (row.opcode == 62 && !recover_ssa_short_inputs(ssa, b, phi_head, phi_next, work)) return false;
 		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || recover_constructor_kind(row.opcode) || row.opcode == 14 || row.opcode == 19 || row.opcode == 50 || row.opcode == 56 || row.opcode == 57 || row.opcode == 69 || row.opcode == 70) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
 			while (i < source.count) {

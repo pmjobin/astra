@@ -2463,3 +2463,58 @@ Two preliminary harness attempts remain failed: the first enables ccache inside
 a read-only home; the second selects the older8192-block-bounded kernel, which
 correctly refuses the full graph. The third extracts the exact f50 Git baseline.
 This differential is full-size dominance evidence, not integrated SSA acceptance.
+
+## Short-circuit edge indexing and development-cycle cost
+
+Both complete normal `1734667` hosts build successfully: O0 takes3866.08seconds
+and O2 takes5278.99seconds, concurrently. Each uses99% of one CPU and peaks at
+about2.58GiB RSS. They are C0-built test hosts, not completed Astra compiler
+object profiles. The corrected original-source diagnostic takes741.96seconds
+and again refuses at SSA with exit8, retaining its output sentinel. Its first
+harness attempt expected standalone symbols that LLVM had inlined; attempt2
+records the omitted read-only hooks and preserves the first failure.
+
+After the new dominator/reach/phi work, the actual SSA trace reaches the local
+definition scan with1699355 remaining work, then1414930 after that scan. The
+legacy short-circuit checker still scans every CFG edge for every Boolean phi.
+The actual graph has9007 short-circuit joins and388369 edges: completing those
+scans alone would require3498039583 edge visits. Only18014 reachable incoming
+edges actually belong to those joins. Even four complete legacy scans exceed
+the observed remaining budget, before counting their operand checks. This is
+a further real algorithmic budget obstacle; no ceiling increase is proposed.
+
+The candidate extends the verifier's existing independently reconstructed
+incoming index to both Error and short-circuit phis. Short-circuit queries now
+visit only their actual incoming edges, still checking physical target/source,
+reachability, source origin, short/right edge counts and operand dominance.
+There is no producer-supplied phi certificate or new ownership root. An
+independent forward-edge enumeration agrees with every stored index entry and
+its ascending verification order on all375907 blocks/388369 edges, including
+all476 reachable Error-phi targets. The first physical audit assumed zero-based
+polarity; the corrected audit checks the actual1/2 physical polarity and owner
+as well, preserving the first failed harness receipt.
+
+The portable `ssa-short-inputs.py` recipe authenticates nine exact production
+AST declarations and executes the actual helpers under original C0 O0/O2.
+It compares4096 small edge/reachability cases with the preserved legacy scan,
+checks eight corruptions after positive twins, and executes all9007 actual
+original joins using the captured CFG/SSA data and independently reconstructed
+dominance intervals. All pass, with36028 total helper work units and four clean
+strict unsuppressed memory streams. These are focused models and actual-graph
+helper replays, not integrated compiler admission or full native qualification.
+The first portable harness shadowed its CLI object with an interval variable;
+the corrected separate `portable2` receipt authenticates the production ASTs.
+The complete normal semantic context also passes in66.55seconds.
+
+For subsequent development, run these focused source/graph/corruption checks
+before cold compilation. Build one complete production development host first,
+then attempt the unchanged full original source and diagnose the next actual
+failure. Rebuild both complete normal qualification profiles after that path
+and representative usage work. Independent final campaigns can use the existing
+bounded process pool; the current recipe supports up to8 workers. Per-process
+LLVM contexts and module-owned caches stay private. Exact-source/command/tool
+identity permits warm reuse; a changed monolithic compiler source invalidates
+that product. C-provider caching does not cache the C0 compiler's own semantic,
+SSA and LLVM work. No C0, installed workflow, toolchain pin, public ABI, generic256
+or SSA8M limit is changed by this cycle policy. Native qualification remains0/2
+until the real complete pipelines, objects and linked usage are proved.

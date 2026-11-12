@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Minimal containers for exact SSA helper tests; not an admitted compiler CFG.
+struct TypeId { int index; }
+
+struct ShortValue { int kind; int a; int b; }
+
+struct ShortNode { ShortValue value; }
+
+class ShortCore { owned ShortNode[] nodes;
+
+	init(int count) { this.nodes = new ShortNode[count]; } }
+
+class RecoverCfg {
+	owned RecoverBlock[] blocks; owned RecoverCfgEdge[] edges; owned ShortCore core; int block_count; int edge_count;
+
+	init(int blocks, int edges, int nodes) { this.blocks = new RecoverBlock[blocks]; this.edges = new RecoverCfgEdge[edges]; var core = new ShortCore(nodes); this.core = move core; this.block_count = blocks; this.edge_count = edges; }
+}
+
+class RecoverSsa {
+	owned RecoverCfg cfg; owned RecoverSsaData data;
+
+	init(int blocks, int edges, int nodes, int values) { var cfg = new RecoverCfg(blocks, edges, nodes); var data = new RecoverSsaData(values, blocks, 8000000); this.cfg = move cfg; this.data = move data; }
+}

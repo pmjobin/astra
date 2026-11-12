@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Helper differential and actual-graph work tests; no integrated native credit.
+extern(C) int graph_start();
+
+extern(C) int graph_count(int which);
+
+extern(C) int graph_block(int i, int field);
+
+extern(C) int graph_edge(int i, int field);
+
+extern(C) int graph_node(int i, int field);
+
+extern(C) int graph_value(int i, int field);
+
+extern(C) int graph_reachable(int i);
+
+extern(C) int graph_interval(int i, int which);
+
+extern(C) void work_observed(int joins, int work);
+
+void short_intervals(RecoverWork work, int count) {
+	work.dominance_first = new int[count + 1]; work.dominance_end = new int[count + 1]; int i = 1;
+	while(i <= count) {
+		work.dominance_first[i] = i;
+		work.dominance_end[i] = count + 1;
+		i = i + 1;
+	}
+}
+
+owned int[] short_heads(RecoverSsa ssa, int[] links) {
+	var heads = new int[ssa.cfg.block_count + 1]; int i = ssa.cfg.edge_count;
+	while(i > 0) {
+		var edge = ssa.cfg.edges[i - 1];
+		if(ssa.data.reachable[edge.source - 1]) {
+			links[i] = heads[edge.target];
+			heads[edge.target] = i;
+		}
+		i = i - 1;
+	}
+	return move heads;
+}
+
+int short_small() {
+	int code = 0;
+	while(code < 4096) {
+		var ssa = new RecoverSsa(6, 4, 1, 3); int i = 0; int digits = code;
+		while(i < 6) {
+			ssa.cfg.blocks[i].function = 1;
+			ssa.data.reachable[i] = (code & (1 << i)) == 0;
+			i = i + 1;
+		}
+		ssa.cfg.blocks[0].opcode = 63; ssa.cfg.blocks[0].origin = 1; ssa.cfg.blocks[5].opcode = 62; ssa.cfg.blocks[5].origin = 1;
+		ssa.cfg.core.nodes[0].value.kind = 62; ssa.cfg.core.nodes[0].value.a = 1; ssa.cfg.core.nodes[0].value.b = 2;
+		ssa.data.values[1].function = 1; ssa.data.values[1].block = 1; ssa.data.values[2].function = 1; ssa.data.values[2].block = 2;
+		i = 0; while(i < 4) {
+			int digit = digits % 8;
+			digits = digits / 8;
+			ssa.cfg.edges[i].source = 1 + digit % 4;
+			ssa.cfg.edges[i].target = 5 + digit / 4;
+			i = i + 1;
+		}
+		var work = new RecoverWork(8000000); short_intervals(work, 6); var legacy = new RecoverWork(8000000); short_intervals(legacy, 6);
+		var links = new int[5]; var heads = short_heads(ssa, links);
+		if(recover_ssa_short_inputs(ssa, 6, heads, links, work) != reference_short_inputs(ssa, 6, legacy)) return 1;
+		code = code + 1;
+	}
+	// A positive twin precedes each deliberate index/use corruption.
+	int mutation = 0;
+	while(mutation < 8) {
+		var ssa = new RecoverSsa(3, 2, 1, 3); int i = 0;
+		while(i < 3) {
+			ssa.cfg.blocks[i].function = 1;
+			ssa.data.reachable[i] = true;
+			i = i + 1;
+		}
+		ssa.cfg.blocks[0].opcode = 63; ssa.cfg.blocks[0].origin = 1; ssa.cfg.blocks[2].opcode = 62; ssa.cfg.blocks[2].origin = 1;
+		ssa.cfg.core.nodes[0].value.kind = 62; ssa.cfg.core.nodes[0].value.a = 1; ssa.cfg.core.nodes[0].value.b = 2;
+		ssa.data.values[1].function = 1; ssa.data.values[1].block = 1; ssa.data.values[2].function = 1; ssa.data.values[2].block = 2;
+		ssa.cfg.edges[0].source = 1; ssa.cfg.edges[0].target = 3; ssa.cfg.edges[1].source = 2; ssa.cfg.edges[1].target = 3;
+		var links = new int[3]; var heads = short_heads(ssa, links); var positive = new RecoverWork(8000000); short_intervals(positive, 3);
+		if(!recover_ssa_short_inputs(ssa, 3, heads, links, positive)) return 2;
+		if(mutation == 0) heads[3] = 0;
+		if(mutation == 1) heads[3] = 3;
+		if(mutation == 2) links[1] = 1;
+		if(mutation == 3) ssa.cfg.edges[0].target = 2;
+		if(mutation == 4) ssa.data.reachable[0] = false;
+		if(mutation == 5) ssa.data.values[1].function = 2;
+		if(mutation == 6) ssa.cfg.blocks[0].origin = 0;
+		int limit = 32; if(mutation == 7) limit = 0;
+		var negative = new RecoverWork(limit); short_intervals(negative, 3);
+		if(recover_ssa_short_inputs(ssa, 3, heads, links, negative)) return 3;
+		mutation = mutation + 1;
+	}
+	return 42;
+}
+
+int short_graph() {
+	int count = graph_start(); var ssa = new RecoverSsa(count, graph_count(0), graph_count(1), graph_count(2)); int i = 0;
+	while(i < count) {
+		ssa.cfg.blocks[i].function = graph_block(i, 0);
+		ssa.cfg.blocks[i].origin = graph_block(i, 1);
+		ssa.cfg.blocks[i].opcode = graph_block(i, 2);
+		ssa.data.reachable[i] = graph_reachable(i) != 0;
+		i = i + 1;
+	}
+	i = 0; while(i < ssa.cfg.edge_count) {
+		ssa.cfg.edges[i].source = graph_edge(i, 0);
+		ssa.cfg.edges[i].target = graph_edge(i, 1);
+		ssa.cfg.edges[i].polarity = graph_edge(i, 2);
+		ssa.cfg.edges[i].owner = graph_edge(i, 3);
+		i = i + 1;
+	}
+	i = 0; while(i < len(ssa.cfg.core.nodes)) {
+		ssa.cfg.core.nodes[i].value.kind = graph_node(i, 0);
+		ssa.cfg.core.nodes[i].value.a = graph_node(i, 6);
+		ssa.cfg.core.nodes[i].value.b = graph_node(i, 7);
+		i = i + 1;
+	}
+	i = 0; while(i < len(ssa.data.values)) {
+		ssa.data.values[i].function = graph_value(i, 0);
+		ssa.data.values[i].block = graph_value(i, 1);
+		ssa.data.values[i].type.index = graph_value(i, 2);
+		ssa.data.values[i].channel = graph_value(i, 3);
+		ssa.data.values[i].edge = graph_value(i, 4);
+		i = i + 1;
+	}
+	var work = new RecoverWork(8000000); work.dominance_first = new int[count + 1]; work.dominance_end = new int[count + 1]; i = 1;
+	while(i <= count) {
+		work.dominance_first[i] = graph_interval(i, 0);
+		work.dominance_end[i] = graph_interval(i, 1);
+		i = i + 1;
+	}
+	var links = new int[ssa.cfg.edge_count + 1]; var heads = short_heads(ssa, links); int joins = 0; i = 1;
+	while(i <= count) {
+		if(ssa.cfg.blocks[i - 1].opcode == 62) {
+			if(!recover_ssa_short_inputs(ssa, i, heads, links, work)) return 4;
+			joins = joins + 1;
+		}
+		i = i + 1;
+	}
+	if(joins != 9007 || work.exhausted || work.remaining != 8000000 - 36028) return 5;
+	work_observed(joins, 8000000 - work.remaining); return 42;
+}
+
+int main(string[] args) { if(len(args) != 2) return 6; if(args[1] == "--small") return short_small(); if(args[1] == "--graph") return short_graph(); return 7; }
