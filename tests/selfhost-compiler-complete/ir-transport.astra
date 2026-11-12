@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The writer declaration comes from the production capi.astra, never a twin.
+extern(C) void LLVMShutdown();
+
+int transport_import(void* module, borrowed string output, borrowed string sentinel) {
+	if (llvm26_write_ir(null, 134217728, sentinel) != 1) return 10;
+	if (llvm26_write_ir(module, 0, sentinel) != 1) return 11;
+	if (llvm26_write_ir(module, 134217729, sentinel) != 1) return 12;
+	if (llvm26_write_ir(module, 1, sentinel) != 2) return 13;
+	if (llvm26_write_ir(module, 134217728, "") != 1) return 14;
+	if (llvm26_write_ir(module, 134217728, output) != 0) return 15;
+	return 42;
+}
+
+int main(string[] args) {
+	if (len(args) != 3) return 16;
+	var context = LLVMContextCreate();
+	var module = LLVMModuleCreateWithNameInContext(llvm12_empty(), context);
+	var signature = LLVMFunctionType(LLVMIntTypeInContext(context, 32), null, 0, 0);
+	var function = llvm12_function(module, signature, "transport");
+	if (function == null) return 17;
+	int result = transport_import(module, args[1], args[2]);
+	LLVMDisposeModule(module);
+	LLVMContextDispose(context);
+	LLVMShutdown();
+	return result;
+}

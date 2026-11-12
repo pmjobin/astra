@@ -100,6 +100,36 @@ def llvm_branches(baseline):
 	return baseline[:start]+main+'\n'+'\n'.join(helpers), dict(groups=receipts, value_opcode_tags=value_tags, owner_opcode_tags=sorted(owner_tags), disjoint_dispatch=True, original_loop_bodies_reconstruct_byte_for_byte=True)
 
 
+def indexed_function_preservation(current, factored):
+	def function(raw):
+		return raw[raw.index('bool recover_llvm_function_verified('):raw.index('\nint recover_llvm_value_instructions(')]
+	old = function(factored); expected = old
+	start = old.index('\tint allocation_count = 0;'); end = old.index('\tvoid* previous_frame')
+	loop = old[start:end]
+	check_start = loop.index('\t\t\tvar slot = slots[n];')
+	check_end = loop.index('\n\t\t}', check_start)
+	checks = loop[check_start:check_end]
+	new_loop = '\tint allocation_count = 0; int id = index.node_heads[f];\n\twhile (id != 0) {\n\t\tint n = id - 1;\n'
+	new_loop += '\t\tvar node = ssa.cfg.core.nodes[n]; bool sum = recover_value_kind(node.value.kind) && checked_kind(ssa.cfg.core.flow.checked, node.value.type) == 32;\n'
+	new_loop += '\t\tif (node.conditional && node.value.type.index != 14 || sum) {\n'+checks+'\n\t\t}\n'
+	new_loop += '\t\tif (node.value.kind == 57) allocation_count = allocation_count + 1;\n\t\tid = index.node_next[n];\n\t}\n'
+	expected = expected[:start]+new_loop+expected[end:]
+	a = expected.index('\tint place = 0;'); b = expected.index('\n\t\t\tif (slot.parameter)', a)
+	expected = expected[:a]+'\tint position = index.slot_heads[f];\n\twhile (position != 0) {\n\t\tint place = position - 1;\n\t\tvar slot = ssa.cfg.core.flow.storage.slots[place];'+expected[b:]
+	a = expected.index('\t\t\t\tint stores = 0;'); b = expected.index('\n\t\t\t}', a)
+	expected = expected[:a]+'\t\t\t\tint candidate = index.declarations[slot.symbol.index];\n\t\t\t\tvar local = ssa.cfg.core.nodes[candidate - 1].value;\n\t\t\t\tif (locals[slot.symbol.index] != values[local.a]) return false;'+expected[b:]
+	assert expected.count('\t\t} place = place + 1; }\n') == 1
+	expected = expected.replace('\t\t} place = place + 1; }\n', '\t\tposition = index.slot_next[place];\n\t}\n')
+	a = expected.index('\n\t\t\tif (slot.parameter)'); b = expected.index('\n\t\tposition =')
+	expected = expected[:a]+''.join(line[1:] if line.startswith('\t') else line for line in expected[a:b].splitlines(keepends=True))+expected[b:]
+	expected = expected.replace('void*[] fixed_backings, int f)', 'void*[] fixed_backings, RecoverLlvmIndex index, int f)')
+	assert function(current) == expected
+	global_checks = current[current.index('bool recover_llvm_global_lanes('):current.index('bool recover_llvm_check(')]
+	for line in ['if (!sum && !node.conditional && slots[n] != null) return false;', 'if (!recover_array_backing_verified(ssa, n + 1, fixed_backings[n], entries[node.value.function - 1], layout)) return false;', 'if (fixed_backings[n] != null) return false;']:
+		assert loop.count(line) == global_checks.count(line) == 1
+	return dict(physical_function_checks_preserved=True, global_checks_moved_once=True, unchanged_node_allocation_checks_sha256=sha256(checks.encode()).hexdigest(), limitation='Mechanical preservation of all ABI/type/instruction/address/order predicates. Membership and unique declaration substitution require the fresh index replay, and whole-pipeline physical qualification remains separate.')
+
+
 def cfg_comparison(args, leaf):
 	jobs = []; sources = []
 	for label, path in [('baseline', args.cfg_baseline), ('current', args.cfg_current)]:
@@ -164,7 +194,17 @@ def main():
 	llvm_baseline = subprocess.check_output(['git', 'show', revision+':'+llvm_name], cwd=ROOT).decode()
 	llvm_current = (ROOT/llvm_name).read_text()
 	expected_llvm, llvm_proof = llvm_branches(llvm_baseline)
-	assert llvm_current == expected_llvm
+	# Factoring remains byte-exact at its delivered revision. Later independent
+	# indexing changes only discovery; instruction/block helpers remain exact.
+	factored_revision = '3cc3cd568530c5cb523353b9d919eb063e32ff89'
+	factored = subprocess.check_output(['git', 'show', factored_revision+':'+llvm_name], cwd=ROOT).decode()
+	assert factored == expected_llvm
+	untouched = '\nint recover_llvm_value_instructions('
+	assert llvm_current[llvm_current.index(untouched):] == factored[factored.index(untouched):]
+	llvm_proof['factored_revision'] = factored_revision
+	llvm_proof['current_instruction_and_block_helpers_unchanged'] = True
+	llvm_proof['current_discovery_requires_separate_index_proof'] = True
+	llvm_proof['indexed_function'] = indexed_function_preservation(llvm_current, factored)
 	for label, raw in [('baseline', baseline), ('current', current)]:
 		path = leaf/(label+'.astra'); path.write_text(raw)
 		result = execute([a.compiler, '--dump-syntax', path], leaf/(label+'-syntax'))
@@ -175,7 +215,7 @@ def main():
 		assert result['status'] == 'EXPECTED_OUTCOME'
 	assert (ROOT/name).read_text() == current
 	assert (ROOT/llvm_name).read_text() == llvm_current
-	write(leaf/'result.json', dict(status='UNCHANGED_SOURCE_BRANCHES_VERIFIED', reference_revision=revision, reference_source_sha256=sha256(baseline.encode()).hexdigest(), current_source_sha256=sha256(current.encode()).hexdigest(), source_proof=proof, llvm_source_sha256=sha256(llvm_current.encode()).hexdigest(), llvm_proof=llvm_proof, recipe_sha256=sha(__file__), full_original_native_credit=0, limitation='Mechanical source-branch preservation and original C0 syntax only. Common entry checks, tag partitions, recursive arguments, binding/seen/edge arrays and all original branch statements are retained. LLVM false results travel as zero instruction counts; all original statements and loop ordering reconstruct exactly. No measured cold-build improvement, current native product or milestone acceptance follows.'))
+	write(leaf/'result.json', dict(status='UNCHANGED_SOURCE_BRANCHES_VERIFIED', reference_revision=revision, reference_source_sha256=sha256(baseline.encode()).hexdigest(), current_source_sha256=sha256(current.encode()).hexdigest(), source_proof=proof, llvm_source_sha256=sha256(llvm_current.encode()).hexdigest(), llvm_proof=llvm_proof, recipe_sha256=sha(__file__), full_original_native_credit=0, limitation='Mechanical source-branch preservation and original C0 syntax only. Original complete LLVM factoring is checked at3cc3cd5; current instruction and block helpers retain it byte-for-byte. Current function/global discovery needs separate index tests. Common entry checks, tag partitions, recursive arguments, binding/seen/edge arrays and all original branch statements are retained. LLVM false results travel as zero instruction counts; all original statements and loop ordering reconstruct exactly. No measured cold-build improvement, current native product or milestone acceptance follows.'))
 	print('UNCHANGED_SOURCE_BRANCHES_VERIFIED', leaf, flush=True)
 	if a.cfg_baseline or a.cfg_current:
 		assert a.cfg_baseline and a.cfg_current and a.build_root

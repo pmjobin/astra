@@ -3061,3 +3061,37 @@ declaration without changing C0; the refused receipt remains unchanged. The
 corrected complete current-source semantic preflight passes. Actual original
 and current whole-module LLVM/native, linked compiler-service, independent
 ownership and final regression/delivery gates remain outstanding.
+
+
+## Pace addendum: fresh physical discovery and actual import
+
+The advice ZIP (SHA-256
+`1e08cab44749899be9a4726447425655efc3d745102e0fbe24443d1aa03a897f`)
+is an operating continuation; its four indexed payloads match. Live38411f3
+already contains the annotated writer. `ir-transport-astraimport2` now compiles
+the actual production Astra declaration against its actual C adapter at C0
+O0/O2. Exact UTF8 filenames, returns1/1/1/2/1/0, sentinel preservation,
+independent LLVM verification and two strict Valgrind streams pass. The first
+fixture incorrectly assumed nonempty text for an empty unnamed module; its
+exit13 receipt remains, and the corrected fixture adds a real declaration.
+
+Physical discovery now builds fresh function-node/function-slot links and
+Binder declaration/slot maps. Independent reverse reconstruction proves every
+link, coverage, uniqueness and order once per invocation. Global lane checks
+run once; each function consumes only its actual members. All ABI/type/
+instruction/address/order predicates mechanically match the previous checker.
+No producer index, retained validation, module cache, C0 or ceiling changes.
+`native-physicalsem1-O2` passes actual all-production C0 semantics in58.135s.
+`compile-cost-check-physicalpreserve1` verifies predicate preservation.
+`llvm-physical-index-focused3` passes1024 scalar differential models,16 source
+and15 index corruptions with restoration, both captured original/current
+populations, C0 O0/O2 and six strict memory streams. Four-worker DAG wall time
+is4.537s including two tiny kernel builds; this is not whole-check speedup.
+The earlier name-collision and artifact-routing harness failures remain.
+
+All-function GDB timing proved too expensive: breakpoint cleanup distorted
+whole-build wall time. Those runs are not cold-build benchmarks. The obsolete
+082 baseline was deliberately stopped (actual exit137,7042.873s, no product);
+its raw evidence remains. The useful3cc and384 frozen builds continue without
+GDB. Original/current complete output, graph55/predicate26, linked behaviour
+and all final inherited acceptance/delivery gates remain unqualified here.
