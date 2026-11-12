@@ -96,6 +96,17 @@ mapping is `--dump-semantics`; that actual full-entry preflight passes in
 67.614s. No compiler, verifier, installed workflow or ceiling is changed.
 The earlier stopped/deep and missing-symbol receipts remain historical.
 
+Independent inventories `independent-module-inventory1-original.json` and
+`independent-module-inventory1-current.json` freshly verify raw and optimized
+LLVM, actual ELF64/x86-64 headers, defined/undefined symbols and relocations.
+All2392 original and2579 current source-function roots remain in both target
+objects. Digest and wrong-architecture negative twins are rejected without an
+accepted inventory; the original products remain unchanged. This inventory
+does not grant final-product, ABI, graph55, retained-regression or delivery
+credit. Both normal final products use the unchanged production candidate;
+the eight historical input fixtures are prepared read-only before their final
+campaign, preventing repetition of the known missing-input harness failures.
+
 ## Post-restart O0 results
 
 The fresh build at `7830a0d` took 47:25.62 with 2,215,952 KiB peak RSS. Its

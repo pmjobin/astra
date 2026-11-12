@@ -5,12 +5,80 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import re
+import shutil
+import struct
 import subprocess
 import sys
 from types import SimpleNamespace
 import zipfile
 
 from run import BASE, ROOT, WORK, git, sha, write
+
+
+def module_inventory(probe, manifest, scope, output):
+	"""Independent object retention check; deliberately grants no final PASS."""
+	from accelerate import authenticated_inputs
+	from acceleration import output_path
+	probe = output_path(probe, WORK/'runtime'); output = output_path(output, WORK/'runtime')
+	assert not output.exists()
+	inputs = authenticated_inputs(SimpleNamespace(inputs=manifest, scope=scope))
+	result = json.loads((probe/'result.json').read_text())
+	assert result['status'] == 'JOB_OUTCOMES_MATCHED' and not result['failed_jobs']
+	assert len(result['jobs']) == 10
+	for name, row in result['jobs'].items():
+		assert row['status'] == 'EXPECTED_OUTCOME' and row['exit'] == 0 and not row['timed_out']
+		for stream in ('stdout', 'stderr'): assert sha(probe/name/stream) == row[stream+'_sha256']
+		assert sha(probe/name/'time') == row['time_sha256']
+	stage = json.loads((probe/'native/stages/result.json').read_text())
+	assert stage['native_exit'] == stage['debugger_exit'] == 0 and not stage['timed_out']
+	observed = (probe/'native/stages/stdout').read_text()
+	assert all(marker in observed for marker in ('RECOVER_FLOW 0 0 ', 'RECOVER_SSA_VALID', 'RECOVER_LLVM_WRITTEN'))
+	source = json.loads((probe/'source-scope.json').read_text())
+	assert source['scope'] == scope and source['input_manifest_sha256'] == sha(manifest) and source['input_count'] == len(inputs)
+	command = json.loads((probe/'native/running.json').read_text())['argv']
+	component = Path(command[command.index('--host')+1])
+	assert sha(component) == source['component_sha256']
+	assert command[-len(inputs):] == list(inputs)
+	from acceleration import execute
+	identity = json.loads(component.with_suffix('.identity.json').read_text())
+	toolchain = output.parent/(output.stem+'-toolchain.json')
+	verified = execute([sys.executable, '-B', ROOT/'tests/selfhost-compiler-complete/toolchain.py', '--compiler', identity['identity']['argv'][0], '--receipt', toolchain], output.parent/(output.stem+'-tools'), timeout=120)
+	assert verified['status'] == 'EXPECTED_OUTCOME'
+	def artifact(job, key):
+		row = result['jobs'][job]['artifacts'][key]; path = output_path(Path(row['path']), WORK/'build')
+		assert sha(path) == row['sha256'] and path.stat().st_size == row['bytes']
+		return path, row
+	raw, raw_identity = artifact('native', 'raw'); text = raw.read_text()
+	used = [line for line in text.splitlines() if line.startswith('@llvm.used =')]
+	assert len(used) == 1
+	count = int(re.search(r'\[(\d+) x ptr\]', used[0])[1])
+	roots = re.findall(r'@(astra\.e25a\.f\.\d+)', used[0])
+	assert len(roots) == len(set(roots)) == count
+	definitions = re.findall(r'^define .*?@(astra\.e25a\.f\.\d+)\(', text, re.M)
+	assert len(definitions) == count and set(definitions) == set(roots)
+	raw_verify = execute(['opt', '-passes=verify', '-disable-output', raw], output.parent/(output.stem+'-raw-verify'), timeout=120)
+	assert raw_verify['status'] == 'EXPECTED_OUTCOME'
+	facts = []
+	for mode in ('O0', 'O2'):
+		optimized, optimized_identity = artifact(mode+'-optimize', 'optimized')
+		obj, identity = artifact(mode+'-object', 'object')
+		head = obj.read_bytes()[:64]
+		assert head[:6] == b'\x7fELF\x02\x01' and struct.unpack_from('<H', head, 16)[0] == 1 and struct.unpack_from('<H', head, 18)[0] == 62
+		symbols = subprocess.check_output(['nm', '--defined-only', '-P', obj], text=True)
+		physical = re.findall(r'^(astra\.e25a\.f\.\d+) ([tT]) ', symbols, re.M)
+		assert len(physical) == count and {name for name, kind in physical} == set(roots)
+		optimized_definitions = re.findall(r'^define .*?@(astra\.e25a\.f\.\d+)\(', optimized.read_text(), re.M)
+		assert len(optimized_definitions) == count and set(optimized_definitions) == set(roots)
+		verification = execute(['opt', '-passes=verify', '-disable-output', optimized], output.parent/(output.stem+'-'+mode+'-verify'), timeout=120)
+		assert verification['status'] == 'EXPECTED_OUTCOME'
+		undefined = subprocess.check_output(['nm', '-u', '-P', obj], text=True)
+		relocations = subprocess.check_output(['readelf', '-rW', obj], text=True)
+		leaf = output.parent/(output.stem+'-'+mode); assert not leaf.exists(); leaf.mkdir()
+		for name, data in [('defined-symbols.txt', symbols), ('undefined-symbols.txt', undefined), ('relocations.txt', relocations)]: (leaf/name).write_text(data)
+		facts.append(dict(profile=mode, optimized_LLVM=optimized_identity, object=identity, retained_source_functions=count, independent_optimized_verification=verification, inventory={str(p):sha(p) for p in sorted(leaf.iterdir())}, metrics=result['jobs'][mode+'-object']['metrics']))
+	write(output, dict(status='FULL_MODULE_SYMBOL_RETENTION_VERIFIED', scope=scope, component_sha256=sha(component), probe_result_sha256=sha(probe/'result.json'), source_manifest_sha256=sha(manifest), input_count=len(inputs), raw_LLVM=raw_identity, independent_raw_verification=raw_verify, toolchain_receipt=dict(path=str(toolchain), sha256=sha(toolchain)), source_functions=count, source_function_names=roots, profiles=facts, tools={str(Path(shutil.which(name)).resolve()):sha(shutil.which(name)) for name in ('nm', 'readelf')}, full_milestone_credit=False, limitation='Actual library root table, raw and optimized function definitions, both ELF symbol sets, undefined symbols and relocation inventories. No final compiler-product, linked ABI, independent graph55, retained-regression or delivery qualification follows from inventory alone.'))
+	return count
 
 
 def source_identities(paths, component, mode, version, consumer):
