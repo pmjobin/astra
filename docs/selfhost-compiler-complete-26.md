@@ -2518,3 +2518,105 @@ that product. C-provider caching does not cache the C0 compiler's own semantic,
 SSA and LLVM work. No C0, installed workflow, toolchain pin, public ABI, generic256
 or SSA8M limit is changed by this cycle policy. Native qualification remains0/2
 until the real complete pipelines, objects and linked usage are proved.
+
+## Executable acceleration tools and their measured limits
+
+`tests/selfhost-compiler-complete/accelerate.py` now provides one development
+cycle over the existing unchanged native-build/compile-plan recipes. It
+authenticates an exact plan, reuses an intact matching product, joins a matching
+running build instead of launching a duplicate, or builds one fresh development
+host. A source/tool/environment mismatch or damaged artifact is refused. A
+matching Core symbol map can be constructed concurrently with the cold build.
+The subsequent full-original probe requires the exact read-only190-file Git
+population, observes actual SSA/LLVM witnesses, verifies raw LLVM, then produces
+and verifies O0/O2 objects with independent LLVM processes and ELF checks.
+These development objects do not replace normal final-profile qualification,
+ABI comparisons, representative linkage, memory testing or delivery gates.
+
+For an already prepared authenticated snapshot, the portable invocation is:
+
+```sh
+python3 -B tests/selfhost-compiler-complete/accelerate.py \
+  --capsule-prefix "$M26_RUNTIME/capsule-llvm2314-prefix2.json" cycle \
+  --identity "$M26_RUNTIME/native-shortindex1-O2/ownflow-O2-input-identity.json" \
+  --inputs "$M26_RUNTIME/opaque-flow-inputs.json" \
+  --runtime-root "$M26_RUNTIME" --build-root "$M26_BUILD" --version nextcycle1
+```
+
+Here `M26_RUNTIME` and `M26_BUILD` name the existing `compiler-complete26v4`
+runtime and build directories under the authorized Astra work root. Versions
+must be fresh alphanumeric leaf names. New source revisions require their own
+Git-authenticated snapshot/plan using `native-build.py --snapshot --check`,
+followed by the unchanged `compile-plan.py` through `accelerate.py`; an old plan
+never silently becomes the current source. `--scope focused` is available for
+cheap explicit small-input plumbing checks and gives no original-source credit.
+`probe` runs the emission/object phase against an already authenticated host;
+`status --receipt PATH` reads live process/stage receipts and explicit outcomes.
+
+The `jobs` and `qualify` commands schedule dependency graphs using private
+per-job output directories. They start up to4 independent processes and grow to
+at most8 after successful outcomes, reserving8GiB plus each job's estimated RSS.
+Transitive failures prevent consumer execution. Qualification always runs fresh;
+artifact reuse is explicit, requires declared output hashes and the original
+receipt, and includes source order, command, tool bytes, environment and runner
+identity. Missing output witnesses and damaged artifacts are refused. Actual
+process intervals are unioned separately from the sum of process times. The
+12-recipe qualification graph retains historical R5 raw failures and the
+separately corrected physical policy; a subset never becomes a complete PASS.
+
+`iteration-benchmark.py` compares existing matched O0/O2 hosts on the same exact
+diagnostic inputs and combines fresh diagnostic time with authenticated cold
+build receipts. A selection applies only to that source/tool/flag context.
+`cycle --selection FILE --alternate-identity FILE` uses it only when both plans
+match that context. Otherwise the explicitly supplied primary plan remains
+selected. One observation is not a statistical speedup, and timing a refusal
+does not qualify the compiler. This avoids assuming that either optimization
+level always minimizes the complete build/debug cycle.
+
+`profile` and `compile --profile` sample the actual C0 process. The child restores
+the complete recorded environment after perf's own PATH prefix; user settings
+and installed tools remain unchanged. `native-profile.py --bootstrap` supplies
+coarse actual C0 parser/semantic/Core/generic/CFG/Flow/SSA/LLVM/link intervals
+when their symbols are retained. Native stage profiling uses the exact host's
+Core symbol map. Nested verification costs remain included in their enclosing
+stage, and optimized-away functions do not receive invented intervals.
+
+The real integration campaign `acceleration-checks-fourth4` passes exact C0
+O0/O2 controls, namespaced native-unit compilation/linkage, two strict
+unsuppressed Valgrind streams, source restoration, damaged-cache rejection,
+missing-witness rejection, preserved refusal destinations, actual sampled C0
+compilation and12 coarse C0 stage observations. Four cold units become zero
+warm compilations; changing one test-owned helper recompiles its two-unit
+consuming closure and reuses the other two. Independent units overlap. Helper
+bodies are authenticated against the actual compiler parser; this is a focused
+mechanism check. `focusedcycle2` separately reuses the7676 development host and
+successfully emits/verifies a small library's actual raw LLVM and both objects
+in4.42seconds overall. The first cycle fixture incorrectly supplied a program
+entry to library mode and remains a refused fixture with its sentinel intact.
+
+`incremental-units.py` and `native-unit-step.py` use the original C0's existing
+native-module interface. Complete adjacent dependency .asti/.o closures retain
+their exact hashes and C0 validates their identities and ABI. This mechanism
+works for the focused compiler scalar helpers; it does not yet split the full
+compiler into reusable units. An actual proposed compiler source API boundary
+was tested using all10 real libraries plus `compiler/source/source.astra`, with
+every authored byte retained beneath one namespace directive. Semantic checks
+pass, but original C0 O0 and O2 both refuse `SourceBuffer.copy_range`'s owned
+byte-array result with `native module: unsupported result/error/async ABI
+channel`. No object/interface is created. `native-boundaries-third3` preserves
+both receipts, the exact parser projection and source hashes. This is a
+limitation of that proposed existing-API build boundary, not a C0-valid language
+source blocker or a proof that every decomposition is impossible. Full compiler
+incremental compilation remains outstanding; C0 and the public ABI are intact.
+
+The integrated7676 development host takes4394.05seconds to build. Its sparse
+coarse-stage full-original run takes752.49seconds and still refuses SSA, keeping
+its destination sentinel. Repeated independent Flow validation accounts for
+most of that run; overlapping/nested stage intervals must not be summed.
+An earlier per-value GDB trace was explicitly stopped after instrumentation CPU
+exceeded compiler CPU; its snapshots and stopped status remain preserved. A
+failure-branch-only native trace replaces that instrumentation. The captured
+graph's Python diagnostic model points to owner-temporary walks exhausting the
+remaining budget at value258869; native confirmation and a source fix remain
+pending. No work ceiling or verification boundary has been changed. Full
+original native qualification remains0/2.

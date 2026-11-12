@@ -7,13 +7,20 @@ import json
 from pathlib import Path
 import re
 import shutil
+import os
+import signal
 import subprocess
 import sys
 import time
 
+from acceleration import process_sample
+from run import C0_SHA256
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--host', type=Path, required=True)
-parser.add_argument('--core-map', type=Path, required=True)
+parser.add_argument('--core-map', type=Path)
+parser.add_argument('--bootstrap', action='store_true', help='profile the exact original C0 by its retained native symbols')
+parser.add_argument('--timeout-seconds', type=int, default=7200)
 parser.add_argument('--profile-dir', type=Path, required=True)
 parser.add_argument('arguments', nargs=argparse.REMAINDER)
 a = parser.parse_args()
@@ -21,9 +28,11 @@ assert a.arguments and a.arguments[0] == '--'
 arguments = a.arguments[1:]
 leaf = a.profile_dir
 leaf.mkdir()
-identity = json.loads(a.host.with_suffix('.identity.json').read_text())
+assert a.timeout_seconds > 0
+identity = dict(sha256=C0_SHA256) if a.bootstrap else json.loads(a.host.with_suffix('.identity.json').read_text())
 assert sha256(a.host.read_bytes()).hexdigest() == identity['sha256']
-core = a.core_map.read_text()
+assert a.bootstrap or a.core_map
+core = a.core_map.read_text() if a.core_map else ''
 names = re.findall(r'^\t\(function "([^"]+)"', core, re.M)
 symbols = {v[2]:int(v[0], 16) for line in subprocess.check_output(['nm', '-n', str(a.host)], text=True).splitlines() if len(v := line.split()) == 3}
 stages = {}
@@ -44,16 +53,17 @@ for label, candidates in [
 		if name in names and 'astra.fn.'+str(names.index(name)) in symbols:
 			stages[label] = dict(name=name, address=symbols['astra.fn.'+str(names.index(name))])
 			break
-classes = re.findall(r'^\t\(class #(\d+) "RecoverLlvm"', core, re.M)
-assert len(classes) == 1
-class_id = int(classes[0])
-for label, method in [('LLVM_build', 'build'), ('LLVM_write', 'write')]:
-	found = re.findall(r'^\t\(method #(\d+) "'+method+r'" \(declaring-class #'+str(class_id)+r' "RecoverLlvm"', core, re.M)
-	assert len(found) == 1
-	symbol = 'astra.class.method.'+str(class_id)+'.'+found[0]
-	if symbol in symbols:
-		stages[label] = dict(name=symbol, address=symbols[symbol])
-if 'binding' not in stages:
+if not a.bootstrap:
+	classes = re.findall(r'^\t\(class #(\d+) "RecoverLlvm"', core, re.M)
+	assert len(classes) == 1
+	class_id = int(classes[0])
+	for label, method in [('LLVM_build', 'build'), ('LLVM_write', 'write')]:
+		found = re.findall(r'^\t\(method #(\d+) "'+method+r'" \(declaring-class #'+str(class_id)+r' "RecoverLlvm"', core, re.M)
+		assert len(found) == 1
+		symbol = 'astra.class.method.'+str(class_id)+'.'+found[0]
+		if symbol in symbols:
+			stages[label] = dict(name=symbol, address=symbols[symbol])
+if not a.bootstrap and 'binding' not in stages:
 	binding_class = re.findall(r'^\t\(class #(\d+) "BindingIndex"', core, re.M)
 	assert len(binding_class) == 1
 	methods = re.findall(r'^\t\(method #(\d+) "run" \(declaring-class #'+binding_class[0]+r' "BindingIndex"', core, re.M)
@@ -61,7 +71,25 @@ if 'binding' not in stages:
 	symbol = 'astra.class.method.'+binding_class[0]+'.'+methods[0]
 	if symbol in symbols:
 		stages['binding'] = dict(name=symbol, address=symbols[symbol])
-assert all(k in stages for k in ['source_load_parse', 'Flow', 'Core', 'CFG', 'SSA', 'LLVM_build', 'LLVM_write'])
+if a.bootstrap:
+	for label, symbol in {
+		'source_load_parse':'astra_syntax_parser_parse',
+		'semantic':'astra_semantic_semantic_analyzer_analyze_program',
+		'Core':'astra_core_core_builder_build',
+		'generic':'astra_core_core_generic_monomorphizer_build',
+		'CFG':'astra_cfg_cfg_builder_build',
+		'Flow':'astra_cfg_cfg_flow_checker_check',
+		'SSA':'astra_ssa_ssa_builder_build',
+		'LLVM_build':'astra_backend_llvm_llvm_lowering_lower',
+		'LLVM_optimize':'astra_backend_llvm_llvm_target_machine_artifact_run_pipeline',
+		'LLVM_write':'astra_backend_llvm_llvm_target_machine_artifact_emit_object',
+		'link':'astra_driver_executable_output_link_and_commit',
+	}.items():
+		if symbol in symbols:
+			stages[label] = dict(name=symbol, address=symbols[symbol])
+assert stages, 'No usable retained stage symbols; no process was started'
+for row in stages.values():
+	row['breakpoint'] = row['name'] if a.bootstrap else '*'+hex(row['address'])
 script = '''set pagination off
 set auto-load python-scripts off
 set confirm off
@@ -99,13 +127,13 @@ class Complete(gdb.FinishBreakpoint):
         (leaf/'stages.json').write_text(json.dumps(observations,indent=2)+'\\n')
         return False
 class Enter(gdb.Breakpoint):
-    def __init__(self,label,address):
-        super().__init__('*'+hex(address),internal=True)
+    def __init__(self,label,location):
+        super().__init__(location,internal=True)
         self.label=label
     def stop(self):
         Complete(self.label,sample())
         return False
-hooks=[Enter(label,row['address']) for label,row in stages.items()]
+hooks=[Enter(label,row['breakpoint']) for label,row in stages.items()]
 def ended(event):
     (leaf/'inferior-exit.json').write_text(json.dumps(dict(exit_code=getattr(event,'exit_code',None),observations=len(observations)),indent=2)+'\\n')
 gdb.events.exited.connect(ended)
@@ -117,14 +145,30 @@ script_path = leaf/'commands.gdb'
 script_path.write_text(script)
 argv = ['gdb', '-q', '--nx', '--batch', '-x', str(script_path), '--args', str(a.host), *arguments]
 tools = {str(Path(shutil.which(name)).resolve()):sha256(Path(shutil.which(name)).resolve().read_bytes()).hexdigest() for name in ['gdb', 'nm', 'python3']}
-command = dict(argv=argv, host_sha256=identity['sha256'], core_map_sha256=sha256(a.core_map.read_bytes()).hexdigest(), driver_sha256=sha256(Path(__file__).read_bytes()).hexdigest(), tools=tools, stages=stages, instrumentation='Read-only entry/return breakpoints. No verifier or plan mutations.')
+command = dict(argv=argv, host_sha256=identity['sha256'], core_map_sha256=sha256(a.core_map.read_bytes()).hexdigest() if a.core_map else None, driver_sha256=sha256(Path(__file__).read_bytes()).hexdigest(), tools=tools, stages=stages, bootstrap=a.bootstrap, instrumentation='Read-only entry/return breakpoints. No verifier or plan mutations. Optimized-away symbols provide no standalone interval.')
 (leaf/'command.json').write_text(json.dumps(command, indent=2)+'\n')
 start = time.monotonic()
-process = subprocess.run(argv, capture_output=True)
-(leaf/'stdout').write_bytes(process.stdout)
-(leaf/'stderr').write_bytes(process.stderr)
-sys.stdout.buffer.write(process.stdout)
-sys.stderr.buffer.write(process.stderr)
+timed_out = False
+with (leaf/'stdout').open('wb') as stdout, (leaf/'stderr').open('wb') as stderr:
+	process = subprocess.Popen(argv, stdout=stdout, stderr=stderr, start_new_session=True)
+	while True:
+		try:
+			process.wait(timeout=1)
+			break
+		except subprocess.TimeoutExpired:
+			active_file = leaf/'active.json'
+			try:
+				active_stages = json.loads(active_file.read_text()) if active_file.exists() else {}
+			except json.JSONDecodeError:
+				active_stages = {}
+			live = dict(elapsed_seconds=time.monotonic()-start, active_stage_functions=active_stages, process=process_sample(process.pid), status='RUNNING', qualification_credit=0)
+			(leaf/'live.json').write_text(json.dumps(live, indent=2)+'\n')
+			if time.monotonic()-start >= a.timeout_seconds:
+				timed_out = True
+				os.killpg(process.pid, signal.SIGKILL); process.wait(); break
+out = (leaf/'stdout').read_bytes(); err = (leaf/'stderr').read_bytes()
+sys.stdout.buffer.write(out)
+sys.stderr.buffer.write(err)
 stage_file = leaf/'stages.json'
 if stage_file.exists():
 	rows = json.loads(stage_file.read_text())
@@ -135,6 +179,7 @@ if stage_file.exists():
 		(leaf/'binding-semantic-interval.json').write_text(json.dumps(interval, indent=2)+'\n')
 exit_file = leaf/'inferior-exit.json'
 actual = json.loads(exit_file.read_text())['exit_code'] if exit_file.exists() else None
-result = dict(debugger_exit=process.returncode, native_exit=actual, seconds=time.monotonic()-start, stdout_sha256=sha256(process.stdout).hexdigest(), stderr_sha256=sha256(process.stderr).hexdigest(), stage_intervals_scope='Each retained stage function is timed including its nested work. Validation between stage calls appears in the unassigned intervals. No cold speedup inference.')
+result = dict(debugger_exit=process.returncode, native_exit=actual, timed_out=timed_out, seconds=time.monotonic()-start, stdout_sha256=sha256(out).hexdigest(), stderr_sha256=sha256(err).hexdigest(), stage_intervals_scope='Each retained stage function is timed including its nested work. Validation between stage calls appears in the unassigned intervals. Optimized-away symbols are not inferred. No cold speedup inference.')
 (leaf/'result.json').write_text(json.dumps(result, indent=2)+'\n')
+(leaf/'live.json').write_text(json.dumps(dict(status='TIMED_OUT' if timed_out else 'FINISHED', native_exit=actual, seconds=result['seconds']), indent=2)+'\n')
 raise SystemExit(actual if actual is not None and process.returncode == 0 else 99)
