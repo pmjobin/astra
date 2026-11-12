@@ -3101,3 +3101,20 @@ from the independently verified source, rather than deriving them from the
 index. `llvm-physical-index-focused5` adds four populated wrong-dimension
 cases; all prior replay/negative/memory obligations still pass. Candidate923
 Flow evidence remains tied to923 and is not attributed to these later lines.
+
+
+The completed3cc O2 host (`5fadf7816cdd0ae3b5cc14e89654c77d8a58ce14d303fd56de2249fd1c342733`)
+builds successfully but its original190 run returns1 at Flow (status1,
+284425 nodes), before Core/SSA. This is a real factoring regression: array
+kinds54/55/56/57/58/61/76 retained in the scalar helper were omitted from
+its dispatcher. Mechanical body reconstruction alone missed this. The live
+repair restores every tag and checks full handler/dispatcher coverage, plus
+seven omission negatives (`compile-cost-check-dispatchrepair1`).
+`dispatch-regression1` reproduces the defect in0.018s on a retained81-node
+array program: actual C0 semantics0, previous3d12 host SSA42, factored5fad
+host Flow1. The original refusal and all failed evidence remain unchanged.
+The just-started bec build was stopped after62.064s (exit137), and the
+byte-identical source-checker384 build was stopped as invalidated, after the
+completed3cc product made the redundant refusal diagnostic available. This
+avoids constructing known-refusing hosts; no failed receipt is made PASS.
+The repaired source and physical indexes require a new coherent O2 host.

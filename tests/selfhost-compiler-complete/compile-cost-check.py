@@ -28,11 +28,13 @@ def source_branches(current, baseline):
 	c = body.index('\tif (row.kind == 6) {')
 	d = body.index('\tif (row.kind == 69 || row.kind == 70) return ')
 	e = body.index('\tif (row.kind == 7) return ')
-	groups = [('scalars', body[a:b], [1, 2, 62, 3]), ('calls', body[b:c], [4, 5, 50]), ('records', body[c:d], [6, 8, 12, 75, 17, 18, 44, 45, 27]), ('control', body[e:], [7, 15, 20, 24, 21, 22, 23, 25, 26])]
+	groups = [('scalars', body[a:b], [1, 2, 54, 55, 56, 57, 58, 61, 76, 62, 3]), ('calls', body[b:c], [4, 5, 50]), ('records', body[c:d], [6, 8, 12, 75, 17, 18, 44, 45, 27]), ('control', body[e:], [7, 15, 20, 24, 21, 22, 23, 25, 26])]
 	params = header[header.index('(')+1:header.index(') {')]
 	args = 'flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind'
 	dispatch = []; helpers = []
 	for name, branch, kinds in groups:
+		guards = '\n'.join(line for line in branch.splitlines() if line.startswith('\tif (row.kind'))
+		assert {int(tag) for tag in re.findall(r'row\.kind == (\d+)', guards)} == set(kinds), (name, 'dispatcher must cover every retained top-level handler')
 		helper = 'recover_child_'+name+'_with_bindings'
 		expected = 'bool '+helper+'('+params+', RecoverNode row, SyntaxKind kind) {\n'+branch+'\treturn false;\n}\n'
 		assert definition(current, helper) == expected, helper
@@ -190,6 +192,17 @@ def main():
 	baseline = subprocess.check_output(['git', 'show', revision+':'+name], cwd=ROOT).decode()
 	current = (ROOT/name).read_text()
 	proof = source_branches(current, baseline)
+	# The delivered factoring retained the array handler body but omitted its
+	# seven tags from dispatch. Reject that exact regression and each omission.
+	refused = []
+	for tag in (54, 55, 56, 57, 58, 61, 76):
+		line = next(line for line in current.splitlines(keepends=True) if ') return recover_child_scalars_with_bindings(' in line)
+		corrupt = current.replace(line, line.replace(' || row.kind == '+str(tag), '', 1), 1)
+		try: source_branches(corrupt, baseline)
+		except AssertionError: refused.append(tag)
+		else: raise AssertionError(('missing dispatch tag accepted', tag))
+	assert refused == [54, 55, 56, 57, 58, 61, 76]
+	proof['missing_array_dispatch_negatives'] = refused
 	llvm_name = 'compiler/backend/llvm/recover-check.astra'
 	llvm_baseline = subprocess.check_output(['git', 'show', revision+':'+llvm_name], cwd=ROOT).decode()
 	llvm_current = (ROOT/llvm_name).read_text()
