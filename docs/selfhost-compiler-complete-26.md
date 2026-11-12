@@ -2970,3 +2970,94 @@ first physical factoring attempt lacks parser-required braces on an else body;
 its formatter/parser/frontend refusals remain preserved. The earlier source-only
 preflight also passes in58.502seconds. These are focused prerequisites, not a
 measured rebuild improvement or integrated current-source native qualification.
+
+## Measured CFG and compiler-function verification improvements
+
+The matched full208-input C0 CFG comparison finishes with actual exit0 for both
+variants. Only the two factored source files change; source order, tools and
+environment match. Baseline0823591 takes472.843seconds and factored3cc3cd5
+takes293.358seconds, a37.959% reduction for this complete stage. Peak RSS rises
+from1500072 to1548636KiB, or3.237%. These are one observation per variant,
+including source parsing, semantics, Core, CFG/Flow validation and dump output;
+they are not whole native cold-build timings.
+
+The physical checker becomes71 CFG blocks, with helpers of192,215,355 and502
+blocks, versus1241 originally. The source checker becomes406 blocks, with
+helpers of290,172,195 and204, versus1192 originally. Total helper graphs are
+retained; none is excluded from qualification. The smaller maximum graphs
+target C0's repeated function-local analysis. Independent audit
+`compile-cost-CFG-independent-audit1.json`, SHA-256
+`fc8697163857a3af874761f33263c4c1e4217db46a35154d4ff2947587d6db5d`,
+checks both exact source revisions, all208 input hashes, tools/environment,
+actual outcomes and raw output/time identities. The portable
+`compile-cost-check.py` can repeat this comparison from the two recorded plans.
+
+The factored snapshot's fresh current-source Flow job also passes every one of
+the nine consumers on all205 compiler/library sources, with actual exit42 in
+286.566seconds (`jobs-costfactorcurrentflow1/result.json`, SHA-256
+`705e6c567cd0d7a8381616a942765ee8622563a285502a34c9e0261fefd261a1`).
+This source admission is separate from the current native compilation.
+
+Both frozen native builds now have the same read-only function-boundary timing
+driver. The matched complete second SSA-verification pass gives:
+
+| Implementation family | Baseline seconds | Factored seconds | Reduction |
+|---|---:|---:|---:|
+| Physical checker, including all four new helpers |132.182|10.540|92.026%|
+| Source checker, including all four new helpers |124.349|4.761|96.171%|
+| Combined |256.531|15.301|94.035%|
+
+These measure original C0 checking the compiler implementation during a
+rebuild, not the resulting Astra compiler checking a user program. Audit
+`ssa-function-cost-comparison1/result.json`, SHA-256
+`72d3cc27d6163592323c9763e47f75a16016ac6f6e48a35983211d4595454f9b`,
+freezes both raw observation prefixes and checks source-name spans, exact C0
+identity, pass membership and every helper. It compares one pass per variant.
+The profiler mmap sizes and concurrent workloads differ and are disclosed;
+no statistical or full cold-build speedup follows before complete receipts.
+
+The first factored native-cycle attempt exits255 in perf before C0 launches:
+the default mmap allocation is refused with another recording active. That
+failed startup remains preserved. Both profiler entry points now request eight
+mmap pages. An actual concurrent C0 version command verifies the smaller
+allocation without changing kernel settings; the corrected native cycle then
+starts its authenticated C0 process. The previous baseline and corrected
+factored build continue against separate immutable inputs.
+
+## Bounded transport for full-module textual LLVM
+
+The matched LLVM23.1.4 printer gives every named nonentry block a label/comment
+prefix of at least50 bytes, including unreachable blocks. The original
+375907-block CFG creates a distinct named LLVM block for every entry in that
+array, after each function's separate entry block. Labels alone therefore
+require at least18795350 bytes, above the old16777216-byte writer limit.
+This is a conservative inferred lower bound, not an observed serialized full
+compiler module or native qualification.
+
+The mechanical C adapter now shares its existing verified atomic writer body.
+The original `llvm12_write` signature, object mode and16MiB maximum remain
+unchanged. A separate compiler-internal `llvm26_write_ir` accepts textual IR
+with an explicit128MiB maximum. `RecoverLlvm.write` selects that bounded
+transport only after its unchanged complete/source/SSA/physical/LLVM checks.
+No verifier,256-instance ceiling,8M SSA ceiling, public C ABI or approved private
+Error ABI changes. Layout-cache lifetime remains owned by the same module.
+
+`ir-transport-first1` qualifies the adapter at GNU C O0/O2 against exact
+LLVM23.1.4. Legacy and new small IR are byte-identical; a16777322-byte valid
+synthetic IR fixture passes the new transport and independent opt verification.
+The legacy16MiB cap, requested smaller limits, maximum/zero/negative limits,
+null inputs, malformed LLVM and refusal sentinels remain enforced. Original
+object-mode emission produces actual ELF64/x86-64 objects; real linked C ABI
+clients return42 at both profiles. Both strict unsuppressed Valgrind runs free
+all heap allocations and report zero errors. This synthetic fixture proves
+transport only and contributes no complete-compiler source/native credit.
+
+Independent audit `ir-transport-independent-audit1.json`, SHA-256
+`df2623eb9b9f51755f8bf6c410bcbe3e0a9f9aa5d32df1e8f9e22acc6d8480bc`,
+checks source/ELF/output/time identities and both memory streams. The first C0
+frontend attempt refuses the new declaration's missing explicit UTF-8/i32 text
+metadata. Adding the same `CCode` contract as the legacy writer corrects that
+declaration without changing C0; the refused receipt remains unchanged. The
+corrected complete current-source semantic preflight passes. Actual original
+and current whole-module LLVM/native, linked compiler-service, independent
+ownership and final regression/delivery gates remain outstanding.

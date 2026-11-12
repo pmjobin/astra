@@ -191,8 +191,8 @@ int32_t llvm12_optimize(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t level) 
 	return llvm12_verify(m);
 }
 
-int32_t llvm12_write(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t object, int32_t limit, const char *p, int32_t n) {
-	if (limit < 1 || limit > 16777216 || (object != 0 && object != 1) || llvm12_verify(m)) return 1;
+static int32_t llvm_write_bounded(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t object, int32_t limit, int32_t maximum, const char *p, int32_t n) {
+	if (limit < 1 || limit > maximum || (object != 0 && object != 1) || llvm12_verify(m)) return 1;
 	char *path = text_copy(p, n);
 	if (!path) return 1;
 	LLVMMemoryBufferRef buffer = NULL;
@@ -239,6 +239,17 @@ done:
 	if (ir) LLVMDisposeMessage(ir);
 	free(path);
 	return result;
+}
+
+int32_t llvm12_write(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t object, int32_t limit, const char *p, int32_t n) {
+	return llvm_write_bounded(m, t, object, limit, 16777216, p, n);
+}
+
+// Compiler-internal textual transport for verified whole modules. Keep the
+// legacy writer's 16 MiB contract and object path unchanged.
+int32_t llvm26_write_ir(LLVMModuleRef m, int32_t limit, const char *p, int32_t n) {
+	if (!m) return 1;
+	return llvm_write_bounded(m, NULL, 0, limit, 134217728, p, n);
 }
 
 void llvm12_nobuiltin(LLVMContextRef c, LLVMValueRef call) {

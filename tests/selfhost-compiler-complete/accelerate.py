@@ -72,7 +72,7 @@ def compile_plan(args):
 		else:
 			command = [sys.executable, '-B', ROOT/'tests/selfhost-compiler-complete/compile-plan.py', '--identity', args.identity, '--runtime-root', args.runtime_root, '--version', args.version, '--timeout-seconds', str(args.timeout_seconds)]
 			if args.profile:
-				command = ['perf', 'record', '--no-buildid-cache', '-e', 'cycles:u', '-F', '49', '-o', output/'perf.data', '--', *restored_command(plan['environment'], command)]
+				command = ['perf', 'record', '--no-buildid-cache', '-m', '8', '-e', 'cycles:u', '-F', '49', '-o', output/'perf.data', '--', *restored_command(plan['environment'], command)]
 			result = execute(command, output/'execution', timeout=args.timeout_seconds+60, env=environment(plan['environment']))
 			if result['status'] != 'EXPECTED_OUTCOME':
 				write(output/'result.json', result)
@@ -89,7 +89,7 @@ def profile_command(args):
 	plan = json.loads(args.identity.read_text())
 	assert plan['argv'] and sha(plan['argv'][0]) == C0_SHA256
 	authenticate(plan)
-	command = ['perf', 'record', '--no-buildid-cache', '-e', 'cycles:u', '-F', '49', '-o', output/'perf.data', '--', *restored_command(plan['environment'], plan['argv'])]
+	command = ['perf', 'record', '--no-buildid-cache', '-m', '8', '-e', 'cycles:u', '-F', '49', '-o', output/'perf.data', '--', *restored_command(plan['environment'], plan['argv'])]
 	result = execute(command, output/'execution', timeout=args.timeout_seconds, expected=args.expected_exit, env=environment(plan['environment']))
 	authenticate(plan)
 	result.update(sampled_command=plan['argv'], identity_sha256=sha(args.identity), perf_sha256=sha(shutil.which('perf')), perf_data_sha256=sha(output/'perf.data') if (output/'perf.data').exists() else None)

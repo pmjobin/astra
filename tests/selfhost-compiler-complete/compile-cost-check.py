@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 from run import ROOT, WORK, C0_SHA256, sha
-from acceleration import execute, output_path, write
+from acceleration import execute, output_path, run_jobs, write
 
 
 def definition(text, name):
@@ -100,11 +100,54 @@ def llvm_branches(baseline):
 	return baseline[:start]+main+'\n'+'\n'.join(helpers), dict(groups=receipts, value_opcode_tags=value_tags, owner_opcode_tags=sorted(owner_tags), disjoint_dispatch=True, original_loop_bodies_reconstruct_byte_for_byte=True)
 
 
+def cfg_comparison(args, leaf):
+	jobs = []; sources = []
+	for label, path in [('baseline', args.cfg_baseline), ('current', args.cfg_current)]:
+		path = output_path(path, WORK/'runtime'); plan = json.loads(path.read_text())
+		assert plan['argv'][0] == str(args.compiler) and sha(args.compiler) == C0_SHA256
+		assert all(sha(path) == digest for group in ('sources', 'tools') for path, digest in plan[group].items())
+		inputs = [name for name in plan['argv'] if name.endswith('.astra')]
+		assert len(inputs) == 208
+		def relative(name):
+			return name.split('/source-inputs/', 1)[1] if '/source-inputs/' in name else str(Path(name).relative_to(ROOT))
+		sources.append({relative(name):sha(name) for name in inputs})
+		jobs.append(dict(id=label, argv=[str(args.compiler), '--dump-cfg', *inputs], inputs={name:sha(name) for name in inputs}, tools=plan['tools'], environment=plan['environment'], expected_exit=0, timeout_seconds=600, estimated_RSS_bytes=2*1024**3, cache='fresh', required_stdout=['(cfg-program', '"recover_llvm_check"', '"recover_child_with_bindings"']))
+	assert list(sources[0]) == list(sources[1])
+	changed = [name for name in sources[0] if sources[0][name] != sources[1][name]]
+	assert set(changed) == {'compiler/backend/llvm/recover-check.astra', 'compiler/semantic/recover-check.astra'}
+	spec = dict(format='astra-native-jobs/1', jobs=jobs)
+	write(leaf/'cfg-jobs.json', spec)
+	result = run_jobs(spec, leaf/'cfg', output_path(args.build_root/leaf.name, WORK/'build'), args.runtime_root/'cfg-cost-cache', jobs=2, max_jobs=2, reserve_bytes=8*1024**3, reuse=False)
+	assert not result['failed_jobs']
+	counts = {}
+	for label in ('baseline', 'current'):
+		functions = {}; current = None
+		for line in (leaf/'cfg'/label/'stdout').read_text().splitlines():
+			if line.startswith('\t('):
+				match = re.match(r'^\t\(function #\d+ "([^"]+)"', line)
+				current = match[1] if match else None
+				if current:
+					functions.setdefault(current, []).append(0)
+			if current and line.startswith('\t\t(block #'): functions[current][-1] += 1
+		counts[label] = functions
+	families = {}
+	def unique(label, name):
+		assert len(counts[label][name]) == 1
+		return counts[label][name][0]
+	for name, additions in [('recover_llvm_check', ['recover_llvm_function_verified', 'recover_llvm_value_instructions', 'recover_llvm_owner_instructions', 'recover_llvm_block_verified']), ('recover_child_with_bindings', ['recover_child_'+part+'_with_bindings' for part in ('scalars', 'calls', 'records', 'control')])]:
+		families[name] = dict(baseline_CFG_blocks=unique('baseline', name), current_CFG_blocks={helper:unique('current', helper) for helper in [name, *additions]})
+	write(leaf/'cfg-comparison.json', dict(status='C0_CFG_SIZES_OBSERVED', changed_sources=changed, source_hashes=sources, profiles={label:result['jobs'][label]['metrics'] for label in ('baseline', 'current')}, families=families, full_original_native_credit=0, limitation='Matched C0 CFG-stage observations on all208 inputs, with only the two factored files changed. Graph sizes are a compilation-cost proxy, not measured SSA verification speedup, whole cold-build speedup or Astra native qualification. SSA/native timing remains separate.'))
+	print(json.dumps(families, indent=2), flush=True)
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--compiler', type=Path, required=True)
 	p.add_argument('--runtime-root', type=Path, required=True)
 	p.add_argument('--version', required=True)
+	p.add_argument('--cfg-baseline', type=Path)
+	p.add_argument('--cfg-current', type=Path)
+	p.add_argument('--build-root', type=Path)
 	p.add_argument('--capsule-prefix', type=Path)
 	p.add_argument('--inside-capsule', action='store_true', help=argparse.SUPPRESS)
 	a = p.parse_args(); assert a.version.isalnum() and sha(a.compiler) == C0_SHA256
@@ -134,6 +177,9 @@ def main():
 	assert (ROOT/llvm_name).read_text() == llvm_current
 	write(leaf/'result.json', dict(status='UNCHANGED_SOURCE_BRANCHES_VERIFIED', reference_revision=revision, reference_source_sha256=sha256(baseline.encode()).hexdigest(), current_source_sha256=sha256(current.encode()).hexdigest(), source_proof=proof, llvm_source_sha256=sha256(llvm_current.encode()).hexdigest(), llvm_proof=llvm_proof, recipe_sha256=sha(__file__), full_original_native_credit=0, limitation='Mechanical source-branch preservation and original C0 syntax only. Common entry checks, tag partitions, recursive arguments, binding/seen/edge arrays and all original branch statements are retained. LLVM false results travel as zero instruction counts; all original statements and loop ordering reconstruct exactly. No measured cold-build improvement, current native product or milestone acceptance follows.'))
 	print('UNCHANGED_SOURCE_BRANCHES_VERIFIED', leaf, flush=True)
+	if a.cfg_baseline or a.cfg_current:
+		assert a.cfg_baseline and a.cfg_current and a.build_root
+		cfg_comparison(a, leaf)
 
 
 if __name__ == '__main__':
