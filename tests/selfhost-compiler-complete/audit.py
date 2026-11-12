@@ -125,6 +125,65 @@ def module_inventory(probe, manifest, scope, output):
 	return count
 
 
+def complete_source_proofs(runtime, build, output):
+	"""Rebind frozen emitters without attributing their results to later hosts."""
+	from accelerate import authenticated_inputs
+	from run import population
+	manifests = dict(original=runtime/'opaque-flow-inputs.json', current=runtime/'current-physicalready3-inputs.json')
+	inputs = {scope:authenticated_inputs(SimpleNamespace(inputs=path, scope=scope)) for scope, path in manifests.items()}
+	assert len(inputs['original']) == 190 and len(inputs['current']) == 205
+	production = {str(ROOT/row['path']):row['sha256'] for row in population()['current_files']}
+	assert len(production) == 205
+	profiles = {}
+	for mode in ('O0', 'O2'):
+		host = build/('full-completefinal1-'+mode)/('astra-llvm-'+mode)
+		identity = json.loads(host.with_suffix('.identity.json').read_text())
+		assert sha(host) == identity['sha256'] and identity['identity']['argv'][1] == '-'+mode
+		assert all(sha(path) == digest for path, digest in identity['identity']['tools'].items())
+		assert {name:identity['identity']['sources'][name] for name in production} == production
+		frozen = []
+		for name, digest in identity['identity']['sources'].items():
+			if sha(name) == digest: continue
+			path = Path(name); assert path.is_relative_to(ROOT)
+			relative = str(path.relative_to(ROOT))
+			assert relative in ('tests/selfhost-effects/recover-frontier-mutations.astra', 'tests/selfhost-effects/recover-r4-observe.astra')
+			raw = git('show', 'bfc3630284fd29927f470a06bb00884c7fbdb49b:'+relative)
+			assert __import__('hashlib').sha256(raw).hexdigest() == digest
+			frozen.append(dict(path=name, sha256=digest, authenticated_Git_revision='bfc3630284fd29927f470a06bb00884c7fbdb49b', role='Frozen test observer; not the corrected regression host or a changed production translator.'))
+		observer = build/('full-observerrepair1-'+mode)/('astra-llvm-'+mode)
+		updated = json.loads(observer.with_suffix('.identity.json').read_text())
+		assert sha(observer) == updated['sha256']
+		assert {name:updated['identity']['sources'][name] for name in production} == production
+		rows = {}
+		for scope, manifest in manifests.items():
+			probe = runtime/('native-probe-complete'+scope+mode)
+			where = output.parent/(output.stem+'-'+scope+'-'+mode+'.json')
+			count = module_inventory(probe, manifest, scope, where)
+			inventory = json.loads(where.read_text()); assert inventory['component_sha256'] == sha(host)
+			text = Path(inventory['raw_LLVM']['path']).read_text()
+			blocks = {}; function = None; size = 0
+			for line in text.splitlines():
+				match = re.match(r'^define .*?@(astra\.e25a\.f\.\d+)\(', line)
+				if match: function = match[1]; size = 0
+				elif function and line.startswith('}'):
+					blocks[function] = size; function = None
+				elif function and re.match(r'^(?:[-a-zA-Z$._0-9]+|"[^\"]+"):\s*(?:;.*)?$', line): size += 1
+			assert len(blocks) == count and min(blocks.values()) > 0
+			rows[scope] = dict(inventory=str(where), sha256=sha(where), source_functions=count, raw_LLVM=inventory['raw_LLVM'], maximum_actual_raw_LLVM_blocks=max(blocks.values()), source_functions_over_1024_blocks=sum(n > 1024 for n in blocks.values()), block_count_scope='Actual source-function LLVM blocks; CFG/SSA capacity and corruption controls are separately qualified.')
+		profiles[mode] = dict(component=str(host), component_sha256=sha(host), identity_sha256=sha(host.with_suffix('.identity.json')), frozen_observer_sources=frozen, corrected_observer_component=str(observer), corrected_observer_sha256=sha(observer), production_source_hashes=production, proofs=rows)
+	for scope in manifests:
+		assert profiles['O0']['proofs'][scope]['raw_LLVM']['sha256'] == profiles['O2']['proofs'][scope]['raw_LLVM']['sha256']
+	semantics = runtime/'original-C0-final-semantics1'; result = json.loads((semantics/'result.json').read_text())
+	assert result['exit'] == 0 and not result['timed_out']
+	command = json.loads((semantics/'running.json').read_text())['argv']
+	assert command[1] == '--dump-semantics' and command[2:] == list(inputs['original'])
+	assert sha(command[0]) == 'e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b'
+	for stream in ('stdout', 'stderr', 'time'): assert sha(semantics/stream) == result[stream+'_sha256']
+	value = dict(status='ORIGINAL_AND_CURRENT_FULL_SOURCE_PROOFS_INDEPENDENTLY_REBOUND', profiles=profiles, input_manifests={scope:dict(path=str(path), sha256=sha(path)) for scope, path in manifests.items()}, original_C0_semantics=dict(path=str(semantics/'result.json'), sha256=sha(semantics/'result.json')), full_milestone_credit=False, limitation='Actual complete original/current source outputs from each frozen O0/O2 emitter, independently verified through both target object profiles. Corrected regression hosts share byte-exact production inputs; their test-only changes are explicitly distinct. This does not transfer execution credit between compiler products or qualify graph55, resource boundaries, representative usage, costs, preservation or publication/G12 by itself.')
+	assert not output.exists(); write(output, value)
+	return value
+
+
 def source_identities(paths, component, mode, version, consumer):
 	leaf = paths.RUNTIME/('identity-'+version+'-'+mode)
 	build = paths.BUILD/leaf.name

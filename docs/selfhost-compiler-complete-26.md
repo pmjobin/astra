@@ -50,6 +50,32 @@ includes the accelerator's `time` files, command intervals and compile-plan
 receipts. Actual-receipt twins confirm that a semantic preflight earns zero
 native-build credit even when its requested product's sidecar matches later.
 
+`independent-whole-source-final1.json` now rebinds all four complete
+original/current source runs from the frozen O0/O2 emitters, each with actual
+target O0/O2 objects. Raw IR is byte-identical across emitter profiles for each
+source closure. Every one of the205 production input hashes also matches both
+corrected regression hosts; changed test observers retain their separate
+product identities and historical Git bindings. A private corrupted production
+binding is refused before completion credit. The actual source functions reach
+7297 raw LLVM blocks; this is LLVM population evidence, with CFG/SSA controls
+qualified separately.
+
+The genuine256/257 specialization and262 ordinary-member fixtures now pass
+current O0/O2 boundary checks, linked execution and ten strict memory streams.
+Four raw opt attempts retain their unresolved-input wiring failures; a separate
+backend supplement consumes hash-verified IR and completes only the affected
+steps. The256 source-call targets are distinct;257 preserves its sentinel and
+the exact generic-instance resource refusal. No compiler rebuild or source
+re-emission is credited to the supplement.
+
+The full208-input changed-source build completes in2707.945s,2690.79 user,
+1.45 system and2304752KiB peak RSS. Original-product exact warm validation
+takes0.900s; the changed product's focused LLVM/object smoke also passes.
+Both source change and byte-exact restoration remain ordinary Git commits.
+These are measured monolithic rebuild costs, with no full-normal-host speedup
+or changed-source unit-cache claim. The O0 signature-owner replay and final
+consolidated acceptance/publication/G12 remain pending here.
+
 ## First complete original/current objects
 
 `native-physicalready3-O2` builds in2682.212s (2659.69 user,2.00 system), peak
