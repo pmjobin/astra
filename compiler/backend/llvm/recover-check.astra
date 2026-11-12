@@ -48,8 +48,8 @@ bool recover_llvm_index_build(RecoverLlvmIndex index, RecoverCoreNode[] nodes, i
 // Check every link against the actual populations, not the builder's counts.
 // Reverse reconstruction proves exact coverage, uniqueness, function and order
 // without following potentially corrupt links or retaining a validity bit.
-bool recover_llvm_index_verified(RecoverLlvmIndex index, RecoverCoreNode[] nodes, int count, RecoverSlot[] storage, int slots) {
-	if (!recover_llvm_index_domain(nodes, count, storage, slots, len(index.node_heads), len(index.declarations)) || len(index.node_next) != count || len(index.slot_next) != slots || len(index.slot_heads) != len(index.node_heads) || len(index.binders) != len(index.declarations) || index.declarations[0] != 0 || index.binders[0] != 0) return false;
+bool recover_llvm_index_verified(RecoverLlvmIndex index, RecoverCoreNode[] nodes, int count, RecoverSlot[] storage, int slots, int functions, int symbols) {
+	if (!recover_llvm_index_domain(nodes, count, storage, slots, functions, symbols) || len(index.node_heads) != functions || len(index.slot_heads) != functions || len(index.declarations) != symbols || len(index.binders) != symbols || len(index.node_next) != count || len(index.slot_next) != slots || index.declarations[0] != 0 || index.binders[0] != 0) return false;
 	var node_heads = new int[len(index.node_heads)]; var slot_heads = new int[len(index.slot_heads)];
 	int n = count;
 	while (n > 0) {
@@ -198,7 +198,7 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 	int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
 	if (!recover_llvm_index_domain(ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count, len(functions), symbols)) return false;
 	var index = new RecoverLlvmIndex(ssa.cfg.core.count, ssa.cfg.core.flow.storage.count, len(functions), symbols);
-	if (!recover_llvm_index_build(index, ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count) || !recover_llvm_index_verified(index, ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count)) return false;
+	if (!recover_llvm_index_build(index, ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count) || !recover_llvm_index_verified(index, ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count, len(functions), symbols)) return false;
 	if (!recover_llvm_global_lanes(ssa, index, layout, entries, slots, locals, owner_addresses, owner_armed, owner_initial_values, owner_initial_flags, fixed_backings)) return false;
 	int f = 0;
 	while (f < len(functions)) {

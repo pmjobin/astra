@@ -3095,3 +3095,9 @@ whole-build wall time. Those runs are not cold-build benchmarks. The obsolete
 its raw evidence remains. The useful3cc and384 frozen builds continue without
 GDB. Original/current complete output, graph55/predicate26, linked behaviour
 and all final inherited acceptance/delivery gates remain unqualified here.
+
+The final index shape check also receives function/symbol dimensions directly
+from the independently verified source, rather than deriving them from the
+index. `llvm-physical-index-focused5` adds four populated wrong-dimension
+cases; all prior replay/negative/memory obligations still pass. Candidate923
+Flow evidence remains tied to923 and is not attributed to these later lines.

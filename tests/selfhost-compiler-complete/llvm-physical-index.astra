@@ -33,7 +33,7 @@ RecoverSlot physical_slot(int function, int symbol, bool parameter) {
 bool physical_fresh(RecoverCoreNode[] nodes, RecoverSlot[] slots, int functions, int symbols) {
 	if (!recover_llvm_index_domain(nodes, len(nodes), slots, len(slots), functions, symbols)) return false;
 	var index = new RecoverLlvmIndex(len(nodes), len(slots), functions, symbols);
-	return recover_llvm_index_build(index, nodes, len(nodes), slots, len(slots)) && recover_llvm_index_verified(index, nodes, len(nodes), slots, len(slots));
+	return recover_llvm_index_build(index, nodes, len(nodes), slots, len(slots)) && recover_llvm_index_verified(index, nodes, len(nodes), slots, len(slots), functions, symbols);
 }
 
 // Independent scalar discovery mirrors the old per-function/per-local searches.
@@ -83,10 +83,10 @@ int physical_small() {
 	nodes[2] = physical_node(1, 1, 27); nodes[3] = physical_node(2, 3, 2);
 	slots[0] = physical_slot(2, 2, false); slots[1] = physical_slot(2, 3, true); slots[2] = physical_slot(1, 1, false);
 	var index = new RecoverLlvmIndex(4, 3, 3, 5);
-	if (!recover_llvm_index_build(index, nodes, 4, slots, 3) || !recover_llvm_index_verified(index, nodes, 4, slots, 3) || !physical_scalar(index, nodes, slots)) return 10;
+	if (!recover_llvm_index_build(index, nodes, 4, slots, 3) || !recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5) || !physical_scalar(index, nodes, slots)) return 10;
 	int mutation = 0;
 	while (mutation < 16) {
-		if (!physical_fresh(nodes, slots, 3, 5) || !recover_llvm_index_verified(index, nodes, 4, slots, 3)) return 11;
+		if (!physical_fresh(nodes, slots, 3, 5) || !recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5)) return 11;
 		if (mutation == 0) nodes[0] = physical_node(2, 2, 1);
 		if (mutation == 1) nodes[1] = physical_node(2, 2, 27);
 		if (mutation == 2) nodes[0] = physical_node(1, 2, 27);
@@ -103,15 +103,15 @@ int physical_small() {
 		if (mutation == 13) slots[0] = physical_slot(4, 2, false);
 		if (mutation == 14) slots[0] = physical_slot(2, 0, false);
 		if (mutation == 15) slots[0] = physical_slot(2, 5, false);
-		if (physical_fresh(nodes, slots, 3, 5) || recover_llvm_index_verified(index, nodes, 4, slots, 3)) return 12;
+		if (physical_fresh(nodes, slots, 3, 5) || recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5)) return 12;
 		nodes[0] = physical_node(2, 2, 27); nodes[1] = physical_node(1, 0, 1);
 		slots[0] = physical_slot(2, 2, false); slots[1] = physical_slot(2, 3, true);
-		if (!physical_fresh(nodes, slots, 3, 5) || !recover_llvm_index_verified(index, nodes, 4, slots, 3)) return 13;
+		if (!physical_fresh(nodes, slots, 3, 5) || !recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5)) return 13;
 		mutation = mutation + 1;
 	}
 	mutation = 0;
 	while (mutation < 15) {
-		if (!recover_llvm_index_verified(index, nodes, 4, slots, 3)) return 14;
+		if (!recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5)) return 14;
 		if (mutation == 0) index.node_heads[0] = 0;
 		if (mutation == 1) index.node_heads[0] = 1;
 		if (mutation == 2) index.node_next[0] = 1;
@@ -127,17 +127,42 @@ int physical_small() {
 		if (mutation == 12) index.declarations[4] = 1;
 		if (mutation == 13) index.declarations[0] = 1;
 		if (mutation == 14) index.binders[0] = 1;
-		if (recover_llvm_index_verified(index, nodes, 4, slots, 3)) return 15;
+		if (recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5)) return 15;
 		index.node_heads[0] = 2; index.node_next[0] = 4;
 		index.slot_heads[1] = 1; index.slot_next[0] = 2;
 		index.declarations[2] = 1; index.binders[2] = 1; index.declarations[4] = 0;
 		index.declarations[0] = 0; index.binders[0] = 0;
-		if (!recover_llvm_index_verified(index, nodes, 4, slots, 3) || !physical_scalar(index, nodes, slots)) return 16;
+		if (!recover_llvm_index_verified(index, nodes, 4, slots, 3, 3, 5) || !physical_scalar(index, nodes, slots)) return 16;
 		mutation = mutation + 1;
 	}
 	var empty_nodes = new RecoverCoreNode[0]; var empty_slots = new RecoverSlot[0];
 	if (!physical_fresh(empty_nodes, empty_slots, 0, 1)) return 17;
 	if (recover_llvm_index_domain(nodes, 5, slots, 3, 3, 5) || recover_llvm_index_domain(nodes, 4, slots, 4, 3, 5) || recover_llvm_index_domain(nodes, -1, slots, 3, 3, 5) || recover_llvm_index_domain(nodes, 4, slots, 3, 8000001, 5) || recover_llvm_index_domain(nodes, 4, slots, 3, 3, 0)) return 18;
+	int shape = 0;
+	while (shape < 4) {
+		int count = 4; int places = 3; int functions = 3; int symbols = 5;
+		if (shape == 0) count = 5;
+		if (shape == 1) places = 4;
+		if (shape == 2) functions = 4;
+		if (shape == 3) symbols = 6;
+		var wrong = new RecoverLlvmIndex(count, places, functions, symbols);
+		int n = 0;
+		while (n < 4) {
+			wrong.node_next[n] = index.node_next[n];
+			n = n + 1;
+		}
+		n = 0;
+		while (n < 3) {
+			wrong.node_heads[n] = index.node_heads[n]; wrong.slot_heads[n] = index.slot_heads[n];
+			wrong.slot_next[n] = index.slot_next[n]; n = n + 1;
+		}
+		n = 0;
+		while (n < 5) {
+			wrong.declarations[n] = index.declarations[n]; wrong.binders[n] = index.binders[n]; n = n + 1;
+		}
+		if (recover_llvm_index_verified(wrong, nodes, 4, slots, 3, 3, 5)) return 27;
+		shape = shape + 1;
+	}
 	physical_observed(-1, 16, 15, 5);
 	int code = 0;
 	while (code < 256) {
@@ -153,7 +178,7 @@ int physical_small() {
 				n = n + 1;
 			}
 			var ordered = new RecoverLlvmIndex(4, 4, 4, 6);
-			if (!recover_llvm_index_build(ordered, members, 4, places, 4) || !recover_llvm_index_verified(ordered, members, 4, places, 4) || !physical_scalar(ordered, members, places)) return 19;
+			if (!recover_llvm_index_build(ordered, members, 4, places, 4) || !recover_llvm_index_verified(ordered, members, 4, places, 4, 4, 6) || !physical_scalar(ordered, members, places)) return 19;
 			rotation = rotation + 1;
 		}
 		code = code + 1;
@@ -176,7 +201,7 @@ int physical_captured(int graph) {
 		place = place + 1;
 	}
 	var index = new RecoverLlvmIndex(count, places, functions, symbols);
-	if (!recover_llvm_index_build(index, nodes, count, slots, places) || !recover_llvm_index_verified(index, nodes, count, slots, places)) return 20;
+	if (!recover_llvm_index_build(index, nodes, count, slots, places) || !recover_llvm_index_verified(index, nodes, count, slots, places, functions, symbols)) return 20;
 	n = 0;
 	while (n < count) {
 		if (index.node_next[n] != physical_expected(graph, 0, n)) return 21;
