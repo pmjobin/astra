@@ -93,6 +93,9 @@ bool recover_array_backing_verified(RecoverSsa ssa, int id, void* backing, void*
 // types/extents cannot alias another array, mutable scalar, or success slot.
 bool recover_array_backings_distinct(void*[] backings, void*[] successes, void*[] locals) {
 	int remaining = 8000000;
+	if (len(backings) > remaining) return false;
+	var distinct = new void*[len(backings)];
+	int count = 0;
 	int n = 0;
 	while (n < len(backings)) {
 		if (remaining == 0) return false;
@@ -100,21 +103,49 @@ bool recover_array_backings_distinct(void*[] backings, void*[] successes, void*[
 		var backing = backings[n];
 		if (backing != null) {
 			int p = 0;
-			while (p < n) {
-				if (remaining == 0 || backings[p] == backing) return false;
+			while (p < count) {
+				if (remaining == 0 || distinct[p] == backing) return false;
 				remaining = remaining - 1;
 				p = p + 1;
 			}
-			p = 0;
-			while (p < len(successes)) {
-				if (remaining == 0 || successes[p] == backing) return false;
-				remaining = remaining - 1;
+			distinct[count] = backing;
+			count = count + 1;
+		}
+		n = n + 1;
+	}
+	if (count == 0) return true;
+	// Compare only actual handles. The outer visit pays for the first
+	// comparison; further handles consume separate work. This never costs
+	// more than the old per-backing scans, including empty and null lanes.
+	n = 0;
+	while (n < len(successes)) {
+		if (remaining == 0) return false;
+		remaining = remaining - 1;
+		if (successes[n] != null) {
+			int p = 0;
+			while (p < count) {
+				if (p > 0) {
+					if (remaining == 0) return false;
+					remaining = remaining - 1;
+				}
+				if (distinct[p] == successes[n]) return false;
 				p = p + 1;
 			}
-			p = 0;
-			while (p < len(locals)) {
-				if (remaining == 0 || locals[p] == backing) return false;
-				remaining = remaining - 1;
+		}
+		n = n + 1;
+	}
+	n = 0;
+	while (n < len(locals)) {
+		if (remaining == 0) return false;
+		remaining = remaining - 1;
+		if (locals[n] != null) {
+			int p = 0;
+			while (p < count) {
+				if (p > 0) {
+					if (remaining == 0) return false;
+					remaining = remaining - 1;
+				}
+				if (distinct[p] == locals[n]) return false;
 				p = p + 1;
 			}
 		}

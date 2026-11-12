@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void* backing_pointer(int index);
+
+extern(C) int backing_expected(int a, int b, int c);
+
+extern(C) int backing_capture_count(int which);
+
+extern(C) void* backing_capture_value(int which, int index);
+
+extern(C) void backing_observed(int kind, int count);
+
+owned void*[] backing_vector(int ordinal) {
+	int code = ordinal;
+	int size = 0;
+	int states = 1;
+	while (code >= states) {
+		code = code - states;
+		states = states * 3;
+		size = size + 1;
+	}
+	var values = new void*[size];
+	int n = 0;
+	while (n < size) {
+		values[n] = backing_pointer(code % 3);
+		code = code / 3;
+		n = n + 1;
+	}
+	return move values;
+}
+
+int backing_small() {
+	int a = 0;
+	int cases = 0;
+	while (a < 40) {
+		var backings = backing_vector(a);
+		int b = 0;
+		while (b < 40) {
+			var successes = backing_vector(b);
+			int c = 0;
+			while (c < 40) {
+				var locals = backing_vector(c);
+				bool expected = backing_expected(a, b, c) == 1;
+				if (recover_array_backings_distinct(backings, successes, locals) != expected || reference_backings_distinct(backings, successes, locals) != expected) return 11;
+				cases = cases + 1;
+				c = c + 1;
+			}
+			b = b + 1;
+		}
+		a = a + 1;
+	}
+	backing_observed(0, cases);
+	return 42;
+}
+
+int backing_large() {
+	var backings = new void*[320662];
+	var successes = new void*[320662];
+	var locals = new void*[90000];
+	int n = 0;
+	while (n < 16) {
+		backings[10000 + n * 20000] = backing_pointer(n + 1);
+		n = n + 1;
+	}
+	n = 0;
+	while (n < 4113) {
+		successes[n * 70] = backing_pointer(32 + n);
+		n = n + 1;
+	}
+	n = 0;
+	while (n < 2164) {
+		locals[n * 40] = backing_pointer(32 + n);
+		n = n + 1;
+	}
+	if (!recover_array_backings_distinct(backings, successes, locals) || reference_backings_distinct(backings, successes, locals)) return 12;
+	int mutation = 0;
+	while (mutation < 6) {
+		if (!recover_array_backings_distinct(backings, successes, locals)) return 13;
+		if (mutation == 0) backings[0] = backing_pointer(1);
+		if (mutation == 1) backings[len(backings) - 1] = backing_pointer(16);
+		if (mutation == 2) successes[0] = backing_pointer(1);
+		if (mutation == 3) successes[len(successes) - 1] = backing_pointer(16);
+		if (mutation == 4) locals[0] = backing_pointer(1);
+		if (mutation == 5) locals[len(locals) - 1] = backing_pointer(16);
+		if (recover_array_backings_distinct(backings, successes, locals)) return 14;
+		backings[0] = null;
+		backings[len(backings) - 1] = null;
+		successes[0] = backing_pointer(32);
+		successes[len(successes) - 1] = null;
+		locals[0] = backing_pointer(32);
+		locals[len(locals) - 1] = null;
+		mutation = mutation + 1;
+	}
+	backing_observed(1, mutation);
+	var dense = new void*[3999];
+	var empty = new void*[0];
+	n = 0;
+	while (n < len(dense)) {
+		dense[n] = backing_pointer(n + 1);
+		n = n + 1;
+	}
+	if (!recover_array_backings_distinct(dense, empty, empty) || !reference_backings_distinct(dense, empty, empty)) return 15;
+	var exhausted = new void*[4000];
+	n = 0;
+	while (n < len(exhausted)) {
+		exhausted[n] = backing_pointer(n + 1);
+		n = n + 1;
+	}
+	if (recover_array_backings_distinct(exhausted, empty, empty) || reference_backings_distinct(exhausted, empty, empty)) return 16;
+	backing_observed(2, 2);
+	return 42;
+}
+
+int backing_captured() {
+	var backings = new void*[backing_capture_count(0)];
+	var successes = new void*[backing_capture_count(1)];
+	var locals = new void*[backing_capture_count(2)];
+	if (len(backings) != 284425 || len(successes) != len(backings) || len(locals) < 1) return 17;
+	int n = 0;
+	while (n < len(backings)) {
+		backings[n] = backing_capture_value(0, n);
+		successes[n] = backing_capture_value(1, n);
+		n = n + 1;
+	}
+	n = 0;
+	while (n < len(locals)) {
+		locals[n] = backing_capture_value(2, n);
+		n = n + 1;
+	}
+	if (!recover_array_backings_distinct(backings, successes, locals) || reference_backings_distinct(backings, successes, locals)) return 18;
+	backing_observed(3, len(backings));
+	return 42;
+}
+
+int main(string[] args) {
+	if (len(args) != 2) return 10;
+	if (args[1] == "--small") return backing_small();
+	if (args[1] == "--large") return backing_large();
+	if (args[1] == "--captured") return backing_captured();
+	return 19;
+}

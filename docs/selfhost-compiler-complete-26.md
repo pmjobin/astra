@@ -2765,3 +2765,94 @@ all failed and successful profiler receipts remain retained. No C0 source,
 binary, public ABI or installed workflow is changed. Graph55/symbol2053/
 predicate26 remains independently DEFERRED, and full native qualification
 remains0/2 pending integrated products, linked usage and the final campaigns.
+
+## Integrated original SSA passes; LLVM physical contract remains open
+
+The immutable78ecc6c O2 development host builds all208 source inputs in
+4567.765seconds. Its ELF SHA-256 is
+`3d12ae46866d40dc3390e6fe98b1eb55d6cdedc7ef8bbea1c9554d13080d8b70`,
+and its identity record SHA-256 is
+`575f4444f702cb67f5828cab5a942f9fd2eff18c0c9d1a06162f177161b5b788`.
+The enclosing sampled build records4534.48 user seconds and2371984KiB peak RSS.
+The208 inputs comprise195 compiler sources,10 libraries and3 probe/parser
+fixtures. This is the development host's source closure, distinct from the190
+read-only original compiler inputs used as its target.
+
+That host's fresh actual original-source pipeline prints
+`RECOVER_FLOW 0 0 284425` and `RECOVER_SSA_VALID`. SSA therefore passes in the
+integrated compiler under the unchanged8M ceiling, rather than only in helper
+replays. The run then refuses with exit5 and
+`LLVM_INVALID_IR: recover physical contract` after1083.692seconds. The debugger's
+own exit0 does not change the native refusal. The output sentinel survives;
+dependent verification/object jobs cannot run. The raw receipt is
+`native-probe-ownerpacks1O2/native/stages/result.json`. Full original object
+qualification remains0/2; no LLVM-valid module, linked compiler service or
+Stage1 result is inferred from the SSA milestone.
+
+The newer immutabled6b9e963d2cddcf43be50706ba6b16922e073d35 source snapshot
+passes a separate fresh current-source Flow proof on all205 files:195 compiler
+sources and10 libraries. The authenticated f50ad8a source observer checks all
+nine consumers, reports320868 Flow nodes and exits42 in280.776seconds, using
+329180KiB peak RSS. `jobs-fusedcurrentflow1/result.json` records the exact
+snapshot and outcome. This is current-source Flow evidence; the d6b9e96 native
+host has not been built, so it receives no current-source SSA or native credit.
+
+## Completed matched iteration measurement
+
+The previously pending normal173 O0/O2 comparison now finishes with the same
+190 original target inputs, source/tool/flag context and byte-identical SSA
+refusal output. Both actual native exits are8; neither run times out.
+
+| Development host | Cold build seconds | Diagnostic seconds | Combined seconds |
+|---|---:|---:|---:|
+| O0 |3866.080|7140.682|11006.762|
+| O2 |5278.988|774.607|6053.595|
+
+O2 reduces the observed combined cost by45.001%, despite its longer cold build.
+This is one sample per profile, for that exact older context and refusal
+workload. It is not statistical qualification, a matched speedup for the newer
+208-source development host, or proof that full cold compilation accelerated.
+The selection receipt is `iteration-benchmark-normal173first1/selection.json`,
+SHA-256`1ba9e0b9d511927e3fdc3e04c4a328276526be4570cc063a2750737cf8937d84`.
+Independent audit `iteration-cost-independent-audit1.json`, SHA-256
+`642dbd7e38ed5470fffe6b9fa00d16e43b6860c811ad14b300e5b457dfa16d00`,
+checks both hosts, exact source/tool bytes and raw timing/output receipts.
+
+The complete78ecc6c product also passes an exact warm revalidation without
+launching C0: `accelerated-build-ownerpackswarm1/result.json` reports
+`EXACT_PRODUCT_REUSED` with the same ELF and identity hashes. Reuse authenticates
+an existing product; it does not replace fresh qualification or demonstrate a
+full compiler incremental rebuild. The earlier scalar-unit measurements and
+the refused owned-buffer module boundary retain their original, narrower scope.
+
+## Sparse physical backing identity candidate
+
+The completed representative compiler-service attempt also reaches
+`RECOVER_SSA_VALID`, then exits5 with the same LLVM physical-contract refusal.
+Its destination sentinel remains intact. Sparse read-only hooks show the
+library-root check returning true, followed by refusal in the main physical
+consumer. The raw checked-function return registers in the first trace are
+not boolean decisions: C0 returns checked booleans through an output address.
+Those records are retained as raw observations. A separate sparse original
+run captures the actual backing/success/local handle vectors and the direct
+nonthrowing identity-check result; its outcome is still pending here.
+
+Inspection finds repeated scans of all null source lanes in
+`recover_array_backings_distinct`. The candidate keeps a private compact prefix
+of non-null backing handles, checks it for duplicates, then visits the success
+and local vectors once. Null lanes need no identity comparisons. Each outer
+visit pays for its first comparison, and additional comparisons consume
+separate work. The old checker did at least as many comparisons for every
+backing, so any formerly accepted input remains within the same8M guard.
+Candidate storage is bounded by that same maximum input length. Actual pointer
+equality still detects every backing/backing, backing/success and backing/local
+alias; no source root, producer cache, C adapter or ABI changes.
+
+The exact production declaration passes C0 O0/O2 on64000 exhaustive vector
+triples against an independent C bit-mask oracle and the unmodified earlier
+scalar body. Both profiles pass large sparse320662-node positive cases before
+six first/last alias corruptions, and preserve the3999/4000 dense-handle budget
+boundary. All four strict unsuppressed Valgrind streams are clean. Receipt
+`llvm-backing-index-focused2/result.json` grants helper evidence only; the first
+test-driver attempt's unsupported parameter assignment remains a failed
+harness receipt. Integrated LLVM/native qualification is still pending.
