@@ -1,9 +1,52 @@
 # Compiler-complete 26: current qualification
 
-Milestone26 is **PARTIAL**. Whole original compiler admission, native object
-generation, integrated linkage and full compiler performance qualification
-have not been established. Bounded current regressions remain separately
-attributed below. No Stage1 or self-host claim is made.
+Milestone26 remains **PARTIAL**. The frozen production candidate
+`bfc3630284fd29927f470a06bb00884c7fbdb49b` now translates all190 original
+inputs and all205 current inputs through the actual Astra pipeline into
+independently verified LLVM and ELF64/x86-64 objects at target O0/O2. This uses
+one C0-built O2 development host, not the final matched compiler products.
+Representative linked behaviour, independent graph55/predicate26 proof, full
+retained qualification, final audit and delivery/G12 remain open. No Stage1 or
+self-host claim is made. Entries after this checkpoint retain their historical
+results, including the earlier zero-of-two frontiers and failed campaigns.
+
+## First complete original/current objects
+
+`native-physicalready3-O2` builds in2682.212s (2659.69 user,2.00 system), peak
+2348512KiB. Its SHA-256 is
+`97eb6e167ae5545fb536574279ec69b632725ebb5e0fa11283357f43de759919`.
+Its identity SHA-256 is
+`605a5f69e3b5c96eed11b1889389a6cd0a2cdd34409cd25de79932a5e6e1e28e`.
+The last source repair restores all seven array-handler dispatch tags.
+
+| Actual target | Inputs | Raw LLVM bytes | Source-to-LLVM seconds | Target O0 object SHA-256 | Target O2 object SHA-256 |
+|---|---:|---:|---:|---|---|
+| Original |190|66555928|1328.654|`e4b85faf0ecbd45296b35b6224fad914e7139a2928261c3f6b98716c9e62fae9`|`72b58f95c5b9f327be81ef51fb3857565a075451d01df9507d08bcb233241d44`|
+| Current |205|75557119|1557.301|`651c7fa4ce137f1810b643761eff9cd27bc471122bcfe95d9a589ed7b66c5ef6`|`c8ef948afb6da8487480c6b0d55b72683d21b0fb7d4ab0935c2b3e3f46df2c09`|
+
+Receipts are `native-probe-physicalcandidate2/result.json` and
+`native-probe-physicalcurrent1/result.json`. All ten DAG outcomes match for
+each closure. Raw LLVM SHA-256 values are respectively
+`eaee71f371fadf3d675cca23e953e2ecb988f1773420e8d26ab229d054723f32` and
+`13fdadcf49064a396b8d985886942cd1e895ef9e49f4cd183eb9d810317824e4`.
+Producer peak RSS is752948/861000KiB including the profile process tree;
+whole-DAG wall time is1353.940/1585.013s. The probes overlap: their wall times
+are not additive. No speedup against a different source/tool context is claimed.
+The actual full original IR fits the new bounded128MiB path and exceeds the
+unchanged legacy16MiB cap. Neither result is a synthetic large-IR transport test.
+
+`dispatch-repair-native1` also passes the retained81-node array regression
+through actual LLVM, O0/O2 linked exits42 and two strict zero-leak/error memory
+streams. The current-source8M SSA guard passes unchanged. Independent final
+source/symbol/ABI/relocation coverage and graph55 remain separate obligations.
+
+The existing probe runner now accepts an explicit positive native deadline,
+separate from host construction. The profiler receives that same bound and
+its outer wrapper gets30s to retain timeout evidence. Defaults remain7200s;
+LLVM job limits and every verification/work ceiling are unchanged. This avoids
+using that default for a final O0 source run after the older O0 refusal already
+took7140.682s. `native-probe-boundedpositive1` passes an actual retained library
+probe and both objects with30s; zero is refused before producer creation.
 
 ## Post-restart O0 results
 

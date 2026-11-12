@@ -201,6 +201,8 @@ def source_scope(args):
 
 
 def probe(args):
+	native_timeout = getattr(args, 'native_timeout_seconds', 7200)
+	assert native_timeout > 0, 'Explicit native timeout must be positive'
 	identity = json.loads(args.component.with_suffix('.identity.json').read_text())
 	assert sha(args.component) == identity['sha256']
 	authenticate(identity['identity'])
@@ -210,9 +212,9 @@ def probe(args):
 		path = Path(shutil.which(name)).resolve(); tools[str(path)] = sha(path)
 	producer = [str(args.component), '--native-module', '{work}/module.ll', *inputs]
 	if args.core_map:
-		producer = [sys.executable, '-B', str(Path(__file__).with_name('native-profile.py')), '--host', str(args.component), '--core-map', str(args.core_map), '--profile-dir', '{runtime}/stages', '--', '--native-module', '{work}/module.ll', *inputs]
+		producer = [sys.executable, '-B', str(Path(__file__).with_name('native-profile.py')), '--host', str(args.component), '--core-map', str(args.core_map), '--profile-dir', '{runtime}/stages', '--timeout-seconds', str(native_timeout), '--', '--native-module', '{work}/module.ll', *inputs]
 		inputs = {**inputs, str(args.core_map):sha(args.core_map), str(Path(__file__).with_name('native-profile.py')):sha(Path(__file__).with_name('native-profile.py'))}
-	items = [dict(id='native', argv=producer, inputs=inputs, tools=tools, environment=identity['identity']['environment'], cache='fresh', artifacts={'raw':'{work}/module.ll'}, sentinels={'module.ll':'Complete compiler refusal destination sentinel\n'}, expected_exit=0, timeout_seconds=7200, estimated_RSS_bytes=2*1024**3, required_stdout=['RECOVER_SSA_VALID', 'RECOVER_LLVM_WRITTEN'])]
+	items = [dict(id='native', argv=producer, inputs=inputs, tools=tools, environment=identity['identity']['environment'], cache='fresh', artifacts={'raw':'{work}/module.ll'}, sentinels={'module.ll':'Complete compiler refusal destination sentinel\n'}, expected_exit=0, timeout_seconds=native_timeout+(30 if args.core_map else 0), estimated_RSS_bytes=2*1024**3, required_stdout=['RECOVER_SSA_VALID', 'RECOVER_LLVM_WRITTEN'])]
 	def step(name, argv, needs, artifacts=None, required=None):
 		items.append(dict(id=name, argv=argv, needs=needs, artifacts=artifacts or {}, required_stdout=required or [], tools=tools, inputs={}, cache='fresh', expected_exit=0, timeout_seconds=7200, estimated_RSS_bytes=2*1024**3))
 	step('verify-raw', ['opt', '-passes=verify', '-disable-output', '{artifact:native:raw}'], ['native'])
@@ -222,7 +224,7 @@ def probe(args):
 		step(mode+'-object', ['llc', '-filetype=obj', '-'+mode, '{artifact:'+mode+'-optimize:optimized}', '-o', '{work}/module.o'], [mode+'-optimize', mode+'-verify'], {'object':'{work}/module.o'})
 		step(mode+'-ELF', ['readelf', '-h', '{artifact:'+mode+'-object:object}'], [mode+'-object'], required=['ELF64', 'REL (Relocatable file)', 'X86-64'])
 	result = run_jobs(dict(format='astra-native-jobs/1', jobs=items), args.runtime_root/('native-probe-'+args.version), args.build_root/('native-probe-'+args.version), args.runtime_root/'artifact-cache', jobs=4, max_jobs=8, reserve_bytes=8*1024**3, reuse=False)
-	write(args.runtime_root/('native-probe-'+args.version)/'source-scope.json', dict(scope=args.scope, component_sha256=identity['sha256'], input_manifest_sha256=sha(args.inputs), input_count=len(inputs)-(2 if args.core_map else 0), object_profiles=['O0', 'O2'], full_original_native_credit=0, limitation='Actual source emission/LLVM/object evidence; independent ABI/linked usage/memory/regression/delivery qualification remains separate.'))
+	write(args.runtime_root/('native-probe-'+args.version)/'source-scope.json', dict(scope=args.scope, component_sha256=identity['sha256'], input_manifest_sha256=sha(args.inputs), input_count=len(inputs)-(2 if args.core_map else 0), object_profiles=['O0', 'O2'], native_timeout_seconds=native_timeout, full_original_native_credit=0, limitation='Actual source emission/LLVM/object evidence; independent ABI/linked usage/memory/regression/delivery qualification remains separate.'))
 	assert not result['failed_jobs'], result['failed_jobs']
 
 
@@ -306,6 +308,7 @@ def main():
 	c = subs.add_parser('probe'); common(c); c.add_argument('--build-root', type=Path, required=True)
 	c.add_argument('--component', type=Path, required=True); c.add_argument('--inputs', type=Path, required=True)
 	c.add_argument('--core-map', type=Path); c.add_argument('--scope', choices=('original', 'current', 'focused'), required=True); c.set_defaults(run=probe)
+	c.add_argument('--native-timeout-seconds', type=int, default=7200, help='Bounded source-to-LLVM budget; set explicitly for demonstrated long O0 runs')
 	c = subs.add_parser('cycle'); common(c); c.add_argument('--build-root', type=Path, required=True)
 	c.add_argument('--identity', type=Path, required=True); c.add_argument('--inputs', type=Path, required=True)
 	c.add_argument('--scope', choices=('original', 'current', 'focused'), default='original')
@@ -313,6 +316,7 @@ def main():
 	c.add_argument('--selection', type=Path); c.add_argument('--alternate-identity', type=Path)
 	c.add_argument('--join-result', type=Path); c.add_argument('--join-running', type=Path)
 	c.add_argument('--timeout-seconds', type=int, default=7200); c.set_defaults(run=cycle)
+	c.add_argument('--native-timeout-seconds', type=int, default=7200, help='Independent source-to-LLVM budget after host construction')
 	args = p.parse_args()
 	if args.capsule_prefix and not args.inside_capsule:
 		assert args.capsule_prefix.resolve().is_relative_to((WORK/'runtime').resolve())
