@@ -31,6 +31,25 @@ types for the enclosing call and admitted getter. It preserves raw use deferrals
 separately, including19 on the recorded direct-call twin, and retains the
 independent15/17 ledger. Corrupted source-span and missing-type twins are rejected.
 
+The corrected `observerqual1` campaigns now pass12/12 jobs at both profiles.
+`independent-observerqual1-O0.json` and `independent-observerqual1-O2.json`
+independently rebind340+71 source programs,101/52 mutation categories, literal
+R5 source identities, ABI and strict memory evidence. All six focused observer
+checks also pass. The first continuation's unset-environment marker error
+prevented full-suite launch; the corrected launch uses the existing environment
+normalizer and retains both failed launch traces. This is retained-domain proof,
+not whole-compiler or final-delivery acceptance.
+
+The full-source cost scenario freezes one EOF comment in the compact test entry
+at `f768026`, restores its exact bytes at `b689c35`, and compares all208 consumed
+source hashes: only that comment differs; all195 production modules match.
+Its actual C0 semantic preflight and original-product warm check pass. The
+bounded changed-source cold build remains active. No unit-incremental speedup
+or full-normal250-input comparison is inferred. The existing cost consumer now
+includes the accelerator's `time` files, command intervals and compile-plan
+receipts. Actual-receipt twins confirm that a semantic preflight earns zero
+native-build credit even when its requested product's sidecar matches later.
+
 ## First complete original/current objects
 
 `native-physicalready3-O2` builds in2682.212s (2659.69 user,2.00 system), peak
