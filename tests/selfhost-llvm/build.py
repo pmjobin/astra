@@ -30,7 +30,7 @@ def main():
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--mode', action='append')
 	p.add_argument('--check', action='store_true')
-	p.add_argument('--semantic-only', action='store_true', help='Run C0 checks without a CFG dump or native code generation')
+	p.add_argument('--semantic-only', action='store_true', help='Print the C0 checked model without Core/CFG/SSA/LLVM construction')
 	p.add_argument('--source-root', type=Path, help='Compile an explicit retained source snapshot')
 	a = p.parse_args()
 	if a.source_root:
@@ -45,7 +45,7 @@ def main():
 			(attempt/(name+'.json')).write_text(json.dumps(details, indent=2)+'\n')
 			return b''
 		if (a.check or a.semantic_only) and name.startswith('ownflow-'):
-			flag = '--check' if a.semantic_only else '--dump-cfg'
+			flag = '--dump-semantics' if a.semantic_only else '--dump-cfg'
 			argv = [*argv[:2], argv[2], flag, *argv[4:argv.index('--link-object')]]
 		start = time.monotonic()
 		r = subprocess.run(list(map(str, argv)), cwd=a.build, capture_output=True, env=dict(os.environ, CCACHE_DISABLE='1'))
@@ -77,7 +77,7 @@ def main():
 	if not shim.exists() or old != dict(inputs=identity, sha256=core.base.sha(shim)):
 		capture(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags, '-c', ROOT/'compiler/backend/llvm/capi.c', '-o', shim], 'llvm-capi')
 		cache.write_text(json.dumps(dict(inputs=identity, sha256=core.base.sha(shim)), indent=2)+'\n')
-	defined = set(re.findall(r'\b(llvm(?:12|13|15|17)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
+	defined = set(re.findall(r'\b(llvm(?:12|13|15|17|26)_\w+)$', subprocess.check_output(['nm', '--defined-only', shim], text=True), re.M))
 	library = ctypes.CDLL(str(library_path))
 	imports = re.findall(r'extern\(C\) (?:void\*|u64|int|void|f32|f64) (\w+)\(', (ROOT/'compiler/backend/llvm/capi.astra').read_text())
 	missing = [name for name in imports if name not in defined and not hasattr(library, name)]

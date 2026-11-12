@@ -5,8 +5,9 @@ Milestone26 remains **PARTIAL**. The frozen production candidate
 inputs and all205 current inputs through the actual Astra pipeline into
 independently verified LLVM and ELF64/x86-64 objects at target O0/O2. This uses
 one C0-built O2 development host, not the final matched compiler products.
-Representative linked behaviour, independent graph55/predicate26 proof, full
-retained qualification, final audit and delivery/G12 remain open. No Stage1 or
+Original and current representative linked services now pass O0/O2 execution
+and strict memory checks. Independent graph55/predicate26 proof, the final
+matched products, retained qualification, audit and delivery/G12 remain open. No Stage1 or
 self-host claim is made. Entries after this checkpoint retain their historical
 results, including the earlier zero-of-two frontiers and failed campaigns.
 
@@ -74,6 +75,26 @@ service's bounds/UTF8 assertions remain independent. Current Astra service
 translation/execution is running separately, not predeclared PASS. Each check
 retains its loaded recipe separately; extending the recipe does not rewrite
 or restart the useful original-source check.
+
+## Current linked service and final-entry preflight
+
+`representative-use-third1/check-current-97eb6e167ae5545f` reports
+`LINKED_CURRENT_COMPILER_USAGE_PASS`. The current compiler service and the
+integer program it generates both execute42 at O0/O2 with four clean strict
+returning memory streams. Generated IR matches the independent C0-current
+implementation oracle exactly. Together with the original-source service,
+there are eight clean Astra returning memory streams; this does not replace
+final retained-domain or graph55 qualification.
+
+The final-entry recipe names all195 current production sources in a250-Astra
+input closure. Its first preflight stops before C0 because the symbol inventory
+omits the newllvm26 namespace; adding26 to that existing pattern fixes it.
+A second attempt exposes a misleading legacy `--semantic-only` mapping to
+C0 `--check`, which validates through LLVM. It is deliberately stopped after
+288.25 CPU seconds, preserving exit137 and its STOPPED descriptor. The correct
+mapping is `--dump-semantics`; that actual full-entry preflight passes in
+67.614s. No compiler, verifier, installed workflow or ceiling is changed.
+The earlier stopped/deep and missing-symbol receipts remain historical.
 
 ## Post-restart O0 results
 
