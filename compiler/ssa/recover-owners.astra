@@ -8,6 +8,7 @@ class RecoverSsaOwnerIndex {
 	owned int[] blocks;
 	owned int[] reservations;
 	owned int[] moves;
+	owned int[] shortcuts;
 
 	init(RecoverCfg cfg) {
 		this.starts = new int[len(cfg.entries) + 1];
@@ -15,17 +16,27 @@ class RecoverSsaOwnerIndex {
 		this.blocks = new int[cfg.block_count];
 		this.reservations = new int[cfg.core.count];
 		this.moves = new int[cfg.core.flow.storage.count];
+		this.shortcuts = new int[cfg.block_count + 1];
 	}
 }
 
 bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, RecoverWork work) {
 	int b = 0;
-	while (b < cfg.block_count) {
-		if (!work.take()) return false;
-		int function = cfg.blocks[b].function;
-		if (function < 1 || function >= len(index.starts)) return false;
-		index.starts[function] = index.starts[function] + 1;
-		b = b + 1;
+	if (len(work.function_counts) == len(index.starts)) {
+		int function = 1;
+		while (function < len(index.starts)) {
+			if (!work.take()) return false;
+			index.starts[function] = work.function_counts[function];
+			function = function + 1;
+		}
+	} else {
+		while (b < cfg.block_count) {
+			if (!work.take()) return false;
+			int function = cfg.blocks[b].function;
+			if (function < 1 || function >= len(index.starts)) return false;
+			index.starts[function] = index.starts[function] + 1;
+			b = b + 1;
+		}
 	}
 	int f = 1;
 	while (f < len(index.starts)) {
@@ -39,6 +50,18 @@ bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, Recover
 		int position = used[f]; used[f] = position + 1;
 		index.positions[b] = position;
 		index.blocks[index.starts[f] + position] = b + 1;
+		var row = cfg.blocks[b]; int place = 0;
+		if (row.origin > 0) {
+			int symbol = cfg.core.nodes[row.origin - 1].value.symbol.index;
+			if (symbol > 0 && symbol < len(cfg.core.flow.storage.symbols)) place = cfg.core.flow.storage.symbols[symbol];
+		}
+		bool event = row.opcode == 22 || row.opcode == 23 || row.opcode == 36 || row.opcode == 37 || row.opcode == 38 || row.next > 0 && row.other > 0;
+		if (place > 0 && cfg.core.flow.storage.slots[place - 1].owner && (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46 || row.opcode == 27)) event = true;
+		int target = row.next; if (target == 0) target = row.other;
+		if (!event && target <= b) index.shortcuts[b + 1] = index.shortcuts[target];
+		else {
+			index.shortcuts[b + 1] = b + 1;
+		}
 		b = b + 1;
 	}
 	int n = 0;
@@ -115,16 +138,18 @@ bool recover_ssa_slots(RecoverSsa ssa, RecoverWork work) {
 	if (place > ssa.cfg.core.flow.storage.count) return !work.exhausted;
 	var index = new RecoverSsaOwnerIndex(ssa.cfg);
 	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return false;
-	while (place <= ssa.cfg.core.flow.storage.count) {
-		if (!recover_ssa_slot(ssa, place, index, work)) return false;
-		place = place + 1;
-	} return !work.exhausted;
+	return recover_ssa_packed_slots(ssa, index, work);
 }
 
 // Ordinary owned temporaries are distinct from both Error tokens and slots.
 // Their unique consumer must execute before every returning normal/error exit.
 bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWork work) {
 	var definition = data.values[value]; int consumer = cfg.core.owners.consumers[value - 1]; if (consumer < 1) return false;
+	int consumer_block = 0;
+	if (consumer < len(work.temporary_consumers)) consumer_block = work.temporary_consumers[consumer];
+	int gate = -1;
+	if (consumer_block > 0 && consumer_block < len(work.dominance_cycle_gate)) gate = work.dominance_cycle_gate[consumer_block];
+	bool restart = gate >= 0 && consumer_block != definition.block && recover_ssa_dominates(definition.block, consumer_block, work) && (gate == 0 || recover_ssa_dominates(gate, definition.block, work));
 	int start = cfg.blocks[definition.block - 1].next; if (start == 0) return false; var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
 	while (count > 0) { if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / 2 + 1; bool live = item % 2 == 1; var row = cfg.blocks[block - 1];
 		if (block == definition.block) {
@@ -134,6 +159,11 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || (row.opcode == 11 || row.opcode == 67) || row.opcode == 44)) {
 			if (!live) return false;
 			live = false;
+			// With one physical consumer, every cycle back to it passes the
+			// definition again. Its fresh live paths are already explored from
+			// that definition; a dead suffix cannot add a second consumption.
+			// Ambiguous consumers or unproved cycle gates retain the full walk.
+			if (restart) continue;
 		}
 		if ((row.opcode == 22 || row.opcode == 23) && live) return false;
 		int polarity = 0; while (polarity < 2) {

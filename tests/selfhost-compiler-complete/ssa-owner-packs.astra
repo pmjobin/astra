@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) int owner_graph_start();
+
+extern(C) int owner_graph_count(int which);
+
+extern(C) int owner_graph_get(int which, int index, int field);
+
+extern(C) void owner_observed(int stage, int count, int work);
+
+void owner_consumers(RecoverSsa ssa, RecoverWork work) {
+	work.temporary_consumers = new int[ssa.cfg.core.count + 1]; int b = 1;
+	while (b <= ssa.cfg.block_count) {
+		var row = ssa.cfg.blocks[b - 1];
+		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 11 || row.opcode == 67 || row.opcode == 44)) {
+			if (work.temporary_consumers[row.origin] == 0) work.temporary_consumers[row.origin] = b;
+			else {
+				work.temporary_consumers[row.origin] = -1;
+			}
+		}
+		b = b + 1;
+	}
+}
+
+bool owner_compare(RecoverSsa ssa) {
+	var work = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
+	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work) || !recover_ssa_owner_index(index, ssa.cfg, work)) return false;
+	var baseline = new RecoverWork(8000000); bool expected = true; int place = 1;
+	while (place <= ssa.cfg.core.flow.storage.count) {
+		if (!reference_slot(ssa, place, index, baseline)) {
+			expected = false;
+			break;
+		}
+		place = place + 1;
+	}
+	var packed = new RecoverWork(8000000);
+	return recover_ssa_packed_slots(ssa, index, packed) == expected && !baseline.exhausted && !packed.exhausted;
+}
+
+bool owner_expected(RecoverSsa ssa, bool expected) {
+	if (!owner_compare(ssa)) return false;
+	var work = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
+	return recover_ssa_owner_index(index, ssa.cfg, work) && recover_ssa_packed_slots(ssa, index, work) == expected;
+}
+
+bool owner_multi_controls() {
+	int mutation = 0;
+	while (mutation < 7) {
+		int slots = 32; int size = slots * 2 + 1; var ssa = new RecoverSsa(size, size, 1, slots, slots + 1, size + 1); ssa.cfg.entries[0] = 1;
+		int p = 0;
+		while (p < slots) {
+			ssa.cfg.core.flow.storage.slots[p].owner = true; ssa.cfg.core.flow.storage.slots[p].parameter = true;
+			ssa.cfg.core.flow.storage.slots[p].function = 1; ssa.cfg.core.flow.storage.slots[p].symbol.index = p + 1; ssa.cfg.core.flow.storage.symbols[p + 1] = p + 1;
+			int b = p * 2;
+			ssa.cfg.blocks[b].function = 1; ssa.cfg.blocks[b].origin = b + 1; ssa.cfg.blocks[b].opcode = 2; ssa.cfg.blocks[b].next = b + 2; ssa.cfg.core.nodes[b].value.symbol.index = p + 1;
+			ssa.cfg.blocks[b + 1].function = 1; ssa.cfg.blocks[b + 1].origin = b + 2; ssa.cfg.blocks[b + 1].opcode = 38; ssa.cfg.blocks[b + 1].a = p + 1; ssa.cfg.blocks[b + 1].next = b + 3;
+			p = p + 1;
+		}
+		ssa.cfg.blocks[size - 1].function = 1; ssa.cfg.blocks[size - 1].origin = size; ssa.cfg.blocks[size - 1].opcode = 22;
+		if (!owner_expected(ssa, true)) return false;
+		if (mutation == 0) ssa.cfg.blocks[1].opcode = 0;
+		if (mutation == 1) ssa.cfg.core.nodes[2].value.symbol.index = 1;
+		if (mutation == 2) ssa.cfg.blocks[0].opcode = 27;
+		if (mutation == 3) ssa.cfg.core.flow.storage.slots[0].parameter = false;
+		if (mutation == 4) {
+			ssa.cfg.blocks[0].opcode = 10;
+			ssa.cfg.core.owners.slots[0] = 1;
+		}
+		if (mutation == 5) {
+			ssa.cfg.blocks[0].opcode = 10; ssa.cfg.core.owners.slots[0] = 1; ssa.cfg.blocks[1].opcode = 36; ssa.cfg.blocks[1].a = 1; ssa.cfg.blocks[1].b = 1;
+			if (!owner_expected(ssa, true)) return false;
+			ssa.cfg.blocks[1].a = 3;
+		}
+		if (mutation == 6) ssa.cfg.blocks[1].next = 1;
+		if (!owner_expected(ssa, false)) return false;
+		mutation = mutation + 1;
+	}
+	return true;
+}
+
+int owner_small() {
+	if (!owner_multi_controls()) return 15;
+	int seed = 731; int graph = 0;
+	while (graph < 8192) {
+		int size = 2 + graph % 11; int slots = 1 + graph % 31;
+		var ssa = new RecoverSsa(size, size, 1, slots, slots + 1, size + 1); ssa.cfg.entries[0] = 1;
+		int p = 0;
+		while (p < slots) {
+			ssa.cfg.core.flow.storage.slots[p].owner = true; ssa.cfg.core.flow.storage.slots[p].parameter = (graph + p) % 3 == 0;
+			ssa.cfg.core.flow.storage.slots[p].function = 1; ssa.cfg.core.flow.storage.slots[p].symbol.index = p + 1;
+			ssa.cfg.core.flow.storage.symbols[p + 1] = p + 1; p = p + 1;
+		}
+		int b = 0;
+		while (b < size) {
+			seed = (seed * 109 + 89) % 32749; int opcode = seed % 9;
+			if (opcode == 1) opcode = 2;
+			else {
+				if (opcode == 2) opcode = 10; else {
+					if (opcode == 3) opcode = 27; else {
+						if (opcode == 4) opcode = 36; else {
+							if (opcode == 5) opcode = 37; else {
+								if (opcode == 6) opcode = 38; else {
+									if (opcode == 7) opcode = 22; else {
+										if (opcode == 8) opcode = 23;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			ssa.cfg.blocks[b].function = 1; ssa.cfg.blocks[b].origin = b + 1; ssa.cfg.blocks[b].opcode = opcode;
+			seed = (seed * 109 + 89) % 32749; int place = 1 + seed % slots;
+			ssa.cfg.core.nodes[b].value.symbol.index = place;
+			if (opcode == 10) ssa.cfg.core.owners.slots[b] = place;
+			ssa.cfg.blocks[b].a = 1 + seed % size; ssa.cfg.blocks[b].b = place;
+			if (opcode == 38) ssa.cfg.blocks[b].a = place;
+			seed = (seed * 109 + 89) % 32749; ssa.cfg.blocks[b].next = seed % (size + 1);
+			seed = (seed * 109 + 89) % 32749; ssa.cfg.blocks[b].other = seed % (size + 1);
+			b = b + 1;
+		}
+		if (!owner_compare(ssa)) return 1;
+		graph = graph + 1;
+	}
+	// Both the exact30-state packing boundary and the wider scalar fallback.
+	int moves = 0;
+	while (moves <= 32) {
+		int size = moves * 2 + 2; var ssa = new RecoverSsa(size, size, 1, 1, 2, size + 1); ssa.cfg.entries[0] = 1;
+		ssa.cfg.core.flow.storage.slots[0].owner = true; ssa.cfg.core.flow.storage.slots[0].parameter = true; ssa.cfg.core.flow.storage.slots[0].function = 1; ssa.cfg.core.flow.storage.slots[0].symbol.index = 1; ssa.cfg.core.flow.storage.symbols[1] = 1;
+		int b = 0;
+		while (b < size) {
+			ssa.cfg.blocks[b].function = 1; ssa.cfg.blocks[b].origin = b + 1; ssa.cfg.blocks[b].next = b + 2;
+			if (b < moves * 2) {
+				if (b % 2 == 0) {
+					ssa.cfg.blocks[b].opcode = 10;
+					ssa.cfg.core.nodes[b].value.symbol.index = 1;
+					ssa.cfg.core.owners.slots[b] = 1;
+				}
+				else {
+					ssa.cfg.blocks[b].opcode = 37;
+					ssa.cfg.blocks[b].a = b;
+					ssa.cfg.blocks[b].b = 1;
+				}
+			} else {
+				if (b == size - 2) {
+					ssa.cfg.blocks[b].opcode = 38;
+					ssa.cfg.blocks[b].a = 1;
+				}
+				else {
+					ssa.cfg.blocks[b].opcode = 22;
+					ssa.cfg.blocks[b].next = 0;
+				}
+			}
+			b = b + 1;
+		}
+		if (!owner_compare(ssa)) return 2;
+		var work = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
+		if (!recover_ssa_owner_index(index, ssa.cfg, work) || !recover_ssa_packed_slots(ssa, index, work)) return 3;
+		// The positive graph above precedes a physically wrong reservation.
+		if (moves > 1) {
+			ssa.cfg.blocks[1].a = 3;
+			if (!owner_compare(ssa)) return 4;
+			var negative = new RecoverWork(8000000);
+			if (recover_ssa_packed_slots(ssa, index, negative)) return 5;
+		}
+		moves = moves + 1;
+	}
+	return 42;
+}
+
+int owner_temporaries() {
+	int graph = 0; int seed = 971;
+	while (graph < 8192) {
+		int size = 3 + graph % 10; var ssa = new RecoverSsa(size, size, 1, 0, 1, size + 1); ssa.cfg.entries[0] = 1;
+		ssa.data.values[1].channel = 4; ssa.data.values[1].block = 1; ssa.data.values[1].function = 1; ssa.cfg.core.owners.consumers[0] = size;
+		int b = 0;
+		while (b < size) {
+			ssa.cfg.blocks[b].function = 1; ssa.cfg.blocks[b].origin = b + 1;
+			seed = (seed * 109 + 89) % 32749; ssa.cfg.blocks[b].next = 1 + seed % size;
+			seed = (seed * 109 + 89) % 32749; ssa.cfg.blocks[b].other = seed % (size + 1);
+			if (b == size - 1) {
+				ssa.cfg.blocks[b].opcode = 27;
+				ssa.cfg.blocks[b].next = 0;
+				ssa.cfg.blocks[b].other = 0;
+			}
+			if ((graph + b) % 7 == 0) ssa.cfg.blocks[b].opcode = 22;
+			if (graph % 11 == 0 && b == size - 2) {
+				ssa.cfg.blocks[b].origin = size;
+				ssa.cfg.blocks[b].opcode = 27;
+			}
+			b = b + 1;
+		}
+		var work = new RecoverWork(8000000);
+		if (!recover_ssa_build_dominance(ssa.cfg.blocks, size, ssa.cfg.entries, work)) return 6;
+		owner_consumers(ssa, work); var baseline = new RecoverWork(8000000);
+		if (recover_ssa_temporary(ssa.data, ssa.cfg, 1, work) != reference_temporary(ssa.data, ssa.cfg, 1, baseline)) return 7;
+		graph = graph + 1;
+	}
+	return 42;
+}
+
+int owner_graph() {
+	int blocks = owner_graph_start(); int nodes = owner_graph_count(0); int functions = owner_graph_count(1); int slots = owner_graph_count(2); int values = owner_graph_count(3); int symbols = owner_graph_count(4);
+	var ssa = new RecoverSsa(blocks, nodes, functions, slots, symbols, values); int i = 0;
+	while (i < blocks) {
+		RecoverBlock row = {function = owner_graph_get(0, i, 0), origin = owner_graph_get(0, i, 1), opcode = owner_graph_get(0, i, 2), a = owner_graph_get(0, i, 3), b = owner_graph_get(0, i, 4), next = owner_graph_get(0, i, 5), other = owner_graph_get(0, i, 6), owner = owner_graph_get(0, i, 7), carry = owner_graph_get(0, i, 8), rank = owner_graph_get(0, i, 9)};
+		ssa.cfg.blocks[i] = row; ssa.data.reachable[i] = owner_graph_get(8, i, 0) != 0; i = i + 1;
+	}
+	i = 0;
+	while (i < nodes) {
+		RecoverNode row = {kind = owner_graph_get(1, i, 0), function = owner_graph_get(1, i, 1), source = {index = owner_graph_get(1, i, 2)}, type = {index = owner_graph_get(1, i, 3)}, token = {index = owner_graph_get(1, i, 4)}, symbol = {index = owner_graph_get(1, i, 5)}, a = owner_graph_get(1, i, 6), b = owner_graph_get(1, i, 7), c = owner_graph_get(1, i, 8), first = owner_graph_get(1, i, 9), count = owner_graph_get(1, i, 10), handler = owner_graph_get(1, i, 11), caught = owner_graph_get(1, i, 12)};
+		ssa.cfg.core.nodes[i].value = row; ssa.cfg.core.flow.data.nodes[i] = row; ssa.cfg.core.nodes[i].borrowed_owner = owner_graph_get(1, i, 17);
+		ssa.cfg.core.owners.slots[i] = owner_graph_get(5, i, 0); ssa.cfg.core.owners.consumers[i] = owner_graph_get(6, i, 0); ssa.cfg.catch_try[i] = owner_graph_get(7, i, 0); i = i + 1;
+	}
+	i = 0;
+	while (i < functions) {
+		ssa.cfg.entries[i] = owner_graph_get(4, i, 0);
+		i = i + 1;
+	}
+	i = 0;
+	while (i < slots) {
+		RecoverSlot row = {symbol = {index = owner_graph_get(3, i, 0)}, type = {index = owner_graph_get(3, i, 1)}, flags = owner_graph_get(3, i, 2), function = owner_graph_get(3, i, 3), scope = owner_graph_get(3, i, 4), parameter = owner_graph_get(3, i, 5) != 0, owner = owner_graph_get(3, i, 6) != 0};
+		ssa.cfg.core.flow.storage.slots[i] = row; ssa.cfg.core.flow.storage.symbols[row.symbol.index] = i + 1; i = i + 1;
+	}
+	i = 0;
+	while (i < values) {
+		RecoverValue row = {function = owner_graph_get(2, i, 0), block = owner_graph_get(2, i, 1), type = {index = owner_graph_get(2, i, 2)}, channel = owner_graph_get(2, i, 3), edge = owner_graph_get(2, i, 4)};
+		ssa.data.values[i] = row; i = i + 1;
+	}
+	var work = new RecoverWork(8000000);
+	if (!recover_ssa_build_dominance(ssa.cfg.blocks, blocks, ssa.cfg.entries, work)) return 8;
+	int dominance = 8000000 - work.remaining; owner_observed(0, blocks, dominance);
+	// Model the measured verifier checkpoint, preserving its exact8M ceiling.
+	// This is a helper replay, not a mutation of any native compiler process.
+	work.remaining = 1091387 + 5011192 - dominance; owner_consumers(ssa, work); int before = work.remaining;
+	i = 1; int owners = 0;
+	while (i < values) {
+		if (ssa.data.values[i].block > 0 && !recover_ssa_owner(ssa.data, ssa.cfg, i, work)) return 9;
+		if (ssa.data.values[i].channel != 0 && ssa.data.values[i].block > 0 && ssa.data.reachable[ssa.data.values[i].block - 1]) owners = owners + 1;
+		i = i + 1;
+	}
+	owner_observed(1, owners, before - work.remaining); before = work.remaining;
+	var index = new RecoverSsaOwnerIndex(ssa.cfg); if (!recover_ssa_owner_index(index, ssa.cfg, work)) return 10;
+	owner_observed(2, slots, before - work.remaining); before = work.remaining;
+	if (!recover_ssa_packed_slots(ssa, index, work)) return 11;
+	owner_observed(3, slots, before - work.remaining); owner_observed(4, owners, work.remaining);
+	var baseline = new RecoverWork(8000000); i = 1;
+	while (i <= slots) {
+		if (!reference_slot(ssa, i, index, baseline)) return 12;
+		i = i + 1;
+	}
+	owner_observed(5, slots, 8000000 - baseline.remaining);
+	return 42;
+}
+
+int main(string[] args) {
+	if (len(args) != 2) return 13;
+	if (args[1] == "--small") return owner_small();
+	if (args[1] == "--temporary") return owner_temporaries();
+	if (args[1] == "--graph") return owner_graph();
+	return 14;
+}

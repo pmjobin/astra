@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Minimal containers for exact owner-helper replay. No source admission credit.
+struct TypeId { int index; }
+
+struct SymbolId { int index; }
+
+struct SyntaxNodeId { int index; }
+
+struct SyntaxTokenId { int index; }
+
+TypeId type_id(int index) { TypeId value = {index = index}; return value; }
+
+class OwnerKernelBindings { int symbol_count;
+
+	init(int symbols) { this.symbol_count = symbols; } }
+
+class OwnerKernelChecked { owned OwnerKernelBindings bindings;
+
+	init(int symbols) { var bindings = new OwnerKernelBindings(symbols); this.bindings = move bindings; } }
+
+class OwnerKernelStorage {
+	owned RecoverSlot[] slots; owned int[] symbols; int count;
+
+	init(int slots, int symbols) { this.slots = new RecoverSlot[slots]; this.symbols = new int[symbols]; this.count = slots; }
+}
+
+class RecoverFlowData { owned RecoverNode[] nodes; int node_count;
+
+	init(int nodes) { this.nodes = new RecoverNode[nodes]; this.node_count = nodes; } }
+
+class OwnerKernelFlow {
+	owned OwnerKernelStorage storage; owned OwnerKernelChecked checked; owned RecoverFlowData data;
+
+	init(int nodes, int slots, int symbols) {
+		var storage = new OwnerKernelStorage(slots, symbols); var checked = new OwnerKernelChecked(symbols - 1); var data = new RecoverFlowData(nodes);
+		this.storage = move storage; this.checked = move checked; this.data = move data;
+	}
+}
+
+class OwnerKernelOwners { owned int[] slots; owned int[] consumers;
+
+	init(int nodes) { this.slots = new int[nodes]; this.consumers = new int[nodes]; } }
+
+class OwnerKernelCore {
+	owned RecoverCoreNode[] nodes; owned OwnerKernelFlow flow; owned OwnerKernelOwners owners; int count;
+
+	init(int nodes, int slots, int symbols) {
+		this.nodes = new RecoverCoreNode[nodes]; this.count = nodes;
+		var flow = new OwnerKernelFlow(nodes, slots, symbols); var owners = new OwnerKernelOwners(nodes); this.flow = move flow; this.owners = move owners;
+	}
+}
+
+class RecoverCfg {
+	owned OwnerKernelCore core; owned RecoverBlock[] blocks; owned int[] entries; owned int[] catch_try; int block_count;
+
+	init(int blocks, int nodes, int functions, int slots, int symbols) {
+		var core = new OwnerKernelCore(nodes, slots, symbols); this.core = move core; this.blocks = new RecoverBlock[blocks]; this.block_count = blocks;
+		this.entries = new int[functions]; this.catch_try = new int[nodes];
+	}
+}
+
+class RecoverSsa {
+	owned RecoverCfg cfg; owned RecoverSsaData data;
+
+	init(int blocks, int nodes, int functions, int slots, int symbols, int values) {
+		var cfg = new RecoverCfg(blocks, nodes, functions, slots, symbols); var data = new RecoverSsaData(values, blocks, 8000000); this.cfg = move cfg; this.data = move data;
+	}
+}

@@ -57,7 +57,16 @@ bool dominance_case(RecoverBlock[] blocks, int[] entries) {
 		while (use <= len(blocks)) {
 			int entry = entries[blocks[use - 1].function - 1];
 			if ((work.dominance_first[use] > 0) == dominance_oracle(blocks, entry, 0, use)) return false;
-			if (recover_ssa_dominates(definition, use, work) != dominance_oracle(blocks, entry, definition, use)) return false;
+			bool dominates = recover_ssa_dominates(definition, use, work);
+			if (dominates != dominance_oracle(blocks, entry, definition, use)) return false;
+			int gate = work.dominance_cycle_gate[use];
+			bool cycle_safe = gate >= 0 && (gate == 0 || recover_ssa_dominates(gate, definition, work));
+			if (definition != use && work.dominance_first[use] > 0 && dominates && cycle_safe) {
+				// Independently delete the definition and search both successors
+				// for a return to this use. No eligible use may cycle without it.
+				int next = blocks[use - 1].next; int other = blocks[use - 1].other;
+				if (next > 0 && !dominance_oracle(blocks, next, definition, use) || other > 0 && !dominance_oracle(blocks, other, definition, use)) return false;
+			}
 			use = use + 1;
 		}
 		definition = definition + 1;

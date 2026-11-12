@@ -156,13 +156,19 @@ def status(args):
 			rows.append(dict(path=str(path), status='PENDING'))
 			continue
 		data = json.loads(path.read_text())
-		row = dict(path=str(path), modified_UTC_ns=path.stat().st_mtime_ns)
+		row = dict(path=str(path), modified_UTC_ns=path.stat().st_mtime_ns, update_age_seconds=max(0, time.time()-path.stat().st_mtime))
 		if isinstance(data, list):
 			row['latest_events'] = data[-4:]
 		else:
-			row.update({key:data[key] for key in ('status', 'actual_exit', 'native_exit', 'seconds', 'overall_acceptance', 'full_original_native_profiles') if key in data})
+			row.update({key:data[key] for key in ('status', 'actual_exit', 'native_exit', 'seconds', 'elapsed_seconds', 'overall_acceptance', 'full_original_native_profiles', 'total', 'completed', 'active', 'pending', 'worker_limit', 'cold_execution_count', 'artifact_reuse_count', 'failed_jobs', 'active_stage_functions') if key in data})
+			if 'jobs' in data:
+				row['job_outcomes'] = {name:{key:value for key, value in job.items() if key in ('status', 'exit', 'seconds', 'fresh_execution', 'metrics')} for name, job in data['jobs'].items()}
 			if 'pid' in data:
 				row['process'] = process_sample(data['pid'])
+				if row['process'] is not None and 'monotonic_start' in data:
+					row['observed_elapsed_seconds'] = time.monotonic()-data['monotonic_start']
+			if data and all(key.isdigit() and isinstance(value, dict) and 'stage' in value for key, value in data.items()):
+				row['active_stage_functions'] = data
 		rows.append(row)
 	print(json.dumps(dict(UTC_ns=time.time_ns(), receipts=rows), indent=2))
 

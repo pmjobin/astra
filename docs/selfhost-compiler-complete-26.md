@@ -2620,3 +2620,73 @@ graph's Python diagnostic model points to owner-temporary walks exhausting the
 remaining budget at value258869; native confirmation and a source fix remain
 pending. No work ceiling or verification boundary has been changed. Full
 original native qualification remains0/2.
+
+The final focused acceleration timings are2.955seconds cold,0.502seconds warm
+and2.163seconds after the harmless source edit: respectively4,0 and2 compiler
+processes, with4 and2 exact artifacts reused in the latter runs. These are
+83.02% and26.80% reductions in this small integration case, each observed once.
+They are not a matched full cold-compiler speedup or a full compiler incremental
+build. The complete normal173 O0/O2 diagnostic comparison remains separately
+pending while the source-specific native development work proceeds.
+
+## Confirmed owner budget failure and packed-state candidate
+
+The failure-only read-only native trace confirms the exact original refusal:
+value258869, remaining0, exhaustedtrue, exit8 and an intact destination
+sentinel, after760.70seconds. All nine relevant graph/SSA/owner/slot binary
+snapshots are byte-identical to the preserved earlier7676 trace. The Python
+model's initial slot-field-order error remains a failed diagnostic attempt;
+corrected exploratory models are not acceptance evidence.
+
+`recover.astra` now retains finished negative DFS postorder ranks directly,
+removing a separate375907-node rank assignment scan. It reconstructs function
+block counts during the existing predecessor scan so owner indexing can reuse
+those verifier-private counts. It also derives conservative cycle gates from
+the DFS back-edge targets and the independent dominator tree. Every directed
+cycle through a use contains a back edge to a DFS ancestor of that use. The
+gate records the intersection of those ancestors' dominator subtrees; an empty
+intersection disables the shortcut. Children are appended in reverse postorder
+to preserve the previous dominator traversal order.
+
+A temporary's retired suffix is skipped only when its consumer has exactly one
+physical operation, its definition dominates that consumer, and all relevant
+cycle gates dominate the definition. Any recurrence of that consumer then
+passes a fresh definition, whose live paths are already checked. Ambiguous or
+unproved cases retain the complete old walk. This does not create an ownership
+root, assume nullness or replace the Error-owner checks.
+
+The new private `recover-owner-packs.astra` represents each slot's exact
+possible dead/live/reservation states as disjoint bits. At most30 state bits
+share a machine word. Joins union possibilities; transfers distribute over that
+union and reject the same forbidden incoming states as the scalar checker.
+Commit and abort retain their exact reservation identities. Larger slots use
+the retained scalar implementation, including its existing8M allocation/work
+guard. The independently reconstructed owner index also contracts only earlier
+single-successor blocks with no owned-slot event, retaining branches, exits,
+reservations, reads, writes and destroys. There is no producer liveness
+certificate, altered public ABI, raised ceiling or removed verifier boundary.
+
+The portable `ssa-owner-packs.py` recipe authenticates every extracted
+production declaration with original C0's parser. At C0 O0 and O2, exact helpers
+agree with preserved7676 scalar bodies on8192 slot models,8192 temporary models,
+33 reservation-size boundaries, and explicit32-owner multi-word positive twins
+followed by seven corruptions. Both profiles replay the actual full original
+graph and all1984 owned slots. All six unsuppressed strict Valgrind streams are
+clean. The raw failed observer build (a C indentation warning) is retained;
+`portable3` is the final focused receipt. The independent audit is
+`owner-packs-independent-audit1.json`, SHA-256
+`2c8bf54b26a0082f0fc44b1970b71d361b64f49aec50e239a7f94519884d1346`.
+
+The full-size helper counters agree exactly across O0/O2: dominance4659803
+work, all6850 reachable owner versions385970, owner indexing662724, packed slot
+verification202418, versus3809068 for the preserved scalar slot walks. Starting
+at the actual measured verifier checkpoint and adjusting only for the observed
+dominance work leaves191664 units under the same8M ceiling. This is a helper
+checkpoint replay, not a mutation of a native compiler's budget or integrated
+SSA acceptance. The final exhaustive dominance/deletion and generated graph
+oracles also pass at both C0 profiles with clean memory (`ssa-dominance-cyclegate6`).
+The complete current native development semantic context passes in58.87seconds.
+The next step is one fresh complete production development build, followed by
+the actual original-source SSA/LLVM/object probe. Native qualification remains0/2
+until that pipeline and the separate final linked/ABI/memory/regression gates
+are proved.
