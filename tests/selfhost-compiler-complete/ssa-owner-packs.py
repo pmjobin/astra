@@ -24,6 +24,7 @@ def main():
 	p.add_argument('--runtime-root', type=Path, required=True)
 	p.add_argument('--build-root', type=Path, required=True)
 	p.add_argument('--version', required=True)
+	p.add_argument('--scope', choices=('original', 'current'), default='original')
 	p.add_argument('--capsule-prefix', type=Path)
 	p.add_argument('--inside-capsule', action='store_true', help=argparse.SUPPRESS)
 	a = p.parse_args(); assert a.version.isalnum() and sha(a.compiler) == C0_SHA256
@@ -33,6 +34,7 @@ def main():
 	leaf = output_path(a.runtime_root/('ssa-owner-packs-'+a.version), WORK/'runtime'); leaf.mkdir()
 	build = output_path(a.build_root/leaf.name, WORK/'build'); build.mkdir()
 	dump = output_path(a.cfg_dump, WORK/'runtime'); snapshot = json.loads((dump/'snapshot.json').read_text())
+	assert a.scope != 'original' or (snapshot['blocks'], snapshot['nodes'], snapshot['functions']) == (375907, 284425, 2392)
 	names = ['compiler/ssa/recover.astra', 'compiler/ssa/recover-owners.astra', 'compiler/ssa/recover-owner-packs.astra', 'compiler/cfg/recover-model.astra', 'compiler/semantic/recover-model.astra', 'compiler/semantic/recover-storage.astra', 'compiler/core/recover.astra', 'compiler/core/recover-owners.astra']
 	raw = {name:(ROOT/name).read_bytes() for name in names}; ssa, owners, packs, cfg, flow, storage, core, unwrap = raw.values()
 	kernel = between(ssa, b'struct RecoverValue {', b'class RecoverSsa {')
@@ -44,6 +46,7 @@ def main():
 	kernel += between(unwrap, b'int recover_owner_unwrap(', b'bool recover_owner_value(')
 	kernel += between(ssa, b'int recover_ssa_dominance_order(', b'int recover_ssa_definition(')
 	kernel += between(ssa, b'bool recover_ssa_owner(', b'// Reconstruct declaration sites')
+	kernel += between(ssa, b'owned int[] recover_ssa_local_definitions(', b'bool recover_ssa_verify(')
 	kernel += between(owners, b'class RecoverSsaOwnerIndex {', b'bool recover_ssa_slots(')
 	kernel += owners[owners.index(b'bool recover_ssa_temporary('):]+packs
 	view = leaf/'production-kernel.astra'; view.write_bytes(kernel)
@@ -53,6 +56,11 @@ def main():
 	reference = subprocess.check_output(['git', 'show', '7676e12e40f4583f6834275e6ba089779faf41f9:compiler/ssa/recover-owners.astra'], cwd=ROOT)
 	reference = between(reference, b'bool recover_ssa_slot(', b'bool recover_ssa_slots(')+reference[reference.index(b'bool recover_ssa_temporary('):]
 	reference = reference.replace(b'recover_ssa_slot(', b'reference_slot(').replace(b'recover_ssa_temporary(', b'reference_temporary(')
+	dominance_reference = subprocess.check_output(['git', 'show', '7676e12e40f4583f6834275e6ba089779faf41f9:compiler/ssa/recover.astra'], cwd=ROOT)
+	dominance_reference = between(dominance_reference, b'int recover_ssa_dominance_order(', b'int recover_ssa_definition(')
+	for before, after in [(b'recover_ssa_dominance_order(', b'reference_dominance_order('), (b'recover_ssa_build_dominance(', b'reference_build_dominance('), (b'recover_ssa_dominates(', b'reference_dominates(')]:
+		dominance_reference = dominance_reference.replace(before, after)
+	reference += dominance_reference
 	(leaf/'reference.astra').write_bytes(reference)
 	commands = []
 	def run(name, argv, expected=0, timeout=600):
@@ -68,29 +76,31 @@ def main():
 		full.extend(declarations(run('AST-'+str(i), [a.compiler, '--dump-syntax', saved]).decode()))
 	selected = declarations(run('AST-kernel', [a.compiler, '--dump-syntax', view]).decode())
 	assert selected and all(full.count(row) == 1 for row in selected)
-	files = ['blocks.bin', 'core-nodes.bin', 'values.bin', 'storage-slots.bin', 'entries.bin', 'owner-slots.bin', 'owner-consumers.bin', 'catch-try.bin', 'reachable.bin']
+	files = ['blocks.bin', 'core-nodes.bin', 'values.bin', 'storage-slots.bin', 'entries.bin', 'owner-slots.bin', 'owner-consumers.bin', 'catch-try.bin', 'reachable.bin', 'regions.bin']
 	inputs = {str(dump/name):sha(dump/name) for name in [*files, 'snapshot.json']}
-	slots = list(struct.iter_unpack('<5i??2x', (dump/'storage-slots.bin').read_bytes())); symbols = max(row[0] for row in slots)+1
+	slots = list(struct.iter_unpack('<5i??2x', (dump/'storage-slots.bin').read_bytes())); nodes = list(struct.iter_unpack('<18i?3x', (dump/'core-nodes.bin').read_bytes())); symbols = max(max(row[0] for row in slots), max(row[5] for row in nodes))+1
 	observer = '''#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-static unsigned char *data[9];
-static void cleanup(void) { for(int n=0;n<9;n++)free(data[n]); }
+static unsigned char *data[10];
+static void cleanup(void) { for(int n=0;n<10;n++)free(data[n]); }
 int owner_graph_start(void) {
  const char *paths[]=PATHS; size_t sizes[]=SIZES;
- for(int n=0;n<9;n++) { FILE *f=fopen(paths[n],"rb");data[n]=malloc(sizes[n]);if(!f||!data[n]||fread(data[n],1,sizes[n],f)!=sizes[n]||fclose(f))exit(91); }
+ for(int n=0;n<10;n++) { FILE *f=fopen(paths[n],"rb");data[n]=malloc(sizes[n]);if(!f||!data[n]||fread(data[n],1,sizes[n],f)!=sizes[n]||fclose(f))exit(91); }
  if(atexit(cleanup))exit(92);
  return NB;
 }
 int owner_graph_count(int which) { const int counts[]={NN,NF,NS,NV,NY};return counts[which]; }
+int owner_graph_original(void) { return ORIGINAL; }
 int owner_graph_get(int which,int index,int field) {
  if(which==8)return data[8][index];
  if(which==3&&field>=5)return data[3][index*24+20+field-5];
- const int stride[]={40,76,20,24,4,4,4,4};int32_t value;__builtin_memcpy(&value,data[which]+index*stride[which]+field*4,4);return value;
+ const int stride[]={40,76,20,24,4,4,4,4,1,12};int32_t value;__builtin_memcpy(&value,data[which]+index*stride[which]+field*4,4);return value;
 }
 void owner_observed(int stage,int count,int work) { printf("%d %d %d\\n",stage,count,work); }
 '''
 	observer = observer.replace('PATHS', '{'+','.join(json.dumps(str(dump/name)) for name in files)+'}').replace('SIZES', '{'+','.join(str((dump/name).stat().st_size) for name in files)+'}')
+	observer = observer.replace('ORIGINAL', '1' if a.scope == 'original' else '0')
 	for token, value in [('NB', snapshot['blocks']), ('NN', snapshot['nodes']), ('NF', snapshot['functions']), ('NS', snapshot['storage_slots']), ('NV', snapshot['values']), ('NY', symbols)]:
 		observer = observer.replace(token, str(value))
 	(leaf/'observer.c').write_text(observer); objects = []
@@ -105,9 +115,9 @@ void owner_observed(int stage,int count,int work) { printf("%d %d %d\\n",stage,c
 			memory = run(mode+'-'+case+'-memory', ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', exe, '--'+case], 42)
 			assert out == memory
 			assert all(marker in (leaf/(mode+'-'+case+'-memory')/'stderr').read_bytes() for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
-		products.append(dict(profile=mode, ELF_sha256=sha(exe), graph_counters=(leaf/(mode+'-graph')/'stdout').read_text(), small_slot_models=8192, small_temporary_models=8192, reservation_boundaries=33, strict_memory_streams=3))
+		products.append(dict(profile=mode, ELF_sha256=sha(exe), graph_counters=(leaf/(mode+'-graph')/'stdout').read_text(), small_slot_models=8192, small_temporary_models=8192, reservation_boundaries=33, multi_word_negatives=7, block_fact_negatives=5, strict_memory_streams=3))
 	assert all((ROOT/name).read_bytes() == data for name, data in raw.items()) and all(sha(path) == digest for path, digest in inputs.items())
-	write(leaf/'result.json', dict(status='EXACT_OWNER_HELPER_REPLAYS_PASSED', production_sources={name:sha(ROOT/name) for name in names}, normalized_production_AST=selected, captured_inputs=inputs, products=products, full_original_native_credit=0, limitation='Exact production helpers in minimal containers under original C0. Scalar references retain7676 bodies with only names changed. Model arrays reconstruct captured fields; the combined work replay starts at the measured original checkpoint adjusted only for actual dominance work. No actual native verifier is altered and no full compiler admission, object or qualification follows.'))
+	write(leaf/'result.json', dict(status='EXACT_OWNER_HELPER_REPLAYS_PASSED', scope=a.scope, production_sources={name:sha(ROOT/name) for name in names}, normalized_production_AST=selected, captured_inputs=inputs, reference_sha256=sha(leaf/'reference.astra'), driver_sha256=sha(leaf/driver.name), model_sha256=sha(leaf/model.name), products=products, full_original_native_credit=0, limitation='Exact production helpers in minimal containers under original C0. Scalar and dominance references retain7676 bodies with only names changed. Every dominance interval and local definition is compared. Original scope replays the measured checkpoint adjusted for actual dominance and removed local-index work. Current scope measures isolated helpers and excludes other SSA phases. No actual native verifier is altered and no full compiler admission, object or qualification follows.'))
 	print('EXACT_OWNER_HELPER_REPLAYS_PASSED', leaf, flush=True)
 
 

@@ -5,6 +5,8 @@ extern(C) int owner_graph_count(int which);
 
 extern(C) int owner_graph_get(int which, int index, int field);
 
+extern(C) int owner_graph_original();
+
 extern(C) void owner_observed(int stage, int count, int work);
 
 void owner_consumers(RecoverSsa ssa, RecoverWork work) {
@@ -77,8 +79,31 @@ bool owner_multi_controls() {
 	return true;
 }
 
+bool owner_fact_controls() {
+	int mutation = 0;
+	while (mutation < 5) {
+		var ssa = new RecoverSsa(2, 2, 1, 1, 2, 3);
+		ssa.cfg.blocks[0].origin = 1; ssa.cfg.blocks[0].opcode = 27; ssa.cfg.regions[0].operation = 1; ssa.cfg.core.nodes[0].value.kind = 27; ssa.cfg.core.nodes[0].value.symbol.index = 1;
+		ssa.cfg.blocks[1].origin = 2; ssa.cfg.blocks[1].opcode = 10; ssa.cfg.core.nodes[1].value.kind = 10; ssa.cfg.core.owners.slots[1] = 1;
+		var positive = new RecoverSsaOwnerIndex(ssa.cfg); var locals = new int[2];
+		if (!recover_ssa_block_facts(ssa.cfg, 1, locals, positive) || !recover_ssa_block_facts(ssa.cfg, 2, locals, positive) || locals[1] != 1 || positive.reservations[1] != 2 || positive.moves[0] != 1) return false;
+		var negative = new RecoverSsaOwnerIndex(ssa.cfg); int block = 2;
+		if (mutation == 0) {
+			ssa.cfg.regions[0].operation = 2;
+			block = 1;
+		}
+		if (mutation == 1) ssa.cfg.core.nodes[1].value.kind = 7;
+		if (mutation == 2) ssa.cfg.core.owners.slots[1] = 0;
+		if (mutation == 3) ssa.cfg.core.owners.slots[1] = 2;
+		if (mutation == 4) negative.reservations[1] = 2;
+		if (recover_ssa_block_facts(ssa.cfg, block, locals, negative)) return false;
+		mutation = mutation + 1;
+	}
+	return true;
+}
+
 int owner_small() {
-	if (!owner_multi_controls()) return 15;
+	if (!owner_multi_controls() || !owner_fact_controls()) return 15;
 	int seed = 731; int graph = 0;
 	while (graph < 8192) {
 		int size = 2 + graph % 11; int slots = 1 + graph % 31;
@@ -209,6 +234,7 @@ int owner_graph() {
 	while (i < nodes) {
 		RecoverNode row = {kind = owner_graph_get(1, i, 0), function = owner_graph_get(1, i, 1), source = {index = owner_graph_get(1, i, 2)}, type = {index = owner_graph_get(1, i, 3)}, token = {index = owner_graph_get(1, i, 4)}, symbol = {index = owner_graph_get(1, i, 5)}, a = owner_graph_get(1, i, 6), b = owner_graph_get(1, i, 7), c = owner_graph_get(1, i, 8), first = owner_graph_get(1, i, 9), count = owner_graph_get(1, i, 10), handler = owner_graph_get(1, i, 11), caught = owner_graph_get(1, i, 12)};
 		ssa.cfg.core.nodes[i].value = row; ssa.cfg.core.flow.data.nodes[i] = row; ssa.cfg.core.nodes[i].borrowed_owner = owner_graph_get(1, i, 17);
+		ssa.cfg.regions[i].operation = owner_graph_get(9, i, 1);
 		ssa.cfg.core.owners.slots[i] = owner_graph_get(5, i, 0); ssa.cfg.core.owners.consumers[i] = owner_graph_get(6, i, 0); ssa.cfg.catch_try[i] = owner_graph_get(7, i, 0); i = i + 1;
 	}
 	i = 0;
@@ -226,12 +252,31 @@ int owner_graph() {
 		RecoverValue row = {function = owner_graph_get(2, i, 0), block = owner_graph_get(2, i, 1), type = {index = owner_graph_get(2, i, 2)}, channel = owner_graph_get(2, i, 3), edge = owner_graph_get(2, i, 4)};
 		ssa.data.values[i] = row; i = i + 1;
 	}
+	var reference = new RecoverWork(8000000);
+	if (!reference_build_dominance(ssa.cfg.blocks, blocks, ssa.cfg.entries, reference)) return 16;
 	var work = new RecoverWork(8000000);
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, blocks, ssa.cfg.entries, work)) return 8;
+	i = 1;
+	while (i <= blocks) {
+		if (work.dominance_first[i] != reference.dominance_first[i] || work.dominance_end[i] != reference.dominance_end[i]) return 17;
+		i = i + 1;
+	}
 	int dominance = 8000000 - work.remaining; owner_observed(0, blocks, dominance);
+	var local_work = new RecoverWork(8000000); var expected_locals = recover_ssa_local_definitions(ssa.cfg, local_work);
+	var actual_locals = new int[len(expected_locals)]; var index = new RecoverSsaOwnerIndex(ssa.cfg); i = blocks;
+	while (i > 0) {
+		if (!recover_ssa_block_facts(ssa.cfg, i, actual_locals, index)) return 18;
+		i = i - 1;
+	}
+	index.reservations_ready = true; i = 0;
+	while (i < len(expected_locals)) {
+		if (actual_locals[i] != expected_locals[i]) return 19;
+		i = i + 1;
+	}
 	// Model the measured verifier checkpoint, preserving its exact8M ceiling.
 	// This is a helper replay, not a mutation of any native compiler process.
-	work.remaining = 1091387 + 5011192 - dominance; owner_consumers(ssa, work); int before = work.remaining;
+	if (owner_graph_original() != 0) work.remaining = 1091387 + 5011192 - dominance + 8000000 - local_work.remaining;
+	owner_consumers(ssa, work); int before = work.remaining;
 	i = 1; int owners = 0;
 	while (i < values) {
 		if (ssa.data.values[i].block > 0 && !recover_ssa_owner(ssa.data, ssa.cfg, i, work)) return 9;
@@ -239,7 +284,7 @@ int owner_graph() {
 		i = i + 1;
 	}
 	owner_observed(1, owners, before - work.remaining); before = work.remaining;
-	var index = new RecoverSsaOwnerIndex(ssa.cfg); if (!recover_ssa_owner_index(index, ssa.cfg, work)) return 10;
+	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return 10;
 	owner_observed(2, slots, before - work.remaining); before = work.remaining;
 	if (!recover_ssa_packed_slots(ssa, index, work)) return 11;
 	owner_observed(3, slots, before - work.remaining); owner_observed(4, owners, work.remaining);
@@ -249,6 +294,8 @@ int owner_graph() {
 		i = i + 1;
 	}
 	owner_observed(5, slots, 8000000 - baseline.remaining);
+	owner_observed(6, owner_graph_original(), 8000000 - local_work.remaining);
+	owner_observed(7, blocks, 8000000 - reference.remaining);
 	return 42;
 }
 

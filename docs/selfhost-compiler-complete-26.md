@@ -2639,7 +2639,8 @@ model's initial slot-field-order error remains a failed diagnostic attempt;
 corrected exploratory models are not acceptance evidence.
 
 `recover.astra` now retains finished negative DFS postorder ranks directly,
-removing a separate375907-node rank assignment scan. It reconstructs function
+removing a separate369354-reachable-node rank assignment scan in the original
+375907-block graph. It reconstructs function
 block counts during the existing predecessor scan so owner indexing can reuse
 those verifier-private counts. It also derives conservative cycle gates from
 the DFS back-edge targets and the independent dominator tree. Every directed
@@ -2699,3 +2700,68 @@ is independently refused before compiler execution. `probe --scope current`
 performs the same check; its receipt keeps the explicit source revision and
 manifest identity. Live status now shows job totals, completed/active/pending
 work, actual outcomes and update age instead of only a process-level status.
+
+## Further SSA scan fusion while the frozen build continues
+
+The immutable78ecc6c development build continues against its own archived
+sources. Later source improvements do not change that running compilation or
+retroactively qualify its product. A separate native trace on all205 files of
+that current snapshot reaches424838 blocks,439543 edges,320662 Core nodes and
+2565 functions. Flow passes, but the older7676 verifier exhausts work at value
+213684, exits8 and preserves its destination sentinel after865.12seconds.
+
+The next verifier candidate computes dominator subtree sizes while deriving
+cycle gates, then reserves whole subtree intervals in one reverse-postorder
+pass. Each immediate parent precedes its children, and sibling order preserves
+every old interval exactly. This removes the repeated tree-entry/exit traversal
+and one scratch array. Declaration sites and injective move-reservation IDs are
+also reconstructed during the existing budgeted physical-block scan. The
+reservation IDs are verifier-local encodings; original Core IDs, roots and
+commit/abort identities are unchanged. A readiness flag belongs only to the
+fresh verifier-local index. Standalone indexing still reconstructs from Core,
+and the original declaration-query utility remains available and tested.
+
+Original C0 O0/O2 execute the exact candidate on both captured graphs. Every
+dominator interval and declaration entry agrees with the preserved7676 bodies.
+Both scopes pass8192 slot models,8192 temporary models,33 reservation-size
+boundaries, seven multi-word corruptions and five new block-fact corruptions,
+each preceded by its positive twin. All12 strict unsuppressed memory streams
+are clean. The standalone declaration utility also preserves all5468 rows per
+profile, including zero-operation, duplicate and budget cases. The full current
+native-host semantic context passes in57.69seconds. These checks use minimal
+containers and grant no full compiler-native credit.
+
+| Captured source graph | Dominance work | Owner work | Owner index | Packed slots |
+|---|---:|---:|---:|---:|
+| Original375907 blocks |4292841|385970|378299|202418|
+| Current424838 blocks |4782814|409216|427403|214593|
+
+The original measured-checkpoint replay now leaves1127476 work units, compared
+with191664 for78ecc6c. The further935812-unit reduction comes from366962 fewer
+reachable tree visits and two removed284425-node Core scans. On the current
+captured graph, the helper run reports isolated costs; it excludes other SSA
+phases and does not claim a complete verifier execution. Its preserved scalar
+slot checker uses3977489 work units across2164 actual owned slots, compared
+with214593 for packed verification. `ssa-owner-packs-fused2` and
+`ssa-owner-packs-currentfused2` retain the final focused receipts.
+
+Independent audit supplement `ssa-fusion-independent-audit2.json`, SHA-256
+`cefcc9f3930e43321d166fd73cd12893a0b49d9438a55731bdaed3c31b7608cc`,
+checks source/reference/ELF/input/receipt/output/time identities and all12 strict
+memory streams. It explicitly adds the ELF byte/header checks omitted from the
+first audit, which remains unchanged. Earlier failed parser/name/observer
+attempts and scratch slot-field-order diagnostics remain preserved separately.
+
+Live cold-build sampling is also operational. Two short read-only attachments
+to the exact running C0 collect254 hardware-cycle samples and240 software-clock
+samples, with zero lost samples. Separate capsule attachment first fails the
+process-visibility controls; attaching within the existing capsule then reports
+a profiler mmap limit. Eight mmap pages resolve that local profiler limit;
+host settings remain unchanged. One stack capture places C0 in SSA buffer-loan
+verification, and another identifies `RecoverLlvm.emit_block` during receiver
+loan verification. These are short sampling windows, not complete cold-stage
+totals or a measured cold speedup. The same native compiler PID continues;
+all failed and successful profiler receipts remain retained. No C0 source,
+binary, public ABI or installed workflow is changed. Graph55/symbol2053/
+predicate26 remains independently DEFERRED, and full native qualification
+remains0/2 pending integrated products, linked usage and the final campaigns.

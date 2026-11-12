@@ -9,6 +9,9 @@ class RecoverSsaOwnerIndex {
 	owned int[] reservations;
 	owned int[] moves;
 	owned int[] shortcuts;
+	// A fresh SSA verifier sets this only after its complete physical scan.
+	// Standalone callers reconstruct reservations from the verified Core.
+	bool reservations_ready;
 
 	init(RecoverCfg cfg) {
 		this.starts = new int[len(cfg.entries) + 1];
@@ -17,6 +20,7 @@ class RecoverSsaOwnerIndex {
 		this.reservations = new int[cfg.core.count];
 		this.moves = new int[cfg.core.flow.storage.count];
 		this.shortcuts = new int[cfg.block_count + 1];
+		this.reservations_ready = false;
 	}
 }
 
@@ -64,16 +68,19 @@ bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, Recover
 		}
 		b = b + 1;
 	}
-	int n = 0;
-	while (n < cfg.core.count) {
-		if (!work.take()) return false;
-		int place = cfg.core.owners.slots[n];
-		if (place != 0) {
-			if (place < 1 || place > len(index.moves)) return false;
-			index.reservations[n] = index.moves[place - 1] + 2;
-			index.moves[place - 1] = index.moves[place - 1] + 1;
+	if (!index.reservations_ready) {
+		int n = 0;
+		while (n < cfg.core.count) {
+			if (!work.take()) return false;
+			int place = cfg.core.owners.slots[n];
+			if (place != 0) {
+				if (place < 1 || place > len(index.moves)) return false;
+				index.reservations[n] = index.moves[place - 1] + 2;
+				index.moves[place - 1] = index.moves[place - 1] + 1;
+			}
+			n = n + 1;
 		}
-		n = n + 1;
+		index.reservations_ready = true;
 	}
 	return true;
 }
@@ -131,12 +138,11 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverSsaOwnerIndex index, Rec
 	} return true;
 }
 
-bool recover_ssa_slots(RecoverSsa ssa, RecoverWork work) {
+bool recover_ssa_slots(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverWork work) {
 	if (!recover_owners_verify(ssa.cfg.core.owners, ssa.cfg.core.flow)) return false;
 	int place = 1;
 	while (place <= ssa.cfg.core.flow.storage.count && !ssa.cfg.core.flow.storage.slots[place - 1].owner) place = place + 1;
 	if (place > ssa.cfg.core.flow.storage.count) return !work.exhausted;
-	var index = new RecoverSsaOwnerIndex(ssa.cfg);
 	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return false;
 	return recover_ssa_packed_slots(ssa, index, work);
 }

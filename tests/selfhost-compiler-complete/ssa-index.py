@@ -25,7 +25,7 @@ def main():
 	leaf = a.runtime_root/('ssa-index-'+a.version); build = a.build_root/leaf.name; leaf.mkdir(); build.mkdir()
 	source = ROOT/'compiler/ssa/recover.astra'; raw = source.read_bytes()
 	work = raw[raw.index(b'class RecoverWork {'):raw.index(b'class RecoverSsaData {')]
-	kernel = raw[raw.index(b'owned int[] recover_ssa_local_definitions('):raw.index(b'bool recover_ssa_verify(')]
+	kernel = raw[raw.index(b'owned int[] recover_ssa_local_definitions('):raw.index(b'bool recover_ssa_block_facts(')]
 	view = leaf/'actual-kernel.astra'; view.write_bytes(work+kernel)
 	driver = Path(__file__).with_name('ssa-index-driver.astra'); saved_driver = leaf/driver.name; saved_driver.write_bytes(driver.read_bytes())
 	(leaf/'production-source.astra').write_bytes(raw); (leaf/'recipe.py.txt').write_bytes(Path(__file__).read_bytes())

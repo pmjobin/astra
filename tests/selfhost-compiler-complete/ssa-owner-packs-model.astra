@@ -51,11 +51,12 @@ class OwnerKernelCore {
 }
 
 class RecoverCfg {
-	owned OwnerKernelCore core; owned RecoverBlock[] blocks; owned int[] entries; owned int[] catch_try; int block_count;
+	owned OwnerKernelCore core; owned RecoverBlock[] blocks; owned RecoverRegion[] regions; owned int[] entries; owned int[] catch_try; int block_count;
 
 	init(int blocks, int nodes, int functions, int slots, int symbols) {
 		var core = new OwnerKernelCore(nodes, slots, symbols); this.core = move core; this.blocks = new RecoverBlock[blocks]; this.block_count = blocks;
 		this.entries = new int[functions]; this.catch_try = new int[nodes];
+		this.regions = new RecoverRegion[nodes];
 	}
 }
 

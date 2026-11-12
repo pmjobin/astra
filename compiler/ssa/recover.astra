@@ -226,19 +226,19 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 		}
 		f = f + 1;
 	}
-	var children = new int[count + 1]; var sibling = new int[count + 1]; var tails = new int[count + 1];
+	var sizes = new int[count + 1]; var cursor = new int[count + 1];
 	var levels = new int[count + 1]; var gates = new int[count + 1];
+	// The final parent always precedes its child in reverse postorder. Derive
+	// gates forwards while accumulating subtree sizes in the opposite order.
 	i = reached - 1;
 	while (i >= 0) {
 		if (!work.take()) return false;
+		int bottom = post[reached - 1 - i]; int upper = parent[bottom];
+		sizes[bottom] = sizes[bottom] + 1;
+		if (upper != bottom) sizes[upper] = sizes[upper] + sizes[bottom];
 		int node = post[i]; int ancestor = parent[node];
 		if (ancestor != node) {
 			levels[node] = levels[ancestor] + 1;
-			if (children[ancestor] == 0) children[ancestor] = node;
-			else {
-				sibling[tails[ancestor]] = node;
-			}
-			tails[ancestor] = node;
 		}
 		int gate = gates[dfs_parent[node]];
 		if (loops[node] != 0 && gate >= 0) {
@@ -263,22 +263,27 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 		i = i - 1;
 	}
 	var first = new int[count + 1]; var end = new int[count + 1];
+	// Reserve each complete child interval in sibling order. Parents are ready
+	// before children, so one pass reproduces the prior tree DFS intervals.
 	int stamp = 1; f = 0;
 	while (f < len(entries)) {
-		int root = entries[f]; int depth = 1;
-		post[0] = root; first[root] = stamp; stamp = stamp + 1;
-		while (depth > 0) {
+		int root = entries[f]; i = limits[f + 1] - 1;
+		while (i >= limits[f]) {
 			if (!work.take()) return false;
-			int node = post[depth - 1]; int child = children[node];
-			if (child == 0) {
-				end[node] = stamp;
-				depth = depth - 1;
-			} else {
-				children[node] = sibling[child];
-				first[child] = stamp; stamp = stamp + 1;
-				post[depth] = child; depth = depth + 1;
+			int node = post[i]; int ancestor = parent[node];
+			if (node == root) first[node] = stamp;
+			else {
+				first[node] = cursor[ancestor];
 			}
+			end[node] = first[node] + sizes[node]; cursor[node] = first[node] + 1;
+			if (sizes[node] < 1 || first[node] < stamp) return false;
+			if (node != root) {
+				if (first[node] <= first[ancestor] || end[node] > end[ancestor]) return false;
+				cursor[ancestor] = end[node];
+			}
+			i = i - 1;
 		}
+		stamp = stamp + sizes[root];
 		f = f + 1;
 	}
 	if (stamp != reached + 1) return false;
@@ -429,6 +434,31 @@ owned int[] recover_ssa_local_definitions(RecoverCfg cfg, RecoverWork work) {
 	return move result;
 }
 
+// Rebuild these private facts in the already-budgeted SSA block scan. The
+// standalone Core declaration query above remains an independent reference.
+bool recover_ssa_block_facts(RecoverCfg cfg, int block, int[] locals, RecoverSsaOwnerIndex index) {
+	var row = cfg.blocks[block - 1];
+	if (row.origin == 0) return true;
+	var source = cfg.core.nodes[row.origin - 1].value;
+	if (source.kind == 27 && row.opcode == 27) {
+		if (cfg.regions[row.origin - 1].operation != block) return false;
+		int symbol = source.symbol.index;
+		if (symbol > 0 && symbol < len(locals)) {
+			if (locals[symbol] == 0) locals[symbol] = block;
+			else {
+				locals[symbol] = -1;
+			}
+		}
+	}
+	if (row.opcode == 10) {
+		int place = cfg.core.owners.slots[row.origin - 1];
+		if (source.kind != 10 || place < 1 || place > len(index.moves) || index.reservations[row.origin - 1] != 0) return false;
+		index.reservations[row.origin - 1] = index.moves[place - 1] + 2;
+		index.moves[place - 1] = index.moves[place - 1] + 1;
+	}
+	return true;
+}
+
 bool recover_ssa_verify(RecoverSsa ssa) {
 	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count];
@@ -438,6 +468,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	// during the definition scan instead of scanning the CFG a second time.
 	var phi_head = new int[ssa.cfg.block_count + 1]; var phi_next = new int[ssa.cfg.edge_count + 1]; int e = ssa.cfg.edge_count;
 	var consumers = new int[ssa.cfg.core.count + 1];
+	var locals = new int[ssa.cfg.core.flow.checked.bindings.symbol_count + 1]; var owners = new RecoverSsaOwnerIndex(ssa.cfg);
 	var definitions = new bool[len(ssa.data.values)]; int b = ssa.cfg.block_count;
 	while (b > 0) {
 		reachable[b - 1] = work.dominance_first[b] > 0;
@@ -448,6 +479,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			if (value.function != expected.function || value.block != b || value.type.index != expected.type.index || value.channel != expected.channel || value.edge != expected.edge) return false;
 		}
 		var row = ssa.cfg.blocks[b - 1]; int p = 1;
+		if (!recover_ssa_block_facts(ssa.cfg, b, locals, owners)) return false;
 		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 11 || row.opcode == 67 || row.opcode == 44)) {
 			if (consumers[row.origin] == 0) consumers[row.origin] = b;
 			else {
@@ -470,6 +502,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	}
 	if (e != 0) return false;
 	work.temporary_consumers = move consumers;
+	owners.reservations_ready = true;
 	int v = 0;
 	while (v < len(definitions)) {
 		if (!definitions[v]) {
@@ -488,8 +521,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if (definitions[v] && (!recover_ssa_shared_borrow(ssa, v, parents, work) || !recover_ssa_utf8(ssa, v, work) || !recover_ssa_array_view(ssa, v, parents, work))) return false;
 		v = v + 1;
 	}
-	var locals = recover_ssa_local_definitions(ssa.cfg, work);
-	if (work.exhausted || len(locals) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1) return false;
+	if (work.exhausted) return false;
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
@@ -542,7 +574,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if (definitions[v] && !recover_ssa_owner(ssa.data, ssa.cfg, v, work)) return false;
 		v = v + 1;
 	}
-	return !work.exhausted && recover_ssa_slots(ssa, work);
+	return !work.exhausted && recover_ssa_slots(ssa, owners, work);
 }
 
 owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
