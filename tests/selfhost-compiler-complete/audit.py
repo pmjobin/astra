@@ -184,6 +184,78 @@ def complete_source_proofs(runtime, build, output):
 	return value
 
 
+def signature_controls(runtime, build, modes=('O0', 'O2')):
+	from accelerate import authenticated_inputs
+	original = authenticated_inputs(SimpleNamespace(inputs=runtime/'opaque-flow-inputs.json', scope='original'))
+	assert modes and len(set(modes)) == len(modes) and set(modes) <= {'O0', 'O2'}
+	profiles = {}
+	for mode in modes:
+		leaf = runtime/'jobs-completefinal1'/('signature-owner-'+mode)/'stages'
+		result = json.loads((leaf/'result.json').read_text()); command = json.loads((leaf/'command.json').read_text())
+		host = build/('full-completefinal1-'+mode)/('astra-llvm-'+mode)
+		assert result['native_exit'] == 42 and result['debugger_exit'] == 0 and not result['timed_out']
+		assert command['host_sha256'] == sha(host)
+		args = command['argv']; start = args.index('--args')+1
+		assert args[start:] == [str(host), '--signature-owner-controls', *original]
+		for stream in ('stdout', 'stderr'): assert sha(leaf/stream) == result[stream+'_sha256']
+		text = (leaf/'stdout').read_text()
+		assert text.count('SIGNATURE_EXCHANGE_LLVM_CONTROLS valid_physical=3 restored=1') == 1
+		match = re.findall(r'^SIGNATURE_EXCHANGE_SOURCE receiver_slot=(\d+) receiver_owner=0 grown_slot=(\d+) controls=5 restored=1 ([0-9a-f]+) (\d+) (\d+)$', text, re.M)
+		assert len(match) == 1
+		receiver, grown, encoded, first, last = match[0]; path = Path(bytes.fromhex(encoded).decode()); first, last = int(first), int(last)
+		assert path in map(Path, original) and str(path).endswith('/compiler/semantic/checked.astra')
+		assert int(receiver) > 0 and int(grown) > 0 and receiver != grown
+		assert path.read_bytes()[first:last] == b'swap(this.signatures, grown);'
+		assert path.read_bytes() == git('show', BASE+':compiler/semantic/checked.astra')
+		profiles[mode] = dict(receipt=str(leaf/'result.json'), sha256=sha(leaf/'result.json'), command_sha256=sha(leaf/'command.json'), producer=str(host), producer_sha256=sha(host), original_source=str(path), source_sha256=sha(path), first=first, last=last, receiver_storage_slot=int(receiver), receiver_is_owner=False, grown_storage_slot=int(grown), restored_source_controls=5, LLVM_valid_restored_controls=3)
+	return dict(status='CURRENT_ORIGINAL_SIGNATURE_OWNER_CONTROLS_REBOUND', profiles=profiles, matched_profiles=set(profiles) == {'O0', 'O2'}, historical_graph55_symbol2053_predicate26='DEFERRED retained verbatim; current evidence is separately attributed to the actual original source receiver, field and grown owner.', limitation='Source controls and LLVM-valid mutations prove the current independent general consumer only for the explicitly recorded profiles. Actual growth/cleanup behaviour is separately checked by the original/current linked services; no historical root or status is manufactured.')
+
+
+def linked_services(runtime):
+	from accelerate import authenticated_inputs
+	base = runtime/'representative-use-third1'; manifest = json.loads((base/'inputs.json').read_text())
+	original = manifest['inputs']; current = authenticated_inputs(SimpleNamespace(inputs=runtime/'current-physicalready3-inputs.json', scope='current'))
+	canonical = authenticated_inputs(SimpleNamespace(inputs=runtime/'opaque-flow-inputs.json', scope='original'))
+	assert len(original) == 191 and all(sha(path) == digest and Path(path).stat().st_mode & 0o222 == 0 for path, digest in original.items())
+	assert all(sha(path) == digest for path, digest in manifest['tools'].items())
+	fixture = manifest['fixture']; assert sha(fixture) == original[fixture]
+	assert {path.split('/original-inputs/', 1)[1]:digest for path, digest in original.items() if path != fixture} == {path.split('/original-inputs/', 1)[1]:digest for path, digest in canonical.items()}
+	assert Path(fixture).read_bytes() == git('show', manifest['fixture_revision']+':tests/selfhost-compiler-complete/representative-compiler-use.astra')
+	oracles = json.loads((base/'oracles.json').read_text()); assert oracles['manifest_sha256'] == sha(base/'inputs.json')
+	profiles = {}; memory_count = 0
+	for scope, directory in [('original', 'check-97eb6e167ae5545f'), ('current', 'check-current-97eb6e167ae5545f')]:
+		leaf = base/directory; result = json.loads((leaf/'result.json').read_text())
+		assert result['status'] == 'LINKED_'+scope.upper()+'_COMPILER_USAGE_PASS' and result['native_exit'] == 0
+		rows = json.loads((leaf/'commands.json').read_text()); assert len({row['name'] for row in rows}) == len(rows)
+		for row in rows:
+			assert not row['timed_out']
+			for stream in ('stdout', 'stderr'): assert sha(leaf/(row['name']+'.'+stream)) == row[stream+'_sha256']
+			if 'time_sha256' in row: assert sha(leaf/(row['name']+'.time')) == row['time_sha256']
+		commands = {row['name']:row for row in rows}; native = commands['Astra-native']
+		inputs = original if scope == 'original' else {**current, fixture:original[fixture]}
+		assert native['exit'] == 0 and native['argv'][3:] == list(inputs)
+		assert sha(native['argv'][0]) == result['component_sha256']
+		if scope == 'current': assert result['actual_inputs'] == inputs
+		assert {row['profile'] for row in result['profiles']} == {'O0', 'O2'}
+		for row in result['profiles']:
+			mode = row['profile']; label = 'Astra-'+mode
+			for generated, field in [('', 'ELF_sha256'), ('-generated', 'generated_ELF_sha256')]:
+				execution = commands[label+generated+'-execute']; memory = commands[label+generated+'-memory']
+				assert execution['exit'] == memory['exit'] == 42
+				assert sha(execution['argv'][0]) == row[field] and memory['argv'][-1] == execution['argv'][0]
+				assert '--default-suppressions=no' in memory['argv']
+				text = (leaf/(label+generated+'-memory.stderr')).read_bytes()
+				assert all(marker in text for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+				memory_count += 1
+			generated = Path(commands[label+'-execute']['cwd'])/'m26-representative.ll'
+			assert sha(generated) == row['generated_LLVM_sha256']
+			if scope == 'original': assert row['generated_LLVM_sha256'] == next(v for v in oracles['profiles'] if v['profile'] == mode)['generated_LLVM_sha256']
+			else: assert row['generated_LLVM_sha256'] == result['current_C0_oracle']['raw_LLVM_sha256']
+		profiles[scope] = dict(receipt=str(leaf/'result.json'), sha256=sha(leaf/'result.json'), producer_sha256=result['component_sha256'], input_count=len(inputs), source_hashes=inputs, target_profiles=result['profiles'])
+	assert memory_count == 8
+	return dict(status='ORIGINAL_AND_CURRENT_LINKED_SERVICES_INDEPENDENTLY_REBOUND', scopes=profiles, clean_Astra_memory_streams=memory_count, original_C0_oracle_receipt_sha256=sha(base/'oracles.json'), limitation='Actual source-complete linked compiler-service applications compile the129-signature program, including real signature-buffer growth, source/UTF8 diagnostics and cleanup. This is representative integrated usage, not a packaged astrac or Stage1 claim.')
+
+
 def source_identities(paths, component, mode, version, consumer):
 	leaf = paths.RUNTIME/('identity-'+version+'-'+mode)
 	build = paths.BUILD/leaf.name
