@@ -30,7 +30,7 @@ int recover_r4_observe_cli(string[] args) {
 		int n = 1;
 		while (n < len(checked.generic_calls)) {
 			if (checked.generic_calls[n].index > 0) {
-				SyntaxNodeId node = {index = n}; var arguments = checked.bindings.program.arena.get_list_arguments(node); int a = 0;
+				SyntaxNodeId node = {index = n}; var arguments = checked_call_arguments(checked, node); int a = 0;
 				source_append_text(out, "R4_CALL"); recover_r4_observe_number(out, n); recover_r4_observe_number(out, checked.generic_calls[n].index); recover_r4_observe_number(out, checked.uses[n].type.index); recover_r4_observe_number(out, checked.uses[n].deferred); source_append_text(out, " "); binding_write_span(checked.bindings, checked.bindings.program.arena.header(node).span, out); source_append_text(out, "\n");
 				while (a < checked.bindings.program.arena.list_count(arguments)) {
 					var argument = checked.bindings.program.arena.node_at(arguments, a); source_append_text(out, "R4_ARGUMENT"); recover_r4_observe_number(out, n); recover_r4_observe_number(out, a); recover_r4_observe_number(out, argument.index); recover_r4_observe_number(out, checked.uses[argument.index].type.index); recover_r4_observe_number(out, checked.uses[argument.index].deferred); source_append_text(out, "\n"); a = a + 1;

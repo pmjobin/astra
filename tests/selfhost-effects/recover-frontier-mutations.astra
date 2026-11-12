@@ -4,8 +4,9 @@ bool constructor_index_mutations(RecoverFlow flow) {
 	while (f < flow.data.function_count) {
 		var function = flow.data.functions[f].symbol;
 		if (class_storage_initializing(flow.checked, function)) {
-			int instance = generic_instance_for(flow.checked, function);
-			var aggregate = flow.checked.instances[instance - 1].enclosing;
+			var plan = checked_source_plan(flow.checked, function);
+			if (plan.concrete.index != function.index || plan.enclosing.index < 1) return false;
+			var aggregate = plan.enclosing;
 			var declaration = flow.checked.bindings.symbol(function);
 			var body = flow.checked.bindings.program.arena.get_node_body(declaration.node);
 			var statements = flow.checked.bindings.program.arena.get_list_statements(body);

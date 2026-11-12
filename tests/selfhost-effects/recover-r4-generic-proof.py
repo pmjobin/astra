@@ -27,7 +27,9 @@ def main():
 		source = leaf/(name+'.astra'); source.write_text(text); inputs = [source, ROOT/'lib/astra/base/errors.astra']; exe = build/(name+'-C0'); run([C0, '-'+a.mode, *inputs, '-o', exe], name+'-C0-build'); run([exe], name+'-C0-execute', (42,)); memory = run(['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', exe], name+'-C0-memory', (42,)); assert b'ERROR SUMMARY: 0 errors' in memory.stderr and b'in use at exit: 0 bytes in 0 blocks' in memory.stderr and b'(suppressed: 0 from 0)' in memory.stderr
 		observed = run([a.component, '--r4-source-policy', *inputs], name+'-observe'); status = re.search(rb'^R4_CHECKED ([0-9]+) ([0-9]+) ([0-9]+)$', observed.stdout, re.M); assert status; actual = list(map(int, status.groups())); expected = [3, 0, 25 if deferred and a.expect_broken else 0]; assert actual == expected, (name, actual, expected, observed.stdout[-2000:])
 		if not a.expect_broken: assert re.findall(rb'^R4_PROFILE (.+)$', observed.stdout, re.M) == [b'PRIVATE_FIELDED_EFFECTS']
-		proof_count = len(re.findall(rb'^R4_CALL ', observed.stdout, re.M)); assert proof_count == (1 if not deferred or a.expect_broken else 0)
+		# The complete private profile now admits the computed getter and its
+		# enclosing method call. The retained profile below still records 15/17.
+		proof_count = len(re.findall(rb'^R4_CALL ', observed.stdout, re.M)); assert proof_count == (1 if not deferred or a.expect_broken else 2)
 		owner = run([a.component, '--r1-owner-trace', a.mode, build/(name+'-owner-unused'), *inputs], name+'-owner-observe'); declarations = [line.split() for line in owner.stdout.splitlines() if line.startswith(b'DECLARATION ')]; original = [int(r[1]) for r in declarations if r[3] == b'11' and r[-1] == b'72656164']; assert len(original) == 1
 		signatures = [line.split() for line in owner.stdout.splitlines() if line.startswith(b'SIGNATURE ')]; retained = any(int(r[1]) == original[0] for r in signatures); assert retained == (name == 'deferred-checked-argument' and not a.expect_broken), (name, original, retained)
 		matched = [None]

@@ -6,10 +6,26 @@ inputs and all205 current inputs through the actual Astra pipeline into
 independently verified LLVM and ELF64/x86-64 objects at target O0/O2. This uses
 one C0-built O2 development host, not the final matched compiler products.
 Original and current representative linked services now pass O0/O2 execution
-and strict memory checks. Independent graph55/predicate26 proof, the final
-matched products, retained qualification, audit and delivery/G12 remain open. No Stage1 or
+and strict memory checks. Independent graph55/predicate26 proof, qualification
+of the final matched products, retained qualification, audit and delivery/G12 remain open. No Stage1 or
 self-host claim is made. Entries after this checkpoint retain their historical
 results, including the earlier zero-of-two frontiers and failed campaigns.
+
+Both `completefinal1` C0-produced products are now built. The O2 product
+translates the complete original/current closures and passes five source plus
+three LLVM-valid signature-owner corruption/restoration controls. These are
+fresh facts; graph55's historical deferral remains preserved. The matching O0
+whole-source and owner-control processes continue against their frozen inputs.
+
+The O2 retained campaign has three failed jobs: two reach a stale constructor
+mutation helper and one reaches a stale generic source observer. Tiny read-only
+backtraces locate the first trap in `constructor_index_mutations`, which assumes
+every constructor has a generic-instance row; the other calls the call-expression
+argument accessor on a newly admitted property getter. The focused repair uses
+the verified source constructor plan and the production kind-aware argument
+accessor. The full250-input C0 semantic preflight passes in68.823s; actual native
+observer qualification remains pending. No production compiler source changed,
+and all three raw failures remain failed.
 
 ## First complete original/current objects
 
