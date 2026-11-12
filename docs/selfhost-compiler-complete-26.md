@@ -26,6 +26,10 @@ the verified source constructor plan and the production kind-aware argument
 accessor. The full250-input C0 semantic preflight passes in68.823s; actual native
 observer qualification remains pending. No production compiler source changed,
 and all three raw failures remain failed.
+The updated generic observer requires exact original source spans and int result
+types for the enclosing call and admitted getter. It preserves raw use deferrals
+separately, including19 on the recorded direct-call twin, and retains the
+independent15/17 ledger. Corrupted source-span and missing-type twins are rejected.
 
 ## First complete original/current objects
 

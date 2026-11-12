@@ -29,7 +29,21 @@ def main():
 		if not a.expect_broken: assert re.findall(rb'^R4_PROFILE (.+)$', observed.stdout, re.M) == [b'PRIVATE_FIELDED_EFFECTS']
 		# The complete private profile now admits the computed getter and its
 		# enclosing method call. The retained profile below still records 15/17.
-		proof_count = len(re.findall(rb'^R4_CALL ', observed.stdout, re.M)); assert proof_count == (1 if not deferred or a.expect_broken else 2)
+		call_rows = [line.split() for line in observed.stdout.splitlines() if line.startswith(b'R4_CALL ')]
+		proof_count = len(call_rows); assert proof_count == (1 if not deferred or a.expect_broken else 2)
+		spelling = b'reader.read(repository.count)' if deferred else b'reader.read(1)'
+		expected_calls = {spelling}
+		if deferred and not a.expect_broken: expected_calls.add(b'repository.count')
+		actual_calls = []
+		call_facts = []
+		for call in call_rows:
+			assert len(call) == 8 and bytes.fromhex(call[5].decode()).decode() == str(source)
+			first, last = int(call[6]), int(call[7]); assert 0 <= first < last <= source.stat().st_size
+			assert int(call[2]) > 0 and (a.expect_broken or int(call[3]) == 1)
+			actual_calls.append(source.read_bytes()[first:last])
+			# A completed generic proof does not erase the independent use ledger.
+			call_facts.append(dict(first=first, last=last, target=int(call[2]), type=int(call[3]), deferred=int(call[4])))
+		assert len(actual_calls) == len(set(actual_calls)) and set(actual_calls) == expected_calls
 		owner = run([a.component, '--r1-owner-trace', a.mode, build/(name+'-owner-unused'), *inputs], name+'-owner-observe'); declarations = [line.split() for line in owner.stdout.splitlines() if line.startswith(b'DECLARATION ')]; original = [int(r[1]) for r in declarations if r[3] == b'11' and r[-1] == b'72656164']; assert len(original) == 1
 		signatures = [line.split() for line in owner.stdout.splitlines() if line.startswith(b'SIGNATURE ')]; retained = any(int(r[1]) == original[0] for r in signatures); assert retained == (name == 'deferred-checked-argument' and not a.expect_broken), (name, original, retained)
 		matched = [None]
@@ -39,7 +53,7 @@ def main():
 				parts = line.split()
 				if len(parts) == 10 and parts[0] == b'NODE' and bytes.fromhex(parts[7].decode()).decode() == str(source) and (int(parts[8]), int(parts[9])) == (first, last): matched.append(list(map(int, parts[4:7])))
 			expected_use = {'complete-arguments': [1, 0, 0], 'deferred-ordinary-argument': [0, 0, 15], 'deferred-checked-argument': [0, 0, 17]}[name]; assert matched == [expected_use], (name, matched, expected_use)
-		rows.append(dict(name=name, source_sha256=sha(source), C0_ELF_sha256=sha(exe), C0_exit=42, source_check=actual, completed_call_proofs=proof_count, original_method_symbol=original[0], original_signature_retained=retained, retained_call_use=matched[0], deferred_input=deferred)); print(a.mode, name, actual, 'C0 executes 42 with clean unsuppressed memory', flush=True)
+		rows.append(dict(name=name, source_sha256=sha(source), C0_ELF_sha256=sha(exe), C0_exit=42, source_check=actual, completed_call_proofs=proof_count, source_call_facts=call_facts, original_method_symbol=original[0], original_signature_retained=retained, retained_call_use=matched[0], deferred_input=deferred)); print(a.mode, name, actual, 'C0 executes 42 with clean unsuppressed memory', flush=True)
 	(leaf/'result.json').write_text(json.dumps(dict(status='REPRODUCED_INCOMPLETE_GENERIC_CALL_PROOF' if a.expect_broken else 'FOCUSED_GENERIC_CALL_PROOF_OBSERVATIONS' if a.source_only else 'INDEPENDENT_GENERIC_CALL_PROOF_CONTROLS', profile=a.mode, component_sha256=sha(a.component), programs=rows, semantic_profiles=dict(call_proof='Explicit private checked_build_effects_profile', retained_use_ledger='Retained checked_build_profile, field_effects false', original_method_signature='Retained checked_build_profile, field_effects false'), primary_native_credit=0, limitation='Conditional result typing is separate from a completed generic call proof. The retained ledger leaves unsupported computed getter calls untyped (15/17); it is not the private specialization profile. Frozen FlowGraph 17/19 facts are checked separately. No owner root, native array operation or native program credit is manufactured.'), indent=2)+'\n')
 
 
