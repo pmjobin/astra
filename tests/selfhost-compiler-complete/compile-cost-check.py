@@ -77,6 +77,11 @@ def llvm_branches(baseline):
 	# The first family contains only these opcode predicates. Other opcodes
 	# skip every first-family body in the original function, and conversely.
 	value_tags = [2, 10, 3, 15, 4, 54, 55, 56, 57, 58, 61, 64, 76, 51, 52, 53, 62, 50, 8, 12, 75, 69, 70, 68]
+	value_guards = '\n'.join(line for line in value_body.splitlines() if line.startswith('\tif '))
+	discovered_value_tags = {int(n) for n in re.findall(r'\bop == (\d+)', value_guards)}
+	for first, last in re.findall(r'op >= (\d+) && op <= (\d+)', value_guards):
+		discovered_value_tags.update(range(int(first), int(last)+1))
+	assert discovered_value_tags == set(value_tags), 'Every retained LLVM value handler must be dispatched'
 	owner_guards = '\n'.join(line for line in owner_body.splitlines() if line.startswith('\tif '))
 	owner_tags = {int(n) for n in re.findall(r'\bop == (\d+)', owner_guards)}
 	assert not owner_tags.intersection(value_tags)
