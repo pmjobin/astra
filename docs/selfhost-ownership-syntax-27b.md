@@ -502,3 +502,24 @@ existing ordinary native build route, while the optimized development seed can
 generate the same corrected source as Stage2. The unoptimized corruption route
 is bound to the real C0 build receipt, Core-map output and ELF64 x86-64 ABI, with
 fresh live table checks and positive controls; it does not invent retained O0 IR.
+
+The optimized seed's actual build cost was 2909.148 seconds (2889.11 user,
+1.38 system; 2,463,528 KiB peak RSS). Its retained optimized IR passed separate
+verification before native object emission and linking. It is preserved as a
+build receipt, not a final feature verdict.
+
+The actual SSA component completed its full frozen-graph run in 968.280 seconds:
+`CURRENT_PRODUCTION_SSA_VERIFIED_8M 338527 449389`. Every immutable component
+snapshot, full-graph input, tool and provider hash remained exact. The outer
+controller then correctly rejected its separate live-source stability assertion
+because `recover-origins.astra` had received the later absence correction.
+`runtime/selfhost27b-ssa-component2/frozen-qualification.json` records both the
+real fixed-budget success and that single disclosed source divergence. It does
+not reclassify the controller failure or qualify final current-source products.
+
+The final current C0 O0 Stage1 and actual Astra O2 Stage2 builds froze the same
+corrected `83c23e1` source. Their semantic preflights passed, and the C0 route's
+Core preflight passed in 89.042 seconds. The actual Stage2 producer process was
+independently authenticated against its complete 206-input plan, executable
+hash and non-delegating imports. These production builds and their final native
+qualification remain pending at this entry.
