@@ -9,10 +9,12 @@ The installed publisher alone creates the canonical report.
 """
 import argparse
 import json
+import lzma
 import os
 from pathlib import Path
 import shutil
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'tests/selfhost-compiler-complete'))
@@ -43,6 +45,16 @@ def main():
 		os.link(source, destination)
 	archive = a.output/'task-evidence.tar.xz'
 	result = pack(['runtime='+str(staged), 'build='+str(a.build)], archive, a.output)
+	if archive.stat().st_size >= 23*1024**2:
+		# Keep the exact first transport and its identities. A larger existing
+		# LZMA dictionary can reuse distant compiler/IR/log bytes without
+		# removing a payload or changing the tar stream or decoder format.
+		initial = dict(result); original = a.output/'task-evidence-initial.tar.xz'
+		archive.rename(original); start = time.monotonic()
+		filters = [dict(id=lzma.FILTER_LZMA2, preset=9, dict_size=512*1024**2)]
+		with lzma.open(original, 'rb') as source, lzma.LZMAFile(archive, 'wb', filters=filters) as compressed:
+			shutil.copyfileobj(source, compressed, 1048576)
+		result.update(archive_bytes=archive.stat().st_size, archive_sha256=sha(archive), recompression=dict(initial=initial, original_archive=str(original), preset=9, dictionary_bytes=512*1024**2, seconds=time.monotonic()-start))
 	verified = verify(archive, a.output)
 	assert verified['status'] == 'BYTE_EXACT' and verified['archive_sha256'] == result['archive_sha256']
 	write(a.output/'pack.json', result); write(a.output/'reconstruction.json', verified)
