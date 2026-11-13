@@ -324,6 +324,10 @@ owned CheckedIndex checked_build_profile_mode(owned BindingIndex bindings, int s
 			return move result;
 		}
 	}
+	if (!syntax_program_languages_verified(result.bindings.program)) {
+		result.fail(result.bindings.program.span(), "language profile does not match its authenticated source declaration");
+		return move result;
+	}
 	result.stage = 1;
 	checked_heads(result);
 	if (result.class_storage && !result.failed()) {

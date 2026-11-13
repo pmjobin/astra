@@ -5,6 +5,7 @@ class SyntaxArena {
 	private owned Vector<SourceEntry> generated_sources;
 	private owned Vector<Token> tokens;
 	private owned int[] token_sources;
+	private owned SyntaxLanguageDirective[] language_directives;
 	private owned Vector<Utf8Message> texts;
 	private owned Vector<SyntaxList> lists;
 	private owned SyntaxHeader[] headers;
@@ -195,6 +196,7 @@ class SyntaxArena {
 		var tokens = new Vector<Token>(0);
 		this.tokens = move tokens;
 		this.token_sources = new int[0];
+		this.language_directives = new SyntaxLanguageDirective[this.sources.count];
 		var texts = new Vector<Utf8Message>(0);
 		this.texts = move texts;
 		var lists = new Vector<SyntaxList>(0);
@@ -391,6 +393,29 @@ class SyntaxArena {
 		get {
 			return this.sources.count;
 		}
+	}
+
+	property int token_count {
+		get { return this.tokens.count(); }
+	}
+
+	SyntaxLanguageDirective source_language(SyntaxSourceId source) {
+		if (source.index > 0 && source.index <= len(this.language_directives)) {
+			return this.language_directives[source.index - 1];
+		}
+		SyntaxTokenId absent = {index = 0};
+		SyntaxLanguageDirective result = {keyword = absent, version = absent, terminator = absent};
+		return result;
+	}
+
+	bool set_source_language(SyntaxSourceId source, SyntaxLanguageDirective directive) {
+		if (source.index < 1 || source.index > len(this.language_directives)) return false;
+		if (this.language_directives[source.index - 1].keyword.index != 0) return false;
+		this.check_token(directive.keyword);
+		this.check_token(directive.version);
+		this.check_token(directive.terminator);
+		this.language_directives[source.index - 1] = directive;
+		return true;
 	}
 
 	owned shared SourceBuffer source(SyntaxSourceId id) {

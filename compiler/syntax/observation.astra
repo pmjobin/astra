@@ -37,6 +37,8 @@ class SyntaxObservation {
 			tmp_7 = (arena.list_count(arena.get_list_classes(arg_unit)) == 0);
 		}
 		var tmp_8 = tmp_7;
+		var language = arena.source_language(arena.header(arg_unit).span.source);
+		if (language.keyword.index != 0) tmp_8 = false;
 		if (tmp_8) {
 			tmp_8 = (arena.list_count(arena.get_list_constants(arg_unit)) == 0);
 		}
@@ -46,6 +48,15 @@ class SyntaxObservation {
 		}
 		var v_dump_10 = new SyntaxObservation();
 		v_dump_10.line(arena, 0, "(unit");
+		if (language.keyword.index != 0) {
+			var version = arena.token_message(language.version);
+			var line = new Utf8ByteBuilder();
+			source_append_text(line, "(language ");
+			source_append_text(line, version.text);
+			source_append_text(line, ")");
+			var text = line.snapshot();
+			v_dump_10.line(arena, 1, text.text);
+		}
 		var tmp_11 = -1;
 		while (tmp_11 + 1 < arena.list_count(arena.get_list_com_interfaces(arg_unit))) {
 			tmp_11 = tmp_11 + 1;

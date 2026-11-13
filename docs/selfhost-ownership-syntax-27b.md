@@ -1,0 +1,103 @@
+# Ownership and syntax 27-B
+
+This is work in progress under ASTRA-SELFHOST-27B-OWNERSHIP-AND-SYNTAX.
+It does not claim implementation acceptance, Stage3 convergence or release.
+
+The initial checkout was `e750030baa139481d89946b2b2182dbe72628d31`, tree
+`8b242dffb1acd58b9a8225f466fbb5945c4d8fdd`. The original submission's 289
+members exceeded the unchanged installed pm-next limit of 256. Following the
+user's explicit authorization, a lossless compatible submission embeds the
+entire original ZIP, preserving every original member and the original inbox
+file. The replacement has 19 members and SHA-256
+`6795f505907c8f19f25aee05f2677b33f6fa1d30344314507fdcee88340bc455`.
+Task instructions, the Git base, installed workflow and acceptance gates are
+unchanged.
+
+The earlier user-authorized work-folder purge removed C0, the LLVM capsule and
+self-build products. The complete delivered 27-A transport was authenticated:
+10,006 logical files, 7,111 content blobs, 1,072,696,425 logical bytes and
+24,656,244 transport bytes, SHA-256
+`2167b8ac6499931bfda2d6163d3aa53c7e1525239d521ad1612544fa8bb3d222`.
+The exact archived Stage1/Stage2 products and receipts were restored outside
+the checkout. This grants no historical execution credit beyond those receipts.
+The deleted predecessor raw-proof population was not silently reconstructed or
+requalified.
+
+The new independent after-delivery G7 is recorded separately at
+`runtime/selfhost27b-g7v2/result.json`. Both actual Stage2 host profiles compiled
+a fresh owner/borrow/array/loop/error/C-bridge program into native O0/O2 products.
+All four executions returned 42. Six unsuppressed compiler/program Valgrind
+streams had zero errors, zero live blocks and zero suppressions. Four source
+negative categories preserved sentinels. Nine fresh process-local corruptions
+were refused by independent consumers, and two unchanged controls passed.
+The original 27-A audit's G7 remains PENDING at its original timestamp.
+
+The user explicitly authorized continuing without original C0 or rebuilding
+it. The source-preserving replacement is separately identified as
+`19d744c828551b2184f06552740db1beb5b6eeb326b8e98ba56d2dfa5bca31b6`;
+the historical C0 pin
+`e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b`
+is not relabeled. The replacement uses the unchanged bootstrap sources and
+exact LLVM23.1.4 tools/library/SDK. A build-only preinclude selects GLib's
+documented `g_free` function instead of the header's inferred-size macro:
+
+```c
+#include <glib.h>
+#undef g_free
+```
+
+A tiny independent allocation-size-join counterexample reproduces the first
+build's sized-free mismatch and confirms its removal with this setting. Both
+builds and all failed/stopped harness attempts remain in runtime. The final
+replacement passes the 206-file semantic-only preflight, fresh O0/O2 native
+oracles, target memory checks and source negatives. Its own GLib/LLVM process
+retains reachable global registries under all-kinds unsuppressed Valgrind and
+therefore has **no strict process-memory PASS**. This limitation is separate
+from the clean actual Astra Stage2 streams.
+
+The replacement passed the existing public formatter campaign (405 checks over
+74 sources) and the separate 66-check AST/execution/ownership/refusal pilot.
+`format/toolchain.json` therefore records this explicitly requalified compiler
+identity for the guarded source formatter. Historical compiler pins in prior
+tests and receipts remain unchanged. Other formatter pins remain unchanged;
+the exact pinned Python 3.15.0 interpreter was recovered from its archived RPM.
+
+Before compiler edits, 451 protected paths, 6,622 donor files, 14 hooks, Git
+settings, the approved E25-A-v1 proposal and the existing untracked run.py were
+hash-bound in `runtime/selfhost27b-intake/pre-edit-preservation.json`.
+
+## Explicit source semantics
+
+The selected boundary is a single initial `language astra27b;` directive per
+authored source. An absent directive means legacy semantics; an explicit
+`language legacy27a;` selects the same legacy contract. The declaration must
+precede namespace/import/declaration syntax. Unknown, repeated and late
+directives are errors. Generated helper sources cannot select a new profile.
+
+The parsed directive retains original source/token identities. Independent
+validation rereads the source prefix before trusting the selected profile.
+Ownership defaults will use the declaration's own source profile, including
+when a modern caller uses a legacy library signature. Raw pointers, text/slice
+views and foreign ABI declarations retain their existing contracts.
+
+The initial policy component is implemented and qualified at native O0 through
+the authored `tests/selfhost-ownership-syntax-27b/language.py` recipe. Its actual
+test ELF is `a290e55ebbe39b6a21f086350e79024a30ac132c7e6a5425818b255d80c1a583`.
+It returns 42 and passes strict unsuppressed zero-live-block Valgrind. Tests
+include legacy AST byte compatibility, visible modern policy, absent and forged
+metadata, bad/late/repeated directives and generated-source refusal. This is a
+source/syntax component witness, not a newly built production compiler or full
+27-B result. Native O2 and actual next-compiler integration remain separate.
+
+The portable recipe takes explicit `--compiler`, `--compiler-sha256`,
+`--producer-kind c0|astra`, `--build`, `--runtime` and repeatable `--mode O0|O2`.
+It records exact source/tool/product identities and accepts cached products only
+when the full compilation identity matches. Run inside the authenticated tool
+capsule; build and receipt paths must be external project work paths.
+
+Ownership default resolution and the seven syntax groups still require their
+implementation and qualification. No broad source migration is authorized:
+27-C retains named arguments, match expressions, interpolation, ranges, safe
+slicing, lazy pipelines, comprehensions and idiomatic compiler/library/workload
+migration. The inclusive stepped range example remains thirteen values.
+27-D retains fixed improved-source Stage1/2/3 convergence; 28 retains release.

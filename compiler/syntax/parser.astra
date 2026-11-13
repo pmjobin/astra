@@ -333,6 +333,23 @@ class SyntaxParser {
 	}
 
 	SyntaxNodeId parse_unit(SyntaxArena arena) throws Error {
+		if (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && arena.token_is(this.current, "language") && this.next_is(arena, TokenKind.IDENTIFIER()) && this.following_is(arena, TokenKind.SEMICOLON())) {
+			var keyword = this.current;
+			if (!this.advance(arena)) return syntax_no_node();
+			var version = this.current;
+			if (!arena.token_is(version, "astra27b") && !arena.token_is(version, "legacy27a")) {
+				this.fail(arena, arena.token_span(version), "unknown language profile; expected astra27b or legacy27a");
+				return syntax_no_node();
+			}
+			if (!this.advance(arena)) return syntax_no_node();
+			var terminator = this.expect(arena, TokenKind.SEMICOLON(), "expected ';' after language profile");
+			if (terminator.index == 0) return syntax_no_node();
+			SyntaxLanguageDirective directive = {keyword = keyword, version = version, terminator = terminator};
+			if (!arena.set_source_language(this.source, directive)) {
+				this.fail(arena, arena.token_span(keyword), "language profile requires one original source declaration");
+				return syntax_no_node();
+			}
+		}
 		SyntaxTokenId v_namespace_name_1 = {index = 0};
 		var v_imports_2 = arena.new_list(-1);
 		var v_runtimes_3 = arena.new_list(syntax_kind_code(SyntaxKind.AsyncRuntimeSyntax()));
@@ -346,6 +363,10 @@ class SyntaxParser {
 		while (true) {
 			if (!((this.token_kind(arena, this.current) != TokenKind.EOF()))) {
 				break;
+			}
+			if (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && arena.token_is(this.current, "language") && this.next_is(arena, TokenKind.IDENTIFIER()) && this.following_is(arena, TokenKind.SEMICOLON())) {
+				this.fail(arena, arena.token_span(this.current), "one language profile must precede all other source directives and declarations");
+				return syntax_no_node();
 			}
 			var tmp_11 = (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER());
 			if (tmp_11) {

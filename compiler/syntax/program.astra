@@ -1,4 +1,69 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Source policy is separate from the legacy node-family representation.
+struct SyntaxLanguageDirective {
+	SyntaxTokenId keyword;
+	SyntaxTokenId version;
+	SyntaxTokenId terminator;
+}
+
+SyntaxNodeId syntax_no_node() {
+	SyntaxNodeId absent = {index = 0};
+	return absent;
+}
+
+bool syntax_language_token_matches(SyntaxArena arena, SyntaxTokenId id, SyntaxSourceId source, borrowed Token actual) {
+	if (id.index < 1 || id.index > arena.token_count || actual.generated) return false;
+	var span = arena.token_span(id);
+	var stored_kind = arena.token_kind(id);
+	var actual_kind = actual.kind();
+	return span.source.index == source.index && span.start == actual.span.start && span.end == actual.span.end && stored_kind == actual_kind && arena.token_is(id, actual.spelling.text);
+}
+
+// Independently authenticate the stored selection against the real source
+// prefix. In particular, a cleared modern directive cannot become legacy.
+bool syntax_source_language_verified(SyntaxArena arena, SyntaxSourceId source) {
+	var directive = arena.source_language(source);
+	try {
+		var backing = arena.source(source);
+		var scanner = lexer(move backing);
+		var first = scanner.next_token();
+		var second = scanner.next_token();
+		var third = scanner.next_token();
+		if (scanner.failed) return false;
+		var first_kind = first.kind();
+		var second_kind = second.kind();
+		var third_kind = third.kind();
+		bool declared = first_kind == TokenKind.IDENTIFIER() && first.spelling.text == "language" && second_kind == TokenKind.IDENTIFIER() && third_kind == TokenKind.SEMICOLON();
+		if (!declared) return directive.keyword.index == 0 && directive.version.index == 0 && directive.terminator.index == 0;
+		if (source.index < 1 || second.spelling.text != "astra27b" && second.spelling.text != "legacy27a") return false;
+		return syntax_language_token_matches(arena, directive.keyword, source, first) && syntax_language_token_matches(arena, directive.version, source, second) && syntax_language_token_matches(arena, directive.terminator, source, third);
+	} catch (Error error) {
+		return false;
+	}
+}
+
+bool syntax_program_languages_verified(SyntaxProgram program) {
+	if (program.failed()) return false;
+	int i = 0;
+	while (i < program.arena.source_count) {
+		SyntaxSourceId source = {index = i + 1};
+		if (!syntax_source_language_verified(program.arena, source)) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+// A lookup is not a certificate: independent consumers validate the source
+// declarations before using these cached tokens to resolve any default.
+int syntax_source_language_profile(SyntaxArena arena, SyntaxSourceId source) {
+	var directive = arena.source_language(source);
+	if (directive.keyword.index == 0 && directive.version.index == 0 && directive.terminator.index == 0) return 0;
+	if (directive.version.index < 1 || directive.version.index > arena.token_count) return -1;
+	if (arena.token_is(directive.version, "astra27b")) return 1;
+	if (arena.token_is(directive.version, "legacy27a")) return 0;
+	return -1;
+}
+
 class SyntaxProgram {
 	owned SyntaxArena arena;
 	SyntaxListId units;

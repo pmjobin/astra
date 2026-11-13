@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned SourceSet language_sources(string text) throws Error {
+	var bytes = new u8[text.byte_length];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = astra_host_text_byte(text, i) as u8;
+		i = i + 1;
+	}
+	var buffer = source_buffer("input", move bytes, false);
+	var retained = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1);
+	var entry = new SourceEntry(move retained);
+	assert_that(entries.append(move entry));
+	var sources = source_set(move entries);
+	return move sources;
+}
+
+owned SyntaxProgram language_program(string text) throws Error {
+	var sources = language_sources(text);
+	var result = syntax_program(move sources);
+	return move result;
+}
+
+int main() {
+	try {
+		var legacy = language_program("int value() { return 42; }");
+		assert_that(!legacy.failed());
+		SyntaxSourceId source = {index = 1};
+		assert_that(syntax_source_language_profile(legacy.arena, source) == 0);
+		assert_that(syntax_program_languages_verified(legacy));
+		var legacy_dump = syntax_program_dump(legacy);
+		assert_that(legacy_dump.text == "(unit\n\t(function\n\t\t(type \"int\")\n\t\t(name \"value\")\n\t\t(parameters)\n\t\t(block\n\t\t\t(return (integer \"42\"))\n\t\t)\n\t)\n)\n");
+		var modern = language_program("language astra27b; int value() { return 42; }");
+		assert_that(!modern.failed());
+		assert_that(syntax_source_language_profile(modern.arena, source) == 1);
+		assert_that(syntax_program_languages_verified(modern));
+		var modern_dump = syntax_program_dump(modern);
+		assert_that(modern_dump.text == "(unit\n\t(language astra27b)\n\t(function\n\t\t(type \"int\")\n\t\t(name \"value\")\n\t\t(parameters)\n\t\t(block\n\t\t\t(return (integer \"42\"))\n\t\t)\n\t)\n)\n");
+		var missing_sources = language_sources("language astra27b; int value() { return 42; }");
+		var missing = new SyntaxArena(move missing_sources);
+		assert_that(!syntax_source_language_verified(missing, source));
+		var explicit_legacy = language_program("language legacy27a; int value() { return 42; }");
+		assert_that(!explicit_legacy.failed());
+		assert_that(syntax_source_language_profile(explicit_legacy.arena, source) == 0);
+		assert_that(syntax_program_languages_verified(explicit_legacy));
+		var unknown = language_program("language unknown; int value() { return 42; }");
+		assert_that(unknown.failed());
+		var duplicate = language_program("language astra27b; language legacy27a; int value() { return 42; }");
+		assert_that(duplicate.failed());
+		var late = language_program("int value() { return 42; } language astra27b;");
+		assert_that(late.failed());
+		var after_namespace = language_program("namespace Example; language astra27b; int value() { return 42; }");
+		assert_that(after_namespace.failed());
+		var named = language_program("int language() { return 42; }");
+		assert_that(!named.failed() && syntax_program_languages_verified(named));
+		var functions = legacy.arena.get_list_functions(legacy.arena.node_at(legacy.units, 0));
+		var node = legacy.arena.node_at(functions, 0);
+		var span = legacy.arena.header(node).span;
+		var key = legacy.arena.generated_token(TokenKind.IDENTIFIER(), span, "language");
+		var version = legacy.arena.generated_token(TokenKind.IDENTIFIER(), span, "astra27b");
+		var terminator = legacy.arena.generated_token(TokenKind.SEMICOLON(), span, ";");
+		SyntaxLanguageDirective forged = {keyword = key, version = version, terminator = terminator};
+		assert_that(legacy.arena.set_source_language(source, forged));
+		assert_that(!syntax_program_languages_verified(legacy));
+		var generated = modern.arena.add_source_text("generated", "language astra27b; int helper() { return 0; }", false);
+		var result = syntax_parse(modern.arena, generated);
+		assert_that(result.error_message.index != 0);
+		return 42;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 1;
+	}
+}

@@ -2,6 +2,7 @@
 // Independent conditional-type consumer. It never invokes the refiner,
 // computes a nominal ID from spelling, or changes an original checked use.
 bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
+	if (!syntax_program_languages_verified(checked.bindings.program)) return false;
 	if (data.status != 0 || !type_owner_same(data.identity, checked.types.identity) || !checked.validate() || len(data.types) != len(checked.uses) || len(data.members) != len(data.types) || len(data.borrows) != len(data.types) || len(data.numeric_prefixes) != len(data.types) || data.numeric_prefixes[0].index != 0) return false;
 	int n = 1;
 	while (n < len(data.types)) {

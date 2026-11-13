@@ -425,6 +425,12 @@ class SyntaxProjection {
 		}
 		if (kind == SyntaxKind.CompilationUnitSyntax()) {
 			var data = arena.compilation_unit(node);
+			var language = arena.source_language(arena.header(node).span.source);
+			if (language.keyword.index != 0) {
+				this.token(arena, "source_language_keyword", language.keyword);
+				this.token(arena, "source_language_version", language.version);
+				this.token(arena, "source_language_terminator", language.terminator);
+			}
 			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
 			this.boolean("module_internal", arena.get_bool_module_internal(node));
 			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
