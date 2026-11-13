@@ -32,6 +32,8 @@ The pre-edit preservation check matched 451 protected paths, 6,622 donor files,
 settings. The E25-A-v1 proposal, public C ABI, generic256 and SSA8M ceilings
 remain unchanged. Host LLVM23.1.5 is distinct from the authenticated existing
 read-only LLVM23.1.4 capsule used for execution.
+The unchanged original C0 ELF SHA-256 is
+`e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b`.
 
 ## Driver and graph
 
@@ -151,10 +153,56 @@ the intended independent consumer return false and the compiler return1 with
 its sentinel intact. Unchanged positive controls returned true and published
 verified LLVM. These process-local negative controls change no source or ELF.
 
-Stage1 itself is now executing the identical frozen full source graph under
-`selfbuild1` to build Stage2. Stage2 generation and final behavioral/memory
-qualification remain pending. No 27-A PASS is claimed by this intermediate
-finding.
+Stage1 itself compiled the identical frozen full source graph under `selfbuild1`
+in 1807.085028736 seconds. Independent LLVM verification, O0/O2 optimization,
+object generation, linking, ELF/symbol/relocation/machine-code inspection and
+actual Stage2 execution completed successfully. The resulting products are:
+
+| Product under `build/selfhost27a/selfbuild1/` | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `compiler.ll` | 75,917,422 | `201faded4bf09a6509306aa73363591a8a97f5f2b5b46431d6e68311c3976a99` |
+| `compiler-O0.ll` | 75,917,621 | `138df1d29e1155eb9bc774181ec50add591c7ab39de450f83ba713404db92373` |
+| `compiler-O0.o` | 8,417,056 | `fed357128ec295572270be6e848aac2c367c28b40ecffa7d918b7b0422bb9e2b` |
+| `astrac-stage2-O0` | 8,020,360 | `d5033b4d57b5eb322cad383fdbb67c2a64e10953c347f6cdada0a3a07d939207` |
+| `compiler-O2.ll` | 21,135,272 | `56001dd9990bc2ff313c65a2597fbb3e971c9d23fd34c7750cf11d2c7b7620df` |
+| `compiler-O2.o` | 2,410,408 | `eba1c9609192a17824c4d533a73495f27411b420b0757bae9dff3436f61ccb3a` |
+| `astrac-stage2-O2` | 1,779,472 | `3aad388f3baa9675fbb0af24fb9268455caa103ca6771ecf3e767d7312c2ada8` |
+
+The actual Stage1 process executable/argv and all 206 ordered source inputs
+were independently observed during regeneration. Native imports contain no
+process-launch entry points. The running producer's explicit environment was
+captured; only the Codex helper PATH prefix changed after server recovery. All
+original tool identities and the actual resolved compiler/LLVM tools remained
+exact, including LLVM23.1.4. C0-to-Stage1 used 2655.50 user / 1.92 system seconds
+and peaked at 2,327,584 KiB RSS. Stage1-to-LLVM used 1789.72 user / 4.43 system
+seconds and peaked at 855,480 KiB RSS. These are measured costs for these exact
+products. Milestone26's 9.625x/9.454x host-profile comparisons remain historical.
+The raw LLVM driver route currently checks physical source correspondence
+before output handling and again inside the bounded atomic writer; that
+repeated verification remains part of this frozen checkpoint.
+
+Both actual compilers passed `qualification1`: 13 independent valid-program
+groups, seven invalid-program groups, 497 commands and 74 strict returning
+unsuppressed Valgrind runs. Valid cases include original compiler flow-number,
+builder growth, derived errors with owned buffers, fixed slices, counted C
+imports, shared replacement/error cleanup, record arrays/results, caught-message
+bool/numeric/void calls, distinct owned/borrowed objects, minimal arithmetic and
+UTF-8 multifile calls. Both stages emitted identical raw LLVM for each of those
+13 populations; O0/O2 program results matched fresh unchanged-C0 native oracles.
+The direct O0/O2 object and optimized LLVM writer paths, check mode, positional
+sources, source errors, alias/ownership/checked-error refusals, missing files,
+duplicate/same input-output paths and returning output-write failures passed.
+Failure sentinels and temporary-file discipline held. These focused current
+checks complement the preserved historical 411/101/52 campaigns without
+reclassifying those historical cohorts.
+
+This establishes the first working full-source self-build. The C0 and Astra
+backends produce different Stage1/Stage2 ELF bytes; small-program LLVM equality
+is the measured comparison, not a final whole-compiler convergence proof.
+An additional full-source Stage2-to-Stage3 cycle was not run in this bounded
+checkpoint. Final improved-source convergence remains 27-D. Prepublication
+preservation audit, installed publication and the separate after-delivery G7
+remain required; G7 must stay PENDING inside the earlier engineering audit.
 
 While the corrected seed was building, seed2 independently produced executable
 O0/O2 objects for a minimal source and passed strict unsuppressed compiler
