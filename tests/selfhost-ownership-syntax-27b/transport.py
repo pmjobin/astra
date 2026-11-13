@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Package reviewable 27-B evidence; only installed pm-next publishes the report."""
 import argparse
+import errno
 import json
 import os
 from pathlib import Path
@@ -32,7 +33,12 @@ def main():
 		assert source.is_file()
 		if reason:
 			omitted.append(dict(path=str(source), bytes=source.stat().st_size, sha256=sha(source), reason=reason, local_file_preserved=True)); return
-		destination.parent.mkdir(parents=True, exist_ok=True); os.link(source, destination); selected_count += 1
+		destination.parent.mkdir(parents=True, exist_ok=True)
+		try: os.link(source, destination)
+		except OSError as error:
+			if error.errno != errno.EXDEV: raise
+			shutil.copy2(source, destination)
+		selected_count += 1
 	for group in sorted((WORK/'runtime').glob('selfhost27b*')):
 		if not group.is_dir() or group.name.startswith('selfhost27b-report') or group == output: continue
 		for source in sorted(group.rglob('*')):
