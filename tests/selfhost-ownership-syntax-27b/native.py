@@ -133,7 +133,9 @@ int main() {
 	return length(content) + 40;
 }
 '''
-RECORDS = '''struct Point { int x; int y; }
+RECORDS = '''extern(C) int tick(int value);
+extern(C) int tick_trace();
+struct Point { int x; int y; }
 struct Boxed { Point point; int extra; }
 Point point(int y) => Point {x = 20, y,};
 int sum(Point p) { return p.x + p.y; }
@@ -141,15 +143,18 @@ int boxed(Boxed p) { return sum(p.point) + p.extra; }
 int main() {
 	int x = 20; int y = 22;
 	if (sum(Point {x, y,}) != 42 || sum(point(22)) != 42) return 1;
+	Point ordered = Point {y = tick(22), x = tick(20)};
+	if (sum(ordered) != 42 || tick_trace() != 2220) return 1;
 	return boxed(Boxed {point = Point {x, y,}, extra = 0,});
 }
 '''
 CONDITIONAL = '''extern(C) int tick(int value);
 extern(C) int tick_count();
+extern(C) int tick_trace();
 int main() {
 	int result = tick(1) == 1 ? tick(42) : tick(99);
 	int other = tick(0) == 1 ? tick(99) : tick(42);
-	if (tick_count() != 4 || result != 42 || other != 42) return 1;
+	if (tick_count() != 4 || tick_trace() != 1420042 || result != 42 || other != 42) return 1;
 	return result + other - 42;
 }
 '''
@@ -170,10 +175,12 @@ COMPOUND = '''int main() {
 '''
 COMPOUND_PLACE = '''extern(C) int tick(int value);
 extern(C) int tick_count();
+extern(C) int tick_trace();
 class Box { int value; init(int value) { this.value = value; } }
 struct Inner { int value; }
 struct Outer { Inner inner; int other; }
 int rhs_value(bool fail) throws Error { if (fail) { throw new Error("compound RHS"); } return 2; }
+int mutate_value(int[] values) { values[0] = 100; return 2; }
 int parameter(int x) { x += 2; return x; }
 int main() {
 	int[] values = new int[1];
@@ -186,7 +193,9 @@ int main() {
 	if (tick_count() != 2 || values[0] != 42 || box.value != 42 || point.other != 9 || point.inner.value != 42) return 1;
 	try { values[tick(0)] += rhs_value(true); return 1; } catch (Error error) { if (values[0] != 42) return 1; }
 	try { values[tick(0)] += rhs_value(false); } catch (Error error) { return 1; }
-	if (values[0] != 44 || tick_count() != 4) return 1;
+	if (values[0] != 44 || tick_count() != 4 || tick_trace() != 20000) return 1;
+	values[tick(0)] += mutate_value(values);
+	if (values[0] != 46 || tick_count() != 5 || tick_trace() != 2000000) return 1;
 	return parameter(40);
 }
 '''
@@ -391,7 +400,7 @@ def main():
 	providers = {path:digest for path, digest in link['objects'].items() if Path(path).name not in ('llvm-capi.o', 'arguments.o')}
 	assert len(providers) == 5 and all(sha(path) == digest for path, digest in providers.items())
 	bridge = runtime/'bridge.c'
-	bridge.write_text('static int drops, sum, ticks, anchor = 42;\nvoid note_drop(int value) { ++drops; sum += value; }\nint drop_count(void) { return drops; }\nint drop_sum(void) { return sum; }\nvoid *echo_ptr(void *pointer) { return pointer; }\nvoid *anchor_ptr(void) { return &anchor; }\nint tick(int value) { ++ticks; return value; }\nint tick_count(void) { return ticks; }\n')
+	bridge.write_text('static int drops, sum, ticks, anchor = 42;\nstatic unsigned int trace;\nvoid note_drop(int value) { ++drops; sum += value; }\nint drop_count(void) { return drops; }\nint drop_sum(void) { return sum; }\nvoid *echo_ptr(void *pointer) { return pointer; }\nvoid *anchor_ptr(void) { return &anchor; }\nint tick(int value) { ++ticks; trace = trace*100u+(unsigned int)value; return value; }\nint tick_count(void) { return ticks; }\nint tick_trace(void) { return trace > 2147483647u ? -1 : (int)trace; }\n')
 	env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1')
 	env.pop('LD_PRELOAD', None)
 	env.pop('VALGRIND_OPTS', None)
@@ -425,7 +434,7 @@ def main():
 		cases.append(('array-owning-result', ARRAY_RESULT, ARRAY_RESULT.replace('int[] make_values()', 'owned int[] make_values()').replace('int[] values = make_values();', 'var values = make_values();')))
 		cases.append(('generic-owning-result', GENERIC_OWNER, GENERIC_OWNER.replace('Vector<Item> make()', 'owned Vector<Item> make()').replace('Vector<Item> values = make();', 'var values = make();').replace('Item item = values.take(0);', 'var item = values.take(0);')))
 	if 'records' in a.feature:
-		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nstruct Boxed { Point point; int extra; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint boxed(Boxed p) { return sum(p.point) + p.extra; }\nint main() { int x = 20; int y = 22; Point p = {x = x, y = y}; if (sum(p) != 42 || sum(point(22)) != 42) return 1; Boxed value = {point = p, extra = 0}; return boxed(value); }\n'))
+		cases.append(('record-punning', RECORDS, 'extern(C) int tick(int value);\nextern(C) int tick_trace();\nstruct Point { int x; int y; }\nstruct Boxed { Point point; int extra; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint boxed(Boxed p) { return sum(p.point) + p.extra; }\nint main() { int x = 20; int y = 22; Point p = {x = x, y = y}; if (sum(p) != 42 || sum(point(22)) != 42) return 1; int observed_y = tick(22); int observed_x = tick(20); Point ordered = {y = observed_y, x = observed_x}; if (sum(ordered) != 42 || tick_trace() != 2220) return 1; Boxed value = {point = p, extra = 0}; return boxed(value); }\n'))
 	if 'conditional' in a.feature:
 		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }').replace('int other = tick(0) == 1 ? tick(99) : tick(42);', 'int other = 0; if (tick(0) == 1) { other = tick(99); } else { other = tick(42); }')))
 	if 'conditional' in a.feature:
@@ -437,6 +446,7 @@ def main():
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
 		for spelling in ('true', 'false'):
 			legacy_places = legacy_places.replace('values[tick(0)] += rhs_value('+spelling+');', 'int index_'+spelling+' = tick(0); int previous_'+spelling+' = values[index_'+spelling+']; int next_'+spelling+' = rhs_value('+spelling+'); values[index_'+spelling+'] = previous_'+spelling+' + next_'+spelling+';')
+		legacy_places = legacy_places.replace('values[tick(0)] += mutate_value(values);', 'int index_mutate = tick(0); int previous_mutate = values[index_mutate]; int next_mutate = mutate_value(values); values[index_mutate] = previous_mutate + next_mutate;')
 		cases.append(('compound-places', COMPOUND_PLACE, legacy_places))
 	if 'weak' in a.feature:
 		legacy_weak = WEAK.replace('int inspect(shared Item', 'int inspect(borrowed shared Item').replace('Weak<Item> observe()', 'owned Weak<Item> observe()').replace('Shared<Item> strong =', 'var strong =').replace('weak shared Item observer =', 'var observer =').replace('weak shared Item target;', 'owned Weak<Item> target;')
