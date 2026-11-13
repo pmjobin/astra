@@ -591,6 +591,19 @@ void checked_deferred_children(CheckedIndex index, SyntaxNodeId node, int reason
 			checked_deferred_node(index, index.bindings.program.arena.get_node_initializer(node), reason, depth + 1);
 			checked_deferred_node(index, index.bindings.program.arena.get_node_body(node), reason, depth + 1);
 		}
+		case SyntaxKind.RecordExpressionSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_type_name(node), reason, depth + 1);
+			checked_deferred_node(index, index.bindings.program.arena.get_node_initializer(node), reason, depth + 1);
+		}
+		case SyntaxKind.ConditionalExpressionSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_condition(node), reason, depth + 1);
+			checked_deferred_node(index, index.bindings.program.arena.get_node_left(node), reason, depth + 1);
+			checked_deferred_node(index, index.bindings.program.arena.get_node_right(node), reason, depth + 1);
+		}
+		case SyntaxKind.CompoundAssignmentSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_target(node), reason, depth + 1);
+			checked_deferred_node(index, index.bindings.program.arena.get_node_expression(node), reason, depth + 1);
+		}
 		else: { assert_that(false); }
 	}
 }

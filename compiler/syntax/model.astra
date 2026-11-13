@@ -137,6 +137,9 @@ enum SyntaxKind {
 	WhereClauseSyntax,
 	WhileStatementSyntax,
 	WithStatementSyntax,
+	RecordExpressionSyntax,
+	ConditionalExpressionSyntax,
+	CompoundAssignmentSyntax,
 }
 
 int syntax_kind_code(SyntaxKind kind) {
@@ -420,6 +423,10 @@ int syntax_kind_code(SyntaxKind kind) {
 		case SyntaxKind.WithStatementSyntax(): {
 			return 93;
 		}
+		case SyntaxKind.RecordExpressionSyntax(): { return 94; }
+		case SyntaxKind.ConditionalExpressionSyntax(): { return 95; }
+		case SyntaxKind.CompoundAssignmentSyntax(): { return 96; }
+
 	}
 }
 
@@ -703,6 +710,9 @@ SyntaxKind syntax_kind_from_code(int code) {
 	if (code == 93) {
 		return SyntaxKind.WithStatementSyntax();
 	}
+	if (code == 94) return SyntaxKind.RecordExpressionSyntax();
+	if (code == 95) return SyntaxKind.ConditionalExpressionSyntax();
+	if (code == 96) return SyntaxKind.CompoundAssignmentSyntax();
 	assert_that(false);
 	return SyntaxKind.AddressOfExpressionSyntax();
 }
@@ -991,6 +1001,10 @@ bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 		case SyntaxKind.WithStatementSyntax(): {
 			return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode();
 		}
+		case SyntaxKind.RecordExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
+		case SyntaxKind.ConditionalExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
+		case SyntaxKind.CompoundAssignmentSyntax(): { return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode(); }
+
 	}
 }
 
@@ -1658,4 +1672,24 @@ struct WithStatementSyntaxData {
 	SyntaxTokenId f_receiver;
 	SyntaxNodeId f_initializer;
 	SyntaxNodeId f_body;
+}
+
+struct RecordExpressionSyntaxData {
+	SyntaxNodeId f_type_name;
+	SyntaxNodeId f_initializer;
+}
+
+struct ConditionalExpressionSyntaxData {
+	SyntaxNodeId f_condition;
+	SyntaxTokenId f_question;
+	SyntaxNodeId f_left;
+	SyntaxTokenId f_colon;
+	SyntaxNodeId f_right;
+}
+
+struct CompoundAssignmentSyntaxData {
+	SyntaxNodeId f_target;
+	SyntaxTokenId f_operator_token;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_semicolon;
 }

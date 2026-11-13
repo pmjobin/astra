@@ -107,6 +107,16 @@ void language_small_syntax() throws Error {
 	assert_that(old_call.failed());
 	var old_initializer = language_program("int value() { int[2] a = {20,22,}; return a[0]; }");
 	assert_that(old_initializer.failed());
+	var records = language_program("language astra27b; struct Point { int x; int y; } Point point(int y) { return Point {x = 20, y,}; } int value() { return read(Point {x = 20, y = 22}); }");
+	assert_that(!records.failed());
+	var old_record = language_program("struct Point { int x; int y; } Point point(int y) { return Point {x = 20, y}; }");
+	assert_that(old_record.failed());
+	var conditional = language_program("language astra27b; int choose(bool c, bool d) { return c || d ? 20+22 : d ? 1 : 2; }");
+	assert_that(!conditional.failed());
+	var old_conditional = language_program("int choose(bool c) { return c ? 42 : 0; }");
+	assert_that(old_conditional.failed());
+	var missing_colon = language_program("language astra27b; int choose(bool c) { return c ? 42; }");
+	assert_that(missing_colon.failed());
 }
 
 int main() {

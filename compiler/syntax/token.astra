@@ -93,7 +93,8 @@ enum TokenKind {
 	STAR,
 	SLASH,
 	PERCENT,
-	FAT_ARROW
+	FAT_ARROW,
+	QUESTION
 }
 
 string token_kind_name(TokenKind kind) {
@@ -191,6 +192,7 @@ string token_kind_name(TokenKind kind) {
 		case TokenKind.SLASH(): { return "SLASH"; }
 		case TokenKind.PERCENT(): { return "PERCENT"; }
 		case TokenKind.FAT_ARROW(): { return "FAT_ARROW"; }
+		case TokenKind.QUESTION(): { return "QUESTION"; }
 	}
 }
 
@@ -381,6 +383,7 @@ int token_kind_code(TokenKind kind) {
 		case TokenKind.SLASH(): { return 90; }
 		case TokenKind.PERCENT(): { return 91; }
 		case TokenKind.FAT_ARROW(): { return 92; }
+		case TokenKind.QUESTION(): { return 93; }
 	}
 }
 
@@ -478,6 +481,7 @@ TokenKind token_kind_from_code(int code) {
 	if (code == 90) return TokenKind.SLASH();
 	if (code == 91) return TokenKind.PERCENT();
 	if (code == 92) return TokenKind.FAT_ARROW();
+	if (code == 93) return TokenKind.QUESTION();
 	assert_that(false);
 	return TokenKind.EOF();
 }

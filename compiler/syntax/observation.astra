@@ -1540,6 +1540,35 @@ class SyntaxObservation {
 	}
 
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.ConditionalExpressionSyntax()) {
+			var data = arena.conditional_expression(arg_expression);
+			var condition = this.format_expression(arena, data.f_condition);
+			var left = this.format_expression(arena, data.f_left);
+			var right = this.format_expression(arena, data.f_right);
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "(conditional ");
+			source_append_text(output, condition.text);
+			source_append_text(output, " ");
+			source_append_text(output, left.text);
+			source_append_text(output, " ");
+			source_append_text(output, right.text);
+			source_append_text(output, ")");
+			var result = output.snapshot();
+			return move result;
+		}
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.RecordExpressionSyntax()) {
+			var data = arena.record_expression(arg_expression);
+			var name = arena.type_message(data.f_type_name);
+			var fields = this.format_storage_initializer(arena, data.f_initializer);
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "(record ");
+			source_append_text(output, name.text);
+			source_append_text(output, " ");
+			source_append_text(output, fields.text);
+			source_append_text(output, ")");
+			var result = output.snapshot();
+			return move result;
+		}
 		if ((arg_expression.index != 0 && syntax_kind_accepts(arena.kind(arg_expression), SyntaxKind.AwaitExpressionSyntax()))) {
 			var tmp_1 = this.format_expression(arena, arena.get_node_operation(arg_expression));
 			var tmp_2 = new Utf8ByteBuilder();

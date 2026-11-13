@@ -2235,6 +2235,19 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_body(node), scope, 0);
 				this.push(this.program.arena.get_node_initializer(node), scope, 0);
 			}
+			case SyntaxKind.RecordExpressionSyntax(): {
+				this.push(this.program.arena.get_node_initializer(node), scope, 0);
+				this.push(this.program.arena.get_node_type_name(node), scope, 0);
+			}
+			case SyntaxKind.ConditionalExpressionSyntax(): {
+				this.push(this.program.arena.get_node_right(node), scope, 0);
+				this.push(this.program.arena.get_node_left(node), scope, 0);
+				this.push(this.program.arena.get_node_condition(node), scope, 0);
+			}
+			case SyntaxKind.CompoundAssignmentSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+				this.push(this.program.arena.get_node_target(node), scope, 0);
+			}
 			else: {
 				assert_that(false);
 			}

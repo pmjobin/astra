@@ -55,6 +55,7 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	if (row.kind == 72) return recover_cfg_enum_verified(cfg, id, next, seen, nodes, depth);
 	if (row.kind == 61 || row.kind == 76) return recover_cfg_array_store(cfg, id, next, seen, nodes, depth);
 	if (row.kind == 62) return recover_cfg_short_verified(cfg, id, next, seen, nodes, depth);
+	if (row.kind == 77) return recover_cfg_conditional_verified(cfg, id, next, seen, nodes, depth);
 	if (row.kind == 20) {
 		if (op != 0) return false; int scope = cfg.core.owners.scopes[id - 1]; int head = next; if (row.count > 0) head = cfg.regions[cfg.core.flow.data.edges[row.first + row.count - 1] - 1].next; else {
 			head = region.entry;

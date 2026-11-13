@@ -32,10 +32,23 @@ bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId typ
 		if (checked_target(checked, value, token).index != symbol.index || !generic_token_equal(checked, token, checked.bindings.symbol(symbol).token) || checked.uses[value.index].type.index != checked.symbol_types[symbol.index].index || checked.uses[value.index].flags != 0) return false;
 		var expression = checked.bindings.program.arena.get_node_expression(value);
 		var nested = checked.bindings.program.arena.get_node_initializer(value);
+		if (checked.bindings.program.arena.get_token_equals_token(value).index == 0) {
+			if (syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(value).span.source) != 1 || expression.index < 1 || nested.index != 0 || checked.bindings.program.arena.kind(expression) != SyntaxKind.NameExpressionSyntax() || checked.bindings.program.arena.get_token_identifier(expression).index != token.index) return false;
+			if (!recover_copy_channel(checked, checked.symbol_types[symbol.index], checked.symbol_flags[symbol.index], false)) return false;
+		}
 		if (expression.index < 0 || expression.index >= len(checked.uses) || nested.index < 0 || nested.index >= len(checked.uses) || expression.index == 0 && nested.index == 0 || expression.index != 0 && nested.index != 0) return false;
 		if (nested.index != 0 && (checked.bindings.program.arena.kind(nested) != SyntaxKind.StructInitializerSyntax() || checked.uses[nested.index].type.index != checked.symbol_types[symbol.index].index || checked.uses[nested.index].flags != 0 || !recover_storage_record(checked, checked.uses[nested.index].type))) return false;
 		i = i + 1;
 	} return true;
+}
+
+bool recover_record_expression_source(CheckedIndex checked, SyntaxNodeId source, TypeId type) {
+	if (checked.bindings.program.arena.kind(source) != SyntaxKind.RecordExpressionSyntax() || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(source).span.source) != 1 || !recover_storage_record(checked, type)) return false;
+	var syntax = checked.bindings.program.arena.record_expression(source);
+	if (checked.bindings.program.arena.kind(syntax.f_type_name) != SyntaxKind.TypeNameSyntax() || checked.uses[syntax.f_type_name.index].type.index != type.index) return false;
+	var symbol = checked_target(checked, syntax.f_type_name, checked.bindings.program.arena.get_token_identifier(syntax.f_type_name));
+	if (symbol.index < 1 || checked.bindings.symbol(symbol).kind != 3 || checked.types.row(type).nominal.index != symbol.index || checked.uses[source.index].flags != 0) return false;
+	return checked.uses[syntax.f_initializer.index].type.index == type.index && recover_record_source(checked, syntax.f_initializer, type);
 }
 
 // Source paths and native leaf ordinals are separate from memory offsets.

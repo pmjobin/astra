@@ -40,8 +40,18 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_left(source), function, handler, caught, depth + 1);
 		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_right(source), function, handler, caught, depth + 1);
 	}
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+		row.kind = 77;
+		row.token = checked.bindings.program.arena.get_token_question(source);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_condition(source), function, handler, caught, depth + 1);
+		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_left(source), function, handler, caught, depth + 1);
+		row.c = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_right(source), function, handler, caught, depth + 1);
+	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 		row.kind = 7; row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(source), function, handler, caught, depth + 1);
+	}
+	if (kind == SyntaxKind.RecordExpressionSyntax()) {
+		row.kind = 7; row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_initializer(source), function, handler, caught, depth + 1);
 	}
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
 		row.kind = 15; row.token = checked.bindings.program.arena.get_token_operator_token(source); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_operand(source), function, handler, caught, depth + 1);

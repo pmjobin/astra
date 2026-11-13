@@ -50,6 +50,15 @@ void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int
 		}
 		checked_complete_member(index, field, token, target);
 		var expected = checked_substitute(index, index.symbol_types[target.index], type, 0);
+		if (index.bindings.program.arena.get_token_equals_token(field).index == 0) {
+			int code = checked_kind(index, expected);
+			bool copyable = type_numeric(code) || code == 13 || code == 32 && enum_value_type_verified(index, expected) || code == 30 && !checked_record_owned(index, expected, 0) || recover_storage_pointer(index, expected);
+			var expression = index.bindings.program.arena.get_node_expression(field);
+			if (!checked_modern_source(index, field) || !copyable || (index.symbol_flags[target.index] & 6) != 0 || expression.index == 0 || index.bindings.program.arena.kind(expression) != SyntaxKind.NameExpressionSyntax() || index.bindings.program.arena.get_token_identifier(expression).index != token.index) {
+				index.fail(index.bindings.program.arena.header(field).span, "field shorthand requires a readable copyable named value; ownership transfer must be explicit");
+				return;
+			}
+		}
 		var nested = index.bindings.program.arena.get_node_initializer(field);
 		if (nested.index != 0) {
 			checked_initializer(index, nested, expected, depth + 1);

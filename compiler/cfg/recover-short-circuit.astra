@@ -20,3 +20,17 @@ bool recover_cfg_short_verified(RecoverCfg cfg, int id, int next, bool[] seen, b
 	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 63, row.a, 0, yes, no, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.a, guard, seen, nodes, depth + 1)) return false;
 	return region.entry == cfg.regions[row.a - 1].entry;
 }
+
+bool recover_cfg_conditional_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value;
+	var region = cfg.regions[id - 1];
+	int join = region.operation;
+	if (row.kind != 77 || !recover_cfg_expect(cfg, join, recover_cfg_expected(row.function, id, 62, row.b, row.c, next, 0, 0, 0, 0), seen)) return false;
+	int left_edge = cfg.regions[row.b - 1].next;
+	int right_edge = cfg.regions[row.c - 1].next;
+	if (!recover_cfg_expect(cfg, left_edge, recover_cfg_expected(row.function, id, 78, row.b, 0, join, 0, 0, 0, 0), seen) || !recover_cfg_expect(cfg, right_edge, recover_cfg_expected(row.function, id, 78, row.c, 0, join, 0, 0, 0, 1), seen)) return false;
+	if (!recover_cfg_check_tree(cfg, row.b, left_edge, seen, nodes, depth + 1) || !recover_cfg_check_tree(cfg, row.c, right_edge, seen, nodes, depth + 1)) return false;
+	int guard = cfg.regions[row.a - 1].next;
+	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 63, row.a, 0, cfg.regions[row.b - 1].entry, cfg.regions[row.c - 1].entry, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.a, guard, seen, nodes, depth + 1)) return false;
+	return region.entry == cfg.regions[row.a - 1].entry;
+}

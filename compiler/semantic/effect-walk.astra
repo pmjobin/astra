@@ -446,6 +446,19 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_initializer(node), depth);
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_body(node), depth);
 		}
+		case SyntaxKind.RecordExpressionSyntax(): {
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_type_name(node), depth);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_initializer(node), depth);
+		}
+		case SyntaxKind.ConditionalExpressionSyntax(): {
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_condition(node), depth);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_left(node), depth);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_right(node), depth);
+		}
+		case SyntaxKind.CompoundAssignmentSyntax(): {
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_target(node), depth);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_expression(node), depth);
+		}
 		else: { assert_that(false); }
 	}
 }

@@ -124,9 +124,36 @@ fast C0 semantic preflight before a complete build and records source Git blob,
 tool, dependency, provider, command and product hashes. A successful build is
 explicitly reported as unqualified until its separate execution gates pass.
 
-Compound assignments, nominal record expressions, copyable field shorthand,
-conditional expressions and the complete borrowed/weak lifetime contracts still
-require implementation and proof. All seven syntax groups and ownership gates
+The syntax model now appends three typed modern node families while preserving
+all 93 legacy kind codes: record expressions, conditional expressions and
+compound assignments. Arena validation, rollback, typed projection, Binder
+traversal, generic copying and independent generic/effect/deferred consumers
+cover the added edges. The four maintained generator checks pass. The deferred
+generator now emits the existing guarded control/definition layout exactly;
+its exact-output check remains enabled.
+
+Nominal concrete copyable record expressions and copyable shorthand now have
+semantic and retained-Flow implementations. Independent consumers check the
+nominal declaration, field identity, source order, complete/unique coverage and
+readable value binding. The conditional implementation emits a condition, two
+exclusive expression regions, explicit predecessor edges and a typed phi.
+Independent CFG/SSA/LLVM consumers reconstruct the edge and value association.
+Its current join domain is proven copyable values; owner/borrow-view joins are
+still pending and receive no acceptance credit. The new syntax component
+receipt is `runtime/selfhost27b-conditional2/result.json`: native O0 returns 42
+and strict unsuppressed Valgrind reports zero errors and live blocks. This is
+parser/component evidence, separate from production-driver feature execution.
+
+`native.py` is the portable production-driver gate recipe, with independent C0
+behavior oracles, direct compiler O0/O2 generation, C destructor/call counters,
+strict compiler/target memory checks and refusal sentinels. Its selected gates
+must execute successfully before receiving credit. The initial updated driver
+build is frozen at commit `7a74fb0`; it does not contain subsequent AST work.
+
+Compound assignment lowering, owner/view conditional joins and the complete
+borrowed/weak lifetime contracts still require implementation and proof.
+Current-compiler native record/conditional integration also remains pending.
+All seven syntax groups and ownership gates
 remain required for 27-B acceptance. No broad source migration is authorized:
 27-C retains named arguments, match expressions, interpolation, ranges, safe
 slicing, lazy pipelines, comprehensions and idiomatic compiler/library/workload

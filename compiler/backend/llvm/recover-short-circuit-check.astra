@@ -2,7 +2,12 @@
 bool recover_short_llvm_phi(RecoverSsa ssa, int join, void* phi, void*[] values, void*[] blocks) {
 	var block = ssa.cfg.blocks[join - 1];
 	var row = ssa.cfg.core.nodes[block.origin - 1].value;
-	if (phi == null || LLVMIsAInstruction(phi) == null || LLVMGetInstructionOpcode(phi) != 44 || LLVMGetInstructionParent(phi) != blocks[join - 1] || LLVMGetTypeKind(LLVMTypeOf(phi)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(phi)) != 1 || LLVMHasMetadata(phi) != 0) return false;
+	if (phi == null || LLVMIsAInstruction(phi) == null || LLVMGetInstructionOpcode(phi) != 44 || LLVMGetInstructionParent(phi) != blocks[join - 1] || LLVMHasMetadata(phi) != 0) return false;
+	if (row.kind == 77) {
+		if (values[row.b] == null || values[row.c] == null || LLVMTypeOf(phi) != LLVMTypeOf(values[row.b]) || LLVMTypeOf(phi) != LLVMTypeOf(values[row.c])) return false;
+	} else {
+		if (row.kind != 62 || LLVMGetTypeKind(LLVMTypeOf(phi)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(phi)) != 1) return false;
+	}
 	int incoming = 0;
 	int e = 0;
 	while (e < ssa.cfg.edge_count) {
@@ -11,6 +16,11 @@ bool recover_short_llvm_phi(RecoverSsa ssa, int join, void* phi, void*[] values,
 			var source = ssa.cfg.blocks[edge.source - 1];
 			void* expected = values[row.b];
 			if (source.opcode == 63 && source.origin == block.origin) expected = values[row.a];
+			if (row.kind == 77) {
+				if (source.opcode != 78 || source.origin != block.origin || source.rank < 0 || source.rank > 1) return false;
+				expected = values[row.b];
+				if (source.rank == 1) expected = values[row.c];
+			}
 			if (incoming >= LLVMCountIncoming(phi) || LLVMGetIncomingBlock(phi, incoming) != blocks[edge.source - 1] || LLVMGetIncomingValue(phi, incoming) != expected) return false;
 			incoming = incoming + 1;
 		}

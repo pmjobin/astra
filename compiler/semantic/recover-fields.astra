@@ -106,6 +106,7 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 		return (declaration.kind == 7 || declaration.kind == 8 && initialized[symbol.index]) && recover_storage_channel(checked, checked.symbol_types[symbol.index], 4, false) && checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node));
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, handled, depth + 1);
+	if (kind == SyntaxKind.RecordExpressionSyntax()) return recover_record_expression_source(checked, node, checked.uses[node.index].type) && recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_initializer(node), function, aggregate, initialized, handled, depth + 1);
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, handled, depth + 1);
 	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, handled, depth + 1) && recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, handled, depth + 1);
 	if (checked_flow_index_kind(kind)) {

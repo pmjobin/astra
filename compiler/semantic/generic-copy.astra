@@ -374,6 +374,25 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_catch_clause(data, header.span, header.depth);
 		}
+		case SyntaxKind.RecordExpressionSyntax(): {
+			var data = index.bindings.program.arena.record_expression(original);
+			data.f_type_name = generic_copy_node(index, plan, data.f_type_name, depth + 1);
+			data.f_initializer = generic_copy_node(index, plan, data.f_initializer, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_record_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.ConditionalExpressionSyntax(): {
+			var data = index.bindings.program.arena.conditional_expression(original);
+			data.f_condition = generic_copy_node(index, plan, data.f_condition, depth + 1);
+			data.f_left = generic_copy_node(index, plan, data.f_left, depth + 1);
+			data.f_right = generic_copy_node(index, plan, data.f_right, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_conditional_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.CompoundAssignmentSyntax(): {
+			var data = index.bindings.program.arena.compound_assignment(original);
+			data.f_target = generic_copy_node(index, plan, data.f_target, depth + 1);
+			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_compound_assignment(data, header.span, header.depth);
+		}
 		else: { index.fail(header.span, "DEFERRED: generic body syntax lacks a concrete specialization contract"); }
 	}
 	if (result.index != 0) {

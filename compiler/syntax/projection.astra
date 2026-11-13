@@ -870,6 +870,38 @@ class SyntaxProjection {
 			this.token(arena, "owned_keyword", data.f_owned_keyword);
 			return;
 		}
+		if (kind == SyntaxKind.RecordExpressionSyntax()) {
+			var data = arena.record_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("type_name", "TypeNameSyntax", data.f_type_name);
+			this.edge("initializer", "StructInitializerSyntax", data.f_initializer);
+			return;
+		}
+		if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+			var data = arena.conditional_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("condition", "ExpressionSyntax", data.f_condition);
+			this.token(arena, "question", data.f_question);
+			this.edge("left", "ExpressionSyntax", data.f_left);
+			this.token(arena, "colon", data.f_colon);
+			this.edge("right", "ExpressionSyntax", data.f_right);
+			return;
+		}
+		if (kind == SyntaxKind.CompoundAssignmentSyntax()) {
+			var data = arena.compound_assignment(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("target", "ExpressionSyntax", data.f_target);
+			this.token(arena, "operator_token", data.f_operator_token);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
 		if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 			var data = arena.parenthesized_expression(node);
 			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
@@ -1446,6 +1478,9 @@ string syntax_kind_name(SyntaxKind kind) {
 		case SyntaxKind.ParameterSyntax(): {
 			return "ParameterSyntax";
 		}
+		case SyntaxKind.RecordExpressionSyntax(): { return "RecordExpressionSyntax"; }
+		case SyntaxKind.ConditionalExpressionSyntax(): { return "ConditionalExpressionSyntax"; }
+		case SyntaxKind.CompoundAssignmentSyntax(): { return "CompoundAssignmentSyntax"; }
 		case SyntaxKind.ParenthesizedExpressionSyntax(): {
 			return "ParenthesizedExpressionSyntax";
 		}

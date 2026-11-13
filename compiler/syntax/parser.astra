@@ -12,6 +12,7 @@ class SyntaxParser {
 	int block_depth;
 	int type_depth;
 	bool allocation_element;
+	int record_depth;
 
 	init(SyntaxArena arena, SyntaxSourceId source, owned Lexer lexer, owned Utf8Message empty, owned Utf8Message prefix) {
 		this.lexer = move lexer;
@@ -27,6 +28,7 @@ class SyntaxParser {
 		this.block_depth = 0;
 		this.type_depth = 0;
 		this.allocation_element = false;
+		this.record_depth = 0;
 	}
 
 	// A failed scan has no token. Preserve its authoritative diagnostic when
@@ -62,6 +64,7 @@ class SyntaxParser {
 		result.current = this.current;
 		result.lookahead = this.lookahead;
 		result.second_lookahead = this.second_lookahead;
+		result.record_depth = this.record_depth;
 		return move result;
 	}
 
@@ -2855,6 +2858,15 @@ class SyntaxParser {
 			var name = this.expect(arena, TokenKind.IDENTIFIER(), "expected initializer field name; empty initializers and trailing commas are unsupported");
 			if (name.index == 0) {
 				return none;
+			}
+			if (this.modern() && (this.token_kind(arena, this.current) == TokenKind.COMMA() || this.token_kind(arena, this.current) == TokenKind.CLOSE_BRACE())) {
+				SyntaxTokenId absent_equals = {index = 0};
+				var expression = syntax_make_NameExpressionSyntax(arena, name);
+				var field = syntax_make_FieldInitializerSyntax(arena, name, absent_equals, expression);
+				arena.append_node(frame.fields, field);
+				frame.state = 3;
+				frames[used - 1] = frame;
+				continue;
 			}
 			var equals_token = this.expect(arena, TokenKind.EQUAL(), "expected '=' after initializer field name");
 			if (equals_token.index == 0) {
@@ -6189,6 +6201,23 @@ class SyntaxParser {
 				return tmp_48;
 			}
 		}
+		if (arg_minimum_power == 0 && this.modern() && this.token_kind(arena, this.current) == TokenKind.QUESTION()) {
+			var question = this.current;
+			if (!this.advance(arena)) return syntax_no_node();
+			var left = this.parse_expression(arena, 0, arg_recursion_depth + 1);
+			if (left.index == 0) return syntax_no_node();
+			var colon = this.expect(arena, TokenKind.COLON(), "conditional expression requires ':' and a right branch");
+			if (colon.index == 0) return syntax_no_node();
+			var right = this.parse_expression(arena, 0, arg_recursion_depth + 1);
+			if (right.index == 0) return syntax_no_node();
+			ConditionalExpressionSyntaxData data = {f_condition = v_left_2, f_question = question, f_left = left, f_colon = colon, f_right = right};
+			var span = syntax_cover(arena.header(v_left_2).span, arena.header(right).span);
+			int depth = arena.header(v_left_2).depth;
+			if (arena.header(left).depth > depth) depth = arena.header(left).depth;
+			if (arena.header(right).depth > depth) depth = arena.header(right).depth;
+			v_left_2 = arena.add_conditional_expression(data, span, depth + 1);
+			v_left_2 = this.bounded(arena, v_left_2, arena.token_span(question));
+		}
 		return v_left_2;
 	}
 
@@ -6743,7 +6772,27 @@ class SyntaxParser {
 		return tmp_14;
 	}
 
+	SyntaxNodeId parse_record_expression(SyntaxArena arena) throws Error {
+		SyntaxNodeId none = {index = 0};
+		if (this.record_depth >= 256) {
+			this.fail(arena, this.token_span(arena, this.current), "nominal record nesting limit of 256 exceeded");
+			return none;
+		}
+		var type = this.parse_type(arena, "expected nominal record type", false);
+		if (type.index == 0) return none;
+		var open = this.expect(arena, TokenKind.OPEN_BRACE(), "nominal record requires '{'");
+		if (open.index == 0) return none;
+		this.record_depth = this.record_depth + 1;
+		var initializer = this.parse_struct_initializer(arena, open);
+		this.record_depth = this.record_depth - 1;
+		if (initializer.index == 0) return none;
+		RecordExpressionSyntaxData data = {f_type_name = type, f_initializer = initializer};
+		var span = syntax_cover(arena.header(type).span, arena.header(initializer).span);
+		return arena.add_record_expression(data, span, 1);
+	}
+
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.OPEN_BRACE())) return this.parse_record_expression(arena);
 		var v_token_1 = this.current;
 		if ((this.token_kind(arena, v_token_1) == TokenKind.AWAIT())) {
 			if ((!this.advance(arena))) {

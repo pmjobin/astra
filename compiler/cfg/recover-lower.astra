@@ -60,6 +60,18 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		cfg.regions[id - 1] = region;
 		return input;
 	}
+	if (row.kind == 77) {
+		int join = cfg.block(row.function, id, 62, row.b, row.c, next, 0, 0, 0, 0);
+		int left_edge = cfg.block(row.function, id, 78, row.b, 0, join, 0, 0, 0, 0);
+		int right_edge = cfg.block(row.function, id, 78, row.c, 0, join, 0, 0, 0, 1);
+		int yes = recover_cfg_tree(cfg, row.b, left_edge, depth + 1);
+		int no = recover_cfg_tree(cfg, row.c, right_edge, depth + 1);
+		int guard = cfg.block(row.function, id, 63, row.a, 0, yes, no, 0, 0, 0);
+		int condition_entry = recover_cfg_tree(cfg, row.a, guard, depth + 1);
+		RecoverRegion region = {entry = condition_entry, operation = join, next = next};
+		cfg.regions[id - 1] = region;
+		return condition_entry;
+	}
 	if (row.kind == 62) {
 		int join = cfg.block(row.function, id, 62, row.a, row.b, next, 0, 0, 0, 0);
 		int right = recover_cfg_tree(cfg, row.b, join, depth + 1);

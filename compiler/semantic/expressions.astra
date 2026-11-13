@@ -34,6 +34,14 @@ TypeId checked_context(CheckedIndex index, SyntaxNodeId node, int depth) throws 
 	if (kind == SyntaxKind.FieldAccessExpressionSyntax()) {
 		return checked_field(index, node, depth + 1);
 	}
+	if (kind == SyntaxKind.RecordExpressionSyntax()) {
+		return checked_resolve(index, index.bindings.program.arena.get_node_type_name(node), 0, 0);
+	}
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+		var left = checked_context(index, index.bindings.program.arena.get_node_left(node), depth + 1);
+		if (left.index != 0) return left;
+		return checked_context(index, index.bindings.program.arena.get_node_right(node), depth + 1);
+	}
 	return no_type();
 }
 
@@ -288,6 +296,33 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 		return checked_flow_expression(index, node, expected, depth);
 	}
 	var span = index.bindings.program.arena.header(node).span;
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+		if (!checked_modern_source(index, node)) {
+			index.fail(span, "conditional expression requires the explicit modern language profile");
+			return no_type();
+		}
+		checked_condition(index, index.bindings.program.arena.get_node_condition(node), depth + 1);
+		var context = expected;
+		if (context.index == 0) context = checked_context(index, node, depth + 1);
+		var left = checked_expression(index, index.bindings.program.arena.get_node_left(node), context, depth + 1);
+		var right = checked_expression(index, index.bindings.program.arena.get_node_right(node), left, depth + 1);
+		checked_mismatch(index, span, left, right, "conditional branch");
+		if (!recover_copy_channel(index, left, 0, false) || left.index == 15) {
+			index.fail(span, "conditional join requires an exact copyable value with a proven lifetime");
+			return no_type();
+		}
+		return left;
+	}
+	if (kind == SyntaxKind.RecordExpressionSyntax()) {
+		var type = checked_resolve(index, index.bindings.program.arena.get_node_type_name(node), 0, 0);
+		if (!checked_modern_source(index, node) || checked_kind(index, type) != 30 || checked_record_owned(index, type, 0)) {
+			index.fail(span, "nominal record expression requires a concrete copyable native record");
+			return no_type();
+		}
+		checked_initializer(index, index.bindings.program.arena.get_node_initializer(node), type, depth + 1);
+		var deferred = index.defer(node, 20);
+		return type;
+	}
 	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax()) {
 		return checked_integer_literal(index, node, span, expected, false);
 	}

@@ -530,6 +530,29 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (first_data.f_binding.index != second_data.f_binding.index) return false;
 			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
 		}
+		case SyntaxKind.RecordExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.record_expression(original);
+			var second_data = index.bindings.program.arena.record_expression(concrete);
+			if (!generic_check_child(index, plan, first_data.f_type_name, second_data.f_type_name)) return false;
+			if (!generic_check_child(index, plan, first_data.f_initializer, second_data.f_initializer)) return false;
+		}
+		case SyntaxKind.ConditionalExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.conditional_expression(original);
+			var second_data = index.bindings.program.arena.conditional_expression(concrete);
+			if (!generic_check_child(index, plan, first_data.f_condition, second_data.f_condition)) return false;
+			if (first_data.f_question.index != second_data.f_question.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_left, second_data.f_left)) return false;
+			if (first_data.f_colon.index != second_data.f_colon.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_right, second_data.f_right)) return false;
+		}
+		case SyntaxKind.CompoundAssignmentSyntax(): {
+			var first_data = index.bindings.program.arena.compound_assignment(original);
+			var second_data = index.bindings.program.arena.compound_assignment(concrete);
+			if (!generic_check_child(index, plan, first_data.f_target, second_data.f_target)) return false;
+			if (first_data.f_operator_token.index != second_data.f_operator_token.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+			if (first_data.f_semicolon.index != second_data.f_semicolon.index) return false;
+		}
 		else: { return false; }
 	}
 	return true;
