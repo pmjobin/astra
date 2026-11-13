@@ -388,3 +388,13 @@ local product is preserved rather than presented as a smaller substituted C0.
 The separate G5 recipe runs only after publication and does not rewrite the
 prepublication audit. Current-source final Stage2 qualification is still
 pending; no implementation acceptance follows from these recipes alone.
+
+The first corrected-source Stage1-to-Stage2 attempt stopped before LLVM with
+`astrac: SSA verification failed`, exit 1 after 1087.271 seconds. It is preserved
+in `runtime/selfhost27b-stage2-current1`, with its immutable source snapshot,
+actual producer witness, successful C0 semantic preflight and failed execution
+receipt. No Stage2 product or G3 PASS is claimed for that attempt. A separate
+read-only GDB diagnosis is observing the same frozen graph's real SSA verifier
+return and work-budget retirement. It changes no source, primitive fact,
+verification result or limit. Final qualification and publication remain
+pending while this ordinary integration failure is investigated.
