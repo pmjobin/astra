@@ -2,6 +2,7 @@
 // All LLVM handles belong to the enclosing module. No process-global cache.
 // Shared uses the native-v14 {strong, weak sentinel, exact payload} block.
 class RecoverSharedRuntime {
+	bool intrusive;
 	void* context;
 	void* module;
 	void* builder;
@@ -24,6 +25,7 @@ class RecoverSharedRuntime {
 	void* weak_drop;
 
 	init(void* context, void* module, void* builder, void* handles, void* allocate, void* free, void* trap) {
+		this.intrusive = false;
 		this.context = context;
 		this.module = module;
 		this.builder = builder;
@@ -53,10 +55,20 @@ class RecoverSharedRuntime {
 		llvm12_handle_set(this.handles, 0, this.wide);
 		llvm12_handle_set(this.handles, 1, this.wide);
 		llvm12_handle_set(this.handles, 2, this.pointer);
-		this.control = LLVMStructTypeInContext(this.context, llvm12_handle_offset(this.handles, 0), 3, 0);
+		int fields = 3;
+		if (this.intrusive) {
+			llvm12_handle_set(this.handles, 0, this.pointer);
+			llvm12_handle_set(this.handles, 1, this.pointer);
+			llvm12_handle_set(this.handles, 2, this.wide);
+			llvm12_handle_set(this.handles, 3, this.wide);
+			llvm12_handle_set(this.handles, 4, this.pointer);
+			llvm12_handle_set(this.handles, 5, this.wide);
+			fields = 6;
+		}
+		this.control = LLVMStructTypeInContext(this.context, llvm12_handle_offset(this.handles, 0), fields, 0);
 		this.increment = this.adjust(true);
 		this.decrement = this.adjust(false);
-		this.acquire = this.build_acquire();
+		if (!this.intrusive) this.acquire = this.build_acquire();
 		this.clone = this.build_clone();
 		this.borrow = this.build_borrow();
 	}
@@ -177,14 +189,26 @@ class RecoverSharedRuntime {
 	void* function(string name, void* result) {
 		llvm12_handle_set(this.handles, 0, this.pointer);
 		var signature = LLVMFunctionType(result, llvm12_handle_offset(this.handles, 0), 1, 0);
-		var function = llvm12_function(this.module, signature, name);
+		string selected = name;
+		if (this.intrusive) {
+			if (name == "astra.e25a.shared.increment") selected = "astra.e25a.intrinsic.increment";
+			if (name == "astra.e25a.shared.decrement") selected = "astra.e25a.intrinsic.decrement";
+			if (name == "astra.e25a.shared.clone") selected = "astra.e25a.intrinsic.clone";
+			if (name == "astra.e25a.shared.borrow") selected = "astra.e25a.intrinsic.borrow";
+			if (name == "astra.e25a.shared.downgrade") selected = "astra.e25a.intrinsic.downgrade";
+			if (name == "astra.e25a.weak.clone") selected = "astra.e25a.intrinsic.weak.clone";
+			if (name == "astra.e25a.weak.upgrade") selected = "astra.e25a.intrinsic.weak.upgrade";
+			if (name == "astra.e25a.weak.release") selected = "astra.e25a.intrinsic.weak.release";
+		}
+		var function = llvm12_function(this.module, signature, selected);
 		LLVMSetLinkage(function, 8);
 		LLVMSetFunctionCallConv(function, 8);
 		return function;
 	}
 
 	void* field(void* root, int member) {
-		var address = LLVMBuildStructGEP2(this.builder, this.control, root, member, this.empty);
+		int index = member; if (this.intrusive) index = member + 2;
+		var address = LLVMBuildStructGEP2(this.builder, this.control, root, index, this.empty);
 		LLVMGEPSetNoWrapFlags(address, 0);
 		return address;
 	}
@@ -321,7 +345,8 @@ class RecoverSharedRuntime {
 		var alive = LLVMBuildICmp(this.builder, 33, count, LLVMConstNull(this.wide), this.empty);
 		var live_guard = LLVMBuildCondBr(this.builder, alive, payload_block, fatal);
 		LLVMPositionBuilderAtEnd(this.builder, payload_block);
-		var payload = LLVMBuildLoad2(this.builder, this.pointer, this.field(handle, 2), this.empty);
+		void* payload = handle;
+		if (!this.intrusive) payload = LLVMBuildLoad2(this.builder, this.pointer, this.field(handle, 2), this.empty);
 		var valid_payload = LLVMBuildICmp(this.builder, 33, payload, LLVMConstNull(this.pointer), this.empty);
 		var payload_guard = LLVMBuildCondBr(this.builder, valid_payload, done, fatal);
 		LLVMPositionBuilderAtEnd(this.builder, done);
@@ -346,9 +371,12 @@ class RecoverSharedRuntime {
 		var empty = LLVMBuildICmp(this.builder, 32, remaining, LLVMConstNull(this.wide), this.empty);
 		var strong = LLVMBuildCondBr(this.builder, empty, last, done);
 		LLVMPositionBuilderAtEnd(this.builder, last);
-		var address = this.field(handle, 2);
-		var payload = LLVMBuildLoad2(this.builder, this.pointer, address, this.empty);
-		var clear = LLVMBuildStore(this.builder, LLVMConstNull(this.pointer), address);
+		void* payload = handle;
+		if (!this.intrusive) {
+			var address = this.field(handle, 2);
+			payload = LLVMBuildLoad2(this.builder, this.pointer, address, this.empty);
+			var clear = LLVMBuildStore(this.builder, LLVMConstNull(this.pointer), address);
+		}
 		var destroy = this.call(destroy_payload, payload, native);
 		if (!native) llvm12_nobuiltin(this.context, destroy);
 		var weak = this.call(this.decrement, this.field(handle, 1), true);

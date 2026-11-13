@@ -88,8 +88,9 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 				index.fail(span, "weak prefix requires the authenticated astra27b source profile");
 				return no_type();
 			}
-			var original = index.uses[index.bindings.program.arena.get_node_payload(node).index].type;
-			if (checked_kind(index, original) != 27) {
+			var payload_node = index.bindings.program.arena.get_node_payload(node);
+			var original = index.uses[payload_node.index].type;
+			if (checked_kind(index, original) != 27 && !class_storage_intrinsic(index, original)) {
 				index.fail(span, "weak requires an eligible Shared lifetime; unique native Classes have no expirable control block");
 				return no_type();
 			}

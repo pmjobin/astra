@@ -89,9 +89,11 @@ class RecoverLlvm {
 	owned void*[] fixed_backings;
 	owned void*[] class_payloads;
 	owned void*[] class_destroyers;
+	owned void*[] class_payload_drops;
 	owned RecoverRecordStorage[] record_storage;
 	owned void*[] slot_functions;
 	owned RecoverSharedRuntime shared_runtime;
+	owned RecoverSharedRuntime intrinsic_shared;
 	owned void*[] shared_drops;
 	owned void*[] functions;
 	owned void*[] foreign_functions;
@@ -131,12 +133,15 @@ class RecoverLlvm {
 		this.fixed_backings = new void*[ssa.cfg.core.count];
 		var shared_runtime = new RecoverSharedRuntime(null, null, null, null, null, null, null);
 		this.shared_runtime = move shared_runtime;
+		var intrinsic_shared = new RecoverSharedRuntime(null, null, null, null, null, null, null);
+		this.intrinsic_shared = move intrinsic_shared;
 		this.shared_drops = new void*[ssa.cfg.core.flow.checked.types.count + 1];
 		int functions = ssa.cfg.core.flow.data.function_count; int nodes = ssa.cfg.core.count; int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
 		this.foreign_functions = new void*[symbols];
 		this.functions = new void*[functions]; this.entries = new void*[functions]; this.blocks = new void*[ssa.cfg.block_count]; this.values = new void*[len(ssa.data.values)]; this.slots = new void*[nodes]; this.locals = new void*[symbols]; this.owner_addresses = new void*[symbols]; this.owner_armed = new void*[symbols]; this.owner_initial_values = new void*[symbols]; this.owner_initial_flags = new void*[symbols];
 		this.descriptors = new void*[symbols]; this.payloads = new void*[symbols]; this.destroyers = new void*[symbols]; this.tables = new void*[symbols]; this.origins = new void*[nodes]; this.operations = new void*[ssa.cfg.block_count]; this.emitted = new bool[ssa.cfg.block_count]; this.complete = false;
 		this.class_payloads = new void*[symbols]; this.class_destroyers = new void*[symbols];
+		this.class_payload_drops = new void*[len(this.class_destroyers)];
 		this.record_storage = new RecoverRecordStorage[ssa.cfg.core.flow.checked.types.count + 1];
 		this.slot_functions = new void*[(ssa.cfg.core.flow.checked.types.count + 1) * 6];
 	}
@@ -930,6 +935,15 @@ class RecoverLlvm {
 			var shape = ssa.cfg.core.flow.fields.layout.types[row.type.index];
 			if (op == 67) shape = ssa.cfg.core.flow.fields.errors.types[row.type.index];
 			var sizes = new void*[2]; sizes[0] = this.int64(1); sizes[1] = this.int64(shape.payload_size); value = this.call(this.allocate_function, sizes, true);
+			if (op == 11 && class_storage_intrinsic(ssa.cfg.core.flow.checked, row.type)) {
+				var nominal = ssa.cfg.core.flow.checked.types.row(row.type).nominal;
+				int count = 2;
+				while (count < 4) {
+					var address = this.field(this.class_payloads[nominal.index], value, count);
+					var stored = LLVMBuildStore(this.builder, this.int64(1), address);
+					LLVMSetOrdering(stored, 2); LLVMSetAlignment(stored, 8); count = count + 1;
+				}
+			}
 			if (op == 67) {
 				var nominal = ssa.cfg.core.flow.checked.types.row(row.type).nominal;
 				var address = this.field(this.payload, value, 0);
@@ -969,8 +983,17 @@ class RecoverLlvm {
 			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_downgrade")) function = this.shared_runtime.downgrade;
 			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_clone")) function = this.shared_runtime.weak_clone;
 			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_upgrade")) function = this.shared_runtime.upgrade;
+			int child = ssa.cfg.core.flow.data.edges[row.first]; var carrier = ssa.cfg.core.nodes[child - 1].value.type;
+			if (checked_kind(ssa.cfg.core.flow.checked, carrier) == 28) carrier = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, carrier, 0).type;
+			if (class_storage_intrinsic(ssa.cfg.core.flow.checked, carrier)) {
+				function = this.intrinsic_shared.borrow;
+				if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_clone")) function = this.intrinsic_shared.clone;
+				if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_downgrade")) function = this.intrinsic_shared.downgrade;
+				if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_clone")) function = this.intrinsic_shared.weak_clone;
+				if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_upgrade")) function = this.intrinsic_shared.upgrade;
+			}
 			var arguments = new void*[1];
-			arguments[0] = this.values[ssa.cfg.core.flow.data.edges[row.first]];
+			arguments[0] = this.values[child];
 			value = this.call(function, arguments, true);
 			operation = value;
 		}
@@ -1089,10 +1112,23 @@ class RecoverLlvm {
 		this.operations[id - 1] = operation;
 	}
 
+	void ensure_intrinsic_shared() {
+		if (this.intrinsic_shared.context != null) return;
+		var runtime = new RecoverSharedRuntime(this.context, this.module, this.builder, this.handles, this.allocate_function, this.free_function, this.trap_function);
+		runtime.intrusive = true; runtime.build_helpers(); this.intrinsic_shared = move runtime;
+	}
+
 	void shared_helpers(RecoverSsa ssa) throws Error {
 		int t = 1;
 		while (t <= ssa.cfg.core.flow.checked.types.count) {
 			var type = type_id(t);
+			if (recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
+				var payload = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+				if (class_storage_intrinsic(ssa.cfg.core.flow.checked, payload)) {
+					this.ensure_intrinsic_shared(); this.intrinsic_shared.build_weak_helpers(); this.shared_drops[t] = this.intrinsic_shared.weak_drop;
+					t = t + 1; continue;
+				}
+			}
 			if (recover_storage_shared(ssa.cfg.core.flow.checked, type) || recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
 				if (this.shared_runtime.context == null) {
 					var runtime = new RecoverSharedRuntime(this.context, this.module, this.builder, this.handles, this.allocate_function, this.free_function, this.trap_function);
@@ -1245,13 +1281,18 @@ class RecoverLlvm {
 			}
 			if (declaration.kind == 4 && recover_storage_class(ssa.cfg.core.flow.checked, type)) {
 				var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); int count = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields);
-				if (count > 0) {
-					var types = new void*[count]; int i = 0;
+				bool intrinsic = class_storage_intrinsic(ssa.cfg.core.flow.checked, type); int prefix = 0;
+				if (intrinsic) prefix = 6;
+				if (count > 0 || intrinsic) {
+					var types = new void*[count + prefix]; int i = 0;
+					if (intrinsic) {
+						types[0] = this.pointer; types[1] = this.pointer; types[2] = this.wide; types[3] = this.wide; types[4] = this.pointer; types[5] = this.wide;
+					}
 					while (i < count) {
 						var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var member = ssa.cfg.core.flow.checked.node_symbols[source.index]; var field_type = ssa.cfg.core.flow.checked.symbol_types[member.index];
-						if (checked_kind(ssa.cfg.core.flow.checked, field_type) == 30) types[i] = this.record_storage_for(ssa.cfg.core.flow.checked, field_type);
+						if (checked_kind(ssa.cfg.core.flow.checked, field_type) == 30) types[i + prefix] = this.record_storage_for(ssa.cfg.core.flow.checked, field_type);
 						else {
-							types[i] = this.scalar(ssa.cfg.core.flow.checked, field_type);
+							types[i + prefix] = this.scalar(ssa.cfg.core.flow.checked, field_type);
 						}
 						if (field_type.index == 15) snapshot = true;
 						i = i + 1;
@@ -1259,7 +1300,15 @@ class RecoverLlvm {
 					var physical = this.structure(types); this.class_payloads[s] = physical;
 					var name_builder = new Utf8ByteBuilder(); source_append_text(name_builder, "astra.e25a.class.drop."); append_int(name_builder, s); var name = name_builder.snapshot();
 					var parameters = new void*[1]; parameters[0] = this.pointer;
-					var destroyer = this.function(name.text, LLVMVoidTypeInContext(this.context), parameters, true); this.class_destroyers[s] = destroyer;
+					if (intrinsic) {
+						var final_name = llvm_name("astra.e25a.class.finalize.", s);
+						var payload_drop = this.function(final_name.text, LLVMVoidTypeInContext(this.context), parameters, true);
+						this.class_payload_drops[s] = payload_drop;
+						this.ensure_intrinsic_shared();
+						this.class_destroyers[s] = this.intrinsic_shared.build_release(payload_drop, true, name.text);
+					} else {
+						var destroyer = this.function(name.text, LLVMVoidTypeInContext(this.context), parameters, true); this.class_destroyers[s] = destroyer;
+					}
 				}
 			}
 			s = s + 1;
@@ -1269,14 +1318,17 @@ class RecoverLlvm {
 		s = 1;
 		while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
 			var function = this.class_destroyers[s];
+			if (this.class_payload_drops[s] != null) function = this.class_payload_drops[s];
 			if (function != null) {
+				int prefix = 0;
+				if (this.class_payload_drops[s] != null) prefix = 6;
 				var entry = llvm12_block(this.context, function, "entry"); var destroy = llvm12_block(this.context, function, "destroy"); var exit = llvm12_block(this.context, function, "exit");
 				LLVMPositionBuilderAtEnd(this.builder, entry); var object = LLVMGetParam(function, 0); var present = LLVMBuildICmp(this.builder, 33, object, LLVMConstNull(this.pointer), this.empty); var branch = LLVMBuildCondBr(this.builder, present, destroy, exit);
 				LLVMPositionBuilderAtEnd(this.builder, destroy); var declaration = ssa.cfg.core.flow.checked.bindings.symbol(type_symbol(s)); var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(declaration.node); int i = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields) - 1;
 				while (i >= 0) {
 					var source = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, i); var member = ssa.cfg.core.flow.checked.node_symbols[source.index]; var type = ssa.cfg.core.flow.checked.symbol_types[member.index]; int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 					if ((ssa.cfg.core.flow.checked.symbol_flags[member.index] & 4) != 0 || kind == 15) {
-						var address = this.field(this.class_payloads[s], object, i);
+						var address = this.field(this.class_payloads[s], object, i + prefix);
 						if (kind == 23) {
 							var arguments = new void*[1]; arguments[0] = address;
 							var call = this.call(this.slot_functions[type.index * 6 + 5], arguments, false);
@@ -1300,7 +1352,13 @@ class RecoverLlvm {
 					}
 					i = i - 1;
 				}
-				var arguments = new void*[1]; arguments[0] = object; var free = this.call(this.free_function, arguments, false); llvm12_nobuiltin(this.context, free); var jump = LLVMBuildBr(this.builder, exit);
+				if (prefix == 0) {
+					var arguments = new void*[1];
+					arguments[0] = object;
+					var free = this.call(this.free_function, arguments, false);
+					llvm12_nobuiltin(this.context, free);
+				}
+				var jump = LLVMBuildBr(this.builder, exit);
 				LLVMPositionBuilderAtEnd(this.builder, exit); var end = LLVMBuildRetVoid(this.builder);
 			}
 			s = s + 1;
@@ -1484,6 +1542,7 @@ class RecoverLlvm {
 		var nominal = ssa.cfg.core.flow.checked.types.row(fact.aggregate).nominal; var object = this.locals[fact.receiver.index];
 		if (fact.parent > 0) object = this.values[fact.parent];
 		void* physical = this.class_payloads[nominal.index]; int ordinal = fact.ordinal;
+		if (class_storage_intrinsic(ssa.cfg.core.flow.checked, fact.aggregate)) ordinal = ordinal + 6;
 		if (error_storage_class(ssa.cfg.core.flow.checked, fact.aggregate)) {
 			physical = this.payloads[nominal.index];
 			ordinal = ordinal + 1;
@@ -1535,6 +1594,7 @@ class RecoverLlvm {
 		int s = 1;
 		while (s < len(this.class_destroyers)) {
 			var destroy = this.class_destroyers[s];
+			if (this.class_payload_drops[s] != null) destroy = this.class_payload_drops[s];
 			if (destroy != null) {
 				var type = ssa.cfg.core.flow.checked.symbol_types[s];
 				var finalizer = class_storage_lifecycle(ssa.cfg.core.flow.checked, type, "deinit");
@@ -1655,6 +1715,11 @@ class RecoverLlvm {
 				if (!recover_shared_release_verified(this.shared_drops[t], this.shared_runtime.control, this.shared_runtime.decrement, drop, native, this.free_function, name.text)) return false;
 			} else {
 				if (recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
+					var payload = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+					if (class_storage_intrinsic_verified(ssa.cfg.core.flow.checked, payload)) {
+						if (this.shared_drops[t] != this.intrinsic_shared.weak_drop || this.shared_drops[t] == null) return false;
+						t = t + 1; continue;
+					}
 					needed = true; weak_needed = true;
 					if (this.shared_runtime.context == null || this.shared_drops[t] != this.shared_runtime.weak_drop || this.shared_drops[t] == null) return false;
 				} else {
@@ -1670,6 +1735,27 @@ class RecoverLlvm {
 		}
 		if (!needed) return this.shared_runtime.context == null && this.shared_runtime.control == null && this.shared_runtime.increment == null && this.shared_runtime.decrement == null && this.shared_runtime.acquire == null && this.shared_runtime.clone == null && this.shared_runtime.borrow == null;
 		return recover_shared_control_verified(this.shared_runtime.control, this.layout) && recover_shared_adjust_verified(this.shared_runtime.increment, this.trap_function, true) && recover_shared_adjust_verified(this.shared_runtime.decrement, this.trap_function, false) && recover_shared_acquire_verified(this.shared_runtime.acquire, this.shared_runtime.control, this.allocate_function, this.trap_function) && recover_shared_clone_verified(this.shared_runtime.clone, this.shared_runtime.control, this.shared_runtime.increment) && recover_shared_borrow_verified(this.shared_runtime.borrow, this.shared_runtime.control, this.trap_function);
+	}
+
+	bool intrinsic_helpers_verified(RecoverSsa ssa) {
+		bool needed = false; bool weak_needed = false; int t = 1;
+		while (t <= ssa.cfg.core.flow.checked.types.count) {
+			var type = type_id(t);
+			if (class_storage_intrinsic_verified(ssa.cfg.core.flow.checked, type) && recover_storage_class(ssa.cfg.core.flow.checked, type)) needed = true;
+			if (recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
+				var payload = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+				if (class_storage_intrinsic_verified(ssa.cfg.core.flow.checked, payload)) {
+					needed = true;
+					weak_needed = true;
+				}
+			}
+			t = t + 1;
+		}
+		if (!needed) return this.intrinsic_shared.context == null && this.intrinsic_shared.control == null && this.intrinsic_shared.increment == null && this.intrinsic_shared.decrement == null && this.intrinsic_shared.clone == null && this.intrinsic_shared.borrow == null && this.intrinsic_shared.acquire == null && this.intrinsic_shared.downgrade == null && this.intrinsic_shared.weak_clone == null && this.intrinsic_shared.upgrade == null && this.intrinsic_shared.weak_drop == null;
+		if (!this.intrinsic_shared.intrusive || this.intrinsic_shared.context != this.context || this.intrinsic_shared.module != this.module || this.intrinsic_shared.acquire != null || !recover_intrinsic_control_verified(this.intrinsic_shared.control, this.layout)) return false;
+		if (!recover_shared_adjust_named_verified(this.intrinsic_shared.increment, this.trap_function, true, "astra.e25a.intrinsic.increment") || !recover_shared_adjust_named_verified(this.intrinsic_shared.decrement, this.trap_function, false, "astra.e25a.intrinsic.decrement") || !recover_shared_retain_verified(this.intrinsic_shared.clone, this.intrinsic_shared.control, this.intrinsic_shared.increment, "astra.e25a.intrinsic.clone", 2) || !recover_shared_borrow_form_verified(this.intrinsic_shared.borrow, this.intrinsic_shared.control, this.trap_function, true)) return false;
+		if (!weak_needed) return this.intrinsic_shared.downgrade == null && this.intrinsic_shared.weak_clone == null && this.intrinsic_shared.upgrade == null && this.intrinsic_shared.weak_drop == null;
+		return recover_shared_retain_verified(this.intrinsic_shared.downgrade, this.intrinsic_shared.control, this.intrinsic_shared.increment, "astra.e25a.intrinsic.downgrade", 3) && recover_shared_retain_verified(this.intrinsic_shared.weak_clone, this.intrinsic_shared.control, this.intrinsic_shared.increment, "astra.e25a.intrinsic.weak.clone", 3) && recover_weak_upgrade_form_verified(this.intrinsic_shared.upgrade, this.intrinsic_shared.control, this.trap_function, true) && recover_weak_release_form_verified(this.intrinsic_shared.weak_drop, this.intrinsic_shared.control, this.intrinsic_shared.decrement, this.free_function, this.trap_function, true);
 	}
 
 	bool array_helpers_verified(RecoverSsa ssa) throws Error {
@@ -1839,7 +1925,7 @@ class RecoverLlvm {
 		if (!recover_error_snapshot_verified(this.snapshot_allocate_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
-		if (!recover_class_helpers_verified(ssa, this.layout, this.functions, this.class_payloads, this.class_destroyers, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
+		if (!recover_class_helpers_verified(ssa, this.layout, this.functions, this.class_payloads, this.class_destroyers, this.class_payload_drops, this.intrinsic_shared, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.intrinsic_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
 		if (!recover_record_storage_verified(ssa, this.module, this.layout, this.class_payloads, this.record_storage, this.trap_function)) return false;
 		if (len(this.foreign_functions) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || this.foreign_functions[0] != null) return false;
 		int foreign_count = 0;
@@ -1883,6 +1969,10 @@ class RecoverLlvm {
 		if (this.shared_runtime.context != null) helper_count = helper_count + 5;
 		int weak_start = helper_count;
 		if (this.shared_runtime.weak_drop != null) helper_count = helper_count + 4;
+		int intrinsic_start = helper_count;
+		if (this.intrinsic_shared.context != null) helper_count = helper_count + 4;
+		int intrinsic_weak_start = helper_count;
+		if (this.intrinsic_shared.weak_drop != null) helper_count = helper_count + 4;
 		int utf8_at = helper_count;
 		if (utf8_needed) helper_count = helper_count + 1;
 		int integer_at = helper_count;
@@ -1922,6 +2012,12 @@ class RecoverLlvm {
 			helpers[weak_start + 1] = this.shared_runtime.weak_clone;
 			helpers[weak_start + 2] = this.shared_runtime.upgrade;
 			helpers[weak_start + 3] = this.shared_runtime.weak_drop;
+		}
+		if (this.intrinsic_shared.context != null) {
+			helpers[intrinsic_start] = this.intrinsic_shared.increment; helpers[intrinsic_start + 1] = this.intrinsic_shared.decrement; helpers[intrinsic_start + 2] = this.intrinsic_shared.clone; helpers[intrinsic_start + 3] = this.intrinsic_shared.borrow;
+		}
+		if (this.intrinsic_shared.weak_drop != null) {
+			helpers[intrinsic_weak_start] = this.intrinsic_shared.downgrade; helpers[intrinsic_weak_start + 1] = this.intrinsic_shared.weak_clone; helpers[intrinsic_weak_start + 2] = this.intrinsic_shared.upgrade; helpers[intrinsic_weak_start + 3] = this.intrinsic_shared.weak_drop;
 		}
 		if (utf8_needed) helpers[utf8_at] = this.utf8_function;
 		integer = 0;
@@ -1968,7 +2064,8 @@ class RecoverLlvm {
 			}
 			foreign = foreign + 1;
 		}
-		int record_start = len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + len(this.slot_functions);
+		int payload_drop_start = len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + len(this.slot_functions);
+		int record_start = payload_drop_start + len(this.class_payload_drops);
 		var destroyers = new void*[record_start + len(this.record_storage) * 3]; int d = 0;
 		while (d < len(this.destroyers)) {
 			destroyers[d] = this.destroyers[d];
@@ -1986,6 +2083,11 @@ class RecoverLlvm {
 		d = 0;
 		while (d < len(this.slot_functions)) {
 			destroyers[len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + d] = this.slot_functions[d];
+			d = d + 1;
+		}
+		d = 0;
+		while (d < len(this.class_payload_drops)) {
+			destroyers[payload_drop_start + d] = this.class_payload_drops[d];
 			d = d + 1;
 		}
 		d = 0;
@@ -2009,7 +2111,7 @@ class RecoverLlvm {
 			clone = this.shared_runtime.clone;
 			borrow = this.shared_runtime.borrow;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.intrinsic_shared, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

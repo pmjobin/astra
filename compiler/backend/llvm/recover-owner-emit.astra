@@ -40,7 +40,7 @@ RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock blo
 		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(free_function), free_function, llvm12_handle_offset(handles, 0), 1, empty);
 		bool native = recover_storage_error(ssa.cfg.core.flow.checked, slot.type);
 		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 27 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 28) native = true;
-		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 31 && recover_storage_class(ssa.cfg.core.flow.checked, slot.type)) native = ssa.cfg.core.flow.fields.layout.types[slot.type.index].fields > 0;
+		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 31 && recover_storage_class(ssa.cfg.core.flow.checked, slot.type)) native = ssa.cfg.core.flow.fields.layout.types[slot.type.index].fields > 0 || class_storage_intrinsic(ssa.cfg.core.flow.checked, slot.type);
 		if (native) LLVMSetInstructionCallConv(operation, 8); else {
 			llvm12_nobuiltin(context, operation);
 		}

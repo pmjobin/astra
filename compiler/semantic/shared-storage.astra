@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Shared has its own control-block pointer. Layout admission does not prove
 // acquisition, borrowed payload liveness, or balanced retain/release.
+// Intrinsic Shared uses C0's existing native-v14 object header. Ordinary
+// unique Classes remain headerless; policy source is independently checked.
+bool class_storage_intrinsic(CheckedIndex checked, TypeId type) {
+	if (!checked.field_effects || checked_kind(checked, type) != 31) return false;
+	var nominal = checked.types.row(type).nominal;
+	if (nominal.index < 1 || nominal.index > checked.bindings.symbol_count) return false;
+	var node = checked.bindings.symbol(nominal).node;
+	var policy = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	return policy.present && policy.kinds == 1 && policy.admitted == 1;
+}
+
 bool class_storage_shared(CheckedIndex checked, TypeId type, int depth) {
 	if (!checked.field_effects || depth > 32 || checked_kind(checked, type) != 27) return false;
 	var row = checked.types.row(type);
@@ -8,7 +19,7 @@ bool class_storage_shared(CheckedIndex checked, TypeId type, int depth) {
 	var element = checked.types.argument(checked.types, type, 0);
 	if (element.flags != 0 || checked_kind(checked, element.type) != 31) return false;
 	var payload = checked.types.row(element.type);
-	if (generic_instance_for(checked, payload.nominal) != 0) return false;
+	if (generic_instance_for(checked, payload.nominal) != 0 || class_storage_intrinsic(checked, element.type)) return false;
 	return class_storage_value(checked, element.type, 4, depth + 1);
 }
 
@@ -49,7 +60,7 @@ TypeId checked_shared_call(CheckedIndex checked, SyntaxNodeId node, int depth) t
 	if (type.index == 0) return checked.defer(node, 19);
 	var result = type;
 	if (action == 1) {
-		if (checked.bindings.program.arena.kind(operand) != SyntaxKind.MoveExpressionSyntax() || checked_kind(checked, type) != 31 || !class_storage_exact(checked, type, 0)) {
+		if (checked.bindings.program.arena.kind(operand) != SyntaxKind.MoveExpressionSyntax() || checked_kind(checked, type) != 31 || class_storage_intrinsic(checked, type) || !class_storage_exact(checked, type, 0)) {
 			checked.fail(checked.bindings.program.arena.header(node).span, "shared_acquire requires explicit move of an exact native Class owner");
 			return no_type();
 		}
@@ -60,13 +71,21 @@ TypeId checked_shared_call(CheckedIndex checked, SyntaxNodeId node, int depth) t
 		}
 		result = checked.types.unary(27, type, 0);
 	} else {
-		if (!(action == 5 || action == 6) && !class_storage_shared(checked, type, 0) || (action == 5 || action == 6) && !class_storage_weak(checked, type, 0)) {
+		bool intrinsic = class_storage_intrinsic(checked, type) && class_storage_class(checked, type);
+		if (!(action == 5 || action == 6) && !class_storage_shared(checked, type, 0) && !intrinsic || (action == 5 || action == 6) && !class_storage_weak(checked, type, 0)) {
 			checked.fail(checked.bindings.program.arena.header(operand).span, "shared operation requires an exact Shared native Class handle");
 			return no_type();
 		}
-		if (action == 3) result = checked.types.argument(checked.types, type, 0).type;
-		if (action == 4) result = checked.types.unary(28, checked.types.argument(checked.types, type, 0).type, 0);
-		if (action == 6) result = checked.types.unary(27, checked.types.argument(checked.types, type, 0).type, 0);
+		if (action == 3 && !intrinsic) result = checked.types.argument(checked.types, type, 0).type;
+		if (action == 4) {
+			var payload = type; if (!intrinsic) payload = checked.types.argument(checked.types, type, 0).type;
+			result = checked.types.unary(28, payload, 0);
+		}
+		if (action == 6) {
+			var payload = checked.types.argument(checked.types, type, 0).type;
+			result = payload;
+			if (!class_storage_intrinsic(checked, payload)) result = checked.types.unary(27, payload, 0);
+		}
 	}
 	var use = checked.uses[node.index];
 	use.flags = 4;

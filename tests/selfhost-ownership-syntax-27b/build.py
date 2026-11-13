@@ -92,6 +92,8 @@ def main():
 		print(name, result['status'], round(result['seconds'], 3), flush=True)
 		assert result['status'] == 'EXPECTED_OUTCOME', (name, result)
 	run('semantic-preflight', [oracle, '--dump-semantics', *inputs], 600)
+	if a.producer_kind == 'c0':
+		run('core-preflight', [oracle, '--dump-core', *inputs], 600)
 	objects = {}
 	for name, source, flags in provider_names:
 		path = snapshot/source

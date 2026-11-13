@@ -66,19 +66,51 @@ bool class_storage_template_verified(CheckedIndex checked, SymbolId origin) {
 	return slots >= 1 && slots <= 8;
 }
 
+// Authenticate the exact [Shared] policy from source tokens preceding the real
+// Class keyword. Cached policy bits cannot invent an intrusive header.
+bool class_storage_intrinsic_verified(CheckedIndex checked, TypeId type) {
+	if (!checked.field_effects || !checked.types.valid_id(type)) return false;
+	var descriptor = checked.types.row(type);
+	if (descriptor.kind != 31 || descriptor.nominal.index < 1 || descriptor.nominal.index > checked.bindings.symbol_count) return false;
+	var node = checked.bindings.symbol(descriptor.nominal).node;
+	var policy = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
+	if (!policy.present || policy.kinds != 1 || policy.admitted != 1) return false;
+	var keyword = checked.bindings.program.arena.get_token_keyword(node);
+	if (!checked.bindings.program.arena.token_is(keyword, "class")) return false;
+	var span = checked.bindings.program.arena.token_span(keyword);
+	SyntaxSpan prefix = {source = span.source, start = 0, end = span.end};
+	try {
+		var original = checked.bindings.program.arena.source_span(prefix); var bytes = original.bytes();
+		var buffer = source_buffer("intrinsic-policy-proof", move bytes, false);
+		var retained = shared_acquire(move buffer); var scanner = lexer(move retained);
+		int first = 0; int second = 0; int third = 0;
+		bool second_shared = false; bool third_shared = false;
+		int budget = 1000000;
+		while (budget > 0) {
+			var token = scanner.next_token(); var kind = token.kind();
+			if (token.span.start == span.start && kind == TokenKind.CLASS()) return first == 63 && second == 1 && third == 64 && second_shared;
+			if (kind == TokenKind.EOF()) return false;
+			first = second; second = third; third = token_kind_code(kind);
+			second_shared = third_shared; third_shared = token.spelling.text == "Shared";
+			budget = budget - 1;
+		}
+	} catch (Error error) { return false; }
+	return false;
+}
+
 bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact, int depth) {
 	if (!checked.class_storage || depth > 32 || !checked.types.valid_id(type)) return false;
 	var descriptor = checked.types.row(type);
 	if (descriptor.kind != 31 || descriptor.count != 0 || descriptor.nominal.index < 1 || descriptor.nominal.index > checked.bindings.symbol_count) return false;
 	var declaration = checked.bindings.symbol(descriptor.nominal); var node = declaration.node;
 	if (declaration.kind != 4 || checked.bindings.program.arena.kind(node) != SyntaxKind.ClassDeclarationSyntax() || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_parameters(node)) != 0) return false;
-	if (exact && generic_instance_for(checked, descriptor.nominal) != 0) return false;
+	if (exact && (generic_instance_for(checked, descriptor.nominal) != 0 || class_storage_intrinsic_verified(checked, type))) return false;
 	if (checked.bindings.program.arena.get_node_parent_class(node).index != 0 || checked.bindings.program.arena.get_bool_is_interface(node) || checked.bindings.program.arena.get_token_exception_root(node).index != 0) return false;
 	int instance = generic_instance_for(checked, descriptor.nominal);
 	if (instance > 0 && !class_storage_template_verified(checked, checked.instances[instance - 1].origin)) return false;
 	if (checked.bindings.program.arena.get_bool_exact_heap_class(node) && instance == 0) return false;
 	var policy = checked.bindings.program.arena.get_concurrency_concurrency_policy(node);
-	if (policy.present || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
+	if (policy.present && (instance != 0 || !class_storage_intrinsic_verified(checked, type)) || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_allocator(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_representation(node)) != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_alignment(node)) != 0 || checked.bindings.program.arena.get_node_foreign_import(node).index != 0 || checked.bindings.program.arena.get_node_foreign_export(node).index != 0 || checked.bindings.program.arena.get_node_com_export(node).index != 0 || checked.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
 	var members = checked.bindings.program.arena.get_list_members(node); int initializers = 0; int finalizers = 0; int m = 0;
 	while (m < checked.bindings.program.arena.list_count(members)) {
 		var member = checked.bindings.program.arena.node_at(members, m); var kind = checked.bindings.program.arena.kind(member);
@@ -96,7 +128,7 @@ bool class_storage_source_verified(CheckedIndex checked, TypeId type, bool exact
 				if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_base_arguments(member)) != 0) return false;
 				if (checked.bindings.program.arena.token_is(name, "init")) initializers = initializers + 1;
 				else {
-					if (!checked.field_effects || instance != 0 || !checked.bindings.program.arena.token_is(name, "deinit") || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(member)) != 0 || checked.bindings.program.arena.get_node_return_type(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) == 0) return false;
+					if (!checked.field_effects || instance != 0 || !checked.bindings.program.arena.token_is(name, "deinit") || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(member)) != 0 || checked.bindings.program.arena.get_node_return_type(member).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(node)) == 0 && !class_storage_intrinsic_verified(checked, type)) return false;
 					finalizers = finalizers + 1;
 				}
 			}
@@ -117,7 +149,7 @@ bool class_storage_shared_verified(CheckedIndex checked, TypeId type, int depth)
 	var payload = checked.types.argument(checked.types, type, 0);
 	if (payload.flags != 0 || !checked.types.valid_id(payload.type)) return false;
 	var nominal = checked.types.row(payload.type);
-	if (nominal.kind != 31 || generic_instance_for(checked, nominal.nominal) != 0) return false;
+	if (nominal.kind != 31 || generic_instance_for(checked, nominal.nominal) != 0 || class_storage_intrinsic_verified(checked, payload.type)) return false;
 	return class_storage_source_verified(checked, payload.type, true, depth + 1);
 }
 
@@ -129,7 +161,7 @@ bool class_storage_weak_verified(CheckedIndex checked, TypeId type, int depth) {
 	if (payload.flags != 0 || !checked.types.valid_id(payload.type)) return false;
 	var nominal = checked.types.row(payload.type);
 	if (nominal.kind != 31 || generic_instance_for(checked, nominal.nominal) != 0) return false;
-	return class_storage_source_verified(checked, payload.type, true, depth + 1);
+	return class_storage_source_verified(checked, payload.type, false, depth + 1);
 }
 
 bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth) {
@@ -240,7 +272,11 @@ bool class_storage_verify(ClassStoragePlan plan, CheckedIndex checked) {
 				if (source.kind == 30 && !class_storage_fields_verified(checked, type_id(t), 0)) return false;
 				var declaration = checked.bindings.symbol(source.nominal);
 				var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
-				int extent = 0; int payload_alignment = 1; int field = 0;
+				int extent = 0; int payload_alignment = 1;
+				if (source.kind == 31 && class_storage_intrinsic_verified(checked, type_id(t))) {
+					extent = 48;
+					payload_alignment = 8;
+				} int field = 0;
 				if (row.fields != checked.bindings.program.arena.list_count(fields)) return false;
 				while (field < row.fields) {
 					var node = checked.bindings.program.arena.node_at(fields, field); var symbol = checked.node_symbols[node.index];

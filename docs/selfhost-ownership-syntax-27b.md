@@ -261,3 +261,37 @@ The authored compiler recipe can now retain C0's **O2 optimized executable IR**
 for independent verification and exact downstream reuse. It does not relabel
 that dump as raw or O0 IR. The ordinary C0 and Astra producer routes remain
 available, with source/tool hashes and real out-of-source outputs.
+
+The first C0 O2 build of `1e3b7f1` stopped before LLVM generation: Core function
+433 (`checked_resolve_inner`) rejected a nested temporary struct projection in
+weak-type resolution. The failed frozen build is retained as
+`runtime/selfhost27b-driver3`. Naming the syntax node before the indexed lookup
+preserves its bounded C0 producer contract. The complete compiler now passes
+C0 Core preflight (`runtime/selfhost27b-intrinsic-core-preflight1`, 76.675 seconds),
+and the authored C0 build route runs that gate before expensive emission.
+
+The next source batch adds intrinsic `[Shared]` admission using C0's existing
+native-v14 six-word header: descriptor, origin, strong count, weak count,
+monitor and thread identity, followed by source fields. Ordinary unique Classes
+remain headerless. The Error header and E25-A-v1 transport are unchanged.
+Only the existing plain Shared policy is admitted here; generic/inherited,
+Monitor and other policy expansions remain excluded. Intrinsic types remain
+outside the existing unique ExactHeapClass/owner-slot capability. Boxed Shared
+and intrinsic ownership keep distinct layouts and helper families. The
+independent source consumer re-lexes the actual `[Shared]` prefix instead of
+trusting cached policy bits. Payload destruction occurs at last strong release;
+weak retirement alone reclaims the object allocation after the sentinel retires.
+Source, layout, helper and inventory code is implemented, but actual Astra
+intrinsic qualification is still **pending**.
+
+`tests/selfhost-ownership-syntax-27b/intrinsic.py` independently observes actual
+allocations using C offsetof/static assertions and read-only count/payload
+observations. Its C bridge implements no count change, ownership transfer,
+destructor or source function. C0-produced O0/O2 binaries both returned 42 and
+passed strict unsuppressed Valgrind (`runtime/selfhost27b-intrinsic-c0-abi1`).
+They observed the 56-byte complete Session allocation, 8-byte alignment,
+strong/weak offsets 16/24, payload offset 48, clone/upgrade counts 3/3,
+last-strong destruction once with the weak sentinel still present, failed
+expired upgrade, and final weak reclamation once. This is C0 ABI oracle evidence,
+not an Astra implementation PASS. A separate C0 source probe also records its
+refusal of readonly scalar fields; no change to C0 was made.

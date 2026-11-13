@@ -14,7 +14,7 @@ bool recover_llvm_owner_drop(CheckedIndex checked, RecoverSlot slot, void* block
 	if (kind == 27 || kind == 28) convention = 8;
 	if (kind == 31 && recover_storage_class(checked, slot.type)) {
 		var declaration = checked.bindings.symbol(checked.types.row(slot.type).nominal);
-		if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node)) > 0) convention = 8;
+		if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node)) > 0 || class_storage_intrinsic_verified(checked, slot.type)) convention = 8;
 	}
 	if (LLVMGetInstructionOpcode(body[0]) != 27 || LLVMGetOperand(body[0], 0) != address || !recover_storage_llvm_type(checked, slot.type, LLVMTypeOf(body[0])) || LLVMGetInstructionOpcode(body[1]) != 27 || LLVMGetOperand(body[1], 0) != armed) return false;
 	int at = 2; void* data = body[0]; if (kind == 22) {

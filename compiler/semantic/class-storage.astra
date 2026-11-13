@@ -79,7 +79,7 @@ bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {
 	// declaration. The clause and each concrete argument are proved separately.
 	if (index.bindings.program.arena.get_bool_exact_heap_class(node) && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) == 0 && generic_instance_for(index, symbol) == 0) return false;
 	var concurrency = index.bindings.program.arena.get_concurrency_concurrency_policy(node);
-	if (concurrency.present || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_allocator(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_alignment(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_representation(node)) != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_node_foreign_export(node).index != 0 || index.bindings.program.arena.get_node_com_export(node).index != 0 || index.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
+	if (concurrency.present && (concurrency.kinds != 1 || concurrency.admitted != 1 || !index.field_effects || generic_instance_for(index, symbol) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_allocator(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_alignment(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_representation(node)) != 0 || index.bindings.program.arena.get_node_foreign_import(node).index != 0 || index.bindings.program.arena.get_node_foreign_export(node).index != 0 || index.bindings.program.arena.get_node_com_export(node).index != 0 || index.bindings.program.arena.get_node_gobject_export(node).index != 0) return false;
 	var members = index.bindings.program.arena.get_list_members(node);
 	int constructors = 0; int finalizers = 0; int i = 0;
 	while (i < index.bindings.program.arena.list_count(members)) {
@@ -94,7 +94,7 @@ bool class_storage_declaration(CheckedIndex index, SymbolId symbol) {
 		i = i + 1;
 	}
 	int fields = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node));
-	if (finalizers != 0 && (finalizers != 1 || fields == 0 || generic_instance_for(index, symbol) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0)) return false;
+	if (finalizers != 0 && (finalizers != 1 || fields == 0 && !concurrency.present || generic_instance_for(index, symbol) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) != 0)) return false;
 	// Heap fields have one entry per real Binder symbol. Payload extent is
 	// separately bounded by the layout producer and its independent consumer.
 	return constructors == 1 && fields <= index.bindings.symbol_count;
@@ -154,7 +154,7 @@ bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) 
 }
 
 bool class_storage_exact(CheckedIndex index, TypeId type, int depth) {
-	if (checked_kind(index, type) != 31 || depth > 32) return false;
+	if (checked_kind(index, type) != 31 || depth > 32 || class_storage_intrinsic(index, type)) return false;
 	var row = index.types.row(type);
 	// C0 ExactHeapClass excludes an exact generic Class application as T.
 	if (generic_instance_for(index, row.nominal) != 0) return false;
@@ -389,6 +389,10 @@ void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type
 		throw new Error("CLASS_STORAGE_DEFERRED: representation");
 	}
 	if (source.kind == 30 || source.kind == 31) {
+		if (source.kind == 31 && class_storage_intrinsic(index, type)) {
+			row.payload_size = 48;
+			row.payload_alignment = 8;
+		}
 		if (source.kind == 31 && !class_storage_class(index, type)) {
 			throw new Error("CLASS_STORAGE_DEFERRED: Class declaration or fields");
 		}

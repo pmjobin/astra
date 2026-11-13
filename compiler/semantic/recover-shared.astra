@@ -28,7 +28,8 @@ bool recover_shared_source_with_bindings(RecoverFlowData flow, CheckedIndex chec
 	bool weak_clone = checked.bindings.program.arena.token_is(row.token, "weak_clone");
 	bool upgrade = checked.bindings.program.arena.token_is(row.token, "weak_upgrade");
 	if (!clone && !borrow && !downgrade && !weak_clone && !upgrade) return false;
-	if ((weak_clone || upgrade) && !recover_storage_weak(checked, operand.type) || !(weak_clone || upgrade) && !recover_storage_shared(checked, operand.type)) return false;
+	bool intrinsic = class_storage_intrinsic_verified(checked, operand.type) && recover_storage_class(checked, operand.type);
+	if ((weak_clone || upgrade) && !recover_storage_weak(checked, operand.type) || !(weak_clone || upgrade) && !recover_storage_shared(checked, operand.type) && !intrinsic) return false;
 	int steps = 0;
 	while (operand.kind == 7 && steps < 192) {
 		operand = flow.nodes[operand.a - 1];
@@ -38,13 +39,19 @@ bool recover_shared_source_with_bindings(RecoverFlowData flow, CheckedIndex chec
 	if (operand.kind == 2) {
 		var declaration = checked.bindings.symbol(operand.symbol);
 		int flags = checked.symbol_flags[operand.symbol.index];
-		if (!(declaration.kind == 8 && flags == 4) && !(declaration.kind == 7 && (flags == 2 || flags == 4))) return false;
+		if (!(declaration.kind == 8 && flags == 4) && !(declaration.kind == 7 && (flags == 2 || flags == 4 || intrinsic && flags == 0))) return false;
 	}
-	if (downgrade || upgrade) {
-		bool result = downgrade && recover_storage_weak(checked, row.type) || upgrade && recover_storage_shared(checked, row.type);
-		return result && use.flags == 4 && checked.types.argument(checked.types, row.type, 0).type.index == checked.types.argument(checked.types, operand.type, 0).type.index;
+	if (downgrade) {
+		var payload = operand.type; if (!intrinsic) payload = checked.types.argument(checked.types, operand.type, 0).type;
+		return use.flags == 4 && recover_storage_weak(checked, row.type) && checked.types.argument(checked.types, row.type, 0).type.index == payload.index;
+	}
+	if (upgrade) {
+		var payload = checked.types.argument(checked.types, operand.type, 0).type;
+		if (class_storage_intrinsic_verified(checked, payload)) return use.flags == 4 && row.type.index == payload.index && recover_storage_class(checked, row.type);
+		return use.flags == 4 && recover_storage_shared(checked, row.type) && checked.types.argument(checked.types, row.type, 0).type.index == payload.index;
 	}
 	if (clone || weak_clone) return use.flags == 4 && row.type.index == operand.type.index;
+	if (intrinsic) return use.flags == 2 && row.type.index == operand.type.index;
 	return use.flags == 2 && row.type.index == checked.types.argument(checked.types, operand.type, 0).type.index;
 }
 
