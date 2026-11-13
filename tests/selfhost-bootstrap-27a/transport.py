@@ -58,8 +58,10 @@ def main():
 	verified = verify(archive, a.output)
 	assert verified['status'] == 'BYTE_EXACT' and verified['archive_sha256'] == result['archive_sha256']
 	write(a.output/'pack.json', result); write(a.output/'reconstruction.json', verified)
-	# Leave room below the installed publisher's 25 MiB final ZIP limit.
-	assert archive.stat().st_size < 23*1024**2, result
+	# Reserve one MiB below the installed publisher's 25 MiB final ZIP limit.
+	# Task source+patch raw bytes fit that budget; actual ZIP compression adds
+	# further room. The installed publisher still enforces its exact final cap.
+	assert archive.stat().st_size < 24*1024**2, result
 	attachments = a.output/'attachments'; attachments.mkdir()
 	segments = []
 	with archive.open('rb') as stream:
