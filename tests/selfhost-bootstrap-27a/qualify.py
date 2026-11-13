@@ -45,7 +45,9 @@ def main():
 	for n in ('caught-message-call', 'caught-message-scalars'):
 		paths = [ROOT/('tests/selfhost-bootstrap-27a/'+n+'.astra'), *[Path(p) for p in json.loads((a.inputs/'inputs.json').read_text())['inputs'] if p.endswith(('/lib/astra/base/errors.astra', '/lib/astra/hosted/text.astra'))]]
 		cases[n] = {str(v):sha(v) for v in paths}
-		# One independent known result and multifile cross-call, outside compiler data.
+	owned = ROOT/'tests/selfhost-bootstrap-27a/owned-borrowed-calls.astra'
+	cases['owned-borrowed-calls'] = {str(owned):sha(owned)}
+	# One independent known result and multifile cross-call, outside compiler data.
 	small = build/'exit42.astra'; small.write_text('int main() { return 42; }\n')
 	part = build/'multifile.astra'; part.write_text('int increment(int value) { return value + 1; }\n')
 	entry = build/'entrée.astra'; entry.write_text('int main() { return increment(41); }\n')
@@ -91,27 +93,50 @@ def main():
 	invalid = {
 		'syntax':'int main( { return 42; }\n',
 		'type':'int main() { bool value = 42; return 0; }\n',
+		'type-UTF8':'// café\nint main() { bool value = 42; return 0; }\n',
 		'borrow-transfer':'owned int[] bad(borrowed int[] values) { return move values; }\nint main() { return 0; }\n',
 		'double-move':'class Item { init() {} }\nvoid consume(owned Item item) {}\nint main() { var item = new Item(); consume(move item); consume(move item); return 0; }\n',
-		'unhandled-error':'void fail() throws Error { throw new Error("failed"); }\nint main() { fail(); return 42; }\n'}
+		'unhandled-error':'void fail() throws Error { throw new Error("failed"); }\nint main() { fail(); return 42; }\n',
+		'alias-overlap':'class Item { init() {} }\nvoid consume(borrowed Item view, owned Item item) {}\nint main() { var item = new Item(); consume(item, move item); return 0; }\n'}
+	# C0 and the Astra compiler have independent diagnostic systems. Require
+	# exact stage-specific refusals rather than pretending their messages match.
+	refusals = {
+		'syntax':('Typecore', b'expected parameter type name', b'expected parameter type name'),
+		'type':('Typecore', b"expected initializer of type 'bool', found 'int'", b"expected initializer of type 'bool', found 'int'"),
+		'type-UTF8':('Typecore', b"expected initializer of type 'bool', found 'int'", b"expected initializer of type 'bool', found 'int'"),
+		'borrow-transfer':('Flow', b'astrac: Flow rejected this program\n', b"move source 'values' must be an owned void* local"),
+		'double-move':('SSA', b'astrac: SSA verification failed\n', b"use of moved owned value 'item'"),
+		'unhandled-error':('Typecore', b'checked error is neither caught nor within the declared throws bound', b"unhandled checked exception bound 'Error'"),
+		'alias-overlap':('Flow', b'astrac: Flow rejected this program\n', b"cannot borrow moved owned value 'item'")}
 	negatives = []
 	for name, source in invalid.items():
 		path = build/(name+'.astra'); path.write_text(source)
 		inputs = [path, *base_libs]; _, oracle = run(name+'-C0-invalid', [a.compiler, '--check', *inputs], 1)
-		assert b'error:' in oracle
+		phase, diagnostic, oracle_diagnostic = refusals[name]
+		assert b'error:' in oracle and oracle_diagnostic in oracle
 		observed = []
 		for stage, producer in stages.items():
 			destination = build/(name+'-'+stage+'.sentinel'); marker = b'UNCHANGED_27A_FAILURE_SENTINEL\n'; destination.write_bytes(marker)
 			out, err = run(name+'-'+stage+'-invalid', [producer, '-o', destination, *inputs], 1)
-			assert not out and b'error:' in err and destination.read_bytes() == marker
+			assert not out and destination.read_bytes() == marker
 			assert not list(build.glob(destination.name+'.??????'))
+			if phase == 'Typecore':
+				match = re.fullmatch(re.escape(str(path).encode())+rb':(\d+):(\d+): error: '+re.escape(diagnostic)+rb'\n', err); assert match
+			else:
+				assert err == diagnostic
 			observed.append(err)
+			memory(name+'-'+stage+'-invalid-memory', [producer, '-o', destination, *inputs], 1)
+			assert destination.read_bytes() == marker
 		assert observed[0] == observed[1]
-		# Source position and message are independently checked against C0.
-		match = re.search(rb':(\d+):(\d+): error: (.*)', observed[0]); assert match
-		first, last = int(match[1]), int(match[2]); assert 0 <= first <= last <= len(path.read_bytes())
-		assert match[3].rstrip(b'.') in oracle
-		negatives.append(dict(name=name, source_sha256=sha(path), diagnostic_sha256=__import__('hashlib').sha256(observed[0]).hexdigest(), byte_span=[first, last], C0_message_equal=True, output_preserved=True))
+		span = None
+		if phase == 'Typecore':
+			match = re.search(rb':(\d+):(\d+): error: (.*)', observed[0]); assert match
+			first, last = int(match[1]), int(match[2]); raw = path.read_bytes(); assert 0 <= first < last <= len(raw)
+			position = re.search(rb':(\d+):(\d+): error: ', oracle); assert position
+			line, column = int(position[1]), int(position[2])
+			assert first == sum(len(v) for v in raw.splitlines(keepends=True)[:line-1])+column-1
+			span = [first, last]
+		negatives.append(dict(name=name, source_sha256=sha(path), diagnostic_sha256=__import__('hashlib').sha256(observed[0]).hexdigest(), rejection_phase=phase, byte_span=span, independent_C0_rejection=True, exact_stage_diagnostic=True, output_preserved=True, limitation='Flow/SSA refusals name the phase without a source span; Typecore diagnostics carry independently cross-checked byte positions.'))
 	for stage, producer in stages.items():
 		run(stage+'-version', [producer, '--version']); run(stage+'-help', [producer, '--help'])
 		for name, args in [('unknown', ['--unsupported']), ('no-sources', []), ('missing-output', [small]), ('missing-file', ['-o', build/'missing.ll', build/'does-not-exist.astra']), ('same-path', ['-o', small, small]), ('duplicate', ['-o', build/'duplicate.ll', small, small])]:

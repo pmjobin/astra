@@ -75,6 +75,14 @@ on that same frozen list, independently verifies LLVM, creates both O0/O2
 objects and linked ELF products, and records hashes, commands and GNU time.
 It never uses C0 as a runtime delegate for a subsequent generation.
 
+The bounded diagnostic interface reports Typecore errors with source byte
+ranges. Ownership refusals in later Flow/SSA verification currently identify
+the rejecting phase without a source range. The qualification checks their
+exact messages and independently confirms the invalid program with C0; it does
+not claim those separate diagnostic systems use identical wording. Syntax,
+initializer-type and unhandled-error byte positions are cross-checked against
+C0 line/column positions, including a UTF-8 source prefix.
+
 ## Initial failure and correction
 
 The first native preflight constructed 323,088 Flow nodes and then rejected the
@@ -121,6 +129,18 @@ The corrected full live source passed another C0 semantic check in 57.848807225
 seconds before the next freeze. Native driver compilation qualification, actual
 Stage1-to-Stage2 regeneration and final behavioral/memory qualification remain
 pending. No 27-A PASS is claimed by this intermediate finding.
+
+While the corrected seed was building, seed2 independently produced executable
+O0/O2 objects for a minimal source and passed strict unsuppressed compiler
+Valgrind. Eleven further valid source populations (original flow-number,
+text-builder growth, derived errors, fixed slices, counted C import, shared
+replacement errors, record arrays/results, separate owned/borrowed calls, a
+minimal program and UTF-8 multifile calls) passed C0 differential native checks
+and strict returning memory checks. Seven invalid populations, including alias
+overlap, refused with exact phase-specific diagnostics and preserved output
+sentinels; compiler failure cleanup passed strict Valgrind. These receipts under
+`seed2preflight2` are explicitly single-stage preflights. They exclude the
+separately recorded caught-message refusal and give no Stage2/self-build credit.
 
 ## Later pre-release work
 

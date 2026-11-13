@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+class BootstrapItem {
+	int value;
+
+	init(int value) { this.value = value; }
+}
+
+int observe_and_consume(borrowed BootstrapItem view, owned BootstrapItem item) {
+	return view.value + item.value;
+}
+
+int main() {
+	var first = new BootstrapItem(19);
+	var second = new BootstrapItem(23);
+	return observe_and_consume(first, move second);
+}
