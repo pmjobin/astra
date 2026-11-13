@@ -74,7 +74,9 @@ def prepare(a):
 	assert check['status'] == 'EXPECTED_OUTCOME'
 	print('FROZEN_COMPLETE_DRIVER_GRAPH', len(compiler), len(libraries), leaf, flush=True)
 	if a.reference_host:
-		preflight = execute([a.reference_host, '--native', build/'preflight.ll', *inputs], leaf/'preflight', timeout=1200)
+		# Historical exact current-source O2 emission took 1579 seconds. Allow
+		# that measured path without changing or restarting an existing attempt.
+		preflight = execute([a.reference_host, '--native', build/'preflight.ll', *inputs], leaf/'preflight', timeout=3600)
 		assert preflight['status'] == 'EXPECTED_OUTCOME'
 		assert execute(['opt', '-passes=verify', '-disable-output', build/'preflight.ll'], leaf/'preflight-verify', timeout=300)['status'] == 'EXPECTED_OUTCOME'
 	print('READY_FOR_EXISTING_ACCELERATE_COMPILE', leaf/'ownflow-O2-input-identity.json', flush=True)

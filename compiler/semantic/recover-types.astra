@@ -67,6 +67,40 @@ TypeId recover_type_compute(RecoverTypes data, CheckedIndex checked, SyntaxNodeI
 		data.types[node.index] = type;
 		return type;
 	}
+	// A caught Error.message has a separately proved text view. Typecore leaves
+	// a surrounding call pending when that argument is initially untyped. Admit
+	// only synchronous free calls with copied results and nonconsuming inputs;
+	// retain the original CheckedIndex and its deferred use byte-for-byte.
+	if (kind == SyntaxKind.CallExpressionSyntax() && checked.uses[node.index].deferred == 15) {
+		var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+		if (target.index < 1 || target.index > checked.bindings.symbol_count) return no_type();
+		var declaration = checked.bindings.symbol(target);
+		int ordinal = checked.symbol_signatures[target.index].index;
+		if (declaration.kind != 1 || declaration.owner.index != 0 || ordinal < 1 || ordinal > checked.signature_count || checked.bindings.program.arena.get_node_receiver_place(node).index != 0 || checked.bindings.program.arena.get_token_receiver(node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0) return no_type();
+		var signature = checked.signatures[ordinal - 1];
+		var result = checked.types.argument(checked.types, signature.callable, 0);
+		int code = checked_kind(checked, result.type);
+		if (signature.flags != 0 || result.flags != 0 || code != 13 && code != 14 && !type_numeric(code) || !checked_effect_signature_verified(checked, signature)) return no_type();
+		var arguments = checked_call_arguments(checked, node);
+		int count = checked.bindings.program.arena.list_count(arguments);
+		if (checked.types.row(signature.callable).count != count + 1) return no_type();
+		bool recovered = false;
+		int i = 0;
+		while (i < count) {
+			var argument = checked.bindings.program.arena.node_at(arguments, i);
+			var channel = checked.types.argument(checked.types, signature.callable, i + 1);
+			var type = recover_type_compute(data, checked, argument, depth + 1);
+			if (type.index != channel.type.index || channel.flags != 0 || checked.uses[argument.index].flags != 0) return no_type();
+			if (checked.uses[argument.index].type.index == 0) {
+				if (data.members[argument.index].index == 0 || data.borrows[argument.index].index == 0 || type.index != 15) return no_type();
+				recovered = true;
+			}
+			i = i + 1;
+		}
+		if (!recovered) return no_type();
+		data.types[node.index] = result.type;
+		return result.type;
+	}
 	if (kind == SyntaxKind.ShortCircuitExpressionSyntax()) {
 		var token = checked.bindings.program.arena.get_token_operator_token(node);
 		if (!checked.bindings.program.arena.token_is(token, "&&") && !checked.bindings.program.arena.token_is(token, "||")) return no_type();

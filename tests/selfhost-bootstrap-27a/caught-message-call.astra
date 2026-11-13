@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+bool message_matches(string message, int expected) {
+	return message == "caught message" && expected == 42;
+}
+
+int main() {
+	try {
+		throw new Error("caught message");
+	} catch (Error error) {
+		if (!message_matches(error.message, 42)) return 1;
+		println_stderr(error.message);
+		return 42;
+	}
+}

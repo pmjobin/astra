@@ -34,6 +34,41 @@ bool recover_types_verify(RecoverTypes data, CheckedIndex checked) {
 					var child = checked.bindings.program.arena.get_node_expression(node);
 					expected = data.types[child.index];
 				}
+				if (kind == SyntaxKind.CallExpressionSyntax() && type.index != 0) {
+					// Reconstruct the declaration and every argument independently;
+					// never call the producer's type computation to certify its result.
+					if (original.deferred != 15 || original.flags != 0 || checked.bindings.program.arena.get_node_receiver_place(node).index != 0 || checked.bindings.program.arena.get_token_receiver(node).index != 0 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(node)) != 0) return false;
+					var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
+					if (target.index < 1 || target.index > checked.bindings.symbol_count) return false;
+					var declaration = checked.bindings.symbol(target);
+					int ordinal = checked.symbol_signatures[target.index].index;
+					if (declaration.kind != 1 || declaration.owner.index != 0 || ordinal < 1 || ordinal > checked.signature_count) return false;
+					var signature = checked.signatures[ordinal - 1];
+					if (signature.declaration.index != target.index || signature.callable.index != checked.symbol_types[target.index].index || signature.flags != 0 || !checked_effect_signature_verified(checked, signature)) return false;
+					var result = checked.types.argument(checked.types, signature.callable, 0);
+					int code = checked_kind(checked, result.type);
+					if (result.flags != 0 || code != 13 && code != 14 && !type_numeric(code)) return false;
+					var arguments = checked_call_arguments(checked, node);
+					int count = checked.bindings.program.arena.list_count(arguments);
+					if (checked.types.row(signature.callable).count != count + 1) return false;
+					bool recovered = false;
+					int a = 0;
+					while (a < count) {
+						var argument = checked.bindings.program.arena.node_at(arguments, a);
+						var channel = checked.types.argument(checked.types, signature.callable, a + 1);
+						var use = checked.uses[argument.index];
+						if (channel.flags != 0 || use.flags != 0 || data.types[argument.index].index != channel.type.index) return false;
+						if (use.type.index == 0) {
+							if (use.deferred != 12 || data.types[argument.index].index != 15 || data.members[argument.index].index == 0 || data.borrows[argument.index].index == 0) return false;
+							recovered = true;
+						} else {
+							if (use.type.index != channel.type.index || use.deferred != 0 && use.deferred != 17 && use.deferred != 19) return false;
+						}
+						a = a + 1;
+					}
+					if (!recovered) return false;
+					expected = result.type;
+				}
 				if (kind == SyntaxKind.BinaryExpressionSyntax()) {
 					var left_node = checked.bindings.program.arena.get_node_left(node); var right_node = checked.bindings.program.arena.get_node_right(node); var left = data.types[left_node.index]; var right = data.types[right_node.index]; var token = checked.bindings.program.arena.get_token_operator_token(node);
 					if (left.index > 0 && left.index == right.index && (type_numeric(checked_kind(checked, left)) || left.index == 13 || left.index == 15 || recover_storage_class(checked, left) || recover_storage_error(checked, left) || recover_storage_shared(checked, left) || recover_storage_pointer(checked, left)) && (checked.bindings.program.arena.token_is(token, "==") || checked.bindings.program.arena.token_is(token, "!="))) expected = type_id(13);

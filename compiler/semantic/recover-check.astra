@@ -121,7 +121,7 @@ bool recover_child_calls_with_bindings(RecoverFlowData flow, CheckedIndex checke
 			}
 			int callee = flow.symbols[row.symbol.index]; if (callee < 1 || callee > flow.function_count) return false;
 			var function_row = flow.functions[callee - 1];
-			if (row.type.index != function_row.result.index || !recover_call_source(checked, source, row.symbol, row.type)) return false;
+			if (row.type.index != function_row.result.index || !recover_refined_call_source(types, checked, source, row.symbol, row.type)) return false;
 		} else {
 			if (kind != SyntaxKind.HeapObjectConstructionSyntax() || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source) || row.symbol.index != checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source)).index || !recover_error_shape(checked, row.symbol, 0) || checked_kind(checked, row.type) != 31 || checked.types.row(row.type).nominal.index != row.symbol.index || row.count != 1) return false;
 			arguments = checked.bindings.program.arena.get_list_arguments(source);
