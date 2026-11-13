@@ -215,3 +215,24 @@ the added target programs and sentinels have not yet been executed by a compiler
 built from this ownership batch. The separate syntax component previously
 qualified the weak spelling and modern/legacy shared-parameter boundary with
 strict unsuppressed memory checks (`runtime/selfhost27b-weak-component1`).
+
+Conditional expressions now also retain an explicit owning join when both
+branches are owning producers (or one is a source-authenticated null). Only the
+selected branch executes. Each selected direct move commits on its own incoming
+edge before the phi; the unselected source slot remains armed for lexical
+cleanup. Source, Core ownership, CFG edges, SSA consumption and physical phi
+correspondence remain independently checked. Mixed owner/alias and unproved
+borrow-root joins are refused. This implementation still awaits native current
+compiler qualification; it has no acceptance credit from source inspection.
+The full C0 semantic preflight passed in
+`runtime/selfhost27b-conditional-owner-preflight2` (62.947 seconds).
+
+The stored-borrow syntax component is now a native/strict-memory PASS at
+`runtime/selfhost27b-borrow-component2`. The first attempt failed an assertion
+at line 150; the retained GDB arguments identified the exact failed expression.
+The parser's readonly-modifier lookahead had excluded the new borrowed token.
+The correction is explicit-profile-gated and the failed product is preserved.
+The independent C0 execution oracles passed for scalar conditionals, selected
+owner cleanup, weak death/upgrade and sibling-owner use. C0 does not accept the
+new readonly-owned combination: that oracle uses an owned field which is never
+replaced; only the modern target stores and proves the separate borrowed field.

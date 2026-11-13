@@ -46,7 +46,7 @@ int recover_owner_unwrap(RecoverFlowData flow, int id) {
 
 bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
 	if (row.kind == 5 || row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind)) return true;
-	if (row.kind != 4 && row.kind != 19 && row.kind != 69) return false;
+	if (row.kind != 4 && row.kind != 19 && row.kind != 69 && row.kind != 77) return false;
 	return (checked.uses[row.source.index].flags & 4) != 0;
 }
 
@@ -67,6 +67,7 @@ bool recover_owner_uses(RecoverFlow flow, int[] consumers, RecoverOwnerBudget wo
 		if (!work.take()) return false;
 		var row = flow.data.nodes[n];
 		if ((row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43 || row.kind == 44) && !recover_owner_record_use(flow, consumers, row.a, n + 1, work)) return false;
+		if (row.kind == 77 && (!recover_owner_record_use(flow, consumers, row.b, n + 1, work) || !recover_owner_record_use(flow, consumers, row.c, n + 1, work))) return false;
 		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) {
 			int a = 0;
 			while (a < row.count) {
@@ -198,6 +199,7 @@ bool recover_owner_parents(RecoverFlowData flow, RecoverOwnerParent[] parents, R
 		if (row.kind == 7 || row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43 || row.kind == 44) {
 			if (!recover_owner_parent(parents, row.a, n + 1, -1)) return false;
 		}
+		if (row.kind == 77 && (!recover_owner_parent(parents, row.b, n + 1, 0) || !recover_owner_parent(parents, row.c, n + 1, 1))) return false;
 		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) {
 			int a = 0;
 			while (a < row.count) {
@@ -266,6 +268,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			if (parent.node == 0) return false;
 			var candidate = flow.data.nodes[parent.node - 1];
 			consumer = parent.node;
+			if (candidate.kind == 77 && ((flow.checked.uses[candidate.source.index].flags & 4) == 0 || parent.argument < 0 || parent.argument > 1 || row.function != candidate.function)) return false;
 			if (candidate.kind == 69) {
 				bool consuming = parent.argument == candidate.count - 1 && (flow.checked.bindings.program.arena.token_is(candidate.token, "append") || flow.checked.bindings.program.arena.token_is(candidate.token, "replace"));
 				if (!consuming || row.kind != 10 || row.function != candidate.function) return false;

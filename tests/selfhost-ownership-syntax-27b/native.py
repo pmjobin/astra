@@ -117,6 +117,23 @@ int main() {
 }
 '''
 
+CONDITIONAL_OWNER = ITEM+'''Item choose(bool first) {
+	var left = new Item(40);
+	var right = new Item(2);
+	return first ? move left : move right;
+}
+int work() {
+	Item chosen = choose(true);
+	if (drop_count() != 1 || drop_sum() != 2) return 1;
+	return chosen.value + 2;
+}
+int main() {
+	int result = work();
+	if (drop_count() != 2 || drop_sum() != 42) return 1;
+	return result;
+}
+'''
+
 WEAK = ITEM+'''int read(Item value) { return value.value; }
 int inspect(shared Item value) { return read(shared_borrow(value)); }
 Weak<Item> observe() {
@@ -168,6 +185,8 @@ def main():
 		p.add_argument('--'+name, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True)
 	p.add_argument('--c0-sha256', required=True)
+	p.add_argument('--case', action='append', help='Run only named positive cases during focused development; records the selection explicitly')
+	p.add_argument('--oracle-only', action='store_true', help='Qualify the authored C0 equivalents only; gives no current-language acceptance credit')
 	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound', 'weak', 'borrowed'), action='append', required=True)
 	a = p.parse_args()
 	assert all(re.fullmatch('[0-9a-f]{64}', s) for s in (a.compiler_sha256, a.c0_sha256))
@@ -214,6 +233,9 @@ def main():
 		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint main() { return sum(point(22)); }\n'))
 	if 'conditional' in a.feature:
 		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }')))
+	if 'conditional' in a.feature:
+		legacy_owner = CONDITIONAL_OWNER.replace('Item choose(', 'owned Item choose(').replace('return first ? move left : move right;', 'if (first) return move left; return move right;').replace('Item chosen =', 'var chosen =')
+		cases.append(('conditional-owner-transfer', CONDITIONAL_OWNER, legacy_owner))
 	if 'compound' in a.feature:
 		cases.append(('compound-operators', COMPOUND, expanded_compounds(COMPOUND)))
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
@@ -224,8 +246,11 @@ def main():
 	if 'borrowed' in a.feature:
 		# The legacy oracle reads the same readonly owner directly. The modern
 		# target must prove, store, load and use its distinct borrowed field.
-		legacy_borrow = BORROWED.replace('readonly Item root;', 'readonly owned Item root;').replace('\treadonly borrowed Item view;\n', '').replace(' this.view = this.root;', '').replace('read(holder.view)', 'read(holder.root)')
+		legacy_borrow = BORROWED.replace('readonly Item root;', 'owned Item root;').replace('\treadonly borrowed Item view;\n', '').replace(' this.view = this.root;', '').replace('read(holder.view)', 'read(holder.root)')
 		cases.append(('stored-borrow-sibling', BORROWED, legacy_borrow))
+	if a.case:
+		assert set(a.case).issubset({case[0] for case in cases})
+		cases = [case for case in cases if case[0] in a.case]
 	products = {str(bridge_object):sha(bridge_object)}
 	for name, modern, legacy in cases:
 		source = runtime/(name+'.astra')
@@ -240,6 +265,8 @@ def main():
 		run(name+'-C0-build', [a.c0, '-O0', oracle_source, *links, '-o', oracle])
 		run(name+'-C0-native', [oracle], 42)
 		products[str(oracle)] = sha(oracle)
+		if a.oracle_only:
+			continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o')
 			target = build/(name+'-'+mode)
@@ -256,7 +283,7 @@ def main():
 	if 'records' in a.feature:
 		negative += [('record-missing', 'struct Point { int x; int y; } int main() { var p = Point {x = 42}; return p.x; }'), ('record-duplicate', 'struct Point { int x; int y; } int main() { var p = Point {x = 42, x = 1}; return p.x; }')]
 	if 'conditional' in a.feature:
-		negative += [('conditional-type', 'int main() { return true ? 42 : false; }'), ('conditional-condition', 'int main() { return 1 ? 42 : 0; }')]
+		negative += [('conditional-type', 'int main() { return true ? 42 : false; }'), ('conditional-condition', 'int main() { return 1 ? 42 : 0; }'), ('conditional-owner-alias', ITEM+'int main() { var owner = new Item(42); Item other = true ? move owner : owner; return other.value; }')]
 	if 'compound' in a.feature:
 		negative += [('compound-narrowing', 'int main() { u8 x = 1; int y = 2; x += y; return x as int; }'), ('compound-float-remainder', 'int main() { f64 x = 42.0d; x %= 2.0d; return x as int; }'), ('compound-not-place', 'int value() { return 40; } int main() { value() += 2; return 42; }')]
 	if 'weak' in a.feature:
@@ -267,6 +294,8 @@ def main():
 		negative += [('stored-borrow-external', ITEM+'class Holder { readonly borrowed Item view; init(Item incoming) { this.view = incoming; } } int main() { var item = new Item(42); var holder = new Holder(item); return holder.view.value; }'),
 			('stored-borrow-order', BORROWED.replace('this.root = move incoming; this.view = this.root;', 'this.view = this.root; this.root = move incoming;')),
 			('stored-borrow-replace', BORROWED.replace('return read(holder.view);', 'holder.view = holder.root; return 42;'))]
+	if a.oracle_only:
+		negative = []
 	for name, text in negative:
 		source = runtime/(name+'.astra')
 		source.write_text('language astra27b;\n'+text+'\n')
@@ -281,8 +310,8 @@ def main():
 	assert all(sha(path) == digest for path, digest in tools.items())
 	assert all(sha(path) == digest for path, digest in source_inputs.items())
 	assert all(sha(path) == digest for path, digest in products.items())
-	write(runtime/'result.json', dict(status='SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', features=a.feature, compiler=dict(path=str(a.compiler), sha256=a.compiler_sha256), tools=tools, providers=providers, source_inputs=source_inputs, inputs_sha256=sha(runtime/'inputs.json'), products=products, commands_sha256=sha(runtime/'commands.json'), scope='Selected feature programs and source refusals only. Remaining ownership/syntax, physical mutations, full preservation and delivery gates are separate.'))
-	print('SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', flush=True)
+	write(runtime/'result.json', dict(status='C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', oracle_only=a.oracle_only, selected_cases=[case[0] for case in cases], features=a.feature, compiler=dict(path=str(a.compiler), sha256=a.compiler_sha256), tools=tools, providers=providers, source_inputs=source_inputs, inputs_sha256=sha(runtime/'inputs.json'), products=products, commands_sha256=sha(runtime/'commands.json'), scope='Selected feature programs and source refusals only. Remaining ownership/syntax, physical mutations, full preservation and delivery gates are separate.'))
+	print('C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', flush=True)
 
 
 if __name__ == '__main__':

@@ -162,7 +162,7 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 			if (live) return false;
 			live = true;
 		}
-		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || (row.opcode == 11 || row.opcode == 67) || row.opcode == 44)) {
+		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && cfg.core.nodes[row.origin - 1].value.kind == 77 || (row.opcode == 11 || row.opcode == 67) || row.opcode == 44)) {
 			if (!live) return false;
 			live = false;
 			// With one physical consumer, every cycle back to it passes the

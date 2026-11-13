@@ -64,8 +64,12 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		int join = cfg.block(row.function, id, 62, row.b, row.c, next, 0, 0, 0, 0);
 		int left_edge = cfg.block(row.function, id, 78, row.b, 0, join, 0, 0, 0, 0);
 		int right_edge = cfg.block(row.function, id, 78, row.c, 0, join, 0, 0, 0, 1);
-		int yes = recover_cfg_tree(cfg, row.b, left_edge, depth + 1);
-		int no = recover_cfg_tree(cfg, row.c, right_edge, depth + 1);
+		int left_tail = left_edge; int right_tail = right_edge;
+		int left_owner = recover_owner_unwrap(cfg.core.flow.data, row.b); int right_owner = recover_owner_unwrap(cfg.core.flow.data, row.c);
+		if (cfg.core.owners.slots[left_owner - 1] > 0) left_tail = cfg.block(row.function, id, 36, left_owner, cfg.core.owners.slots[left_owner - 1], left_edge, 0, 0, 0, id);
+		if (cfg.core.owners.slots[right_owner - 1] > 0) right_tail = cfg.block(row.function, id, 36, right_owner, cfg.core.owners.slots[right_owner - 1], right_edge, 0, 0, 0, id);
+		int yes = recover_cfg_tree(cfg, row.b, left_tail, depth + 1);
+		int no = recover_cfg_tree(cfg, row.c, right_tail, depth + 1);
 		int guard = cfg.block(row.function, id, 63, row.a, 0, yes, no, 0, 0, 0);
 		int condition_entry = recover_cfg_tree(cfg, row.a, guard, depth + 1);
 		RecoverRegion region = {entry = condition_entry, operation = join, next = next};

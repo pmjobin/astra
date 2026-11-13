@@ -96,8 +96,21 @@ bool recover_child_scalars_with_bindings(RecoverFlowData flow, CheckedIndex chec
 	}
 	if (row.kind == 54 || row.kind == 55 || row.kind == 56 || row.kind == 57 || row.kind == 58 || row.kind == 61 || row.kind == 76) return recover_array_value_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);
 	if (row.kind == 77) {
-		if (kind != SyntaxKind.ConditionalExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_question(source).index || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(source).span.source) != 1 || !checked.bindings.program.arena.token_is(row.token, "?") || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_colon(source), ":") || row.type.index == 15 || !recover_copy_channel(checked, row.type, 0, false)) return false;
+		if (kind != SyntaxKind.ConditionalExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_question(source).index || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(source).span.source) != 1 || !checked.bindings.program.arena.token_is(row.token, "?") || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_colon(source), ":")) return false;
 		if (!recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_condition(source), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_left(source), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.c, checked.bindings.program.arena.get_node_right(source), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
+		int flags = checked.uses[source.index].flags;
+		if (flags == 0) {
+			if (row.type.index == 15 || !recover_copy_channel(checked, row.type, 0, false)) return false;
+		}
+		else {
+			if (flags != 4 || !recover_storage_channel(checked, row.type, 4, true)) return false;
+			int left_id = recover_owner_unwrap(flow, row.b); int right_id = recover_owner_unwrap(flow, row.c);
+			if (left_id < 1 || right_id < 1) return false;
+			var left = flow.nodes[left_id - 1]; var right = flow.nodes[right_id - 1];
+			bool left_owner = recover_owner_value(checked, left); bool right_owner = recover_owner_value(checked, right);
+			if ((!left_owner && left.kind != 13) || (!right_owner && right.kind != 13) || !left_owner && !right_owner) return false;
+		}
+
 		return flow.nodes[row.a - 1].type.index == 13 && flow.nodes[row.b - 1].type.index == row.type.index && flow.nodes[row.c - 1].type.index == row.type.index;
 	}
 	if (row.kind == 62) {

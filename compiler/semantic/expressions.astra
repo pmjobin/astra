@@ -307,11 +307,19 @@ TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId ex
 		var left = checked_expression(index, index.bindings.program.arena.get_node_left(node), context, depth + 1);
 		var right = checked_expression(index, index.bindings.program.arena.get_node_right(node), left, depth + 1);
 		checked_mismatch(index, span, left, right, "conditional branch");
-		if (!recover_copy_channel(index, left, 0, false) || left.index == 15) {
-			index.fail(span, "conditional join requires an exact copyable value with a proven lifetime");
-			return no_type();
+		if (recover_copy_channel(index, left, 0, false) && left.index != 15) return left;
+		var left_node = flow_unwrap(index, index.bindings.program.arena.get_node_left(node));
+		var right_node = flow_unwrap(index, index.bindings.program.arena.get_node_right(node));
+		bool left_owned = (index.uses[left_node.index].flags & 4) != 0;
+		bool right_owned = (index.uses[right_node.index].flags & 4) != 0;
+		bool left_null = index.bindings.program.arena.kind(left_node) == SyntaxKind.NullPointerExpressionSyntax();
+		bool right_null = index.bindings.program.arena.kind(right_node) == SyntaxKind.NullPointerExpressionSyntax();
+		if (recover_storage_channel(index, left, 4, true) && (left_owned || left_null) && (right_owned || right_null) && (left_owned || right_owned)) {
+			var use = index.uses[node.index]; use.flags = 4; index.uses[node.index] = use;
+			return left;
 		}
-		return left;
+		index.fail(span, "conditional join requires exact copyable values or explicit owning branch producers; borrowed roots and mixed owner/alias joins need an outlives proof");
+		return no_type();
 	}
 	if (kind == SyntaxKind.RecordExpressionSyntax()) {
 		var type = checked_resolve(index, index.bindings.program.arena.get_node_type_name(node), 0, 0);
