@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+int message_integer(string message) {
+	if (message == "copied results") return 42;
+	return 0;
+}
+
+f64 message_float(string message) {
+	if (message == "copied results") return 42.5;
+	return 0.0;
+}
+
+void message_sink(string message) {
+	println_stderr(message);
+}
+
+int main() {
+	try {
+		throw new Error("copied results");
+	} catch (Error error) {
+		if (message_integer(error.message) != 42) return 1;
+		if (message_float(error.message) != 42.5) return 2;
+		message_sink(error.message);
+		return 42;
+	}
+}

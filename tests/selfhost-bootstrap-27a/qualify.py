@@ -42,8 +42,9 @@ def main():
 	for n in ('record-arrays', 'checked-record-results'):
 		paths = [ROOT/('tests/selfhost-compiler-complete/'+n+'.astra'), *base_libs]
 		cases[n] = {str(v):sha(v) for v in paths}
-	paths = [ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra', *[Path(p) for p in json.loads((a.inputs/'inputs.json').read_text())['inputs'] if '/lib/astra/' in p]]
-	cases['caught-message-call'] = {str(v):sha(v) for v in paths}
+	for n in ('caught-message-call', 'caught-message-scalars'):
+		paths = [ROOT/('tests/selfhost-bootstrap-27a/'+n+'.astra'), *[Path(p) for p in json.loads((a.inputs/'inputs.json').read_text())['inputs'] if '/lib/astra/' in p]]
+		cases[n] = {str(v):sha(v) for v in paths}
 		# One independent known result and multifile cross-call, outside compiler data.
 	small = build/'exit42.astra'; small.write_text('int main() { return 42; }\n')
 	part = build/'multifile.astra'; part.write_text('int increment(int value) { return value + 1; }\n')
