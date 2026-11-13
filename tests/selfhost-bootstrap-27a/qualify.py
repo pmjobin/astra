@@ -84,8 +84,21 @@ def main():
 					run(stem+'-direct-object', [producer, '-c', '-'+mode, '-o', direct, *inputs])
 					run(stem+'-direct-link', ['cc', '-no-pie', direct, *providers, '-o', direct_exe])
 					assert run(stem+'-direct-run', [direct_exe], 42) == oracle_out
+					products[stem].update({str(v):sha(v) for v in (direct, direct_exe)})
+				if mode == 'O2' and name == 'record-arrays':
+					optimized = build/(stem+'-driver-optimized.ll'); optimized_obj = build/(stem+'-driver-optimized.o'); optimized_exe = build/(stem+'-driver-optimized')
+					run(stem+'-optimized-emit', [producer, '--emit-llvm', '-O2', '-o', optimized, *inputs])
+					run(stem+'-optimized-verify', ['opt', '-passes=verify', '-disable-output', optimized])
+					run(stem+'-optimized-object', ['llc', '-filetype=obj', '-O2', optimized, '-o', optimized_obj])
+					run(stem+'-optimized-link', ['cc', '-no-pie', optimized_obj, *providers, '-o', optimized_exe])
+					assert run(stem+'-optimized-run', [optimized_exe], 42) == oracle_out
+					optimized_hash = sha(optimized)
+					memory(stem+'-optimized-compiler-memory', [producer, '--emit-llvm', '-O2', '-o', optimized, *inputs], 0)
+					assert sha(optimized) == optimized_hash
+					products[stem].update({str(v):sha(v) for v in (optimized, optimized_obj, optimized_exe)})
 				if mode == 'O2' and name == 'record-arrays':
 					memory(stem+'-compiler-memory', [producer, '--emit-llvm', '-o', raw, *inputs], 0)
+					assert sha(raw) == ir_hashes[stage]
 			assert all(sha(path) == h for path, h in inputs.items())
 		assert ir_hashes['stage1'] == ir_hashes['stage2'], (name, ir_hashes)
 		proofs.append(dict(name=name, sources=inputs, raw_LLVM=ir_hashes, products=products, C0_oracle_sha256=sha(oracle), native_exit=42, strict_returning_memory=True))
@@ -139,7 +152,17 @@ def main():
 		negatives.append(dict(name=name, source_sha256=sha(path), diagnostic_sha256=__import__('hashlib').sha256(observed[0]).hexdigest(), rejection_phase=phase, byte_span=span, independent_C0_rejection=True, exact_stage_diagnostic=True, output_preserved=True, limitation='Flow/SSA refusals name the phase without a source span; Typecore diagnostics carry independently cross-checked byte positions.'))
 	for stage, producer in stages.items():
 		run(stage+'-version', [producer, '--version']); run(stage+'-help', [producer, '--help'])
-		for name, args in [('unknown', ['--unsupported']), ('no-sources', []), ('missing-output', [small]), ('missing-file', ['-o', build/'missing.ll', build/'does-not-exist.astra']), ('same-path', ['-o', small, small]), ('duplicate', ['-o', build/'duplicate.ll', small, small])]:
+		run(stage+'-check-valid', [producer, '--check', small])
+		positional = build/(stage+'-positional.ll')
+		run(stage+'-positional', [producer, '-o', positional, '--', small])
+		run(stage+'-positional-verify', ['opt', '-passes=verify', '-disable-output', positional])
+		unwritable = build/(stage+'-missing-parent')/'output.ll'
+		for mode in ('O0', 'O2'):
+			run(stage+'-'+mode+'-write-failure', [producer, '--emit-llvm', '-'+mode, '-o', unwritable, small], 1)
+			assert not unwritable.parent.exists()
+		memory(stage+'-write-failure-memory', [producer, '--emit-llvm', '-O2', '-o', unwritable, small], 1)
+		assert not unwritable.parent.exists()
+		for name, args in [('unknown', ['--unsupported']), ('no-sources', []), ('missing-output', [small]), ('check-output', ['--check', '-o', build/'check-output.ll', small]), ('empty-output', ['-o', '', small]), ('missing-file', ['-o', build/'missing.ll', build/'does-not-exist.astra']), ('same-path', ['-o', small, small]), ('duplicate', ['-o', build/'duplicate.ll', small, small])]:
 			run(stage+'-'+name, [producer, *args], 1)
 		assert small.read_text() == 'int main() { return 42; }\n'
 		memory(stage+'-returning-error-memory', [producer, '--unsupported'], 1)

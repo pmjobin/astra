@@ -118,6 +118,9 @@ def main():
 	for path in sorted(a.runtime.rglob('result.json')):
 		row = load(path)
 		if row.get('status') == 'UNEXPECTED_OUTCOME': failures.append(dict(path=str(path), sha256=sha(path), exit=row.get('exit'), timed_out=row.get('timed_out'), seconds=row.get('seconds')))
+	for path in sorted(a.runtime.glob('capsule-run-*.json')):
+		row = load(path)
+		if row['exit'] != 0: failures.append(dict(path=str(path), sha256=sha(path), exit=row['exit'], classification='Outer task command failed or a test harness stopped; inner execution receipts remain separately preserved.'))
 	write(leaf/'preserved-unexpected-executions.json', failures)
 	assert sha(a.stage1) == stage1_hash and not git('diff', '--name-only').strip()
 	write(leaf/'result.json', dict(status='BOUNDED_27A_ENGINEERING_PASS', UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(), HEAD=head, tree=tree, frozen_revision=manifest['revision'], frozen_source_manifest_sha256=sha(a.inputs/'inputs.json'), compiler_sources=len(compiler), library_sources=len(libraries), stages=dict(stage1=dict(path=str(a.stage1), sha256=stage1_hash), stage2={mode:dict(path=str(exe), sha256=sha(exe)) for mode, exe in products.items()}), gates={**{'G'+str(i):dict(status='PASS') for i in range(6)}, 'G6':dict(status='ENGINEERING_PASS_PUBLICATION_PENDING'), 'G7':dict(status='PENDING', reason='Requires separate verification after installed publication.')}, full_milestone27_credit=False, release_credit=False, first_identical_source_self_build=True, preserved_unexpected_execution_count=len(failures), receipts={str(path/'result.json'):sha(path/'result.json') for path in (a.smoke, a.call_controls, a.borrow_controls, a.rebuild, a.qualification)}, limitation='Initial fixed-source self-build only. No Stage3/final 27-D convergence or 27-B/C migration. Flow/SSA diagnostics identify the rejecting phase without source spans; Typecore byte positions are independently checked. G7 cannot be credited before delivery.'))
