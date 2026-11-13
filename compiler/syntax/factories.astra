@@ -516,7 +516,7 @@ SyntaxNodeId syntax_make_ClassDeclarationSyntax(SyntaxArena arena, SyntaxTokenId
 	return arena.add_class_declaration(data, span, depth);
 }
 
-SyntaxNodeId syntax_make_StructFieldDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword) throws Error {
+SyntaxNodeId syntax_make_StructFieldDeclarationSyntax(SyntaxArena arena, SyntaxNodeId arg_type_name, SyntaxTokenId arg_name, SyntaxTokenId arg_semicolon, SyntaxTokenId arg_owned_keyword, SyntaxTokenId arg_borrowed_keyword) throws Error {
 	var data = syntax_empty_struct_field_declaration();
 	var span = syntax_empty_span();
 	int depth = 0;
@@ -528,6 +528,7 @@ SyntaxNodeId syntax_make_StructFieldDeclarationSyntax(SyntaxArena arena, SyntaxN
 	}
 	var tmp_2 = syntax_cover(tmp_1, arena.token_span(arg_semicolon));
 	span = tmp_2;
+	if (arg_borrowed_keyword.index != 0) span = syntax_cover(arena.token_span(arg_borrowed_keyword), span);
 	SyntaxTokenId tmp_4 = {index = 0};
 	if ((arg_owned_keyword.index != 0)) {
 		tmp_4 = arg_owned_keyword;
@@ -540,6 +541,8 @@ SyntaxNodeId syntax_make_StructFieldDeclarationSyntax(SyntaxArena arena, SyntaxN
 		tmp_4 = tmp_3;
 	}
 	data.f_owned_keyword = tmp_4;
+	data.f_borrowed_keyword = arg_borrowed_keyword;
+	if (arg_borrowed_keyword.index != 0) data.f_owned_keyword.index = 0;
 	data.f_type_name = arg_type_name;
 	data.f_name = arg_name;
 	data.f_semicolon = arg_semicolon;
@@ -921,6 +924,11 @@ SyntaxNodeId syntax_make_ParameterSyntax(SyntaxArena arena, SyntaxNodeId arg_typ
 	}
 	data.f_owned_keyword = tmp_7;
 	data.f_borrowed_keyword = arg_borrowed_keyword;
+	if (arg_owned_keyword.index == 0 && arg_borrowed_keyword.index == 0 && arg_type_name.index != 0 && syntax_source_language_profile(arena, arena.header(arg_type_name).span.source) == 1) {
+		// A legacy shared-prefix token also marked an implicit consuming
+		// parameter. Modern ordinary parameters resolve as bounded borrows.
+		data.f_owned_keyword.index = 0;
+	}
 	data.f_type_name = arg_type_name;
 	data.f_name = arg_name;
 	return arena.add_parameter(data, span, depth);

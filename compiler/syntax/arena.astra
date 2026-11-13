@@ -3449,6 +3449,7 @@ class SyntaxArena {
 	}
 
 	void validate_struct_field_declaration(StructFieldDeclarationSyntaxData data) {
+		this.check_token(data.f_borrowed_keyword);
 		this.check_token(data.f_private_keyword);
 		this.check_token(data.f_readonly_keyword);
 		this.check_token(data.f_owned_keyword);
@@ -4660,6 +4661,10 @@ class SyntaxArena {
 
 	SyntaxTokenId get_token_borrowed_keyword(SyntaxNodeId id) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+			var data = this.struct_field_declaration(id);
+			return data.f_borrowed_keyword;
+		}
 		if (kind == SyntaxKind.ParameterSyntax()) {
 			var data = this.parameter(id);
 			return data.f_borrowed_keyword;
@@ -4671,6 +4676,12 @@ class SyntaxArena {
 
 	void set_token_borrowed_keyword(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.StructFieldDeclarationSyntax()) {
+			var data = this.struct_field_declaration(id);
+			data.f_borrowed_keyword = value;
+			this.replace_struct_field_declaration(id, data);
+			return;
+		}
 		if (kind == SyntaxKind.ParameterSyntax()) {
 			var data = this.parameter(id);
 			data.f_borrowed_keyword = value;
@@ -10509,7 +10520,7 @@ class SyntaxArena {
 				continue;
 			}
 			if (kind == SyntaxKind.SharedTypeSyntax()) {
-				source_append_text(output, "shared ");
+				this.write_token(this.get_token_keyword(task.node), output); source_append_text(output, " ");
 				stack.node(this.get_node_payload(task.node));
 				continue;
 			}

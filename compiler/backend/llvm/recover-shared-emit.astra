@@ -18,6 +18,10 @@ class RecoverSharedRuntime {
 	void* acquire;
 	void* clone;
 	void* borrow;
+	void* downgrade;
+	void* weak_clone;
+	void* upgrade;
+	void* weak_drop;
 
 	init(void* context, void* module, void* builder, void* handles, void* allocate, void* free, void* trap) {
 		this.context = context;
@@ -35,6 +39,10 @@ class RecoverSharedRuntime {
 		this.acquire = null;
 		this.clone = null;
 		this.borrow = null;
+		this.downgrade = null;
+		this.weak_clone = null;
+		this.upgrade = null;
+		this.weak_drop = null;
 		this.control = null;
 	}
 
@@ -51,6 +59,119 @@ class RecoverSharedRuntime {
 		this.acquire = this.build_acquire();
 		this.clone = this.build_clone();
 		this.borrow = this.build_borrow();
+	}
+
+	void build_weak_helpers() {
+		if (this.control == null || this.downgrade != null) return;
+		this.downgrade = this.build_weak_retain("astra.e25a.shared.downgrade");
+		this.weak_clone = this.build_weak_retain("astra.e25a.weak.clone");
+		this.upgrade = this.build_weak_upgrade();
+		this.weak_drop = this.build_weak_release();
+	}
+
+	void* build_weak_retain(string name) {
+		var function = this.function(name, this.pointer);
+		var entry = llvm12_block(this.context, function, "entry");
+		var live = llvm12_block(this.context, function, "live");
+		var done = llvm12_block(this.context, function, "done");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, live, done);
+		LLVMPositionBuilderAtEnd(this.builder, live);
+		var increment = this.call(this.increment, this.field(handle, 1), true);
+		var jump = LLVMBuildBr(this.builder, done);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var value = LLVMBuildPhi(this.builder, this.pointer, this.empty);
+		llvm12_handle_set(this.handles, 0, LLVMConstNull(this.pointer));
+		llvm12_handle_set(this.handles, 1, handle);
+		llvm12_handle_set(this.handles, 2, entry);
+		llvm12_handle_set(this.handles, 3, live);
+		LLVMAddIncoming(value, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 2), 2);
+		var result = LLVMBuildRet(this.builder, value);
+		return function;
+	}
+
+	// The retained weak count keeps the block allocated. Only a successful
+	// nonzero strong CAS creates an owner; zero can never be resurrected.
+	void* build_weak_upgrade() {
+		var function = this.function("astra.e25a.weak.upgrade", this.pointer);
+		var entry = llvm12_block(this.context, function, "entry");
+		var read = llvm12_block(this.context, function, "read");
+		var retry = llvm12_block(this.context, function, "retry");
+		var check = llvm12_block(this.context, function, "check");
+		var attempt = llvm12_block(this.context, function, "attempt");
+		var done = llvm12_block(this.context, function, "done");
+		var fatal = llvm12_block(this.context, function, "fatal");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, read, done);
+		LLVMPositionBuilderAtEnd(this.builder, read);
+		var address = this.field(handle, 0);
+		var initial = this.count(address);
+		var enter = LLVMBuildBr(this.builder, retry);
+		LLVMPositionBuilderAtEnd(this.builder, retry);
+		var expected = LLVMBuildPhi(this.builder, this.wide, this.empty);
+		var empty = LLVMBuildICmp(this.builder, 32, expected, LLVMConstNull(this.wide), this.empty);
+		var expired = LLVMBuildCondBr(this.builder, empty, done, check);
+		LLVMPositionBuilderAtEnd(this.builder, check);
+		var overflow = LLVMBuildICmp(this.builder, 32, expected, LLVMConstInt(this.wide, 0 - 1 as u64, 0), this.empty);
+		var range = LLVMBuildCondBr(this.builder, overflow, fatal, attempt);
+		LLVMPositionBuilderAtEnd(this.builder, attempt);
+		var increment = LLVMBuildAdd(this.builder, expected, LLVMConstInt(this.wide, 1, 0), this.empty);
+		var exchange = LLVMBuildAtomicCmpXchg(this.builder, address, expected, increment, 6, 4, 0);
+		LLVMSetAlignment(exchange, 8);
+		var observed = LLVMBuildExtractValue(this.builder, exchange, 0, this.empty);
+		var success = LLVMBuildExtractValue(this.builder, exchange, 1, this.empty);
+		var again = LLVMBuildCondBr(this.builder, success, done, retry);
+		llvm12_handle_set(this.handles, 0, initial);
+		llvm12_handle_set(this.handles, 1, observed);
+		llvm12_handle_set(this.handles, 2, read);
+		llvm12_handle_set(this.handles, 3, attempt);
+		LLVMAddIncoming(expected, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 2), 2);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var value = LLVMBuildPhi(this.builder, this.pointer, this.empty);
+		llvm12_handle_set(this.handles, 0, LLVMConstNull(this.pointer));
+		llvm12_handle_set(this.handles, 1, LLVMConstNull(this.pointer));
+		llvm12_handle_set(this.handles, 2, handle);
+		llvm12_handle_set(this.handles, 3, entry);
+		llvm12_handle_set(this.handles, 4, retry);
+		llvm12_handle_set(this.handles, 5, attempt);
+		LLVMAddIncoming(value, llvm12_handle_offset(this.handles, 0), llvm12_handle_offset(this.handles, 3), 3);
+		var result = LLVMBuildRet(this.builder, value);
+		this.fatal(fatal);
+		return function;
+	}
+
+	void* build_weak_release() {
+		var function = this.function("astra.e25a.weak.release", LLVMVoidTypeInContext(this.context));
+		var entry = llvm12_block(this.context, function, "entry");
+		var live = llvm12_block(this.context, function, "live");
+		var last = llvm12_block(this.context, function, "last");
+		var retire = llvm12_block(this.context, function, "retire");
+		var done = llvm12_block(this.context, function, "done");
+		var fatal = llvm12_block(this.context, function, "fatal");
+		LLVMPositionBuilderAtEnd(this.builder, entry);
+		var handle = LLVMGetParam(function, 0);
+		var present = LLVMBuildICmp(this.builder, 33, handle, LLVMConstNull(this.pointer), this.empty);
+		var guard = LLVMBuildCondBr(this.builder, present, live, done);
+		LLVMPositionBuilderAtEnd(this.builder, live);
+		var remaining = this.call(this.decrement, this.field(handle, 1), true);
+		var vacant = LLVMBuildICmp(this.builder, 32, remaining, LLVMConstNull(this.wide), this.empty);
+		var weak = LLVMBuildCondBr(this.builder, vacant, last, done);
+		LLVMPositionBuilderAtEnd(this.builder, last);
+		var strong = this.count(this.field(handle, 0));
+		var expired = LLVMBuildICmp(this.builder, 32, strong, LLVMConstNull(this.wide), this.empty);
+		var sentinel = LLVMBuildCondBr(this.builder, expired, retire, fatal);
+		LLVMPositionBuilderAtEnd(this.builder, retire);
+		var free = this.call(this.free, handle, false);
+		llvm12_nobuiltin(this.context, free);
+		var end = LLVMBuildBr(this.builder, done);
+		LLVMPositionBuilderAtEnd(this.builder, done);
+		var result = LLVMBuildRetVoid(this.builder);
+		this.fatal(fatal);
+		return function;
 	}
 
 	void* function(string name, void* result) {

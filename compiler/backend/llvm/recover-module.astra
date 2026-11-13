@@ -245,7 +245,7 @@ class RecoverLlvm {
 			var fields = new void*[3]; fields[0] = this.pointer; fields[1] = this.integer; fields[2] = this.integer;
 			return this.structure(fields);
 		}
-		if (kind == 27 || kind == 31 || recover_storage_pointer(checked, type)) return this.pointer;
+		if (kind == 27 || kind == 28 || kind == 31 || recover_storage_pointer(checked, type)) return this.pointer;
 		if (kind == 30) {
 			var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
 			var source = checked.bindings.program.arena.get_list_fields(declaration.node);
@@ -319,7 +319,7 @@ class RecoverLlvm {
 						if (kind == 31 && this.class_destroyers[checked.types.row(child).nominal.index] != null) {
 							drop = this.class_destroyers[checked.types.row(child).nominal.index]; native = true;
 						}
-						if (kind == 27) {
+						if (kind == 27 || kind == 28) {
 							drop = this.shared_drops[child.index];
 							native = true;
 						}
@@ -966,6 +966,9 @@ class RecoverLlvm {
 			void* function = this.shared_runtime.borrow;
 			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_acquire")) function = this.shared_runtime.acquire;
 			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_clone")) function = this.shared_runtime.clone;
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "shared_downgrade")) function = this.shared_runtime.downgrade;
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_clone")) function = this.shared_runtime.weak_clone;
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "weak_upgrade")) function = this.shared_runtime.upgrade;
 			var arguments = new void*[1];
 			arguments[0] = this.values[ssa.cfg.core.flow.data.edges[row.first]];
 			value = this.call(function, arguments, true);
@@ -1000,7 +1003,7 @@ class RecoverLlvm {
 			}
 			void* drop = this.free_function; if (op == 38 && recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = this.error_owner_function;
 			if (op == 38 && checked_kind(ssa.cfg.core.flow.checked, type) == 31 && this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
-			if (op == 38 && checked_kind(ssa.cfg.core.flow.checked, type) == 27) drop = this.shared_drops[type.index];
+			if (op == 38 && (checked_kind(ssa.cfg.core.flow.checked, type) == 27 || checked_kind(ssa.cfg.core.flow.checked, type) == 28)) drop = this.shared_drops[type.index];
 			var lowered = recover_llvm_owner_emit(ssa, block, this.builder, this.context, this.layout, this.handles, storage, element, this.buffer_function, this.allocate_function, drop, this.functions, this.values, this.owner_addresses, this.owner_armed); value = lowered.value; operation = lowered.operation;
 		}
 		if (op == 30) {
@@ -1090,11 +1093,17 @@ class RecoverLlvm {
 		int t = 1;
 		while (t <= ssa.cfg.core.flow.checked.types.count) {
 			var type = type_id(t);
-			if (recover_storage_shared(ssa.cfg.core.flow.checked, type)) {
+			if (recover_storage_shared(ssa.cfg.core.flow.checked, type) || recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
 				if (this.shared_runtime.context == null) {
 					var runtime = new RecoverSharedRuntime(this.context, this.module, this.builder, this.handles, this.allocate_function, this.free_function, this.trap_function);
 					runtime.build_helpers();
 					this.shared_runtime = move runtime;
+				}
+				if (recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
+					this.shared_runtime.build_weak_helpers();
+					this.shared_drops[t] = this.shared_runtime.weak_drop;
+					t = t + 1;
+					continue;
 				}
 				var payload = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				var nominal = ssa.cfg.core.flow.checked.types.row(payload).nominal;
@@ -1282,7 +1291,7 @@ class RecoverLlvm {
 									native = true;
 								}
 							}
-							if (kind == 27) {
+							if (kind == 27 || kind == 28) {
 								drop = this.shared_drops[type.index];
 								native = true;
 							}
@@ -1511,7 +1520,7 @@ class RecoverLlvm {
 					drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
 					native = true;
 				}
-				if (kind == 27) {
+				if (kind == 27 || kind == 28) {
 					drop = this.shared_drops[type.index];
 					native = true;
 				}
@@ -1627,7 +1636,7 @@ class RecoverLlvm {
 
 	bool shared_helpers_verified(RecoverSsa ssa) throws Error {
 		if (len(this.shared_drops) != ssa.cfg.core.flow.checked.types.count + 1 || this.shared_drops[0] != null) return false;
-		bool needed = false;
+		bool needed = false; bool weak_needed = false;
 		int t = 1;
 		while (t < len(this.shared_drops)) {
 			var type = type_id(t);
@@ -1645,9 +1654,19 @@ class RecoverLlvm {
 				var name = output.snapshot();
 				if (!recover_shared_release_verified(this.shared_drops[t], this.shared_runtime.control, this.shared_runtime.decrement, drop, native, this.free_function, name.text)) return false;
 			} else {
-				if (this.shared_drops[t] != null) return false;
+				if (recover_storage_weak(ssa.cfg.core.flow.checked, type)) {
+					needed = true; weak_needed = true;
+					if (this.shared_runtime.context == null || this.shared_drops[t] != this.shared_runtime.weak_drop || this.shared_drops[t] == null) return false;
+				} else {
+					if (this.shared_drops[t] != null) return false;
+				}
 			}
 			t = t + 1;
+		}
+		if (weak_needed) {
+			if (!recover_shared_retain_verified(this.shared_runtime.downgrade, this.shared_runtime.control, this.shared_runtime.increment, "astra.e25a.shared.downgrade", 1) || !recover_shared_retain_verified(this.shared_runtime.weak_clone, this.shared_runtime.control, this.shared_runtime.increment, "astra.e25a.weak.clone", 1) || !recover_weak_upgrade_verified(this.shared_runtime.upgrade, this.shared_runtime.control, this.trap_function) || !recover_weak_release_verified(this.shared_runtime.weak_drop, this.shared_runtime.control, this.shared_runtime.decrement, this.free_function, this.trap_function)) return false;
+		} else {
+			if (this.shared_runtime.downgrade != null || this.shared_runtime.weak_clone != null || this.shared_runtime.upgrade != null || this.shared_runtime.weak_drop != null) return false;
 		}
 		if (!needed) return this.shared_runtime.context == null && this.shared_runtime.control == null && this.shared_runtime.increment == null && this.shared_runtime.decrement == null && this.shared_runtime.acquire == null && this.shared_runtime.clone == null && this.shared_runtime.borrow == null;
 		return recover_shared_control_verified(this.shared_runtime.control, this.layout) && recover_shared_adjust_verified(this.shared_runtime.increment, this.trap_function, true) && recover_shared_adjust_verified(this.shared_runtime.decrement, this.trap_function, false) && recover_shared_acquire_verified(this.shared_runtime.acquire, this.shared_runtime.control, this.allocate_function, this.trap_function) && recover_shared_clone_verified(this.shared_runtime.clone, this.shared_runtime.control, this.shared_runtime.increment) && recover_shared_borrow_verified(this.shared_runtime.borrow, this.shared_runtime.control, this.trap_function);
@@ -1862,6 +1881,8 @@ class RecoverLlvm {
 		if (initialize_needed) helper_count = helper_count + 1;
 		int shared_start = helper_count;
 		if (this.shared_runtime.context != null) helper_count = helper_count + 5;
+		int weak_start = helper_count;
+		if (this.shared_runtime.weak_drop != null) helper_count = helper_count + 4;
 		int utf8_at = helper_count;
 		if (utf8_needed) helper_count = helper_count + 1;
 		int integer_at = helper_count;
@@ -1895,6 +1916,12 @@ class RecoverLlvm {
 			helpers[shared_start + 2] = this.shared_runtime.acquire;
 			helpers[shared_start + 3] = this.shared_runtime.clone;
 			helpers[shared_start + 4] = this.shared_runtime.borrow;
+		}
+		if (this.shared_runtime.weak_drop != null) {
+			helpers[weak_start] = this.shared_runtime.downgrade;
+			helpers[weak_start + 1] = this.shared_runtime.weak_clone;
+			helpers[weak_start + 2] = this.shared_runtime.upgrade;
+			helpers[weak_start + 3] = this.shared_runtime.weak_drop;
 		}
 		if (utf8_needed) helpers[utf8_at] = this.utf8_function;
 		integer = 0;
@@ -1953,7 +1980,7 @@ class RecoverLlvm {
 		}
 		d = 0;
 		while (d < len(this.shared_drops)) {
-			destroyers[len(this.destroyers) + len(this.class_destroyers) + d] = this.shared_drops[d];
+			if (d == 0 || !recover_storage_weak(ssa.cfg.core.flow.checked, type_id(d))) destroyers[len(this.destroyers) + len(this.class_destroyers) + d] = this.shared_drops[d];
 			d = d + 1;
 		}
 		d = 0;
@@ -1982,7 +2009,7 @@ class RecoverLlvm {
 			clone = this.shared_runtime.clone;
 			borrow = this.shared_runtime.borrow;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

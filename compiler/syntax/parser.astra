@@ -2246,6 +2246,14 @@ class SyntaxParser {
 				SyntaxNodeId tmp_179 = {index = 0};
 				return tmp_179;
 			}
+			SyntaxTokenId borrowed_field = {index = 0};
+			if (this.modern() && this.token_kind(arena, this.current) == TokenKind.BORROWED()) {
+				borrowed_field = this.current;
+				if (v_owned_keyword_177.index != 0 || !this.advance(arena)) {
+					this.fail(arena, arena.token_span(borrowed_field), "borrowed field cannot also be owned");
+					SyntaxNodeId absent = {index = 0}; return absent;
+				}
+			}
 			var tmp_180 = new Utf8ByteBuilder();
 			source_append_text(tmp_180, "expected field type or '}' after ");
 			source_append_text(tmp_180, v_category_6.text);
@@ -2279,6 +2287,10 @@ class SyntaxParser {
 				tmp_189 = (this.token_kind(arena, this.current) == TokenKind.LESS());
 			}
 			if (tmp_189) {
+				if (borrowed_field.index != 0) {
+					this.fail(arena, arena.token_span(borrowed_field), "borrowed stored-field modifier requires a field declaration");
+					SyntaxNodeId absent = {index = 0}; return absent;
+				}
 				if ((v_private_keyword_108.index != 0)) {
 					this.fail(arena, this.token_span(arena, v_private_keyword_108), "private applies only to Class fields");
 					SyntaxNodeId tmp_190 = {index = 0};
@@ -2370,8 +2382,9 @@ class SyntaxParser {
 				SyntaxNodeId tmp_215 = {index = 0};
 				return tmp_215;
 			}
-			var v_field_216 = syntax_make_StructFieldDeclarationSyntax(arena, v_field_type_182, v_field_name_184, v_semicolon_214, v_owned_keyword_177);
+			var v_field_216 = syntax_make_StructFieldDeclarationSyntax(arena, v_field_type_182, v_field_name_184, v_semicolon_214, v_owned_keyword_177, borrowed_field);
 			arena.set_token_private_keyword(v_field_216, v_private_keyword_108);
+			arena.set_token_borrowed_keyword(v_field_216, borrowed_field);
 			arena.set_token_readonly_keyword(v_field_216, v_readonly_keyword_127);
 			var tmp_217 = v_fields_43;
 			if (tmp_217.index == 0) {
@@ -3042,7 +3055,7 @@ class SyntaxParser {
 	SyntaxNodeId parse_type_suffix(SyntaxArena arena, SyntaxTokenId arg_initial_identifier, bool arg_conversion) throws Error {
 		var param_initial_identifier = arg_initial_identifier;
 		var tmp_1 = arena.token_message(param_initial_identifier);
-		var tmp_2 = (tmp_1.text == "shared");
+		var tmp_2 = (tmp_1.text == "shared" || this.modern() && tmp_1.text == "weak");
 		if (tmp_2) {
 			tmp_2 = (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER());
 		}

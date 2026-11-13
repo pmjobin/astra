@@ -112,6 +112,13 @@ bool class_storage_constructor_verified(CheckedIndex checked, SymbolId function)
 		var value = checked.bindings.program.arena.get_node_expression(statement);
 		if (value.index < 1 || checked.uses[value.index].type.index != checked.symbol_types[field.index].index) return false;
 		int flags = checked.symbol_flags[field.index];
+		if ((flags & 2) != 0) {
+			if ((flags & 128) == 0 || !checked_modern_source(checked, symbol.node)) return false;
+			var direct = flow_unwrap(checked, value);
+			if (checked.bindings.program.arena.kind(direct) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(direct).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(direct), "this")) return false;
+			var root = checked_target(checked, direct, checked.bindings.program.arena.get_token_field_name(direct));
+			if (root.index < 1 || !initialized[root.index] || checked.bindings.symbol(root).owner.index != symbol.owner.index || checked.symbol_types[root.index].index != checked.symbol_types[field.index].index || (checked.symbol_flags[root.index] & 134) != 132) return false;
+		}
 		if ((flags & 4) != 0) {
 			var direct = flow_unwrap(checked, value); var kind = checked.bindings.program.arena.kind(direct);
 			bool producer = kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.NullPointerExpressionSyntax();

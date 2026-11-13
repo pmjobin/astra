@@ -305,7 +305,7 @@ int checked_flags(borrowed SyntaxArena arena, SyntaxNodeId node) {
 	if (arena.get_token_owned_keyword(node).index != 0) {
 		flags = flags | 4;
 	}
-	if (arena.kind(node) == SyntaxKind.ParameterSyntax() && arena.get_token_borrowed_keyword(node).index != 0) {
+	if ((arena.kind(node) == SyntaxKind.ParameterSyntax() || arena.kind(node) == SyntaxKind.StructFieldDeclarationSyntax()) && arena.get_token_borrowed_keyword(node).index != 0) {
 		flags = flags | 2;
 	}
 	if (arena.kind(node) == SyntaxKind.StructFieldDeclarationSyntax()) {

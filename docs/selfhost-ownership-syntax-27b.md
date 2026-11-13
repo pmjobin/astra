@@ -189,3 +189,29 @@ remain required for 27-B acceptance. No broad source migration is authorized:
 slicing, lazy pipelines, comprehensions and idiomatic compiler/library/workload
 migration. The inclusive stepped range example remains thirteen values.
 27-D retains fixed improved-source Stage1/2/3 convergence; 28 retains release.
+
+The next ownership batch implements explicit Weak handles over the unchanged
+24-byte native shared lifetime block. Downgrade and weak clone retain its weak
+count; upgrade uses a nonzero strong-count CAS and returns null after target
+death. Weak retirement never destroys the payload. Independent LLVM consumers
+check every helper edge, atomic order, operand, phi and final free. These helpers
+remain absent from graphs without Weak. Unique Classes do not gain a weak block.
+An SSA consumer confines upgrade results to one owner local and requires a
+null-success edge to dominate subsequent use. This batch also corrects ordinary
+modern `shared T` parameters to borrow while preserving legacy implicit consume.
+
+Explicit `readonly borrowed T` stored fields have a bounded proposed lifetime
+rule: they must project a readonly owning sibling of the same exact native Class
+type, initialized earlier in the constructor. Field replacement and arbitrary
+external parameter capture are refused. The retained typed field node, source
+qualifiers and constructor ordering are checked independently. This is not a
+claim of general lifetime parameter support or intrinsic `[Shared]` admission.
+
+The full 196+10 source graph passes the replacement C0 semantic preflight after
+these changes (`runtime/selfhost27b-weak-borrow-preflight2`, 61.510 seconds).
+The earlier temporary-borrow checker error and reserved-name formatter refusal
+remain recorded. Native weak/borrowed implementation acceptance is **pending**;
+the added target programs and sentinels have not yet been executed by a compiler
+built from this ownership batch. The separate syntax component previously
+qualified the weak spelling and modern/legacy shared-parameter boundary with
+strict unsuppressed memory checks (`runtime/selfhost27b-weak-component1`).

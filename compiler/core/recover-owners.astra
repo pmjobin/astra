@@ -241,7 +241,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				var value = flow.data.nodes[input - 1];
 				// The source-verified absent literal carries no allocation or
 				// initialized owner. The caller still owns its returned slot.
-				if (!recover_owner_value(flow.checked, value) && !(value.kind == 13 && value.type.index == result.type.index && (recover_storage_class(flow.checked, value.type) || recover_storage_error(flow.checked, value.type) || recover_storage_shared(flow.checked, value.type)))) return false;
+				if (!recover_owner_value(flow.checked, value) && !(value.kind == 13 && value.type.index == result.type.index && (recover_storage_class(flow.checked, value.type) || recover_storage_error(flow.checked, value.type) || recover_storage_shared(flow.checked, value.type) || recover_storage_weak(flow.checked, value.type)))) return false;
 			}
 		}
 		if (row.kind == 4 || recover_constructor_kind(row.kind)) {

@@ -24,7 +24,11 @@ bool recover_shared_source_with_bindings(RecoverFlowData flow, CheckedIndex chec
 	}
 	bool clone = checked.bindings.program.arena.token_is(row.token, "shared_clone");
 	bool borrow = checked.bindings.program.arena.token_is(row.token, "shared_borrow");
-	if (!clone && !borrow || !recover_storage_shared(checked, operand.type)) return false;
+	bool downgrade = checked.bindings.program.arena.token_is(row.token, "shared_downgrade");
+	bool weak_clone = checked.bindings.program.arena.token_is(row.token, "weak_clone");
+	bool upgrade = checked.bindings.program.arena.token_is(row.token, "weak_upgrade");
+	if (!clone && !borrow && !downgrade && !weak_clone && !upgrade) return false;
+	if ((weak_clone || upgrade) && !recover_storage_weak(checked, operand.type) || !(weak_clone || upgrade) && !recover_storage_shared(checked, operand.type)) return false;
 	int steps = 0;
 	while (operand.kind == 7 && steps < 192) {
 		operand = flow.nodes[operand.a - 1];
@@ -36,7 +40,11 @@ bool recover_shared_source_with_bindings(RecoverFlowData flow, CheckedIndex chec
 		int flags = checked.symbol_flags[operand.symbol.index];
 		if (!(declaration.kind == 8 && flags == 4) && !(declaration.kind == 7 && (flags == 2 || flags == 4))) return false;
 	}
-	if (clone) return use.flags == 4 && row.type.index == operand.type.index;
+	if (downgrade || upgrade) {
+		bool result = downgrade && recover_storage_weak(checked, row.type) || upgrade && recover_storage_shared(checked, row.type);
+		return result && use.flags == 4 && checked.types.argument(checked.types, row.type, 0).type.index == checked.types.argument(checked.types, operand.type, 0).type.index;
+	}
+	if (clone || weak_clone) return use.flags == 4 && row.type.index == operand.type.index;
 	return use.flags == 2 && row.type.index == checked.types.argument(checked.types, operand.type, 0).type.index;
 }
 

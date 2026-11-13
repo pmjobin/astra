@@ -11,7 +11,7 @@ bool recover_llvm_owner_initial(RecoverSlot slot, CheckedIndex checked, void* en
 bool recover_llvm_owner_drop(CheckedIndex checked, RecoverSlot slot, void* block, void* address, void* armed, void* free_function, void* operation) {
 	int kind = checked_kind(checked, slot.type); int count = 6; if (kind == 22) count = 7; var body = recover_llvm_body(block, count); if (len(body) != count) return false;
 	int convention = 0; if (recover_storage_error(checked, slot.type)) convention = 8;
-	if (kind == 27) convention = 8;
+	if (kind == 27 || kind == 28) convention = 8;
 	if (kind == 31 && recover_storage_class(checked, slot.type)) {
 		var declaration = checked.bindings.symbol(checked.types.row(slot.type).nominal);
 		if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node)) > 0) convention = 8;

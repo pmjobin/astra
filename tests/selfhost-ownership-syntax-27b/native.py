@@ -117,6 +117,44 @@ int main() {
 }
 '''
 
+WEAK = ITEM+'''int read(Item value) { return value.value; }
+int inspect(shared Item value) { return read(shared_borrow(value)); }
+Weak<Item> observe() {
+	var item = new Item(40);
+	Shared<Item> strong = shared_acquire(move item);
+	weak shared Item observer = shared_downgrade(strong);
+	var duplicate = weak_clone(observer);
+	var alive = weak_upgrade(duplicate);
+	if (alive != null) { if (inspect(alive) != 40) return null; }
+	else { return null; }
+	return move observer;
+}
+int main() {
+	var observer = observe();
+	var dead = weak_upgrade(observer);
+	if (dead != null) return 1;
+	if (drop_count() != 1 || drop_sum() != 40) return 2;
+	return 42;
+}
+'''
+BORROWED = ITEM+'''class Holder {
+	readonly Item root;
+	readonly borrowed Item view;
+	init(owned Item incoming) { this.root = move incoming; this.view = this.root; }
+}
+int read(Item value) { return value.value; }
+int work() {
+	var item = new Item(42);
+	var holder = new Holder(move item);
+	return read(holder.view);
+}
+int main() {
+	int result = work();
+	if (drop_count() != 1 || drop_sum() != 42) return 1;
+	return result;
+}
+'''
+
 
 def expanded_compounds(text):
 	# Independent legacy behavior oracle for these deliberately side-effect-free
@@ -130,7 +168,7 @@ def main():
 		p.add_argument('--'+name, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True)
 	p.add_argument('--c0-sha256', required=True)
-	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound'), action='append', required=True)
+	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound', 'weak', 'borrowed'), action='append', required=True)
 	a = p.parse_args()
 	assert all(re.fullmatch('[0-9a-f]{64}', s) for s in (a.compiler_sha256, a.c0_sha256))
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
@@ -180,6 +218,14 @@ def main():
 		cases.append(('compound-operators', COMPOUND, expanded_compounds(COMPOUND)))
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
 		cases.append(('compound-places', COMPOUND_PLACE, legacy_places))
+	if 'weak' in a.feature:
+		legacy_weak = WEAK.replace('int inspect(shared Item', 'int inspect(borrowed shared Item').replace('Weak<Item> observe()', 'owned Weak<Item> observe()').replace('Shared<Item> strong =', 'var strong =').replace('weak shared Item observer =', 'var observer =')
+		cases.append(('weak-death-upgrade', WEAK, legacy_weak))
+	if 'borrowed' in a.feature:
+		# The legacy oracle reads the same readonly owner directly. The modern
+		# target must prove, store, load and use its distinct borrowed field.
+		legacy_borrow = BORROWED.replace('readonly Item root;', 'readonly owned Item root;').replace('\treadonly borrowed Item view;\n', '').replace(' this.view = this.root;', '').replace('read(holder.view)', 'read(holder.root)')
+		cases.append(('stored-borrow-sibling', BORROWED, legacy_borrow))
 	products = {str(bridge_object):sha(bridge_object)}
 	for name, modern, legacy in cases:
 		source = runtime/(name+'.astra')
@@ -213,6 +259,14 @@ def main():
 		negative += [('conditional-type', 'int main() { return true ? 42 : false; }'), ('conditional-condition', 'int main() { return 1 ? 42 : 0; }')]
 	if 'compound' in a.feature:
 		negative += [('compound-narrowing', 'int main() { u8 x = 1; int y = 2; x += y; return x as int; }'), ('compound-float-remainder', 'int main() { f64 x = 42.0d; x %= 2.0d; return x as int; }'), ('compound-not-place', 'int value() { return 40; } int main() { value() += 2; return 42; }')]
+	if 'weak' in a.feature:
+		negative += [('weak-unique', ITEM+'int main() { var item = new Item(42); weak Item observer = item; return 42; }'),
+			('weak-unguarded', ITEM+'int read(Item value) { return value.value; } int main() { var item = new Item(42); var strong = shared_acquire(move item); var observer = shared_downgrade(strong); var upgraded = weak_upgrade(observer); return read(shared_borrow(upgraded)); }'),
+			('modern-shared-borrow-consume', ITEM+'void consume(owned shared Item value) { } void inspect(shared Item value) { consume(move value); } int main() { var item = new Item(42); var strong = shared_acquire(move item); inspect(strong); return 42; }')]
+	if 'borrowed' in a.feature:
+		negative += [('stored-borrow-external', ITEM+'class Holder { readonly borrowed Item view; init(Item incoming) { this.view = incoming; } } int main() { var item = new Item(42); var holder = new Holder(item); return holder.view.value; }'),
+			('stored-borrow-order', BORROWED.replace('this.root = move incoming; this.view = this.root;', 'this.view = this.root; this.root = move incoming;')),
+			('stored-borrow-replace', BORROWED.replace('return read(holder.view);', 'holder.view = holder.root; return 42;'))]
 	for name, text in negative:
 		source = runtime/(name+'.astra')
 		source.write_text('language astra27b;\n'+text+'\n')

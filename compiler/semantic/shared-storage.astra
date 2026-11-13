@@ -12,6 +12,17 @@ bool class_storage_shared(CheckedIndex checked, TypeId type, int depth) {
 	return class_storage_value(checked, element.type, 4, depth + 1);
 }
 
+bool class_storage_weak(CheckedIndex checked, TypeId type, int depth) {
+	if (!checked.field_effects || depth > 32 || checked_kind(checked, type) != 28) return false;
+	var row = checked.types.row(type);
+	if (row.nominal.index != 0 || row.extent != 0 || row.count != 1) return false;
+	var element = checked.types.argument(checked.types, type, 0);
+	if (element.flags != 0 || checked_kind(checked, element.type) != 31) return false;
+	var payload = checked.types.row(element.type);
+	if (generic_instance_for(checked, payload.nominal) != 0) return false;
+	return class_storage_value(checked, element.type, 4, depth + 1);
+}
+
 int checked_shared_action(CheckedIndex checked, SyntaxNodeId node) {
 	if (!checked.field_effects || checked.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return 0;
 	var token = checked.bindings.program.arena.get_token_identifier(node);
@@ -19,6 +30,9 @@ int checked_shared_action(CheckedIndex checked, SyntaxNodeId node) {
 	if (checked.bindings.program.arena.token_is(token, "shared_acquire")) return 1;
 	if (checked.bindings.program.arena.token_is(token, "shared_clone")) return 2;
 	if (checked.bindings.program.arena.token_is(token, "shared_borrow")) return 3;
+	if (checked.bindings.program.arena.token_is(token, "shared_downgrade")) return 4;
+	if (checked.bindings.program.arena.token_is(token, "weak_clone")) return 5;
+	if (checked.bindings.program.arena.token_is(token, "weak_upgrade")) return 6;
 	return 0;
 }
 
@@ -46,11 +60,13 @@ TypeId checked_shared_call(CheckedIndex checked, SyntaxNodeId node, int depth) t
 		}
 		result = checked.types.unary(27, type, 0);
 	} else {
-		if (!class_storage_shared(checked, type, 0)) {
+		if (!(action == 5 || action == 6) && !class_storage_shared(checked, type, 0) || (action == 5 || action == 6) && !class_storage_weak(checked, type, 0)) {
 			checked.fail(checked.bindings.program.arena.header(operand).span, "shared operation requires an exact Shared native Class handle");
 			return no_type();
 		}
 		if (action == 3) result = checked.types.argument(checked.types, type, 0).type;
+		if (action == 4) result = checked.types.unary(28, checked.types.argument(checked.types, type, 0).type, 0);
+		if (action == 6) result = checked.types.unary(27, checked.types.argument(checked.types, type, 0).type, 0);
 	}
 	var use = checked.uses[node.index];
 	use.flags = 4;

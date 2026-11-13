@@ -121,7 +121,7 @@ bool recover_abi_verify(RecoverAbi plan, CheckedIndex checked) {
 bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
 	if (actual == null) return false;
 	int kind = checked_kind(checked, type);
-	if (kind == 27) return recover_storage_shared(checked, type) && LLVMGetTypeKind(actual) == 12 && LLVMGetPointerAddressSpace(actual) == 0;
+	if (kind == 27 || kind == 28) return (recover_storage_shared(checked, type) || recover_storage_weak(checked, type)) && LLVMGetTypeKind(actual) == 12 && LLVMGetPointerAddressSpace(actual) == 0;
 	if (kind == 31) return (recover_storage_class(checked, type) || recover_storage_error(checked, type)) && LLVMGetTypeKind(actual) == 12;
 	if (kind == 23) {
 		if (!recover_storage_slots(checked, type, 0) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 3) return false;

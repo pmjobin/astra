@@ -463,6 +463,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count];
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
+	if (!recover_ssa_weak_upgrades(ssa, work)) return false;
 	// The independently reconstructed dominator traversal also proves reach.
 	// Reverse block order builds Error and short-circuit phi lists in edge order
 	// during the definition scan instead of scanning the CFG a second time.

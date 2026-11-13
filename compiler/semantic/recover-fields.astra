@@ -183,7 +183,10 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 			if (shared == 1) {
 				if (checked.bindings.program.arena.kind(operand) != SyntaxKind.MoveExpressionSyntax() || use.flags != 4 || !recover_storage_shared(checked, use.type) || input.type.index != checked.types.argument(checked.types, use.type, 0).type.index || !recover_storage_class(checked, input.type)) return false;
 			} else {
-				if (!recover_storage_shared(checked, input.type)) return false;
+				if ((shared == 5 || shared == 6) && !recover_storage_weak(checked, input.type) || !(shared == 5 || shared == 6) && !recover_storage_shared(checked, input.type)) return false;
+				if (shared == 4 && (use.flags != 4 || !recover_storage_weak(checked, use.type) || checked.types.argument(checked.types, use.type, 0).type.index != checked.types.argument(checked.types, input.type, 0).type.index)) return false;
+				if (shared == 5 && (use.flags != 4 || use.type.index != input.type.index)) return false;
+				if (shared == 6) return false; // Nullable upgrade needs a local owner and checked branch outside construction.
 				if (shared == 2 && (use.flags != 4 || use.type.index != input.type.index)) return false;
 				if (shared == 3 && (use.flags != 2 || use.type.index != checked.types.argument(checked.types, input.type, 0).type.index)) return false;
 			}
@@ -370,7 +373,7 @@ bool recover_constructor_statement_at(CheckedIndex checked, SyntaxNodeId node, S
 	bool owned_buffer = !assignment && checked.symbol_flags[symbol.index] == 4 && checked_kind(checked, type) == 22 && recover_array_type(checked, type) && value.index > 0 && checked.uses[value.index].flags == 4 && checked.bindings.program.arena.kind(value) == SyntaxKind.BufferAllocationSyntax();
 	int shared = 0;
 	if (value.index > 0) shared = checked_shared_action(checked, value);
-	bool owned_shared = !assignment && checked.symbol_flags[symbol.index] == 4 && recover_storage_shared(checked, type) && (shared == 1 || shared == 2);
+	bool owned_shared = !assignment && checked.symbol_flags[symbol.index] == 4 && (recover_storage_shared(checked, type) && (shared == 1 || shared == 2) || recover_storage_weak(checked, type) && (shared == 4 || shared == 5));
 	if (!owned_class && !owned_buffer && !owned_shared && !recover_copy_channel(checked, type, checked.symbol_flags[symbol.index], false)) return false;
 	if (value.index == 0 || checked.uses[value.index].type.index != type.index || !recover_constructor_value_at(checked, value, function, aggregate, initialized, handled, depth + 1)) return false;
 	initialized[symbol.index] = true;
@@ -430,6 +433,22 @@ bool recover_field_constructor_source(CheckedIndex checked, SymbolId function) {
 		if (field.index < 1 || initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(type).nominal.index || recover_field_receiver(checked, target, function).index != class_storage_receiver(checked, function)) return false;
 		var value = checked.bindings.program.arena.get_node_expression(statement);
 		if (value.index == 0 || checked.uses[value.index].type.index != checked.symbol_types[field.index].index || !recover_constructor_value(checked, value, function, type, initialized, 0)) return false;
+		// Independently re-read the borrowed field token, both readonly
+		// declarations and the earlier initialized owning sibling identity.
+		if ((checked.symbol_flags[field.index] & 2) != 0) {
+			var field_node = checked.bindings.symbol(field).node;
+			if (checked.bindings.program.arena.get_token_borrowed_keyword(field_node).index == 0 || checked.bindings.program.arena.get_token_readonly_keyword(field_node).index == 0 || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(field_node).span.source) != 1) return false;
+			var direct = value; int steps = 0;
+			while (checked.bindings.program.arena.kind(direct) == SyntaxKind.ParenthesizedExpressionSyntax() && steps < 192) {
+				direct = checked.bindings.program.arena.get_node_expression(direct);
+				steps = steps + 1;
+			}
+			if (steps == 192 || checked.bindings.program.arena.kind(direct) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(direct).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(direct), "this")) return false;
+			var root = checked_target(checked, direct, checked.bindings.program.arena.get_token_field_name(direct));
+			if (root.index < 1 || root.index >= len(initialized) || !initialized[root.index] || checked.bindings.symbol(root).kind != 6 || checked.bindings.symbol(root).owner.index != checked.bindings.symbol(field).owner.index || checked.symbol_types[root.index].index != checked.symbol_types[field.index].index || (checked.symbol_flags[root.index] & 134) != 132) return false;
+			var root_node = checked.bindings.symbol(root).node;
+			if (checked.bindings.program.arena.get_token_readonly_keyword(root_node).index == 0 || !ownership_source_default(checked, field_node, checked.symbol_types[field.index])) return false;
+		}
 		initialized[field.index] = true; i = i + 1;
 	}
 	return recover_constructor_fields_initialized(checked, fields, initialized);
@@ -467,7 +486,7 @@ void recover_fields_build(RecoverFields fields, CheckedIndex checked, RecoverSto
 			var layout = recover_field_layout(fields, checked, type); var field = recover_field_physical(fields, checked, type, member);
 			bool initializing = parent == 0 && class_storage_initializing(checked, function) && receiver.index == class_storage_receiver(checked, function);
 			int flags = checked.symbol_flags[member.index];
-			RecoverField fact = {receiver = receiver, field = member, aggregate = type, slot = storage.symbols[receiver.index], parent = parent, ordinal = field.ordinal, offset = field.offset, cleanup_rank = layout.fields - 1 - field.ordinal, writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing), initializing = initializing};
+			RecoverField fact = {receiver = receiver, field = member, aggregate = type, slot = storage.symbols[receiver.index], parent = parent, ordinal = field.ordinal, offset = field.offset, cleanup_rank = layout.fields - 1 - field.ordinal, writable = ((flags & 2) == 0 || initializing) && ((flags & 128) == 0 || initializing), initializing = initializing};
 			fields.facts[row.source.index] = fact;
 		}
 		n = n + 1;
@@ -511,7 +530,7 @@ bool recover_fields_verify(RecoverFields fields, CheckedIndex checked, RecoverSt
 			var source_type = checked.bindings.program.arena.get_node_type_name(member.node);
 			if (source_type.index == 0 || checked.uses[source_type.index].type.index != 0 && checked.uses[source_type.index].type.index != physical.semantic) return false;
 			bool initializing = fact.parent == 0 && class_storage_initializing(checked, function) && fact.receiver.index == class_storage_receiver(checked, function);
-			int flags = checked.symbol_flags[fact.field.index]; bool writable = (flags & 2) == 0 && ((flags & 128) == 0 || initializing);
+			int flags = checked.symbol_flags[fact.field.index]; bool writable = ((flags & 2) == 0 || initializing) && ((flags & 128) == 0 || initializing);
 			if (fact.initializing != initializing || fact.writable != writable || initializing && !recover_field_constructor_source(checked, function)) return false;
 			if (row.kind == 44 && (!writable || selected.index != fact.field.index || row.a < 1 || row.a > flow.node_count || flow.nodes[row.a - 1].type.index != physical.semantic)) return false;
 			if (row.kind == 44) {

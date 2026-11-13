@@ -309,8 +309,8 @@ bool recover_storage_fields(CheckedIndex checked, TypeId type, int depth) {
 				if (kind == 22) {
 					if (!recover_array_type(checked, value)) return false;
 				} else {
-					if (kind == 27) {
-						if (!class_storage_shared_verified(checked, value, depth + 1)) return false;
+					if (kind == 27 || kind == 28) {
+						if (kind == 27 && !class_storage_shared_verified(checked, value, depth + 1) || kind == 28 && !class_storage_weak_verified(checked, value, depth + 1)) return false;
 						var payload = checked.types.argument(checked.types, value, 0).type;
 						if (!recover_storage_fields(checked, payload, depth + 1)) return false;
 					} else {
@@ -353,6 +353,11 @@ bool recover_storage_shared(CheckedIndex checked, TypeId type) {
 	return recover_storage_class(checked, checked.types.argument(checked.types, type, 0).type);
 }
 
+bool recover_storage_weak(CheckedIndex checked, TypeId type) {
+	if (!class_storage_weak_verified(checked, type, 0)) return false;
+	return recover_storage_class(checked, checked.types.argument(checked.types, type, 0).type);
+}
+
 // Opaque C handles retain their declared, non-owning void pointer type.
 bool recover_storage_pointer(CheckedIndex checked, TypeId type) {
 	return checked.field_effects && type.index == 16 && checked_kind(checked, type) == 16;
@@ -365,6 +370,7 @@ bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool 
 	if (kind == 15) return flags == 0;
 	if (kind == 30) return flags == 0 && recover_storage_record(checked, type);
 	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
+	if (kind == 28) return (flags == 4 || !result && flags == 2) && recover_storage_weak(checked, type);
 	if (kind == 31) return (flags == 4 || !result && (flags == 0 || flags == 2)) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));
 	if (kind == 22) {
 		if (recover_string_array(checked, type)) return !result && flags == 0;

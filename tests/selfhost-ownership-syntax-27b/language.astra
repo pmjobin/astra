@@ -127,10 +127,45 @@ void language_small_syntax() throws Error {
 	assert_that(elided_compound.failed());
 }
 
+void language_shared_parameters() throws Error {
+	var modern = language_program("language astra27b; class Item { init() { } } void inspect(shared Item value) { } void consume(owned shared Item value) { } weak shared Item observe(weak shared Item value) { return weak_clone(value); }");
+	assert_that(!modern.failed());
+	int ordinary = 0; int consuming = 0; int observers = 0; int i = 1;
+	while (i <= modern.arena.node_count) {
+		SyntaxNodeId id = {index = i};
+		if (modern.arena.kind(id) == SyntaxKind.ParameterSyntax()) {
+			var type = modern.arena.get_node_type_name(id);
+			if (modern.arena.kind(type) == SyntaxKind.SharedTypeSyntax()) {
+				if (modern.arena.get_token_owned_keyword(id).index == 0) ordinary = ordinary + 1;
+				else {
+					consuming = consuming + 1;
+				}
+				if (modern.arena.token_is(modern.arena.get_token_keyword(type), "weak")) observers = observers + 1;
+			}
+		}
+		i = i + 1;
+	}
+	assert_that(ordinary == 2 && consuming == 1 && observers == 1);
+	var stored_borrow = language_program("language astra27b; class Holder { readonly Item root; readonly borrowed Item view; init(owned Item value) { this.root = move value; this.view = this.root; } }");
+	assert_that(!stored_borrow.failed());
+	var invalid_old_borrow = language_program("class Holder { readonly borrowed Item view; }");
+	assert_that(invalid_old_borrow.failed());
+	var legacy = language_program("class Item { init() { } } void consume(shared Item value) { }");
+	assert_that(!legacy.failed());
+	int implicit = 0; i = 1;
+	while (i <= legacy.arena.node_count) {
+		SyntaxNodeId id = {index = i};
+		if (legacy.arena.kind(id) == SyntaxKind.ParameterSyntax() && legacy.arena.get_token_owned_keyword(id).index != 0) implicit = implicit + 1;
+		i = i + 1;
+	}
+	assert_that(implicit == 1);
+}
+
 int main() {
 	try {
 		language_literals();
 		language_small_syntax();
+		language_shared_parameters();
 		var legacy = language_program("int value() { return 42; }");
 		assert_that(!legacy.failed());
 		SyntaxSourceId source = {index = 1};

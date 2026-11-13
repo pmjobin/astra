@@ -76,11 +76,26 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 		if (payload.index == 0) {
 			return index.defer(node, 10);
 		}
+		bool observer = index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_keyword(node), "weak");
+		if (observer && checked_kind(index, payload) == 27) payload = index.types.argument(index.types, payload, 0).type;
 		if (checked_kind(index, payload) != 31) {
 			index.fail(span, "shared requires a nonshared concrete native Class payload; redundant intrusive boxing and unsupported value families are rejected");
 			return no_type();
 		}
-		return index.record(node, index.types.unary(27, payload, 0), 0);
+		int family = 27;
+		if (observer) {
+			if (!checked_modern_source(index, node)) {
+				index.fail(span, "weak prefix requires the authenticated astra27b source profile");
+				return no_type();
+			}
+			var original = index.uses[index.bindings.program.arena.get_node_payload(node).index].type;
+			if (checked_kind(index, original) != 27) {
+				index.fail(span, "weak requires an eligible Shared lifetime; unique native Classes have no expirable control block");
+				return no_type();
+			}
+			family = 28;
+		}
+		return index.record(node, index.types.unary(family, payload, 0), 0);
 	}
 	if (kind == SyntaxKind.PointerTypeSyntax() || kind == SyntaxKind.SliceTypeSyntax() || kind == SyntaxKind.ArrayTypeSyntax() || kind == SyntaxKind.VectorTypeSyntax() || kind == SyntaxKind.OwnerSlotsTypeSyntax()) {
 		SyntaxNodeId child = {
@@ -399,10 +414,13 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 		flags = flags | index.uses[type.index].flags;
 	}
 	if (index.class_storage && symbol.kind == 6 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && checked_default_owner_type(index, resolved)) flags = flags | 4;
-	if (index.class_storage && symbol.kind == 7 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && checked_kind(index, resolved) == 27) flags = flags | 2;
+	if (index.class_storage && symbol.kind == 7 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && (checked_kind(index, resolved) == 27 || checked_kind(index, resolved) == 28)) flags = flags | 2;
 	if (record_channel) flags = flags & ~4;
 	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) flags = flags | 4;
 	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
+	if (symbol.kind == 6 && (flags & 2) != 0 && (!checked_modern_source(index, symbol.node) || (flags & 128) == 0 || checked_kind(index, resolved) != 31)) {
+		index.fail(index.bindings.program.arena.header(symbol.node).span, "borrowed stored field requires a readonly native Class and a proved readonly owning sibling initialized first; arbitrary external parameter lifetimes cannot be stored");
+	}
 	if ((flags & 6) != 0 && (type_numeric(checked_kind(index, resolved)) || resolved.index == 13)) {
 		index.fail(index.bindings.program.arena.header(symbol.node).span, "owned/borrowed declaration requires an admitted reference or symbolic ownership contract");
 	}

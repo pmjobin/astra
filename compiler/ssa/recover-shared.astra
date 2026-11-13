@@ -74,3 +74,69 @@ bool recover_ssa_shared_borrow(RecoverSsa ssa, int value, RecoverOwnerParent[] p
 	}
 	return true;
 }
+
+// An upgrade result can be null. Keep it in one checked owner slot until an
+// explicit comparison with null selects a dominating success edge. Passing,
+// moving, returning or borrowing that slot before the check is refused.
+bool recover_ssa_weak_upgrades(RecoverSsa ssa, RecoverWork work) {
+	int n = 0;
+	while (n < ssa.cfg.core.count) {
+		if (!work.take()) return false;
+		var operation = ssa.cfg.core.nodes[n].value;
+		if (operation.kind == 19 && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(operation.token, "weak_upgrade")) {
+			int binding = 0; int declaration = 0; int i = 0;
+			while (i < ssa.cfg.core.count) {
+				if (!work.take()) return false;
+				var candidate = ssa.cfg.core.nodes[i].value;
+				if (candidate.function == operation.function && candidate.kind == 27 && recover_owner_unwrap(ssa.cfg.core.flow.data, candidate.a) == n + 1) {
+					if (binding != 0 || candidate.symbol.index == 0 || ssa.cfg.core.flow.checked.symbol_flags[candidate.symbol.index] != 4) return false;
+					binding = candidate.symbol.index; declaration = i + 1;
+				}
+				i = i + 1;
+			}
+			if (binding == 0 || declaration == 0) return false;
+			i = 0;
+			while (i < ssa.cfg.core.count) {
+				if (!work.take()) return false;
+				var use = ssa.cfg.core.nodes[i].value;
+				if (use.function == operation.function && use.symbol.index == binding && (use.kind == 2 || use.kind == 10)) {
+					bool comparison = false; bool guarded = false; int c = 0;
+					while (c < ssa.cfg.core.count) {
+						if (!work.take()) return false;
+						var condition = ssa.cfg.core.nodes[c].value;
+						if (condition.function == operation.function && condition.kind == 3 && (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(condition.token, "==") || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(condition.token, "!="))) {
+							int left = recover_owner_unwrap(ssa.cfg.core.flow.data, condition.a); int right = recover_owner_unwrap(ssa.cfg.core.flow.data, condition.b);
+							if (left > 0 && right > 0) {
+								var subject = ssa.cfg.core.nodes[left - 1].value; var other = ssa.cfg.core.nodes[right - 1].value;
+								if (subject.kind == 13) {
+									subject = ssa.cfg.core.nodes[right - 1].value;
+									other = ssa.cfg.core.nodes[left - 1].value;
+								}
+								if (subject.kind == 2 && subject.symbol.index == binding && other.kind == 13 && other.type.index == operation.type.index) {
+									if (left == i + 1 || right == i + 1) comparison = true;
+									int b = 0;
+									while (b < ssa.cfg.block_count) {
+										if (!work.take()) return false;
+										var control = ssa.cfg.blocks[b];
+										if (control.opcode == 21 && control.function == operation.function && recover_owner_unwrap(ssa.cfg.core.flow.data, control.a) == c + 1) {
+											int edge = control.next;
+											if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(condition.token, "==")) edge = control.other;
+											int target = ssa.data.values[i + 1].block;
+											if (edge > 0 && target > 0 && recover_ssa_dominates(b + 1, target, work) && recover_ssa_dominates(edge, target, work)) guarded = true;
+										}
+										b = b + 1;
+									}
+								}
+							}
+						}
+						c = c + 1;
+					}
+					if (!comparison && !guarded) return false;
+				}
+				i = i + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return !work.exhausted;
+}

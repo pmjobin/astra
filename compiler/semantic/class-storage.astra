@@ -122,11 +122,12 @@ bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) 
 	// Visibility is checked at the source use; it does not alter storage.
 	if ((flags & ~391) != 0) return false;
 	int storage_flags = flags;
-	if (index.field_effects) storage_flags = flags & ~256;
+	if (index.field_effects) storage_flags = flags & ~384;
 	int kind = checked_kind(index, type);
 	if (kind == 15) return (flags & 7) == 0 && (flags & 128) != 0;
 	if (type_numeric(kind) || kind == 13 || recover_storage_pointer(index, type)) return storage_flags == 0;
 	if (kind == 27) return (storage_flags == 4 || storage_flags == 5) && class_storage_shared(index, type, depth + 1);
+	if (kind == 28) return storage_flags == 4 && class_storage_weak(index, type, depth + 1);
 	if (kind == 22) {
 		var element = index.types.argument(index.types, type, 0);
 		return storage_flags == 4 && element.flags == 0 && !checked_record_owned(index, element.type, 0) && class_storage_value(index, element.type, 0, depth + 1);
@@ -136,7 +137,7 @@ bool class_storage_value(CheckedIndex index, TypeId type, int flags, int depth) 
 		return storage_flags == 4 && element.flags == 0 && class_storage_slot_element(index, element.type, depth + 1);
 	}
 	if (kind != 30 && kind != 31) return false;
-	if ((kind == 30 && storage_flags != 0) || (kind == 31 && storage_flags != 4 && storage_flags != 5)) return false;
+	if ((kind == 30 && storage_flags != 0) || (kind == 31 && storage_flags != 4 && storage_flags != 5 && storage_flags != 2)) return false;
 	var row = index.types.row(type); var declaration = index.bindings.symbol(row.nominal);
 	if (kind == 31 && !class_storage_declaration(index, row.nominal)) return false;
 	var node = declaration.node;
@@ -174,7 +175,7 @@ bool class_storage_slot_element(CheckedIndex index, TypeId type, int depth) {
 bool class_storage_prepare_fields(CheckedIndex index, TypeId type, int depth) throws Error {
 	if (depth > 32 || !index.types.valid_id(type)) return false;
 	var row = index.types.row(type);
-	if (row.kind == 22 || row.kind == 23 || row.kind == 27) return class_storage_prepare_fields(index, index.types.argument(index.types, type, 0).type, depth + 1);
+	if (row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 28) return class_storage_prepare_fields(index, index.types.argument(index.types, type, 0).type, depth + 1);
 	if (row.kind != 30 && row.kind != 31) return true;
 	var declaration = index.bindings.symbol(row.nominal);
 	var fields = index.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
@@ -376,7 +377,7 @@ void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type
 		row.size = 4;
 		row.alignment = 4;
 	}
-	if (source.kind == 12 || source.kind == 16 || source.kind == 20 || source.kind == 27 || source.kind == 31) {
+	if (source.kind == 12 || source.kind == 16 || source.kind == 20 || source.kind == 27 || source.kind == 28 || source.kind == 31) {
 		row.size = 8;
 		row.alignment = 8;
 	}
@@ -384,7 +385,7 @@ void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type
 		row.size = 16;
 		row.alignment = 8;
 	}
-	if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 27 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) {
+	if (!type_numeric(source.kind) && source.kind != 13 && source.kind != 15 && source.kind != 16 && source.kind != 20 && source.kind != 27 && source.kind != 28 && source.kind != 31 && source.kind != 22 && source.kind != 23 && source.kind != 14 && source.kind != 30) {
 		throw new Error("CLASS_STORAGE_DEFERRED: representation");
 	}
 	if (source.kind == 30 || source.kind == 31) {
@@ -418,7 +419,7 @@ void class_storage_layout(ClassStoragePlan plan, CheckedIndex index, TypeId type
 			row.alignment = row.payload_alignment;
 		}
 	}
-	if (source.kind == 22 || source.kind == 23 || source.kind == 27) {
+	if (source.kind == 22 || source.kind == 23 || source.kind == 27 || source.kind == 28) {
 		var element = index.types.argument(index.types, type, 0);
 		class_storage_layout(plan, index, element.type, depth + 1);
 	}
