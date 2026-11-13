@@ -398,3 +398,22 @@ read-only GDB diagnosis is observing the same frozen graph's real SSA verifier
 return and work-budget retirement. It changes no source, primitive fact,
 verification result or limit. Final qualification and publication remain
 pending while this ordinary integration failure is investigated.
+
+`runtime/selfhost27b-dominance-component1` executes byte-exact extracted
+production `RecoverBlock`, `RecoverWork` and dominance functions. Six graphs
+are checked against an independently computed predecessor-set fixed point,
+including diamonds, nested loops and unreachable blocks. A 100,000-block chain
+leaves 7,300,000 of the unchanged 8,000,000 work budget; low-budget and invalid
+successor cases refuse. C0 and Astra each produced native O0/O2 binaries with
+identical observations, and both O2 binaries passed strict unsuppressed
+Valgrind. This is a focused algorithm component, not a full-graph diagnosis or
+successful Stage2. The continuing full-graph diagnosis has a read-only hardware
+watchpoint on the local work object's exhaustion flag; the same inferior was
+resumed without altering any compiler facts, results or limits.
+
+The reserved 27-C range example remains
+`(20..=80).step_by(5).collect_array()`, with exactly thirteen values. Named
+arguments, match expressions, typed interpolation, safe slicing, lazy pipelines,
+comprehensions and complete idiomatic compiler/library/workload migration all
+remain reserved for 27-C. The fixed improved-source Stage1/2/3 convergence is
+27-D, and the first release is 28.
