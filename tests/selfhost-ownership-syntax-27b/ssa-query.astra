@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Actual production lowering and verifier, without the LLVM/driver closure.
+int main(string[] args) {
+	try {
+		var program = binding_load_program(args, 1);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) return 1;
+		var flow = recover_flow_lower(move checked, 8192);
+		if (flow.data.status != 0) return 2;
+		var core = recover_core_lower(move flow);
+		if (core.status != 0) return 3;
+		var cfg = recover_cfg_lower(move core, 8192);
+		if (cfg.status != 0) return 4;
+		var ssa = recover_ssa_lower(move cfg, 8000000);
+		if (ssa.data.status != 0) return 5;
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "CURRENT_PRODUCTION_SSA_VERIFIED_8M");
+		flow_number(output, ssa.cfg.core.count);
+		flow_number(output, ssa.cfg.block_count);
+		source_append_text(output, "\n");
+		var text = output.snapshot(); print(text.text);
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 6; }
+}

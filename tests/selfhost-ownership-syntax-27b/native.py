@@ -116,8 +116,9 @@ CONDITIONAL = '''extern(C) int tick(int value);
 extern(C) int tick_count();
 int main() {
 	int result = tick(1) == 1 ? tick(42) : tick(99);
-	if (tick_count() != 2) return 1;
-	return result;
+	int other = tick(0) == 1 ? tick(99) : tick(42);
+	if (tick_count() != 4 || result != 42 || other != 42) return 1;
+	return result + other - 42;
 }
 '''
 COMPOUND = '''int main() {
@@ -216,14 +217,20 @@ CONDITIONAL_OWNER = ITEM+'''Item choose(bool first) {
 	var right = new Item(2);
 	return first ? move left : move right;
 }
-int work() {
-	Item chosen = choose(true);
-	if (drop_count() != 1 || drop_sum() != 2) return 1;
-	return chosen.value + 2;
+int work(bool first) {
+	Item chosen = choose(first);
+	if (first) {
+		if (drop_count() != 1 || drop_sum() != 2) return 1;
+		return chosen.value + 2;
+	}
+	if (drop_count() != 3 || drop_sum() != 82) return 1;
+	return chosen.value + 40;
 }
 int main() {
-	int result = work();
-	if (drop_count() != 2 || drop_sum() != 42) return 1;
+	int initial = work(true);
+	if (initial != 42) return 1;
+	int result = work(false);
+	if (drop_count() != 4 || drop_sum() != 84) return 1;
 	return result;
 }
 '''
@@ -330,7 +337,7 @@ def main():
 	if 'records' in a.feature:
 		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint main() { return sum(point(22)); }\n'))
 	if 'conditional' in a.feature:
-		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }')))
+		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }').replace('int other = tick(0) == 1 ? tick(99) : tick(42);', 'int other = 0; if (tick(0) == 1) { other = tick(99); } else { other = tick(42); }')))
 	if 'conditional' in a.feature:
 		legacy_owner = CONDITIONAL_OWNER.replace('Item choose(', 'owned Item choose(').replace('return first ? move left : move right;', 'if (first) return move left; return move right;').replace('Item chosen =', 'var chosen =')
 		cases.append(('conditional-owner-transfer', CONDITIONAL_OWNER, legacy_owner))

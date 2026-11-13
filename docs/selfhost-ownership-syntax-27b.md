@@ -437,3 +437,19 @@ without changing the 8M limit or accepting producer liveness certificates.
 The complete current C0 Core preflight passed in 75.707 seconds
 (`runtime/selfhost27b-ssa-fused-preflight1`). A new C0-built production host and
 actual Stage2/native/mutation requalification remain required.
+
+The production Stage1 rebuild of this coherent correction is recorded in
+`runtime/selfhost27b-driver5`; its semantic and Core preflights passed in
+59.150 and 75.445 seconds. The smaller real-production SSA component in
+`runtime/selfhost27b-ssa-component1` passed its separate C0 Core preflight in
+61.678 seconds and is compiling independently through development Stage1.
+It contains the actual current source/parser/semantic/Core/CFG/SSA modules and
+will test the exact frozen full compiler input graph under the same 8M limit.
+It omits LLVM and the production CLI and receives no Stage2/compiler credit.
+Both actual products are still pending at this entry's timestamp.
+
+The conditional fixtures now execute both selected branches. Their independent
+old-form C0 oracles passed in
+`runtime/selfhost27b-conditional-both-oracles1`, including four destructor
+events with the expected values after two opposite owner selections. Modern
+native execution remains tied to the next actual compiler qualification.
