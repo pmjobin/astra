@@ -30,11 +30,20 @@ def main():
 	p.add_argument('--compiler', type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True)
 	p.add_argument('--producer-kind', choices=('c0', 'astra'), required=True)
+	p.add_argument('--semantic-oracle', type=Path)
+	p.add_argument('--semantic-oracle-sha256')
 	p.add_argument('--build', type=Path, required=True)
 	p.add_argument('--runtime', type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	a = p.parse_args()
 	assert re.fullmatch('[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
+	oracle = a.compiler
+	oracle_sha = a.compiler_sha256
+	if a.producer_kind == 'astra':
+		assert a.semantic_oracle and a.semantic_oracle_sha256
+		oracle = a.semantic_oracle
+		oracle_sha = a.semantic_oracle_sha256
+		assert re.fullmatch('[0-9a-f]{64}', oracle_sha) and sha(oracle) == oracle_sha
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	build = output_path(a.build, WORK/'build')
 	runtime = output_path(a.runtime, WORK/'runtime')
@@ -66,7 +75,7 @@ def main():
 	env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1')
 	env.pop('VALGRIND_OPTS', None)
 	env.pop('LD_PRELOAD', None)
-	tool_paths = [a.compiler, *[shutil.which(name) for name in ('gcc', 'cc', 'as', 'ld', 'llvm-config', 'opt', 'llc')]]
+	tool_paths = [a.compiler, oracle, '/usr/bin/time', *[shutil.which(name) for name in ('gcc', 'cc', 'as', 'ld', 'llvm-config', 'opt', 'llc')]]
 	for name in ('cc1', 'collect2'):
 		tool_paths.append(subprocess.check_output(['gcc', '-print-prog-name='+name], text=True).strip())
 	for name in ('crt1.o', 'crti.o', 'crtn.o', 'crtbegin.o', 'crtend.o', 'libgcc.a', 'libgcc_s.so'):
@@ -80,8 +89,7 @@ def main():
 		write(runtime/'commands.json', commands)
 		print(name, result['status'], round(result['seconds'], 3), flush=True)
 		assert result['status'] == 'EXPECTED_OUTCOME', (name, result)
-	if a.producer_kind == 'c0':
-		run('semantic-preflight', [a.compiler, '--dump-semantics', *inputs], 600)
+	run('semantic-preflight', [oracle, '--dump-semantics', *inputs], 600)
 	objects = {}
 	for name, source, flags in provider_names:
 		path = snapshot/source
@@ -105,7 +113,7 @@ def main():
 	run('compiler-build', argv, 7200)
 	if a.producer_kind == 'astra':
 		run('compiler-link', ['cc', '-no-pie', obj, *objects, library, '-o', target])
-	assert sha(a.compiler) == a.compiler_sha256 and all(sha(p) == h for p, h in inputs.items())
+	assert sha(a.compiler) == a.compiler_sha256 and sha(oracle) == oracle_sha and all(sha(p) == h for p, h in inputs.items())
 	assert all(sha(p) == h for p, h in tools.items())
 	assert all(sha(p) == h for p, h in objects.items())
 	write(runtime/'link.json', dict(objects=objects, libraries=[library]))

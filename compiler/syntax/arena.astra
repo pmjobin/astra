@@ -2982,6 +2982,7 @@ class SyntaxArena {
 	}
 
 	void validate_compound_assignment(CompoundAssignmentSyntaxData data) {
+		this.check_token(data.f_assignment_token);
 		this.check_node(data.f_target, SyntaxKind.ExpressionSyntax());
 		this.check_token(data.f_operator_token);
 		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
@@ -10679,6 +10680,16 @@ class SyntaxArena {
 			return;
 		}
 		assert_that(false);
+	}
+
+	SyntaxTokenId get_token_assignment_token(SyntaxNodeId id) {
+		return this.compound_assignment(id).f_assignment_token;
+	}
+
+	void set_token_assignment_token(SyntaxNodeId id, SyntaxTokenId value) {
+		var data = this.compound_assignment(id);
+		data.f_assignment_token = value;
+		this.replace_compound_assignment(id, data);
 	}
 
 }

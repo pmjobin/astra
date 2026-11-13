@@ -279,6 +279,14 @@ class Lexer {
 	TokenKind operator_kind(int value) throws Error {
 		int next = this.byte_at(this.offset);
 		if (this.modern_profile && value == 63) return TokenKind.QUESTION();
+		if (this.modern_profile && next == 61 && (value == 43 || value == 45 || value == 42 || value == 47 || value == 37 || value == 38 || value == 124 || value == 94)) {
+			this.offset = this.offset + 1;
+			return TokenKind.COMPOUND_ASSIGNMENT();
+		}
+		if (this.modern_profile && (value == 60 || value == 62) && next == value && this.byte_at(this.offset + 1) == 61) {
+			this.offset = this.offset + 2;
+			return TokenKind.COMPOUND_ASSIGNMENT();
+		}
 		if (this.modern_profile && value == 61 && next == 62) {
 			this.offset = this.offset + 1;
 			return TokenKind.FAT_ARROW();

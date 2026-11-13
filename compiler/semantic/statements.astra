@@ -80,6 +80,57 @@ void checked_initializer(CheckedIndex index, SyntaxNodeId node, TypeId type, int
 	var recorded = index.record(node, type, 0);
 }
 
+void checked_compound_statement(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	var syntax = index.bindings.program.arena.compound_assignment(node);
+	var target_kind = index.bindings.program.arena.kind(syntax.f_target);
+	var expected = checked_expression(index, syntax.f_target, no_type(), depth + 1);
+	var span = index.bindings.program.arena.header(node).span;
+	if (!checked_modern_source(index, node) || target_kind != SyntaxKind.NameExpressionSyntax() && target_kind != SyntaxKind.FieldAccessExpressionSyntax() && !checked_flow_index_kind(target_kind)) {
+		index.fail(span, "compound assignment requires an admitted writable Place");
+		return;
+	}
+	if (target_kind == SyntaxKind.NameExpressionSyntax() || target_kind == SyntaxKind.FieldAccessExpressionSyntax()) {
+		var token = index.bindings.program.arena.get_token_identifier(syntax.f_target);
+		if (target_kind == SyntaxKind.FieldAccessExpressionSyntax()) token = index.bindings.program.arena.get_token_field_name(syntax.f_target);
+		var symbol = checked_target(index, syntax.f_target, token);
+		if (symbol.index < 1) {
+			index.fail(span, "compound assignment target has no writable binding");
+			return;
+		}
+		var binding = index.bindings.symbol(symbol);
+		if (binding.kind != 6 && binding.kind != 7 && binding.kind != 8 || (index.symbol_flags[symbol.index] & 134) != 0 || !index.bindings.accessible(symbol, index.bindings.scope_for_node(node))) {
+			index.fail(span, "compound assignment excludes readonly, owning and computed property destinations");
+			return;
+		}
+	}
+	var operation = index.bindings.program.arena.token_message(syntax.f_operator_token);
+	bool shift = operation.text == "<<" || operation.text == ">>";
+	bool bitwise = operation.text == "&" || operation.text == "|" || operation.text == "^";
+	var context = expected;
+	if (shift) context = no_type();
+	var actual = checked_expression(index, syntax.f_expression, context, depth + 1);
+	int code = checked_kind(index, expected);
+	bool valid = expected.index == actual.index && type_numeric(code);
+	if (bitwise) valid = expected.index == actual.index && (type_integer(code) || code == 13);
+	if (shift) valid = type_integer(code) && type_integer(checked_kind(index, actual));
+	if (operation.text == "%") valid = expected.index == actual.index && type_integer(code);
+	if (code == 33 && index.generic_definition) {
+		valid = expected.index == actual.index && checked_parameter_capability(index, expected, "Numeric");
+		if (bitwise) valid = expected.index == actual.index && checked_parameter_capability(index, expected, "Bitwise");
+		if (shift) valid = type_integer(checked_kind(index, actual)) && checked_parameter_capability(index, expected, "Shift");
+		if (operation.text == "%") valid = false;
+	}
+	if (shift && valid && index.bindings.program.arena.kind(syntax.f_expression) == SyntaxKind.IntegerLiteralExpressionSyntax() && code != 33) {
+		int count = checked_integer_extent(index, index.bindings.program.arena.get_token_literal(syntax.f_expression), 64);
+		if (count < 0 || count >= type_width(code)) valid = false;
+	}
+	if (!valid) {
+		index.fail(span, "compound operator requires exact compatible operand types without narrowing");
+		return;
+	}
+	var recorded = index.record(node, expected, 0);
+}
+
 void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int depth) throws Error {
 	if (node.index == 0 || index.failed() || checked_past_binding_error(index, node)) {
 		return;
@@ -88,6 +139,10 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 	var kind = index.bindings.program.arena.kind(node);
 	if (depth > 256) {
 		index.fail(index.bindings.program.arena.header(node).span, "checked statement depth exceeds 256");
+		return;
+	}
+	if (kind == SyntaxKind.CompoundAssignmentSyntax()) {
+		checked_compound_statement(index, node, depth);
 		return;
 	}
 	if (kind == SyntaxKind.BlockStatementSyntax()) {

@@ -1002,6 +1002,23 @@ class SyntaxObservation {
 	}
 
 	void write_statement(SyntaxArena arena, SyntaxNodeId arg_statement, int arg_indentation) throws Error {
+		if (arg_statement.index != 0 && arena.kind(arg_statement) == SyntaxKind.CompoundAssignmentSyntax()) {
+			var data = arena.compound_assignment(arg_statement);
+			var target = this.format_expression(arena, data.f_target);
+			var expression = this.format_expression(arena, data.f_expression);
+			var operation = arena.token_message(data.f_assignment_token);
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "(compound ");
+			source_append_text(output, operation.text);
+			source_append_text(output, " ");
+			source_append_text(output, target.text);
+			source_append_text(output, " ");
+			source_append_text(output, expression.text);
+			source_append_text(output, ")");
+			var text = output.snapshot();
+			this.line(arena, arg_indentation, text.text);
+			return;
+		}
 		if ((arg_statement.index != 0 && syntax_kind_accepts(arena.kind(arg_statement), SyntaxKind.AwaitStatementSyntax()))) {
 			var tmp_1 = this.format_expression(arena, arena.get_node_expression(arg_statement));
 			var tmp_2 = new Utf8ByteBuilder();

@@ -4675,7 +4675,58 @@ class SyntaxParser {
 		return syntax_make_TryStatementSyntax(arena, v_keyword_1, v_body_3, v_catches_5);
 	}
 
+	bool begins_compound_assignment(SyntaxArena arena) throws Error {
+		if (!this.modern()) return false;
+		var kind = this.token_kind(arena, this.current);
+		if (kind != TokenKind.IDENTIFIER() && kind != TokenKind.THIS() && kind != TokenKind.OPEN_PAREN() && kind != TokenKind.STAR() && kind != TokenKind.SLICE()) return false;
+		var checkpoint = arena.checkpoint();
+		var probe = this.fork(arena);
+		var target = probe.parse_expression(arena, 0, 0);
+		bool found = target.index != 0 && probe.error_message.text.byte_length == 0 && probe.token_kind(arena, probe.current) == TokenKind.COMPOUND_ASSIGNMENT();
+		arena.rewind(checkpoint);
+		return found;
+	}
+
+	SyntaxNodeId parse_compound_tail(SyntaxArena arena, SyntaxNodeId target, bool terminated) throws Error {
+		var assignment = this.expect(arena, TokenKind.COMPOUND_ASSIGNMENT(), "compound assignment requires one supported operator and '='");
+		if (assignment.index == 0) return syntax_no_node();
+		var span = arena.token_span(assignment);
+		TokenKind kind = TokenKind.EOF();
+		if (arena.token_is(assignment, "+=")) kind = TokenKind.PLUS();
+		if (arena.token_is(assignment, "-=")) kind = TokenKind.MINUS();
+		if (arena.token_is(assignment, "*=")) kind = TokenKind.STAR();
+		if (arena.token_is(assignment, "/=")) kind = TokenKind.SLASH();
+		if (arena.token_is(assignment, "%=")) kind = TokenKind.PERCENT();
+		if (arena.token_is(assignment, "&=")) kind = TokenKind.AMPERSAND();
+		if (arena.token_is(assignment, "|=")) kind = TokenKind.PIPE();
+		if (arena.token_is(assignment, "^=")) kind = TokenKind.CARET();
+		if (arena.token_is(assignment, "<<=")) kind = TokenKind.SHIFT_LEFT();
+		if (arena.token_is(assignment, ">>=")) kind = TokenKind.SHIFT_RIGHT();
+		if (kind == TokenKind.EOF()) {
+			this.fail(arena, span, "unsupported compound assignment operator");
+			return syntax_no_node();
+		}
+		var operation = arena.source_token(kind, syntax_span(span.source, span.start, span.end - 1));
+		var expression = this.parse_expression(arena, 0, 0);
+		if (expression.index == 0) return syntax_no_node();
+		SyntaxTokenId end = {index = 0};
+		if (terminated) {
+			end = this.expect(arena, TokenKind.SEMICOLON(), "compound assignment requires ';'");
+			if (end.index == 0) return syntax_no_node();
+		}
+		CompoundAssignmentSyntaxData data = {f_target = target, f_assignment_token = assignment, f_operator_token = operation, f_expression = expression, f_semicolon = end};
+		var last = arena.header(expression).span;
+		if (end.index != 0) last = arena.token_span(end);
+		var whole = syntax_cover(arena.header(target).span, last);
+		return arena.add_compound_assignment(data, whole, 0);
+	}
+
 	SyntaxNodeId parse_statement(SyntaxArena arena) throws Error {
+		if (this.begins_compound_assignment(arena)) {
+			var target = this.parse_expression(arena, 0, 0);
+			if (target.index == 0) return syntax_no_node();
+			return this.parse_compound_tail(arena, target, true);
+		}
 		var tmp_1 = (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER());
 		if (tmp_1) {
 			var tmp_2 = arena.token_message(this.current);
@@ -5627,6 +5678,7 @@ class SyntaxParser {
 			SyntaxNodeId tmp_2 = {index = 0};
 			return tmp_2;
 		}
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.COMPOUND_ASSIGNMENT()) return this.parse_compound_tail(arena, v_target_1, false);
 		var tmp_3 = (v_target_1.index != 0 && syntax_kind_accepts(arena.kind(v_target_1), SyntaxKind.CallExpressionSyntax()));
 		if (tmp_3) {
 			tmp_3 = (this.token_kind(arena, this.current) == TokenKind.CLOSE_PAREN());

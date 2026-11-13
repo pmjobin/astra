@@ -1,6 +1,56 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Capture both complete descriptors before either destination is overwritten.
 // Destination responsibility and reverse declaration cleanup ranks stay fixed.
+bool recover_compound_operator_verified(CheckedIndex checked, SyntaxNodeId source) {
+	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CompoundAssignmentSyntax()) return false;
+	var syntax = checked.bindings.program.arena.compound_assignment(source);
+	if (syntax.f_assignment_token.index < 1 || syntax.f_operator_token.index < 1) return false;
+	var full = checked.bindings.program.arena.token_span(syntax.f_assignment_token);
+	var binary = checked.bindings.program.arena.token_span(syntax.f_operator_token);
+	if (syntax_source_language_profile(checked.bindings.program.arena, full.source) != 1 || full.source.index != binary.source.index || full.start != binary.start || full.end != binary.end + 1 || full.end - full.start < 2 || full.end - full.start > 3) return false;
+	try {
+		var original = checked.bindings.program.arena.source_span(full);
+		var bytes = original.bytes();
+		var spelling = utf8_message(bytes);
+		if (!checked.bindings.program.arena.token_is(syntax.f_assignment_token, spelling.text)) return false;
+		var text = checked.bindings.program.arena.token_message(syntax.f_operator_token);
+		return spelling.text == "+=" && text.text == "+" || spelling.text == "-=" && text.text == "-" || spelling.text == "*=" && text.text == "*" || spelling.text == "/=" && text.text == "/" || spelling.text == "%=" && text.text == "%" || spelling.text == "&=" && text.text == "&" || spelling.text == "|=" && text.text == "|" || spelling.text == "^=" && text.text == "^" || spelling.text == "<<=" && text.text == "<<" || spelling.text == ">>=" && text.text == ">>";
+	} catch (Error error) { return false; }
+}
+
+bool recover_compound_places_verified(RecoverFlow flow) {
+	var work = new int[1]; work[0] = 8000000;
+	int n = 0;
+	while (n < flow.data.node_count) {
+		var row = flow.data.nodes[n];
+		if (row.kind == 79) {
+			if (row.a < 1 || row.a > flow.data.node_count || row.b < 1 || row.b > flow.data.node_count) return false;
+			var target = flow.data.nodes[row.a - 1];
+			if (target.kind == 2) {
+				if (row.symbol.index < 1 || target.symbol.index != row.symbol.index || flow.checked.symbol_flags[row.symbol.index] != 0) return false;
+			} else {
+				if (target.kind == 12) {
+					if (row.symbol.index < 1 || recover_record_root(flow.checked, target.source, 0).index != row.symbol.index || recover_record_destination(flow.checked, target.source, row.symbol, 0) < 0 || !recover_storage_record(flow.checked, flow.checked.symbol_types[row.symbol.index])) return false;
+				} else {
+					SymbolId root = {index = 0}; int projection = row.a;
+					if (target.kind == 55) {
+						root = recover_array_root(flow, target.a, true);
+						projection = target.a;
+					} else {
+						if (target.kind != 17) return false;
+						var fact = flow.fields.facts[target.source.index];
+						if (!fact.writable || fact.initializing || flow.checked.bindings.symbol(fact.field).kind != 6 || (flow.checked.symbol_flags[fact.field.index] & (128 | 4)) != 0) return false;
+						root = fact.receiver;
+					}
+					if (row.symbol.index != 0 || root.index < 1 || !recover_borrow_preserved(flow.data, row.b, root, work, 0) || !recover_projection_preserved(flow, projection, row.b, work)) return false;
+				}
+			}
+		}
+		n = n + 1;
+	}
+	return true;
+}
+
 RecoverNode recover_build_exchange(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode initial, int depth) {
 	var row = initial;
 	if (checked.bindings.program.arena.kind(row.source) == SyntaxKind.SwapStatementSyntax()) {

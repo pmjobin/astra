@@ -394,7 +394,7 @@ class RecoverLlvm {
 					}
 				}
 			}
-			if (row.kind == 3) {
+			if (row.kind == 3 || row.kind == 79) {
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 				bool remainder = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "%");
 				if (type_integer(kind) && (remainder || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "/"))) {
@@ -535,7 +535,10 @@ class RecoverLlvm {
 					this.owner_armed[slot.symbol.index] = armed;
 					this.owner_initial_values[slot.symbol.index] = value_store;
 					this.owner_initial_flags[slot.symbol.index] = flag_store;
-				}
+				} else { if (slot.parameter) {
+						var initial = LLVMBuildStore(this.builder, this.locals[slot.symbol.index], address);
+						this.owner_initial_values[slot.symbol.index] = initial;
+					} }
 			}
 			place = place + 1;
 		}
@@ -752,6 +755,29 @@ class RecoverLlvm {
 			}
 		}
 		if (op == 3) value = this.binary(ssa, row);
+		if (op == 79) {
+			var binary = row;
+			binary.type = ssa.cfg.core.nodes[row.a - 1].value.type;
+			var updated = this.binary(ssa, binary);
+			var target = ssa.cfg.core.nodes[row.a - 1].value;
+			void* address = null;
+			if (target.kind == 12) {
+				int ordinal = recover_record_destination(ssa.cfg.core.flow.checked, target.source, row.symbol, 0);
+				var root = this.owner_addresses[row.symbol.index];
+				if (root == null || ordinal < 0) {
+					throw new Error("LLVM_INVALID_UPSTREAM: compound record Place");
+				}
+				address = this.field(LLVMGetAllocatedType(root), root, ordinal);
+			} else {
+				var previous = this.values[row.a];
+				if (LLVMIsAInstruction(previous) == null || LLVMGetInstructionOpcode(previous) != 27) {
+					throw new Error("LLVM_INVALID_UPSTREAM: compound Place read");
+				}
+				address = LLVMGetOperand(previous, 0);
+			}
+			operation = LLVMBuildStore(this.builder, updated, address);
+			LLVMSetAlignment(operation, LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(updated)));
+		}
 		if (op == 15) {
 			value = this.values[row.a];
 			int kind = checked_kind(ssa.cfg.core.flow.checked, row.type);
@@ -1697,7 +1723,7 @@ class RecoverLlvm {
 		int n = 0;
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
-			if (row.kind == 3) {
+			if (row.kind == 3 || row.kind == 79) {
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 				var token = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token);
 				if (kind >= 1 && kind <= 10 && (token.text == "/" || token.text == "%")) {
@@ -1735,7 +1761,7 @@ class RecoverLlvm {
 		var needed = new bool[200]; int n = 0;
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
-			if (row.kind == 3) {
+			if (row.kind == 3 || row.kind == 79) {
 				bool right_shift = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, ">>");
 				if (right_shift || ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "<<")) {
 					int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);

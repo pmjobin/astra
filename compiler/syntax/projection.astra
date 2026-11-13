@@ -893,6 +893,7 @@ class SyntaxProjection {
 		}
 		if (kind == SyntaxKind.CompoundAssignmentSyntax()) {
 			var data = arena.compound_assignment(node);
+			this.token(arena, "assignment_token", data.f_assignment_token);
 			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
 			this.boolean("module_internal", arena.get_bool_module_internal(node));
 			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);

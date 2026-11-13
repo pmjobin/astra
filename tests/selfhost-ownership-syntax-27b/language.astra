@@ -117,6 +117,14 @@ void language_small_syntax() throws Error {
 	assert_that(old_conditional.failed());
 	var missing_colon = language_program("language astra27b; int choose(bool c) { return c ? 42; }");
 	assert_that(missing_colon.failed());
+	var compounds = language_program("language astra27b; int value() { int x = 42; x += 1; x -= 1; x *= 2; x /= 2; x %= 100; x &= 255; x |= 0; x ^= 0; x <<= 1; x >>= 1; return x; }");
+	assert_that(!compounds.failed());
+	var places = language_program("language astra27b; struct Point { int x; } int value() { int[] a = new int[1]; a[tick()] += tick(); Point p = {x = 1}; p.x += 1; for (int i = 0; i < 2; i += 1) { a[i] += p.x; } return 42; }");
+	assert_that(!places.failed());
+	var old_compound = language_program("int value() { int x = 42; x += 1; return x; }");
+	assert_that(old_compound.failed());
+	var elided_compound = language_program("language astra27b; int value() { int x = 42; x + = 1; return x; }");
+	assert_that(elided_compound.failed());
 }
 
 int main() {

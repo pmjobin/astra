@@ -39,11 +39,34 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 	var kind = checked.bindings.program.arena.kind(source);
 	if (recover_value_kind(row.kind) && row.type.index != types.types[source.index].index) return false;
 	if (!recover_value_kind(row.kind) && row.kind != 25 && row.type.index != 14) return false;
-	if (row.kind != 3 && row.kind != 62 && row.kind != 77 && row.kind != 55 && row.kind != 61 && row.kind != 76 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && row.kind != 73 && (row.b != 0 || row.c != 0)) return false;
+	if (row.kind != 3 && row.kind != 62 && row.kind != 77 && row.kind != 79 && row.kind != 55 && row.kind != 61 && row.kind != 76 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && row.kind != 73 && (row.b != 0 || row.c != 0)) return false;
 	if (row.kind == 3 && row.c != 0) return false;
 	if (row.kind != 4 && row.kind != 5 && row.kind != 8 && row.kind != 11 && row.kind != 67 && row.kind != 69 && row.kind != 70 && row.kind != 14 && row.kind != 19 && row.kind != 50 && row.kind != 56 && row.kind != 57 && row.kind != 20 && row.kind != 24 && row.kind != 72 && (row.count != 0 || row.first != 0)) return false;
-	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 77 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.kind != 76 && row.token.index != 0) return false;
-	if (row.kind != 2 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.symbol.index != 0) return false;
+	if (row.kind != 1 && row.kind != 3 && row.kind != 62 && row.kind != 77 && row.kind != 79 && row.kind != 6 && row.kind != 12 && row.kind != 15 && row.kind != 17 && row.kind != 18 && row.kind != 19 && row.kind != 52 && row.kind != 53 && row.kind != 54 && row.kind != 58 && row.kind != 69 && row.kind != 70 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.kind != 76 && row.token.index != 0) return false;
+	if (row.kind != 2 && row.kind != 79 && row.kind != 4 && row.kind != 5 && row.kind != 6 && row.kind != 12 && row.kind != 10 && row.kind != 11 && row.kind != 17 && row.kind != 18 && row.kind != 50 && row.kind != 52 && row.kind != 53 && row.kind != 58 && row.kind != 25 && row.kind != 27 && row.kind != 42 && row.kind != 43 && row.kind != 44 && row.kind != 65 && row.kind != 66 && row.kind != 67 && row.kind != 71 && row.kind != 73 && row.kind != 75 && row.symbol.index != 0) return false;
+	if (row.kind == 79) {
+		if (kind != SyntaxKind.CompoundAssignmentSyntax() || row.type.index != 14 || row.c != 0 || !recover_compound_operator_verified(checked, source)) return false;
+		var syntax = checked.bindings.program.arena.compound_assignment(source);
+		if (row.token.index != syntax.f_operator_token.index || !recover_child_with_bindings(flow, checked, types, row.a, syntax.f_target, function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, syntax.f_expression, function, handler, caught, seen, edges, bindings, depth + 1)) return false;
+		var target = flow.nodes[row.a - 1]; var input = flow.nodes[row.b - 1];
+		int code = checked_kind(checked, target.type);
+		bool shift = checked.bindings.program.arena.token_is(row.token, "<<") || checked.bindings.program.arena.token_is(row.token, ">>");
+		bool bits = checked.bindings.program.arena.token_is(row.token, "&") || checked.bindings.program.arena.token_is(row.token, "|") || checked.bindings.program.arena.token_is(row.token, "^");
+		bool valid = target.type.index == input.type.index && type_numeric(code);
+		if (bits) valid = target.type.index == input.type.index && (type_integer(code) || code == 13);
+		if (shift) valid = type_integer(code) && type_integer(checked_kind(checked, input.type));
+		if (checked.bindings.program.arena.token_is(row.token, "%")) valid = target.type.index == input.type.index && type_integer(code);
+		if (!valid || checked.uses[source.index].type.index != target.type.index) return false;
+		if (shift && checked.bindings.program.arena.kind(syntax.f_expression) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+			try {
+				int count = checked_integer_extent(checked, checked.bindings.program.arena.get_token_literal(syntax.f_expression), 64);
+				if (count < 0 || count >= type_width(code)) return false;
+			} catch (Error error) { return false; }
+		}
+		if (target.kind == 2) return row.symbol.index == target.symbol.index && row.symbol.index > 0 && checked.symbol_flags[row.symbol.index] == 0;
+		if (target.kind == 12) return row.symbol.index > 0 && recover_record_root(checked, target.source, 0).index == row.symbol.index;
+		return row.symbol.index == 0 && (target.kind == 17 || target.kind == 55);
+	}
 	if (row.kind == 71 || row.kind == 72 || row.kind == 73) return recover_enum_source_with_bindings(flow, checked, types, row, child, seen, edges, bindings, depth);
 	if (row.kind == 1 || row.kind == 2 || row.kind == 54 || row.kind == 55 || row.kind == 56 || row.kind == 57 || row.kind == 58 || row.kind == 61 || row.kind == 76 || row.kind == 62 || row.kind == 77 || row.kind == 3) return recover_child_scalars_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
 	if (row.kind == 4 || row.kind == 5 || row.kind == 50) return recover_child_calls_with_bindings(flow, checked, types, child, source, function, handler, caught, seen, edges, bindings, depth, row, kind);
@@ -361,7 +384,7 @@ bool recover_mutations_verified(RecoverFlowData flow) {
 	var observed = new bool[len(flow.symbols)]; int n = 0;
 	while (n < flow.node_count) {
 		var row = flow.nodes[n];
-		if (row.kind == 42 || row.kind == 75) {
+		if (row.kind == 42 || row.kind == 75 || row.kind == 79 && row.symbol.index > 0) {
 			if (row.symbol.index < 1 || row.symbol.index >= len(observed)) return false;
 			observed[row.symbol.index] = true;
 		}
@@ -435,5 +458,5 @@ bool recover_flow_verify(RecoverFlow flow) {
 		if (!caught_symbols[i] && flow.data.catch_owners[i] != 0) return false;
 		i = i + 1;
 	}
-	return recover_mutations_verified(flow.data) && recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data) && recover_text_views_verified(flow);
+	return recover_compound_places_verified(flow) && recover_mutations_verified(flow.data) && recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data) && recover_text_views_verified(flow);
 }

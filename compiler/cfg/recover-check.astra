@@ -137,6 +137,10 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 		if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 45, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.b, op, seen, nodes, depth + 1)) return false;
 		return recover_cfg_check_tree(cfg, row.a, cfg.regions[row.b - 1].entry, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
 	}
+	if (row.kind == 79) {
+		if (!recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 79, row.a, row.b, next, 0, 0, 0, 0), seen) || !recover_cfg_check_tree(cfg, row.b, op, seen, nodes, depth + 1)) return false;
+		return recover_cfg_check_tree(cfg, row.a, cfg.regions[row.b - 1].entry, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
+	}
 	if (row.kind == 43) {
 		int place = core.place; if (place < 1 || place > cfg.core.flow.storage.count) return false; var slot = cfg.core.flow.storage.slots[place - 1];
 		if (!slot.owner || slot.function != row.function || !recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 27, row.a, 0, next, 0, 0, 0, 0), seen)) return false;

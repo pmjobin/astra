@@ -113,9 +113,9 @@ eligible native field/result channels and typed-local acquisition from actual
 owning producers. Ordinary native parameters borrow, explicit `owned` and
 `move` remain consuming, and typed aliases never acquire by type alone. Source
 consumers reconstruct default field/result flags and acquisition provenance.
-The whole 196+10 source graph passes C0 semantic preflight. Current-compiler
-native, ownership, ABI, error and physical mutation qualification is pending;
-there is no full ownership or numeric acceptance claim at this stage.
+The whole 196+10 source graph passes C0 semantic preflight. The selected native
+gates below have now executed; the complete ownership, ABI, error and physical
+mutation campaign remains pending. There is no full 27-B acceptance claim.
 
 `tests/selfhost-ownership-syntax-27b/build.py` builds the real production driver
 from an immutable Git-authenticated snapshot with explicit compiler/hash/mode,
@@ -149,8 +149,38 @@ behavior oracles, direct compiler O0/O2 generation, C destructor/call counters,
 strict compiler/target memory checks and refusal sentinels. Its selected gates
 must execute successfully before receiving credit. The initial updated driver
 build is frozen at commit `7a74fb0`; it does not contain subsequent AST work.
+Its C0-produced O0 ELF is
+`5b92a3f9fb1cb5685ff549deff5c35a14c1c1efd01dd26217b0aefacd168ca58`.
+The build took 1,901.901 seconds after its 57.412-second semantic preflight.
 
-Compound assignment lowering, owner/view conditional joins and the complete
+`runtime/selfhost27b-native-initial1/result.json` records actual production-driver
+execution of the initial ownership/literal/concise-syntax/view/C-pointer cases.
+Eight direct O0/O2 native targets and four independent C0 behavior oracles return
+42. Twelve all-kinds unsuppressed Valgrind streams (four compiler processes and
+eight target processes) report zero errors, live blocks and suppressions.
+Destruction counters show one destruction of the owned child; an owner factory,
+implicit native fields, typed acquisition, computed getters, trailing commas,
+integer extremes, borrowed array parameters and unmanaged C pointer transport
+execute together. Three source refusals (overflow, borrowed consumption and
+double move) preserve output sentinels. A separate post-run source-hash receipt
+is explicitly timestamped after execution; the improved recipe records source
+hashes before execution for subsequent campaigns. Neither original receipt is
+rewritten or backdated.
+
+Compound assignment now retains a distinct full assignment token and its exact
+source-sliced underlying operator. Semantic, retained-Flow, Place, CFG and
+physical consumers check the source association, exact numeric/boolean operator
+domain, writability, source order and backing lifetime. The target's old value
+and actual address are captured before the RHS; lowering emits one write.
+Copyable record fields use the independently reconstructed leaf destination.
+Mutable copied parameters receive explicitly verified entry initialization.
+Computed property destinations remain explicitly refused as permitted by the
+task contract. The whole compiler passes C0 semantic preflight; native O0 syntax
+tests for all ten operators, Places, for steps and legacy/refusal controls pass
+with strict zero-live-block Valgrind (`runtime/selfhost27b-compound1`). Actual
+production-driver compound/record/conditional execution is still pending.
+
+Owner/view conditional joins and the complete
 borrowed/weak lifetime contracts still require implementation and proof.
 Current-compiler native record/conditional integration also remains pending.
 All seven syntax groups and ownership gates

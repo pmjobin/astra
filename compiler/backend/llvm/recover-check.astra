@@ -264,14 +264,25 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 			if (!recover_llvm_owner_initial(slot, ssa.cfg.core.flow.checked, entries[f], owner_addresses[slot.symbol.index], owner_armed[slot.symbol.index], owner_initial_values[slot.symbol.index], owner_initial_flags[slot.symbol.index], locals[slot.symbol.index])) return false;
 			allocation_count = allocation_count + 4;
 		} else { if (recover_mutable(ssa.cfg.core.flow.data, slot.symbol)) {
-				var address = owner_addresses[slot.symbol.index]; if (address == null || LLVMIsAInstruction(address) == null || LLVMGetInstructionOpcode(address) != 26 || LLVMGetInstructionParent(address) != entries[f] || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, slot.type, LLVMGetAllocatedType(address)) || owner_armed[slot.symbol.index] != null || owner_initial_values[slot.symbol.index] != null || owner_initial_flags[slot.symbol.index] != null) return false;
+				var address = owner_addresses[slot.symbol.index]; if (address == null || LLVMIsAInstruction(address) == null || LLVMGetInstructionOpcode(address) != 26 || LLVMGetInstructionParent(address) != entries[f] || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, slot.type, LLVMGetAllocatedType(address)) || owner_armed[slot.symbol.index] != null || owner_initial_flags[slot.symbol.index] != null) return false;
 				allocation_count = allocation_count + 1;
+				var initial = owner_initial_values[slot.symbol.index];
+				if (slot.parameter) {
+					if (initial == null || LLVMIsAInstruction(initial) == null || LLVMGetInstructionOpcode(initial) != 28 || LLVMGetInstructionParent(initial) != entries[f] || LLVMGetOperand(initial, 0) != locals[slot.symbol.index] || LLVMGetOperand(initial, 1) != address || LLVMGetVolatile(initial) != 0 || LLVMGetOrdering(initial) != 0 || LLVMHasMetadata(initial) != 0 || LLVMGetNextInstruction(address) != initial) return false;
+					allocation_count = allocation_count + 1;
+				} else {
+					if (initial != null) return false;
+				}
 			} }
 		if (slot.owner || recover_mutable(ssa.cfg.core.flow.data, slot.symbol)) {
 			var address = owner_addresses[slot.symbol.index];
 			if (previous_frame != null && LLVMGetNextInstruction(previous_frame) != address) return false;
 			previous_frame = address;
-			if (slot.owner) previous_frame = owner_initial_flags[slot.symbol.index];
+			if (slot.owner) {
+				previous_frame = owner_initial_flags[slot.symbol.index];
+			} else {
+				if (slot.parameter) previous_frame = owner_initial_values[slot.symbol.index];
+			}
 		}
 		position = index.slot_next[place];
 	}
@@ -295,6 +306,26 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		} else {
 			if (op == 10 || values[block.origin] != locals[row.symbol.index]) return 0;
 		}
+	}
+	if (op == 79) {
+		if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetInstructionParent(operation) != physical || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
+		var input = LLVMGetOperand(operation, 0);
+		var address = LLVMGetOperand(operation, 1);
+		var binary = row; binary.type = ssa.cfg.core.nodes[row.a - 1].value.type;
+		if (!recover_llvm_binary(ssa, binary, input, values[row.a], values[row.b], equal_function, integer_functions) || LLVMGetAlignment(operation) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(input))) return 0;
+		instruction_count = 2;
+		if (LLVMIsAInstruction(input) != null && LLVMGetInstructionParent(input) == physical) instruction_count = instruction_count + 1;
+		var target = ssa.cfg.core.nodes[row.a - 1].value;
+		if (target.kind == 12) {
+			if (row.symbol.index < 1 || owner_addresses[row.symbol.index] == null) return 0;
+			var base = owner_addresses[row.symbol.index];
+			int ordinal = recover_record_destination(ssa.cfg.core.flow.checked, target.source, row.symbol, 0);
+			if (ordinal < 0 || !recover_llvm_field(address, LLVMGetAllocatedType(base), base, ordinal) || LLVMGetInstructionParent(address) != physical) return 0;
+			instruction_count = instruction_count + 1;
+		} else {
+			if (values[row.a] == null || LLVMIsAInstruction(values[row.a]) == null || LLVMGetInstructionOpcode(values[row.a]) != 27 || address != LLVMGetOperand(values[row.a], 0)) return 0;
+		}
+		if (LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(physical)) return 0;
 	}
 	if (op == 3) {
 		var result = values[block.origin]; if (!recover_llvm_binary(ssa, row, result, values[row.a], values[row.b], equal_function, integer_functions)) return 0;
@@ -531,7 +562,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+	if (op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
 	else {
 		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_drops, record_storage, b);
 	}
