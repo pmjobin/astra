@@ -27,9 +27,14 @@ class Session {
 	init(int value) { this.value = value; }
 	deinit() { note_drop(this.value); }
 }
+class SessionHolder {
+	Session component;
+	init(owned Session incoming) { this.component = move incoming; }
+}
 Weak<Session> observe() {
 	Session first = new Session(40);
 	Session second = shared_clone(first);
+	var holder = new SessionHolder(move second);
 	weak Session observer = shared_downgrade(first);
 	var duplicate = weak_clone(observer);
 	var alive = weak_upgrade(duplicate);
@@ -128,7 +133,7 @@ def main():
 	oracle = runtime/'intrinsic-legacy.astra'
 	bridge = runtime/'observer.c'
 	source.write_text('language astra27b;\n'+SOURCE)
-	oracle.write_text(SOURCE.replace('Weak<Session> observe()', 'owned Weak<Session> observe()').replace('Session first =', 'var first =').replace('Session second =', 'var second =').replace('weak Session observer =', 'var observer ='))
+	oracle.write_text(SOURCE.replace('Weak<Session> observe()', 'owned Weak<Session> observe()').replace('Session first =', 'var first =').replace('Session second =', 'var second =').replace('weak Session observer =', 'var observer =').replace('\tSession component;', '\towned Session component;'))
 	bridge.write_text(BRIDGE)
 	inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.link, source, oracle, bridge)}
 	tools = tool_identity([a.compiler, a.c0, '/usr/bin/time', *[shutil.which(n) for n in ('gcc', 'cc', 'as', 'ld', 'valgrind', 'opt', 'llc')]])

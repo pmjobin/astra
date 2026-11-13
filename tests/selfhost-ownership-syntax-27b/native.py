@@ -308,6 +308,10 @@ int main() {
 
 WEAK = ITEM+'''int read(Item value) { return value.value; }
 int inspect(shared Item value) { return read(shared_borrow(value)); }
+class Watcher {
+	weak shared Item target;
+	init(owned Weak<Item> incoming) { this.target = move incoming; }
+}
 Weak<Item> observe() {
 	var item = new Item(40);
 	Shared<Item> strong = shared_acquire(move item);
@@ -320,7 +324,8 @@ Weak<Item> observe() {
 }
 int main() {
 	var observer = observe();
-	var dead = weak_upgrade(observer);
+	var holder = new Watcher(move observer);
+	var dead = weak_upgrade(holder.target);
 	if (dead != null) return 1;
 	if (drop_count() != 1 || drop_sum() != 40) return 2;
 	return 42;
@@ -419,7 +424,7 @@ def main():
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
 		cases.append(('compound-places', COMPOUND_PLACE, legacy_places))
 	if 'weak' in a.feature:
-		legacy_weak = WEAK.replace('int inspect(shared Item', 'int inspect(borrowed shared Item').replace('Weak<Item> observe()', 'owned Weak<Item> observe()').replace('Shared<Item> strong =', 'var strong =').replace('weak shared Item observer =', 'var observer =')
+		legacy_weak = WEAK.replace('int inspect(shared Item', 'int inspect(borrowed shared Item').replace('Weak<Item> observe()', 'owned Weak<Item> observe()').replace('Shared<Item> strong =', 'var strong =').replace('weak shared Item observer =', 'var observer =').replace('weak shared Item target;', 'owned Weak<Item> target;')
 		cases.append(('weak-death-upgrade', WEAK, legacy_weak))
 	if 'borrowed' in a.feature:
 		# The legacy oracle reads the same readonly owner directly. The modern

@@ -216,3 +216,12 @@ require their exact independently reconstructed conditional consumer. The
 expanded fixture exercises both move selections, both fresh allocations and
 absence versus allocation; its explicit old-form C0 oracle returns 42 with
 seven destructions and sum 128. Final current-native proof remains required.
+
+Focused current development checks now cover a weak observer stored in a
+Watcher field and an implicit intrinsic Session strong field. Both have actual
+O0/O2 native execution, explicit C0 equivalents and clean strict memory. The
+final fixtures retain these field paths. Borrowed-field use remains bounded
+to the proved sibling receiver and temporary borrowed call; attempts to retain
+a new local alias are refused without a supported source-root proof. The
+separate failed alias probes are retained and grant no acceptance credit. This
+does not claim general lifetime/alias admission or infer ownership by type.
