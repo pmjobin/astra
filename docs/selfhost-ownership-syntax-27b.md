@@ -225,3 +225,21 @@ to the proved sibling receiver and temporary borrowed call; attempts to retain
 a new local alias are refused without a supported source-root proof. The
 separate failed alias probes are retained and grant no acceptance credit. This
 does not claim general lifetime/alias admission or infer ownership by type.
+
+The final fixture matrix now also covers nested nominal record expressions
+written directly as arguments, a compound RHS that throws before any write,
+a concise owning factory with a checked error channel, a conditional getter,
+constructor count conditionals and replacement of a nonempty owning field.
+Focused actual O0/O2 development runs passed the compound error effects,
+concise owning factory and replacement cleanup. C0 equivalents are separately
+authored; the first oracle probes' brace/no-shadow errors remain recorded.
+
+Direct record arguments exposed a retained-call source gate that omitted the
+record expression's checked marker 20. Admission now requires independent
+nominal/source/field proof, exact input type and the authenticated modern
+profile. Constructor source traversal also visits each conditional branch at
+the same proved initialization point; retained Flow and ownership consumers
+still reconstruct joins independently. These corrections require a current
+C0-built host and an actual Astra-built host with matching final source. The
+running optimized build is retained as an explicitly versioned development
+seed, without claiming that it already implements the later call-source fix.

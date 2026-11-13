@@ -107,6 +107,21 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, handled, depth + 1);
 	if (kind == SyntaxKind.RecordExpressionSyntax()) return recover_record_expression_source(checked, node, checked.uses[node.index].type) && recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_initializer(node), function, aggregate, initialized, handled, depth + 1);
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+		var condition = checked.bindings.program.arena.get_node_condition(node);
+		var left = checked.bindings.program.arena.get_node_left(node);
+		var right = checked.bindings.program.arena.get_node_right(node);
+		var use = checked.uses[node.index];
+		if (syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(node).span.source) != 1 || checked.uses[condition.index].type.index != 13 || checked.uses[left.index].type.index != use.type.index || checked.uses[right.index].type.index != use.type.index) return false;
+		if (use.flags == 0) {
+			if (use.type.index == 15 || !recover_copy_channel(checked, use.type, 0, false)) return false;
+		} else {
+			if (use.flags != 4 || !recover_storage_channel(checked, use.type, 4, true)) return false;
+		}
+		// Both source branches must be legal at the same initialization point.
+		// Retained Flow/owner consumers separately prove join transfer rules.
+		return recover_constructor_value_at(checked, condition, function, aggregate, initialized, handled, depth + 1) && recover_constructor_value_at(checked, left, function, aggregate, initialized, handled, depth + 1) && recover_constructor_value_at(checked, right, function, aggregate, initialized, handled, depth + 1);
+	}
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_operand(node), function, aggregate, initialized, handled, depth + 1);
 	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_left(node), function, aggregate, initialized, handled, depth + 1) && recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_right(node), function, aggregate, initialized, handled, depth + 1);
 	if (checked_flow_index_kind(kind)) {

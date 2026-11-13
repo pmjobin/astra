@@ -42,7 +42,7 @@ bool recover_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId tar
 		var argument = checked.bindings.program.arena.node_at(arguments, a);
 		var input = checked.types.argument(checked.types, signature.callable, a + 1);
 		var value = checked.uses[argument.index];
-		if (value.type.index != input.type.index || value.deferred != 0 && value.deferred != 17 && value.deferred != 19) return false;
+		if (value.type.index != input.type.index || value.deferred != 0 && value.deferred != 17 && value.deferred != 19 && !(value.deferred == 20 && recover_record_expression_source(checked, argument, input.type))) return false;
 		a = a + 1;
 	} return true;
 }
@@ -74,7 +74,7 @@ bool recover_refined_call_source(RecoverTypes types, CheckedIndex checked, Synta
 			if (use.deferred != 12 || types.members[argument.index].index == 0 || types.borrows[argument.index].index == 0 || channel.type.index != 15) return false;
 			recovered = true;
 		} else {
-			if (use.type.index != channel.type.index || use.deferred != 0 && use.deferred != 17 && use.deferred != 19) return false;
+			if (use.type.index != channel.type.index || use.deferred != 0 && use.deferred != 17 && use.deferred != 19 && !(use.deferred == 20 && recover_record_expression_source(checked, argument, channel.type))) return false;
 		}
 		i = i + 1;
 	}

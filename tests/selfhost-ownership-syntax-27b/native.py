@@ -35,7 +35,7 @@ OWNERS = ITEM+'''Item make(int value) { var result = new Item(value); return mov
 class Holder {
 	Item item;
 	int[] data;
-	init(owned Item incoming) { this.item = move incoming; this.data = new int[2]; }
+	init(owned Item incoming) { this.item = move incoming; this.data = new int[true ? 2 : 99]; }
 }
 int work() {
 	Item first = make(40);
@@ -105,11 +105,13 @@ class Count {
 	int content;
 	init(int value,) { this.content = value; }
 	property int length => this.content;
-	property int twice { get => this.content*2; }
+	property int twice { get => this.content > 0 ? this.content*2 : 0; }
 	int plus(int value,) => this.content+value;
 }
 int main() {
 	Count count = new Count(7,);
+	Count negative = new Count(-7,);
+	if (negative.twice != 0) return 1;
 	int[2] values = {20,22,};
 	return add(values[0], values[1],) + count.length + count.twice + count.plus(1,) - 29;
 }
@@ -132,9 +134,15 @@ int main() {
 }
 '''
 RECORDS = '''struct Point { int x; int y; }
+struct Boxed { Point point; int extra; }
 Point point(int y) => Point {x = 20, y,};
 int sum(Point p) { return p.x + p.y; }
-int main() { return sum(point(22)); }
+int boxed(Boxed p) { return sum(p.point) + p.extra; }
+int main() {
+	int x = 20; int y = 22;
+	if (sum(Point {x, y,}) != 42 || sum(point(22)) != 42) return 1;
+	return boxed(Boxed {point = Point {x, y,}, extra = 0,});
+}
 '''
 CONDITIONAL = '''extern(C) int tick(int value);
 extern(C) int tick_count();
@@ -165,6 +173,7 @@ extern(C) int tick_count();
 class Box { int value; init(int value) { this.value = value; } }
 struct Inner { int value; }
 struct Outer { Inner inner; int other; }
+int rhs_value(bool fail) throws Error { if (fail) { throw new Error("compound RHS"); } return 2; }
 int parameter(int x) { x += 2; return x; }
 int main() {
 	int[] values = new int[1];
@@ -175,6 +184,9 @@ int main() {
 	Outer point = {inner = {value = 40}, other = 9};
 	point.inner.value += 2;
 	if (tick_count() != 2 || values[0] != 42 || box.value != 42 || point.other != 9 || point.inner.value != 42) return 1;
+	try { values[tick(0)] += rhs_value(true); return 1; } catch (Error error) { if (values[0] != 42) return 1; }
+	try { values[tick(0)] += rhs_value(false); } catch (Error error) { return 1; }
+	if (values[0] != 44 || tick_count() != 4) return 1;
 	return parameter(40);
 }
 '''
@@ -213,13 +225,14 @@ int main() {
 	return value.count + 33;
 }
 '''
-ERROR_RESULT = ITEM+'''Item fallible(bool fail) throws Error {
+ERROR_RESULT = ITEM+'''Item construct(bool fail) throws Error {
 	if (fail) {
 		throw new Error("factory failed");
 	}
 	var item = new Item(40);
 	return move item;
 }
+Item fallible(bool fail) throws Error => construct(fail);
 int work(bool fail) {
 	try {
 		Item item = fallible(fail);
@@ -255,13 +268,13 @@ class Holder {
 }
 int attempt(bool fail) {
 	var item = new Item(40);
-	try { var holder = new Holder(move item); holder.finish(fail); }
+	try { var holder = new Holder(move item); holder.finish(fail); if (!fail) holder.finish(false); }
 	catch (Error error) { return 42; }
 	return 42;
 }
 int main() {
-	if (attempt(false) != 42 || drop_count() != 2 || drop_sum() != 42) return 1;
-	if (attempt(true) != 42 || drop_count() != 3 || drop_sum() != 82) return 1;
+	if (attempt(false) != 42 || drop_count() != 3 || drop_sum() != 44) return 1;
+	if (attempt(true) != 42 || drop_count() != 4 || drop_sum() != 84) return 1;
 	return 42;
 }
 '''
@@ -404,15 +417,15 @@ def main():
 	cases = []
 	if 'initial' in a.feature:
 		cases += [('literal-widths', LITERALS, LITERALS.replace('0xffff_ffff_ffff_ffff', '18446744073709551615').replace('0x8000_0000_0000_0000', '9223372036854775808').replace('0b1010_1100', '172').replace('8_000_000', '8000000')),
-			('owner-fields-factory-local', OWNERS, OWNERS.replace('Item make(', 'owned Item make(').replace('\tItem item;', '\towned Item item;').replace('\tint[] data;', '\towned int[] data;').replace('Item first =', 'var first =').replace('Holder holder =', 'var holder =')),
-			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('int plus(int value) => this.content+value;', 'int plus(int value) { return this.content+value; }').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content*2;', 'get { return this.content*2; }').replace('Count count =', 'var count =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])').replace('plus(1,)', 'plus(1)')),
+			('owner-fields-factory-local', OWNERS, OWNERS.replace('Item make(', 'owned Item make(').replace('\tItem item;', '\towned Item item;').replace('\tint[] data;', '\towned int[] data;').replace('Item first =', 'var first =').replace('Holder holder =', 'var holder =').replace('new int[true ? 2 : 99]', 'new int[2]')),
+			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('int plus(int value) => this.content+value;', 'int plus(int value) { return this.content+value; }').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content > 0 ? this.content*2 : 0;', 'get { if (this.content > 0) return this.content*2; return 0; }').replace('Count count =', 'var count =').replace('Count negative =', 'var negative =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])').replace('plus(1,)', 'plus(1)')),
 			('views-and-C-pointer', VIEWS, VIEWS.replace('void* raw(void* pointer) => pointer;', 'void* raw(void* pointer) { return pointer; }').replace('int length(int[] view) => len(view);', 'int length(int[] view) { return len(view); }').replace('int[] content =', 'owned int[] content =').replace('RawHolder holder =', 'var holder ='))]
 	if 'initial' in a.feature:
 		cases.append(('generic-trailing', GENERIC_TRAILING, GENERIC_TRAILING.replace('<T,>', '<T>').replace('T value,)', 'T value)').replace('<int,>', '<int>').replace('42,)', '42)')))
 		cases.append(('array-owning-result', ARRAY_RESULT, ARRAY_RESULT.replace('int[] make_values()', 'owned int[] make_values()').replace('int[] values = make_values();', 'var values = make_values();')))
 		cases.append(('generic-owning-result', GENERIC_OWNER, GENERIC_OWNER.replace('Vector<Item> make()', 'owned Vector<Item> make()').replace('Vector<Item> values = make();', 'var values = make();').replace('Item item = values.take(0);', 'var item = values.take(0);')))
 	if 'records' in a.feature:
-		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint main() { return sum(point(22)); }\n'))
+		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nstruct Boxed { Point point; int extra; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint boxed(Boxed p) { return sum(p.point) + p.extra; }\nint main() { int x = 20; int y = 22; Point p = {x = x, y = y}; if (sum(p) != 42 || sum(point(22)) != 42) return 1; Boxed value = {point = p, extra = 0}; return boxed(value); }\n'))
 	if 'conditional' in a.feature:
 		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }').replace('int other = tick(0) == 1 ? tick(99) : tick(42);', 'int other = 0; if (tick(0) == 1) { other = tick(99); } else { other = tick(42); }')))
 	if 'conditional' in a.feature:
@@ -422,6 +435,8 @@ def main():
 		cases.append(('compound-operators', COMPOUND, expanded_compounds(COMPOUND)))
 		cases.append(('compound-float', FLOAT_COMPOUND, expanded_compounds(FLOAT_COMPOUND)))
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
+		for spelling in ('true', 'false'):
+			legacy_places = legacy_places.replace('values[tick(0)] += rhs_value('+spelling+');', 'int index_'+spelling+' = tick(0); int previous_'+spelling+' = values[index_'+spelling+']; int next_'+spelling+' = rhs_value('+spelling+'); values[index_'+spelling+'] = previous_'+spelling+' + next_'+spelling+';')
 		cases.append(('compound-places', COMPOUND_PLACE, legacy_places))
 	if 'weak' in a.feature:
 		legacy_weak = WEAK.replace('int inspect(shared Item', 'int inspect(borrowed shared Item').replace('Weak<Item> observe()', 'owned Weak<Item> observe()').replace('Shared<Item> strong =', 'var strong =').replace('weak shared Item observer =', 'var observer =').replace('weak shared Item target;', 'owned Weak<Item> target;')
@@ -435,7 +450,8 @@ def main():
 		legacy_crc = expanded_compounds(CRC).replace('0xffff_ffff', '4294967295').replace('0xedb8_8320', '3988292384').replace('0xcbf4_3926', '3421780262').replace('return Digest {crc = crc32(bytes), count,};', 'Digest result = {crc = crc32(bytes), count = count}; return result;')
 		cases.append(('crc-record-workload', CRC, legacy_crc))
 	if 'errors' in a.feature:
-		cases.append(('owning-error-result', ERROR_RESULT, ERROR_RESULT.replace('Item fallible(', 'owned Item fallible(').replace('Item item = fallible', 'var item = fallible')))
+		legacy_error = ERROR_RESULT.replace('Item fallible(bool fail) throws Error => construct(fail);', 'owned Item fallible(bool fail) throws Error { var result = construct(fail); return move result; }').replace('Item construct(', 'owned Item construct(').replace('Item item = fallible', 'var item = fallible')
+		cases.append(('owning-error-result', ERROR_RESULT, legacy_error))
 		cases.append(('partial-field-error', PARTIAL_FIELD, PARTIAL_FIELD.replace('Item make_piece(', 'owned Item make_piece(').replace('Item empty_piece(', 'owned Item empty_piece(').replace('\tItem first;', '\towned Item first;').replace('\tItem second;', '\towned Item second;')))
 	if a.case:
 		assert set(a.case).issubset({case[0] for case in cases})
@@ -452,7 +468,7 @@ def main():
 		extra_sources = []
 		if name == 'generic-owning-result':
 			extra_sources = [ROOT/'lib/astra/collections/vector.astra']
-		if name in ('owning-error-result', 'partial-field-error'):
+		if name in ('owning-error-result', 'partial-field-error', 'compound-places'):
 			extra_sources = [ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra']
 		if extra_sources:
 			source_inputs.update({str(path):sha(path) for path in extra_sources})
