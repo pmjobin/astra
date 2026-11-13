@@ -53,17 +53,28 @@ def main():
 	plan = load(a.inputs/'ownflow-O2-input-identity.json'); identity = load(a.stage1.with_suffix('.identity.json'))
 	assert sha(plan['argv'][0]) == C0_SHA256 and Path(plan['argv'][-1]) == a.stage1
 	assert identity['sha256'] == sha(a.stage1)
-	assert {p for p in plan['argv'] if p.endswith('.astra')} == set(manifest['inputs'])
+	assert [p for p in plan['argv'] if p.endswith('.astra')] == list(manifest['inputs'])
 	assert all(sha(p) == h for p, h in plan['sources'].items())
 	assert all(sha(p) == h for p, h in plan['tools'].items())
 	expected_identity = {**plan, 'sources':{**plan['sources'], str(ROOT/'tests/selfhost-compiler-complete/compile-plan.py'):sha(ROOT/'tests/selfhost-compiler-complete/compile-plan.py')}}
 	assert identity['identity'] == expected_identity
-	seed_execution = load(a.inputs/('accelerated-build-'+a.inputs.name)/'execution/result.json')
-	assert seed_execution['status'] == 'EXPECTED_OUTCOME' and seed_execution['exit'] == 0
+	# The compile-plan directly supervises C0. Its receipt also survives an
+	# interrupted outer monitor; never invent a terminal result for that monitor.
+	seed_leaf = a.inputs/('compile-plan-'+a.inputs.name)
+	seed_execution = load(seed_leaf/'result.json')
+	assert seed_execution['exit'] == 0 and not seed_execution['timed_out']
+	for stream in ('stdout', 'stderr', 'time'): assert sha(seed_leaf/('compile.'+stream)) == seed_execution[stream+'_sha256']
+	assert seed_execution['product']['sha256'] == sha(a.stage1)
+	assert seed_execution['product']['identity_sha256'] == sha(a.stage1.with_suffix('.identity.json'))
 	stage1_hash = sha(a.stage1)
 	for path, status in [(a.smoke, 'REAL_SEED_DRIVER_FOCUSED_PASS'), (a.call_controls, 'INDEPENDENT_RECOVERED_CALL_CONTROLS_PASS'), (a.borrow_controls, 'INDEPENDENT_CAUGHT_MESSAGE_BORROW_CONTROLS_PASS')]:
 		result = load(path/'result.json'); assert result['status'] == status
 		assert result['producer']['sha256'] == stage1_hash and Path(result['producer']['path']) == a.stage1
+		if path in (a.call_controls, a.borrow_controls):
+			recipe = 'call-controls.py' if path == a.call_controls else 'borrow-controls.py'
+			assert result['recipe_sha256'] == sha(Path(__file__).with_name(recipe))
+			assert len(result['controls']) == (6 if path == a.call_controls else 5)
+			assert all(row['consumer_return'] == (1 if row['control'] == 'none' else 0) for row in result['controls'])
 	second = load(a.rebuild/'result.json'); commands = load(a.rebuild/'commands.json')
 	assert second['status'] == 'NATIVE_COMPILER_REBUILT_REQUIRES_BEHAVIORAL_QUALIFICATION'
 	assert second['producer_sha256'] == stage1_hash and Path(second['producer']) == a.stage1

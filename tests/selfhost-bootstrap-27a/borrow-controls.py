@@ -49,6 +49,10 @@ control=CONTROL
 read=lambda p,n:bytes(gdb.selected_inferior().read_memory(p,n))
 ptr=lambda p:struct.unpack('<Q',read(p,8))[0]
 i32=lambda p:struct.unpack('<i',read(p,4))[0]
+class Returned(gdb.FinishBreakpoint):
+ def stop(self):
+  (leaf/'consumer-return.json').write_text(json.dumps(dict(returned=int(gdb.parse_and_eval('$al'))))+'\\n')
+  return False
 class Corrupt(gdb.Breakpoint):
  def stop(self):
   flow=int(gdb.parse_and_eval('$rdi')); data=ptr(flow+32)
@@ -85,6 +89,7 @@ class Corrupt(gdb.Breakpoint):
    gdb.selected_inferior().write_memory(p,struct.pack('<i',value))
    observation['writes'].append(dict(address=p,before=before,after=i32(p)))
   (leaf/'injection.json').write_text(json.dumps(observation,indent=2)+'\\n')
+  Returned(gdb.newest_frame(),internal=True)
   self.enabled=False
   return False
 Corrupt('*'+hex(ADDRESS),internal=True)
@@ -102,16 +107,18 @@ run
 		injection = json.loads((run_leaf/'injection.json').read_text())
 		status = json.loads((run_leaf/'inferior-exit.json').read_text())['exit']
 		assert status == (0 if control == 'none' else 1), (control, status)
+		consumer = json.loads((run_leaf/'consumer-return.json').read_text())['returned']
+		assert consumer == (1 if control == 'none' else 0), (control, consumer)
 		if control == 'none':
 			assert output.read_bytes() != marker
 			assert execute(['opt', '-passes=verify', '-disable-output', output], run_leaf/'verify', timeout=120)['status'] == 'EXPECTED_OUTCOME'
 		else:
 			assert output.read_bytes() == marker and not list(build.glob(output.name+'.??????'))
-		rows.append(dict(control=control, injection=injection, native_exit=status, command=argv, result=result, output_sha256=sha(output)))
+		rows.append(dict(control=control, injection=injection, consumer_return=consumer, native_exit=status, command=argv, result=result, output_sha256=sha(output)))
 		assert sha(a.producer) == producer_hash
 		print('BORROW_CONTROL', control, status, flush=True)
 	assert all(sha(p) == h for p, h in inputs.items())
-	write(leaf/'result.json', dict(status='INDEPENDENT_CAUGHT_MESSAGE_BORROW_CONTROLS_PASS', producer=dict(path=str(a.producer), sha256=producer_hash), core_map_sha256=sha(a.core_map), controls=rows, limitation='Four fresh process-local negative controls and an unchanged positive control at the independent payload consumer. No persistent patch or historical mutation reclassification; only this C0 seed layout is qualified.'))
+	write(leaf/'result.json', dict(status='INDEPENDENT_CAUGHT_MESSAGE_BORROW_CONTROLS_PASS', recipe_sha256=sha(__file__), producer=dict(path=str(a.producer), sha256=producer_hash), core_map_sha256=sha(a.core_map), controls=rows, limitation='Four fresh process-local negative controls and an unchanged positive control, with explicit independent payload-consumer return observations. No persistent patch or historical mutation reclassification; only this C0 seed layout is qualified.'))
 
 
 if __name__ == '__main__':
