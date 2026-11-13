@@ -85,27 +85,33 @@ def preservation(initial):
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--observe-build', type=Path); p.add_argument('--pid', type=int)
-	for key in ('stage1', 'stage2', 'native', 'intrinsic', 'physical', 'stage1-native', 'stage1-intrinsic', 'stage1-physical', 'semantic', 'legacy-stage1', 'legacy-stage2', 'runtime'): p.add_argument('--'+key, type=Path)
+	for key in ('stage1', 'stage1-seed', 'stage2', 'native', 'intrinsic', 'physical', 'stage1-native', 'stage1-intrinsic', 'stage1-physical', 'semantic', 'legacy-stage1', 'legacy-stage2', 'runtime'): p.add_argument('--'+key, type=Path)
 	a = p.parse_args()
 	if a.observe_build:
 		assert a.pid and not a.runtime; observe(output_path(a.observe_build, WORK/'runtime'), a.pid); return
-	assert all(getattr(a, key) for key in ('stage1', 'stage2', 'native', 'intrinsic', 'physical', 'stage1_native', 'stage1_intrinsic', 'stage1_physical', 'semantic', 'legacy_stage1', 'legacy_stage2', 'runtime'))
+	assert all(getattr(a, key) for key in ('stage1', 'stage1_seed', 'stage2', 'native', 'intrinsic', 'physical', 'stage1_native', 'stage1_intrinsic', 'stage1_physical', 'semantic', 'legacy_stage1', 'legacy_stage2', 'runtime'))
 	runtime = output_path(a.runtime, WORK/'runtime'); runtime.mkdir(parents=True, exist_ok=False)
 	assert not git('diff', '--name-only').strip() and not git('diff', '--cached', '--name-only').strip()
 	head = git('rev-parse', 'HEAD').decode().strip(); tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
 	assert subprocess.run(['git', '-C', ROOT, 'merge-base', '--is-ancestor', BASE, head]).returncode == 0
 	first = receipt(a.stage1, 'PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED'); second = receipt(a.stage2, 'PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED')
+	seed = receipt(a.stage1_seed, 'PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED')
 	assert first['producer']['kind'] == 'c0' and second['producer']['kind'] == 'astra'
-	assert first['mode'] == 'O2' and second['mode'] == 'O0'
-	assert sha(first['product']['path']) == first['product']['sha256'] == second['producer']['sha256']
-	assert first['product']['path'] == second['producer']['path'] and sha(second['product']['path']) == second['product']['sha256']
+	assert first['mode'] == 'O0' and second['mode'] == 'O2' and seed['mode'] == 'O2'
+	assert seed['producer']['kind'] == 'c0' and sha(first['product']['path']) == first['product']['sha256']
+	assert sha(seed['product']['path']) == seed['product']['sha256'] == second['producer']['sha256']
+	assert seed['product']['path'] == second['producer']['path'] and sha(second['product']['path']) == second['product']['sha256']
+	for row in load(a.stage1_seed/'snapshot.json')['sources']:
+		name = str(Path(row['original_path']).relative_to(ROOT))
+		assert sha(row['input_path']) == row['sha256']
+		assert Path(row['input_path']).read_bytes() == git('show', seed['revision']+':'+name)
 	assert first['compiler_sources'] == second['compiler_sources'] == 196 and first['libraries'] == second['libraries'] == 10
 	for directory, product in ((a.stage1, first), (a.stage2, second)):
 		for row in load(directory/'snapshot.json')['sources']:
 			name = str(Path(row['original_path']).relative_to(ROOT))
 			assert sha(row['input_path']) == row['sha256'] == sha(row['original_path'])
 			assert (ROOT/name).read_bytes() == git('show', product['revision']+':'+name) == git('show', head+':'+name)
-	witness = load(a.stage2/'independent-producer-process.json'); assert witness['executable_sha256'] == first['product']['sha256']
+	witness = load(a.stage2/'independent-producer-process.json'); assert witness['executable_sha256'] == seed['product']['sha256']
 	for directory, product in ((a.native, second['product']), (a.stage1_native, first['product'])):
 		native = receipt(directory, 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS')
 		assert set(native['features']) == {'initial', 'records', 'conditional', 'compound', 'weak', 'borrowed', 'workload', 'errors'} and len(native['selected_cases']) == 18
@@ -147,8 +153,8 @@ def main():
 	assert len(memory) == 160
 	prior = load(WORK/'runtime/selfhost27b-g7v2/result.json'); assert prior['new_G7_actual_Astra_compiler_native_memory_ABI_negatives'] == 'PASS' and prior['HEAD'] == BASE
 	protected = preservation(WORK/'runtime/selfhost27b-intake/pre-edit-preservation.json'); write(runtime/'preservation.json', protected)
-	receipts = {str(directory/'result.json'):sha(directory/'result.json') for directory in (a.stage1, a.stage2, a.native, a.intrinsic, a.physical, a.stage1_native, a.stage1_intrinsic, a.stage1_physical, a.semantic, a.legacy_stage1, a.legacy_stage2)}
-	write(runtime/'result.json', dict(status='BOUNDED_27B_IMPLEMENTATION_QUALIFIED_HISTORICAL_PRESERVATION_PARTIAL', UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(), HEAD=head, tree=tree, stages=dict(stage1=first, stage2=second), gates=dict(G0='PASS_WITH_USER_AUTHORIZED_C0_REBUILD_AND_LOSSLESS_INTAKE_PACKAGING', G1='PASS_BOUNDED_IMPLEMENTED_CONTRACT', G2='PASS_ALL_SEVEN_SYNTAX_GROUPS', G3='PASS_CURRENT_C0_STAGE1_O2_AND_ACTUAL_ASTRA_STAGE2_O0_IDENTICAL_SOURCE', G4='PARTIAL_ABSENT_PREVIOUSLY_PURGED_RAW_HISTORICAL_PROOFS; LIVE_PROTECTION_PASS; PUBLICATION_PENDING', G5='PENDING_SEPARATE_AFTER_PUBLICATION_CHECK'), receipts=receipts, strict_returning_memory_streams=memory, C0_rebuilt_identity=prior['C0_rebuild'], historical_411_101_52='Preserved prior report qualifications only; no invented current complete-cohort replay.', full_milestone27_credit=False, Stage3_credit=False, release_credit=False, reserved='27-C complete idiomatic migration, named args, match expressions, typed interpolation, ranges (20..=80).step_by(5).collect_array() with 13 values, safe slicing, lazy pipelines and comprehensions; 27-D fixed improved-source full Stage1/2/3 convergence; 28 first release.', limitation='Implementation and focused independent gates are qualified only if every asserted receipt exists. Previously user-authorized cleanup removed the original C0 and external historical raw proof population. Replacement C0 is separately qualified and identified; its GLib/LLVM process has no strict all-kinds memory PASS. The actual Stage2 producer is the qualified current C0-built O2 Stage1; the resulting O0 Stage2 has the same final source content. Both host profiles generate independently qualified O0/O2 targets. No same-profile byte convergence or Stage3 is claimed. No raw-history preservation claim or narrowed overall PASS. G5 remains pending until installed publication.'))
+	receipts = {str(directory/'result.json'):sha(directory/'result.json') for directory in (a.stage1, a.stage1_seed, a.stage2, a.native, a.intrinsic, a.physical, a.stage1_native, a.stage1_intrinsic, a.stage1_physical, a.semantic, a.legacy_stage1, a.legacy_stage2)}
+	write(runtime/'result.json', dict(status='BOUNDED_27B_IMPLEMENTATION_QUALIFIED_HISTORICAL_PRESERVATION_PARTIAL', UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(), HEAD=head, tree=tree, stages=dict(stage1=first, stage2=second, generation_seed=seed), gates=dict(G0='PASS_WITH_USER_AUTHORIZED_C0_REBUILD_AND_LOSSLESS_INTAKE_PACKAGING', G1='PASS_BOUNDED_IMPLEMENTED_CONTRACT', G2='PASS_ALL_SEVEN_SYNTAX_GROUPS', G3='PASS_CURRENT_C0_STAGE1_O0_AND_ACTUAL_ASTRA_STAGE2_O2_WITH_EXPLICIT_SEED_REVISION', G4='PARTIAL_ABSENT_PREVIOUSLY_PURGED_RAW_HISTORICAL_PROOFS; LIVE_PROTECTION_PASS; PUBLICATION_PENDING', G5='PENDING_SEPARATE_AFTER_PUBLICATION_CHECK'), receipts=receipts, strict_returning_memory_streams=memory, C0_rebuilt_identity=prior['C0_rebuild'], historical_411_101_52='Preserved prior report qualifications only; no invented current complete-cohort replay.', full_milestone27_credit=False, Stage3_credit=False, release_credit=False, reserved='27-C complete idiomatic migration, named args, match expressions, typed interpolation, ranges (20..=80).step_by(5).collect_array() with 13 values, safe slicing, lazy pipelines and comprehensions; 27-D fixed improved-source full Stage1/2/3 convergence; 28 first release.', limitation='Implementation and focused independent gates are qualified only if every asserted receipt exists. Previously user-authorized cleanup removed the original C0 and external historical raw proof population. Replacement C0 is separately qualified and identified; its GLib/LLVM process has no strict all-kinds memory PASS. The actual Stage2 producer is the separately versioned C0-built O2 development seed. The qualified current C0 Stage1 O0 and actual Astra Stage2 O2 have the same final source content, including later record-call and conditional-source corrections. Both host profiles generate independently qualified O0/O2 targets. No same-generation byte convergence or Stage3 is claimed. No raw-history preservation claim or narrowed overall PASS. G5 remains pending until installed publication.'))
 	print('BOUNDED_27B_IMPLEMENTATION_QUALIFIED_HISTORICAL_PRESERVATION_PARTIAL', flush=True)
 
 
