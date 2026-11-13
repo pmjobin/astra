@@ -203,3 +203,16 @@ stack allocation and stores. It now independently requires preferred alignment
 for LLVMBuildAlloca and ABI alignment for its stores, preserving emitted bytes.
 The physical campaign adds a record-frame alignment corruption and a matched
 control. This correction requires fresh current-source production qualification.
+
+The `83c23e1` C0 O0 development host completed in 2124.418 seconds with ELF
+`bb2285248f6fa27843e86071b8790ed475f6c3b56da00edcb97be8328d57f971`.
+It predates the alignment correction and is not a final qualified host.
+A focused owner-conditional native probe exposed a separate Core provenance
+gap: the actual heap consumer did not follow kind-77 result branches. Its
+read-only debugger observation returned false; the source/owner checks were
+not overridden. The walker now follows only source-proven owning result
+branches, never the condition. Direct fresh constructor branches additionally
+require their exact independently reconstructed conditional consumer. The
+expanded fixture exercises both move selections, both fresh allocations and
+absence versus allocation; its explicit old-form C0 oracle returns 42 with
+seven destructions and sum 128. Final current-native proof remains required.

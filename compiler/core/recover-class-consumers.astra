@@ -29,7 +29,12 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerP
 		if (row.kind == 5 || recover_constructor_kind(row.kind) || row.kind == 19 && (flow.checked.uses[row.source.index].flags & 4) != 0) {
 			int consumer = plan.consumers[n]; if (consumer < 1 || consumer > flow.data.node_count) return false;
 			int kind = flow.data.nodes[consumer - 1].kind;
-			if (kind != 27 && !(recover_error_new_kind(row.kind) && kind == 23)) return false;
+			bool selected_owner = false;
+			if (kind == 77) {
+				var join = flow.data.nodes[consumer - 1];
+				selected_owner = join.function == row.function && (flow.checked.uses[join.source.index].flags & 4) != 0 && (recover_owner_unwrap(flow.data, join.b) == n + 1 || recover_owner_unwrap(flow.data, join.c) == n + 1);
+			}
+			if (kind != 27 && !selected_owner && !(recover_error_new_kind(row.kind) && kind == 23)) return false;
 		}
 		n = n + 1;
 	}

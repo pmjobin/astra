@@ -59,6 +59,12 @@ bool recover_heap_witness(RecoverFlow flow, RecoverHeapIndex index, int id, bool
 	// The separately consumed native take graph rejects a vacant element.
 	if (row.kind == 69 && flow.checked.bindings.program.arena.token_is(row.token, "take")) return recover_storage_class(flow.checked, row.type) && flow.checked.uses[row.source.index].flags == 4;
 	if (row.kind == 7) return recover_heap_witness(flow, index, row.a, seen, work, depth + 1);
+	if (row.kind == 77) {
+		// Source/owner verification proves both result branches transfer an
+		// owner (or absence). The condition itself is never a heap witness.
+		if ((flow.checked.uses[row.source.index].flags & 4) == 0) return false;
+		return recover_heap_witness(flow, index, row.b, seen, work, depth + 1) || recover_heap_witness(flow, index, row.c, seen, work, depth + 1);
+	}
 	if (row.kind == 10) {
 		var declaration = flow.checked.bindings.symbol(row.symbol); if (declaration.kind == 7) return (flow.checked.symbol_flags[row.symbol.index] & 4) != 0;
 		int local = index.initializers[row.symbol.index];

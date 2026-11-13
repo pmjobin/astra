@@ -271,6 +271,21 @@ CONDITIONAL_OWNER = ITEM+'''Item choose(bool first) {
 	var right = new Item(2);
 	return first ? move left : move right;
 }
+Item choose_new(bool first) {
+	return first ? new Item(20) : new Item(22);
+}
+Item choose_absent(bool empty) {
+	return empty ? null : new Item(2);
+}
+int fresh(bool first) {
+	Item selected = choose_new(first);
+	return selected.value;
+}
+int optional(bool empty) {
+	Item selected = choose_absent(empty);
+	if (selected == null) return 40;
+	return selected.value + 38;
+}
 int work(bool first) {
 	Item chosen = choose(first);
 	if (first) {
@@ -285,6 +300,8 @@ int main() {
 	if (initial != 42) return 1;
 	int result = work(false);
 	if (drop_count() != 4 || drop_sum() != 84) return 1;
+	if (fresh(true) + fresh(false) != 42 || drop_count() != 6 || drop_sum() != 126) return 1;
+	if (optional(true) != 40 || optional(false) != 40 || drop_count() != 7 || drop_sum() != 128) return 1;
 	return result;
 }
 '''
@@ -394,7 +411,7 @@ def main():
 	if 'conditional' in a.feature:
 		cases.append(('lazy-conditional', CONDITIONAL, CONDITIONAL.replace('int result = tick(1) == 1 ? tick(42) : tick(99);', 'int result = 0; if (tick(1) == 1) { result = tick(42); } else { result = tick(99); }').replace('int other = tick(0) == 1 ? tick(99) : tick(42);', 'int other = 0; if (tick(0) == 1) { other = tick(99); } else { other = tick(42); }')))
 	if 'conditional' in a.feature:
-		legacy_owner = CONDITIONAL_OWNER.replace('Item choose(', 'owned Item choose(').replace('return first ? move left : move right;', 'if (first) return move left; return move right;').replace('Item chosen =', 'var chosen =')
+		legacy_owner = CONDITIONAL_OWNER.replace('Item choose(', 'owned Item choose(').replace('Item choose_new(', 'owned Item choose_new(').replace('Item choose_absent(', 'owned Item choose_absent(').replace('return first ? move left : move right;', 'if (first) return move left; return move right;').replace('return first ? new Item(20) : new Item(22);', 'if (first) { var value = new Item(20); return move value; } var value = new Item(22); return move value;').replace('return empty ? null : new Item(2);', 'if (empty) return null; var value = new Item(2); return move value;').replace('Item chosen =', 'var chosen =').replace('Item selected =', 'var selected =')
 		cases.append(('conditional-owner-transfer', CONDITIONAL_OWNER, legacy_owner))
 	if 'compound' in a.feature:
 		cases.append(('compound-operators', COMPOUND, expanded_compounds(COMPOUND)))
