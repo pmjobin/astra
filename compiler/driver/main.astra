@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Bounded production GNU/Linux compiler driver over the independent passes.
+extern(C) int astrac_argument_count();
+
+extern(C) int astrac_argument_length(int index);
+
+extern(C) int astrac_argument_byte(int index, int offset);
+
+extern(C) void LLVMShutdown();
+
+owned Utf8Message astrac_argument(int index) throws Error {
+	int length = astrac_argument_length(index);
+	if (length < 0) {
+		throw new Error("astrac: invalid process arguments");
+	}
+	var bytes = new u8[length];
+	int i = 0;
+	while (i < length) {
+		int byte = astrac_argument_byte(index, i);
+		if (byte < 0) {
+			throw new Error("astrac: process arguments changed");
+		}
+		bytes[i] = byte as u8;
+		i = i + 1;
+	}
+	var text = utf8_message(bytes);
+	return move text;
+}
+
+void astrac_diagnostic(CheckedIndex checked) throws Error {
+	var span = checked.error_span;
+	int message = checked.error_message;
+	if (message == 0) {
+		span = checked.bindings.error_span;
+		message = checked.bindings.error_message;
+	}
+	var backing = checked.bindings.program.arena.source_span(span);
+	var path = backing.path();
+	var text = checked.bindings.names.text(message);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, path.text);
+	source_append_text(output, ":");
+	append_int(output, span.start);
+	source_append_text(output, ":");
+	append_int(output, span.end);
+	source_append_text(output, ": error: ");
+	source_append_text(output, text.text);
+	var diagnostic = output.snapshot();
+	println_stderr(diagnostic.text);
+}
+
+void astrac_copy_path(borrowed Utf8Message input, Utf8ByteBuilder output) {
+	assert_that(source_append_text(output, input.text));
+}
+
+owned SyntaxProgram astrac_load(Vector<Utf8Message> paths, Utf8Message output) throws Error {
+	var entries = new Vector<SourceEntry>(paths.count());
+	var destination = source_normalize_path(output.text);
+	int i = 0;
+	while (i < paths.count()) {
+		var text = new Utf8ByteBuilder();
+		astrac_copy_path(paths.entries[i], text);
+		var original = text.snapshot();
+		var path = source_normalize_path(original.text);
+		if (output.text.byte_length > 0 && source_path_compare(path, destination) == 0) {
+			throw new Error("astrac: output is an input source");
+		}
+		var file = read_file(path.text);
+		var bytes = new u8[file.byte_count()];
+		int at = 0;
+		while (at < len(bytes)) {
+			bytes[at] = file.byte_at(at) as u8;
+			at = at + 1;
+		}
+		var buffer = source_buffer(path.text, move bytes, false);
+		var retained = shared_acquire(move buffer);
+		var entry = new SourceEntry(move retained);
+		assert_that(entries.append(move entry));
+		i = i + 1;
+	}
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	return move program;
+}
+
+int astrac_compile(Vector<Utf8Message> paths, Utf8Message output, int mode, int level) throws Error {
+	var program = astrac_load(paths, output);
+	var bindings = binding_index(move program, 0);
+	var checked = checked_build_effects_profile(move bindings, 0);
+	if (checked.failed()) {
+		astrac_diagnostic(checked);
+		return 1;
+	}
+	var flow = recover_flow_lower(move checked, 8192);
+	if (flow.data.status != 0 || !recover_flow_verify(flow)) {
+		throw new Error("astrac: Flow rejected this program");
+	}
+	var core = recover_core_lower(move flow);
+	if (core.status != 0 || !recover_core_verify(core)) {
+		throw new Error("astrac: Core verification failed");
+	}
+	var cfg = recover_cfg_lower(move core, 8192);
+	if (cfg.status != 0) {
+		throw new Error("astrac: CFG verification failed");
+	}
+	var ssa = recover_ssa_lower(move cfg, 8000000);
+	if (ssa.data.status != 0 || !recover_ssa_verify(ssa)) {
+		throw new Error("astrac: SSA verification failed");
+	}
+	if (mode == 0) return 0;
+	var module = new RecoverLlvm(ssa);
+	module.build(ssa);
+	if (!module.check(ssa) || llvm12_verify(module.module) != 0) {
+		throw new Error("astrac: LLVM verification failed");
+	}
+	if (mode == 1 && level == 0) {
+		module.write(ssa, output.text);
+		return 0;
+	}
+	// Physical source correspondence is checked before optimization. LLVM's
+	// verifier independently checks the optimized module and object emission.
+	var machine = llvm12_machine(level);
+	if (machine == null) {
+		throw new Error("astrac: target machine unavailable");
+	}
+	int status = llvm12_optimize(module.module, machine, level);
+	if (status == 0) {
+		if (mode == 1) {
+			status = llvm26_write_ir(module.module, 134217728, output.text);
+		} else {
+			status = llvm12_write(module.module, machine, 1, 16777216, output.text);
+		}
+	}
+	LLVMDisposeTargetMachine(machine);
+	if (status != 0) {
+		throw new Error("astrac: output generation failed");
+	}
+	return 0;
+}
+
+owned Utf8Message astrac_output(int index) throws Error {
+	if (index > 0) {
+		var result = astrac_argument(index);
+		return move result;
+	}
+	var empty = syntax_text("");
+	return move empty;
+}
+
+int astrac_run() {
+	try {
+		int count = astrac_argument_count();
+		if (count < 1) {
+			throw new Error("astrac: process argument transport unavailable");
+		}
+		var paths = new Vector<Utf8Message>(count);
+		int output_index = 0;
+		int mode = 1;
+		int level = 0;
+		bool positional = false;
+		int i = 1;
+		while (i < count) {
+			var argument = astrac_argument(i);
+			bool handled = false;
+			if (!positional && argument.text == "--") {
+				handled = true;
+				positional = true;
+			}
+			if (!handled && !positional && argument.text == "--version") {
+				if (count != 2) {
+					throw new Error("astrac: --version must be used alone");
+				}
+				println("astrac 27-A initial bootstrap (GNU/Linux x86-64, E25-A-v1, LLVM 23)");
+				return 0;
+			}
+			if (!handled && !positional && argument.text == "--help") {
+				if (count != 2) {
+					throw new Error("astrac: --help must be used alone");
+				}
+				println("Usage: astrac [--emit-llvm|-c|--check] [-O0|-O2] -o OUTPUT [--] FILE...\nExplicit sources form one program. --check needs no output. Link emitted objects with approved C providers and libraries. Unsupported options are errors. Diagnostics use UTF-8 byte offsets.");
+				return 0;
+			}
+			if (!handled && !positional && argument.text == "--check") {
+				handled = true;
+				mode = 0;
+			}
+			if (!handled && !positional && argument.text == "--emit-llvm") {
+				handled = true;
+				mode = 1;
+			}
+			if (!handled && !positional && argument.text == "-c") {
+				handled = true;
+				mode = 2;
+			}
+			if (!handled && !positional && argument.text == "-O0") {
+				handled = true;
+				level = 0;
+			}
+			if (!handled && !positional && argument.text == "-O2") {
+				handled = true;
+				level = 2;
+			}
+			if (!handled && !positional && argument.text == "-o") {
+				if (output_index != 0 || i + 1 >= count) {
+					throw new Error("astrac: -o requires one output path");
+				}
+				i = i + 1;
+				var destination = astrac_argument(i);
+				if (destination.text.byte_length == 0) {
+					throw new Error("astrac: empty output path");
+				}
+				handled = true;
+				output_index = i;
+			}
+			if (!handled) {
+				if (!positional && argument.text.byte_length > 0 && astra_host_text_byte(argument.text, 0) == 45) {
+					throw new Error("astrac: unsupported option; use --help");
+				}
+				if (argument.text.byte_length == 0) {
+					throw new Error("astrac: empty source path");
+				}
+				assert_that(paths.append(move argument));
+			}
+			i = i + 1;
+		}
+		var output = astrac_output(output_index);
+		if (paths.count() == 0) {
+			throw new Error("astrac: source input required; use --help");
+		}
+		if (mode != 0 && output.text.byte_length == 0) {
+			throw new Error("astrac: output path required; use -o");
+		}
+		if (mode == 0 && output.text.byte_length != 0) {
+			throw new Error("astrac: --check does not publish output");
+		}
+		return astrac_compile(paths, output, mode, level);
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 1;
+	}
+}
+
+int main() {
+	int result = astrac_run();
+	// All per-compilation owners have been destroyed before LLVM global cleanup.
+	LLVMShutdown();
+	return result;
+}
