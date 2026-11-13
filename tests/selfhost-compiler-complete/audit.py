@@ -410,7 +410,16 @@ def completed_acceptance(a, profiles, intake):
 	assert costs['status'] == 'MEASURED_CONTINUATION_COSTS' and costs['GNU_time_measurements'] and costs['compiler_attempts']
 	change_path = a.runtime_root/'full-cost-change1/result.json'; change = json.loads(change_path.read_text())
 	assert change['status'] == 'FULL_COMPILER_HARMLESS_CHANGE_COST_MEASURED'
-	assert sha(change['changed_compile_receipt']) == change['changed_build_receipt_sha256']
+	change_leaf = change_path.parent
+	for name, field in (('changed-source-build/result.json', 'changed_build_receipt_sha256'), ('changed-source-smoke/result.json', 'changed_smoke_receipt_sha256'), ('warm-original/result.json', 'warm_receipt_sha256'), ('comparison.json', 'comparison_sha256'), ('restored.json', 'restoration_sha256')):
+		assert sha(change_leaf/name) == change[field]
+	compile_path = Path(change['changed_compile_receipt']); compile_result = json.loads(compile_path.read_text())
+	assert compile_result['exit'] == 0 and not compile_result['timed_out']
+	for stream in ('stdout', 'stderr', 'time'): assert sha(compile_path.parent/('compile.'+stream)) == compile_result[stream+'_sha256']
+	product = compile_result['product']; assert sha(product['path']) == product['sha256']
+	assert sha(Path(product['path']).with_suffix('.identity.json')) == product['identity_sha256']
+	restored = json.loads((change_leaf/'restored.json').read_text())
+	assert sha(restored['path']) == restored['restored_sha256']
 	assert 'index.instance_count >= 256' in (ROOT/'compiler/semantic/generic.astra').read_text()
 	assert 'limit > 8000000' in (ROOT/'compiler/ssa/recover.astra').read_text()
 	g12 = r5_delivery(a.runtime_root)
