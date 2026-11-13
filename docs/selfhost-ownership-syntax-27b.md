@@ -212,7 +212,7 @@ population is not claimed preserved or re-executed. This prevents overall PASS.
 `transport.py` hashes every explicit local omission: redundant predecessor
 transport, external tool distributions, scratch and oversized C0 debug products.
 Actual 27-B compilers, current snapshots, native products, receipts and failed
-attempts are transported. Oversized original C0 debug bytes remain local with
+attempts are transported. Oversized recovery C0 debug bytes remain local with
 hashes and rebuild commands; no substituted C0 binary is presented.
 Only unchanged installed pm-next publishes the canonical next report.
 `delivered.py` independently checks exact ZIP/source/transport identity and fresh
