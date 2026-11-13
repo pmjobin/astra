@@ -113,6 +113,8 @@ void language_small_syntax() throws Error {
 	assert_that(old_record.failed());
 	var conditional = language_program("language astra27b; int choose(bool c, bool d) { return c || d ? 20+22 : d ? 1 : 2; }");
 	assert_that(!conditional.failed());
+	var owner_conditional = language_program("language astra27b; Item choose(bool first) { var left = new Item(); var right = new Item(); return first ? move left : move right; }");
+	assert_that(!owner_conditional.failed());
 	var old_conditional = language_program("int choose(bool c) { return c ? 42 : 0; }");
 	assert_that(old_conditional.failed());
 	var missing_colon = language_program("language astra27b; int choose(bool c) { return c ? 42; }");

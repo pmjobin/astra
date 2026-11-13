@@ -95,11 +95,12 @@ bool recover_ssa_weak_upgrades(RecoverSsa ssa, RecoverWork work) {
 				i = i + 1;
 			}
 			if (binding == 0 || declaration == 0) return false;
+			bool checked_none = false;
 			i = 0;
 			while (i < ssa.cfg.core.count) {
 				if (!work.take()) return false;
 				var use = ssa.cfg.core.nodes[i].value;
-				if (use.function == operation.function && use.symbol.index == binding && (use.kind == 2 || use.kind == 10)) {
+				if (use.function == operation.function && use.symbol.index == binding && (use.kind == 2 || use.kind == 10 || use.kind == 17 || use.kind == 18 || use.kind == 44)) {
 					bool comparison = false; bool guarded = false; int c = 0;
 					while (c < ssa.cfg.core.count) {
 						if (!work.take()) return false;
@@ -113,15 +114,18 @@ bool recover_ssa_weak_upgrades(RecoverSsa ssa, RecoverWork work) {
 									other = ssa.cfg.core.nodes[left - 1].value;
 								}
 								if (subject.kind == 2 && subject.symbol.index == binding && other.kind == 13 && other.type.index == operation.type.index) {
-									if (left == i + 1 || right == i + 1) comparison = true;
+									if (left == i + 1 || right == i + 1) {
+										comparison = true;
+										checked_none = true;
+									}
 									int b = 0;
 									while (b < ssa.cfg.block_count) {
 										if (!work.take()) return false;
 										var control = ssa.cfg.blocks[b];
-										if (control.opcode == 21 && control.function == operation.function && recover_owner_unwrap(ssa.cfg.core.flow.data, control.a) == c + 1) {
+										if ((control.opcode == 21 || control.opcode == 63) && control.function == operation.function && recover_owner_unwrap(ssa.cfg.core.flow.data, control.a) == c + 1) {
 											int edge = control.next;
 											if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(condition.token, "==")) edge = control.other;
-											int target = ssa.data.values[i + 1].block;
+											int target = ssa.cfg.regions[i].operation;
 											if (edge > 0 && target > 0 && recover_ssa_dominates(b + 1, target, work) && recover_ssa_dominates(edge, target, work)) guarded = true;
 										}
 										b = b + 1;
@@ -135,6 +139,7 @@ bool recover_ssa_weak_upgrades(RecoverSsa ssa, RecoverWork work) {
 				}
 				i = i + 1;
 			}
+			if (!checked_none) return false;
 		}
 		n = n + 1;
 	}

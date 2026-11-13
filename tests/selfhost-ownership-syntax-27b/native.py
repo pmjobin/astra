@@ -48,6 +48,42 @@ int main() {
 	return result;
 }
 '''
+GENERIC_TRAILING = '''T identity<T,>(T value,) { return value; }
+int main() { return identity<int,>(42,); }
+'''
+GENERIC_OWNER = ITEM+'''Vector<Item> make() {
+	var values = new Vector<Item>(1);
+	var item = new Item(42);
+	if (!values.append(move item)) return move values;
+	return move values;
+}
+int work() {
+	Vector<Item> values = make();
+	Item item = values.take(0);
+	return item.value;
+}
+int main() {
+	int result = work();
+	if (drop_count() != 1 || drop_sum() != 42) return 1;
+	return result;
+}
+'''
+FLOAT_COMPOUND = '''int main() {
+	f32 small = 20.0f;
+	f64 wide = 20.0d;
+	small += 22.0f;
+	small *= 0.5f;
+	small -= 1.0f;
+	small /= 2.0f;
+	wide += 22.0d;
+	wide *= 0.5d;
+	wide -= 1.0d;
+	wide /= 2.0d;
+	if (small != 10.0f || wide != 10.0d) return 1;
+	return 42;
+}
+'''
+
 SUGAR = '''int add(int first, int second,) => first+second;
 class Count {
 	int content;
@@ -114,6 +150,63 @@ int main() {
 	point.inner.value += 2;
 	if (tick_count() != 2 || values[0] != 42 || box.value != 42 || point.other != 9 || point.inner.value != 42) return 1;
 	return parameter(40);
+}
+'''
+
+CRC = '''struct Digest { u32 crc; int count; }
+u32 crc32(u8[] bytes) {
+	u32 state = 0xffff_ffff;
+	int i = 0;
+	while (i < len(bytes)) {
+		state ^= bytes[i] as u32;
+		int bit = 0;
+		while (bit < 8) {
+			if ((state & 1) == 1) {
+				state >>= 1;
+				state ^= 0xedb8_8320;
+			} else {
+				state >>= 1;
+			}
+			bit += 1;
+		}
+		i += 1;
+	}
+	return state ^ 0xffff_ffff;
+}
+Digest digest(u8[] bytes) {
+	int count = len(bytes);
+	return Digest {crc = crc32(bytes), count,};
+}
+int main() {
+	var bytes = new u8[9];
+	bytes[0] = 49; bytes[1] = 50; bytes[2] = 51;
+	bytes[3] = 52; bytes[4] = 53; bytes[5] = 54;
+	bytes[6] = 55; bytes[7] = 56; bytes[8] = 57;
+	var value = digest(bytes);
+	if (value.crc != 0xcbf4_3926) return 1;
+	return value.count + 33;
+}
+'''
+ERROR_RESULT = ITEM+'''Item fallible(bool fail) throws Error {
+	if (fail) {
+		throw new Error("factory failed");
+	}
+	var item = new Item(40);
+	return move item;
+}
+int work(bool fail) {
+	try {
+		Item item = fallible(fail);
+		return item.value + 2;
+	} catch (Error error) {
+		return 42;
+	}
+}
+int main() {
+	int success = work(false);
+	int failure = work(true);
+	if (drop_count() != 1 || drop_sum() != 40 || success != 42 || failure != 42) return 1;
+	return success;
 }
 '''
 
@@ -187,7 +280,7 @@ def main():
 	p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--case', action='append', help='Run only named positive cases during focused development; records the selection explicitly')
 	p.add_argument('--oracle-only', action='store_true', help='Qualify the authored C0 equivalents only; gives no current-language acceptance credit')
-	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound', 'weak', 'borrowed'), action='append', required=True)
+	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound', 'weak', 'borrowed', 'workload', 'errors'), action='append', required=True)
 	a = p.parse_args()
 	assert all(re.fullmatch('[0-9a-f]{64}', s) for s in (a.compiler_sha256, a.c0_sha256))
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
@@ -208,6 +301,7 @@ def main():
 	tools = tool_identity([a.compiler, a.c0, '/usr/bin/time', *[shutil.which(n) for n in ('gcc', 'cc', 'as', 'ld', 'opt', 'llc', 'valgrind')]])
 	source_inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.link, bridge)}
 	write(runtime/'inputs.json', source_inputs)
+	write(runtime/'tools.json', tools)
 	commands = []
 	def run(name, argv, expected=0, timeout=600):
 		argv = list(map(str, argv))
@@ -229,6 +323,9 @@ def main():
 			('owner-fields-factory-local', OWNERS, OWNERS.replace('Item make(', 'owned Item make(').replace('\tItem item;', '\towned Item item;').replace('\tint[] data;', '\towned int[] data;').replace('Item first =', 'var first =').replace('Holder holder =', 'var holder =')),
 			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content*2;', 'get { return this.content*2; }').replace('Count count =', 'var count =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])')),
 			('views-and-C-pointer', VIEWS, VIEWS.replace('void* raw(void* pointer) => pointer;', 'void* raw(void* pointer) { return pointer; }').replace('int length(int[] view) => len(view);', 'int length(int[] view) { return len(view); }').replace('int[] content =', 'owned int[] content ='))]
+	if 'initial' in a.feature:
+		cases.append(('generic-trailing', GENERIC_TRAILING, GENERIC_TRAILING.replace('<T,>', '<T>').replace('T value,)', 'T value)').replace('<int,>', '<int>').replace('42,)', '42)')))
+		cases.append(('generic-owning-result', GENERIC_OWNER, GENERIC_OWNER.replace('Vector<Item> make()', 'owned Vector<Item> make()').replace('Vector<Item> values = make();', 'var values = make();').replace('Item item = values.take(0);', 'var item = values.take(0);')))
 	if 'records' in a.feature:
 		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint main() { return sum(point(22)); }\n'))
 	if 'conditional' in a.feature:
@@ -238,6 +335,7 @@ def main():
 		cases.append(('conditional-owner-transfer', CONDITIONAL_OWNER, legacy_owner))
 	if 'compound' in a.feature:
 		cases.append(('compound-operators', COMPOUND, expanded_compounds(COMPOUND)))
+		cases.append(('compound-float', FLOAT_COMPOUND, expanded_compounds(FLOAT_COMPOUND)))
 		legacy_places = expanded_compounds(COMPOUND_PLACE).replace('int parameter(int x) { x += 2; return x; }', 'int parameter(int x) { return x+2; }').replace('Box box =', 'var box =').replace('int[] values =', 'owned int[] values =').replace('values[tick(0)] += tick(2);', 'int index = tick(0); int previous = values[index]; int addend = tick(2); values[index] = previous + addend;')
 		cases.append(('compound-places', COMPOUND_PLACE, legacy_places))
 	if 'weak' in a.feature:
@@ -248,6 +346,11 @@ def main():
 		# target must prove, store, load and use its distinct borrowed field.
 		legacy_borrow = BORROWED.replace('readonly Item root;', 'owned Item root;').replace('\treadonly borrowed Item view;\n', '').replace(' this.view = this.root;', '').replace('read(holder.view)', 'read(holder.root)')
 		cases.append(('stored-borrow-sibling', BORROWED, legacy_borrow))
+	if 'workload' in a.feature:
+		legacy_crc = expanded_compounds(CRC).replace('0xffff_ffff', '4294967295').replace('0xedb8_8320', '3988292384').replace('0xcbf4_3926', '3421780262').replace('return Digest {crc = crc32(bytes), count,};', 'Digest result = {crc = crc32(bytes), count = count}; return result;')
+		cases.append(('crc-record-workload', CRC, legacy_crc))
+	if 'errors' in a.feature:
+		cases.append(('owning-error-result', ERROR_RESULT, ERROR_RESULT.replace('Item fallible(', 'owned Item fallible(').replace('Item item = fallible', 'var item = fallible')))
 	if a.case:
 		assert set(a.case).issubset({case[0] for case in cases})
 		cases = [case for case in cases if case[0] in a.case]
@@ -260,26 +363,39 @@ def main():
 		identity = {str(path):sha(path) for path in (source, oracle_source)}
 		source_inputs.update(identity)
 		write(runtime/'inputs.json', source_inputs)
+		extra_sources = []
+		if name == 'generic-owning-result':
+			extra_sources = [ROOT/'lib/astra/collections/vector.astra']
+		if name == 'owning-error-result':
+			extra_sources = [ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra']
+		if extra_sources:
+			source_inputs.update({str(path):sha(path) for path in extra_sources})
+			write(runtime/'inputs.json', source_inputs)
 		oracle = build/(name+'-C0')
 		links = [arg for path in objects for arg in ('--link-object', path)]
-		run(name+'-C0-build', [a.c0, '-O0', oracle_source, *links, '-o', oracle])
+		run(name+'-C0-build', [a.c0, '-O0', oracle_source, *extra_sources, *links, '-o', oracle])
 		run(name+'-C0-native', [oracle], 42)
 		products[str(oracle)] = sha(oracle)
+		write(runtime/'products.json', products)
 		if a.oracle_only:
 			continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o')
 			target = build/(name+'-'+mode)
-			run(name+'-'+mode+'-compile', [a.compiler, '-c', '-'+mode, '-o', obj, source])
+			run(name+'-'+mode+'-compile', [a.compiler, '-c', '-'+mode, '-o', obj, source, *extra_sources])
 			run(name+'-'+mode+'-link', ['cc', '-no-pie', obj, *objects, '-o', target])
 			run(name+'-'+mode+'-native', [target], 42)
 			memory(name+'-'+mode+'-memory', [target], 42)
 			products[str(target)] = sha(target)
 			products[str(obj)] = sha(obj)
-		memory(name+'-compiler-memory', [a.compiler, '--emit-llvm', '-o', build/(name+'-memory.ll'), source], 0)
+			write(runtime/'products.json', products)
+		memory(name+'-compiler-memory', [a.compiler, '--emit-llvm', '-o', build/(name+'-memory.ll'), source, *extra_sources], 0)
 		products[str(build/(name+'-memory.ll'))] = sha(build/(name+'-memory.ll'))
+		write(runtime/'products.json', products)
 		assert all(sha(path) == digest for path, digest in identity.items())
 	negative = [('numeric-overflow', 'int main() { u8 value = 0x100; return value as int; }'), ('borrow-consume', ITEM+'int consume(owned Item item) { return item.value; } int inspect(Item item) { return consume(move item); } int main() { var item = new Item(42); return inspect(item); }'), ('double-move', ITEM+'int consume(owned Item item) { return item.value; } int main() { var item = new Item(21); return consume(move item)+consume(move item); }')]
+	if 'errors' in a.feature:
+		negative.append(('wrong-owning-result', ITEM+'Item bad(Item value) { return value; } int main() { var item = new Item(42); var other = bad(item); return other.value; }'))
 	if 'records' in a.feature:
 		negative += [('record-missing', 'struct Point { int x; int y; } int main() { var p = Point {x = 42}; return p.x; }'), ('record-duplicate', 'struct Point { int x; int y; } int main() { var p = Point {x = 42, x = 1}; return p.x; }')]
 	if 'conditional' in a.feature:

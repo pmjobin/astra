@@ -6858,6 +6858,19 @@ class SyntaxParser {
 
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.OPEN_BRACE())) return this.parse_record_expression(arena);
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.MOVE()) {
+			var keyword = this.current;
+			SyntaxNodeId none = {index = 0};
+			if (!this.advance(arena)) return none;
+			var source = this.expect(arena, TokenKind.IDENTIFIER(), "move expression requires a named owner");
+			if (source.index == 0) return none;
+			if (this.token_kind(arena, this.current) == TokenKind.DOT()) {
+				this.fail(arena, this.token_span(arena, this.current), "projected owner moves require a fresh named local destination");
+				return none;
+			}
+			SyntaxListId fields = {index = 0};
+			return this.bounded(arena, syntax_make_MoveExpressionSyntax(arena, keyword, source, fields), this.token_span(arena, keyword));
+		}
 		var v_token_1 = this.current;
 		if ((this.token_kind(arena, v_token_1) == TokenKind.AWAIT())) {
 			if ((!this.advance(arena))) {

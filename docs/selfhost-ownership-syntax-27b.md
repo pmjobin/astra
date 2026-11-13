@@ -295,3 +295,46 @@ last-strong destruction once with the weak sentinel still present, failed
 expired upgrade, and final weak reclamation once. This is C0 ABI oracle evidence,
 not an Astra implementation PASS. A separate C0 source probe also records its
 refusal of readonly scalar fields; no change to C0 was made.
+
+The C0 O2 production build of `4b4b711` completed in 2876.608 seconds, after
+61.142-second semantic and 75.808-second Core preflights. Its ELF is
+`9abaef9b94e82a6bb2a49e99936759bb3fdcd93250f5e7bff2ed6627588db368`.
+This is a real C0-built development Stage1, with its full frozen source and
+optimized executable IR retained in `runtime/selfhost27b-driver4` and the
+matching external build directory. It is not yet the final qualified compiler.
+
+That product's intrinsic Shared O0/O2 targets passed the same C header/count,
+destruction and expiration observations as C0, with strict compiler and program
+Valgrind (`runtime/selfhost27b-intrinsic-native1`). The following independent
+unguarded-upgrade field negative unexpectedly compiled. The whole campaign
+therefore remains failed. SSA now checks field access as well as named borrow
+and move uses, requires a real null comparison and a dominating success edge,
+and admits equivalent short-circuit/conditional branches. New-product native
+requalification of the correction is pending.
+
+`runtime/selfhost27b-native-weak-borrow1` passed all compound operators, copied
+parameter/Class/nested-record/index Places, boxed weak death/upgrade and stored
+sibling borrows: eight O0/O2 targets returned 42, twelve strict compiler/program
+memory streams were clean, and twelve invalid-source sentinel cases refused.
+`runtime/selfhost27b-physical-owners1` independently changed actual LLVM
+instructions through the public LLVM23 C API in fresh processes. Two controls
+passed; ten mutations of boxed/intrinsic counts, failed-upgrade phis, atomic
+ordering, allocation extent, native calling convention and Error descriptor
+field were structurally valid but refused by the physical consumer without
+replacing the output sentinel. These are focused evidence, not all-gate PASS.
+
+The combined native syntax run reached owning conditional transfer and exposed
+an old parser restriction on `move` within a branch. Its earlier successful
+cases and its failure are retained in `runtime/selfhost27b-native-ownership1`.
+The modern prefix parser now creates the ordinary named Move node; the legacy
+parser remains unchanged. The focused C0-produced syntax component passed the
+new conditional-move case and strict Valgrind in
+`runtime/selfhost27b-move-component1`. Owning branch native execution still
+requires the next compiler product. The independent mutable parameter consumer
+also now verifies actual alloca extent/alignment and initialization alignment;
+an authored physical alignment mutant must qualify this correction.
+
+The next actual Stage1-to-Stage2 build deliberately records both source
+revisions: the C0-built development Stage1 above compiles the corrected current
+source closure. It claims no identical-source convergence or Stage3. Every
+final gate remains pending until the resulting product is independently tested.

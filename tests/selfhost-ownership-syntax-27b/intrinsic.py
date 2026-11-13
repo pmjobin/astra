@@ -167,6 +167,16 @@ def main():
 			write(runtime/'products.json', products)
 		if kind == 'Astra':
 			memory('Astra-compiler-memory', [compiler, '--emit-llvm', '-o', build/'intrinsic.ll', text], 0)
+	if not a.oracle_only:
+		bad = runtime/'unguarded-upgrade.astra'
+		bad.write_text('language astra27b;\n[Shared] class Session { int value; init(int value) { this.value = value; } } int main() { var root = new Session(42); var observer = shared_downgrade(root); var candidate = weak_upgrade(observer); return candidate.value; }\n')
+		inputs[str(bad)] = sha(bad)
+		write(runtime/'source-inputs.json', inputs)
+		output = build/'unguarded-upgrade.ll'
+		output.write_bytes(b'ASTRA27B_UNGUARDED_UPGRADE_SENTINEL\n')
+		digest = sha(output)
+		run('unguarded-upgrade-reject', [a.compiler, '--emit-llvm', '-o', output, bad], 1)
+		assert sha(output) == digest and (runtime/'unguarded-upgrade-reject/stderr').read_bytes()
 	assert all(sha(path) == h for path, h in {**inputs, **tools, **providers, **products}.items())
 	write(runtime/'result.json', dict(status='C0_INTRINSIC_ABI_ORACLE_ONLY' if a.oracle_only else 'SELECTED_INTRINSIC_ABI_NATIVE_GATES_PASS', compiler_sha256=a.compiler_sha256, c0_sha256=a.c0_sha256, oracle_only=a.oracle_only, identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), products=products, scope='Actual native header/count/death observations only; complete ownership, mutation, preservation and delivery gates remain separate.'))
 
