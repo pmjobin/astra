@@ -84,6 +84,11 @@ def main():
 	assert translation['argv'][1:3] == ['--emit-llvm', '-o']
 	assert translation['argv'][4:] == list(manifest['inputs'])
 	assert translation['input_hashes'] == {str(a.stage1):stage1_hash, **manifest['inputs']}
+	witness = load(a.rebuild/'independent-producer-process.json')
+	assert witness['status'] == 'ACTUAL_STAGE1_PRODUCER_PROCESS_AUTHENTICATED'
+	assert witness['input_manifest_sha256'] == sha(a.inputs/'inputs.json') and not witness['imported_process_launch_functions']
+	assert witness['dynamic_symbol_dump_sha256'] == sha(a.rebuild/'Stage1-dynamic-symbols.txt')
+	assert any(row['argv'] == translation['argv'] and row['executable'] == str(a.stage1) and row['executable_sha256'] == stage1_hash for row in witness['observed_processes'])
 	for row in commands:
 		assert row['result']['status'] == 'EXPECTED_OUTCOME' and row['result']['exit'] == 0
 		assert all(sha(p) == h for p, h in row['input_hashes'].items())

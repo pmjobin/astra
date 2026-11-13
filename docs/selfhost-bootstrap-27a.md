@@ -126,9 +126,35 @@ ELF through unchanged C0 in 2651.568606465 seconds. Its SHA-256 is
 Its help/version commands run, but the focused compilation exposed the separate
 borrow-consumer failure above; that seed receives no self-build credit.
 The corrected full live source passed another C0 semantic check in 57.848807225
-seconds before the next freeze. Native driver compilation qualification, actual
-Stage1-to-Stage2 regeneration and final behavioral/memory qualification remain
-pending. No 27-A PASS is claimed by this intermediate finding.
+seconds before the next freeze. The complete graph was then frozen at
+`52ff35dd4e58194e91c239a73879daf06c3c46db` (tree
+`f37277189c9b94f7955b3902efea86af1f16ca05`) as `seed3`.
+Unchanged C0 built its actual O2 Stage1 in 2676.252218133 seconds:
+
+```text
+ELF SHA-256:      97e4932791657a136407c94f0f5263024e275374eed91d45e4275e2709b89416
+identity SHA-256: 69b8aba495963698867bbcb08fe42e8d402f7f907a55504068933c4fb45ab75a
+```
+
+A daemon restart interrupted the outer progress monitor. The original
+compile-plan process and C0 process survived with their original inputs and
+7200-second timeout. Existing `accelerate.py` joined that exact running build
+and authenticated the finished product. The original outer monitor has no
+terminal result; its stale heartbeat is preserved. Actual completion and GNU
+time come from `seed3/compile-plan-seed3`, with separate recovery/join receipts.
+
+That corrected Stage1 passed bool/integer/float/void caught-message compilation,
+independent LLVM verification, O0/O2 object/link/native exit42, strict returning
+compiler/program Valgrind and invalid-input output preservation. Five recovered
+type-fact corruptions and four payload-owner/coargument corruptions each made
+the intended independent consumer return false and the compiler return1 with
+its sentinel intact. Unchanged positive controls returned true and published
+verified LLVM. These process-local negative controls change no source or ELF.
+
+Stage1 itself is now executing the identical frozen full source graph under
+`selfbuild1` to build Stage2. Stage2 generation and final behavioral/memory
+qualification remain pending. No 27-A PASS is claimed by this intermediate
+finding.
 
 While the corrected seed was building, seed2 independently produced executable
 O0/O2 objects for a minimal source and passed strict unsuppressed compiler
@@ -147,7 +173,7 @@ separately recorded caught-message refusal and give no Stage2/self-build credit.
 27-A adds no syntax or ownership-default migration. The agreed 27-B/C target
 remains ownership-default fields/results, typed local inference, compound
 assignments, numeric literal forms, trailing commas, expression records/bodies,
-named arguments, match expressions/nested patterns, typed interpolation,
+conditional expressions, named arguments, match expressions/nested patterns, typed interpolation,
 first-class ranges and checked slicing, lazy adapters/reducers, fixed no-heap
 collection, materializing comprehensions and idiomatic compiler/workload cleanup.
 `(20..=80).step_by(5).collect_array()` must produce thirteen values. Final grammar,
@@ -155,3 +181,10 @@ borrow/result ABI and effect contracts require their separately scoped decisions
 and qualification. All agreed features precede the first release unless the user
 explicitly changes scope. 27-D freezes the improved source for final convergence;
 28 qualifies release.
+
+The later contracts still need their separately scoped decisions: range
+precedence/binding and checked step/overflow behavior; result ownership and
+borrow escape rules across the private/public ABI boundary; local-inference
+ownership/effect rules; interpolation conversion/effect checks; and fixed
+collection capacity, extent typing and materialization failure behavior. 27-A
+does not finalize those grammar/ABI/effect choices or migrate source to them.
