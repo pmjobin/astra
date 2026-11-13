@@ -15,11 +15,13 @@ from acceleration import environment, execute, output_path, write
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for n in ('producer', 'inputs', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
+	p.add_argument('--fixture', choices=('caught-message-call', 'caught-message-scalars'), default='caught-message-call')
 	p.add_argument('--version', required=True); a = p.parse_args(); assert a.version.isalnum()
 	leaf = output_path(a.runtime/a.version, WORK/'runtime'); build = output_path(a.build/a.version, WORK/'build')
 	leaf.mkdir(); build.mkdir()
 	manifest = json.loads((a.inputs/'inputs.json').read_text())['inputs']
-	fixture = ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra'
+	fixture = ROOT/('tests/selfhost-bootstrap-27a/'+a.fixture+'.astra')
+	expected_stderr = b'caught message\n' if a.fixture == 'caught-message-call' else b'copied results\n'
 	inputs = {str(fixture):sha(fixture), **{p:h for p, h in manifest.items() if p.endswith(('/lib/astra/base/errors.astra', '/lib/astra/hosted/text.astra'))}}
 	link = json.loads((a.inputs/'link.json').read_text())
 	providers = [p for p in link['objects'] if Path(p).name not in ('llvm-capi.o', 'arguments.o')]
@@ -43,14 +45,14 @@ def main():
 		run(mode+'-object', [a.producer, '-c', '-'+mode, '-o', obj, *inputs])
 		run(mode+'-link', ['cc', '-no-pie', obj, *providers, '-o', exe])
 		run(mode+'-execute', [exe], 42)
-		assert (leaf/(mode+'-execute')/'stderr').read_bytes() == b'caught message\n'
+		assert (leaf/(mode+'-execute')/'stderr').read_bytes() == expected_stderr
 		memory(mode+'-memory', [exe], 42)
 	bad = build/'invalid.astra'; bad.write_text('int main() { bool value = 42; return 0; }\n')
 	destination = build/'sentinel.ll'; marker = b'27A_PRESERVED_FAILURE_OUTPUT\n'; destination.write_bytes(marker)
 	run('invalid', [a.producer, '-o', destination, bad], 1)
 	assert destination.read_bytes() == marker and not list(build.glob('sentinel.ll.??????'))
 	assert all(sha(p) == h for p, h in inputs.items())
-	write(leaf/'result.json', dict(status='REAL_SEED_DRIVER_FOCUSED_PASS', producer=dict(path=str(a.producer), sha256=sha(a.producer)), inputs=inputs, raw_LLVM_sha256=sha(raw), commands_sha256=sha(leaf/'commands.json'), limitation='A genuine compiler CLI and focused native/memory proof; this is not a self-build or full behavioral qualification.'))
+	write(leaf/'result.json', dict(status='REAL_SEED_DRIVER_FOCUSED_PASS', fixture=a.fixture, producer=dict(path=str(a.producer), sha256=sha(a.producer)), inputs=inputs, raw_LLVM_sha256=sha(raw), commands_sha256=sha(leaf/'commands.json'), limitation='A genuine compiler CLI and focused native/memory proof; this is not a self-build or full behavioral qualification.'))
 	print('REAL_SEED_DRIVER_FOCUSED_PASS', flush=True)
 
 
