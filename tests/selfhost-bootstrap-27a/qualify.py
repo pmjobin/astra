@@ -43,7 +43,7 @@ def main():
 		paths = [ROOT/('tests/selfhost-compiler-complete/'+n+'.astra'), *base_libs]
 		cases[n] = {str(v):sha(v) for v in paths}
 	for n in ('caught-message-call', 'caught-message-scalars'):
-		paths = [ROOT/('tests/selfhost-bootstrap-27a/'+n+'.astra'), *[Path(p) for p in json.loads((a.inputs/'inputs.json').read_text())['inputs'] if '/lib/astra/' in p]]
+		paths = [ROOT/('tests/selfhost-bootstrap-27a/'+n+'.astra'), *[Path(p) for p in json.loads((a.inputs/'inputs.json').read_text())['inputs'] if p.endswith(('/lib/astra/base/errors.astra', '/lib/astra/hosted/text.astra'))]]
 		cases[n] = {str(v):sha(v) for v in paths}
 		# One independent known result and multifile cross-call, outside compiler data.
 	small = build/'exit42.astra'; small.write_text('int main() { return 42; }\n')

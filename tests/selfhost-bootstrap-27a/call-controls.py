@@ -34,7 +34,7 @@ def main():
 	producer_hash = sha(a.producer)
 	manifest = json.loads((a.inputs/'inputs.json').read_text())['inputs']
 	fixture = ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra'
-	inputs = {str(fixture):sha(fixture), **{p:h for p, h in manifest.items() if '/lib/astra/' in p}}
+	inputs = {str(fixture):sha(fixture), **{p:h for p, h in manifest.items() if p.endswith(('/lib/astra/base/errors.astra', '/lib/astra/hosted/text.astra'))}}
 	ordered = sorted(inputs)
 	env = environment(dict(LD_PRELOAD=None, VALGRIND_OPTS=None, CCACHE_DISABLE='1'))
 	rows = []

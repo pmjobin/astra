@@ -20,7 +20,7 @@ def main():
 	leaf.mkdir(); build.mkdir()
 	manifest = json.loads((a.inputs/'inputs.json').read_text())['inputs']
 	fixture = ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra'
-	inputs = {str(fixture):sha(fixture), **{p:h for p, h in manifest.items() if '/lib/astra/' in p}}
+	inputs = {str(fixture):sha(fixture), **{p:h for p, h in manifest.items() if p.endswith(('/lib/astra/base/errors.astra', '/lib/astra/hosted/text.astra'))}}
 	link = json.loads((a.inputs/'link.json').read_text())
 	providers = [p for p in link['objects'] if Path(p).name not in ('llvm-capi.o', 'arguments.o')]
 	env = environment(dict(LD_PRELOAD=None, VALGRIND_OPTS=None, CCACHE_DISABLE='1'))

@@ -94,13 +94,33 @@ checks the refined call against its retained source. This grants no owning
 result, consuming argument, method, foreign-call or checked-effect permission.
 The regression also has an unchanged-C0 native/strict-Valgrind oracle.
 
+The seed2 executable then exposed a separate payload-call obligation: the
+caught-message view was not admitted by the borrow consumer. Read-only native
+traces showed that both the type verifier and refined-call verifier accepted
+the facts before this later refusal. The consumer now binds the message to its
+actual caught Error owner, requires the owner in the same function, and retains
+all other-argument borrow preservation checks. Only nonthrowing, nonconsuming
+string channels with copied numeric, bool or void results qualify. Core and SSA
+retain their independent owner-liveness checks.
+
+An initial small test invocation included an unused `Vector<T>` library; the
+existing closed-template rule correctly refused that unused open declaration.
+The focused fixtures now name their actual errors/text dependencies. This does
+not filter or reduce the canonical compiler graph, which instantiates Vector
+and still includes all 196 compiler and ten library sources.
+
 ## Current qualification state
 
-The corrected 196+10 source graph passed C0 semantic checking and was frozen at
-`a728c39541587f2892f974983e502be3775b2416` under the `seed2` work leaves. The O2
-C0 seed build is in progress. Native driver, actual Stage1-to-Stage2 regeneration
-and final behavioral/memory qualification remain pending. No 27-A PASS is
-claimed by this intermediate finding.
+The 196+10 source graph frozen at
+`a728c39541587f2892f974983e502be3775b2416` produced the real O2 `seed2/astrac-stage1`
+ELF through unchanged C0 in 2651.568606465 seconds. Its SHA-256 is
+`9cecfea33f9bcfdc343a4eed5bfba1a21f42d5ba6c67d0a3753c88a239686293`.
+Its help/version commands run, but the focused compilation exposed the separate
+borrow-consumer failure above; that seed receives no self-build credit.
+The corrected full live source passed another C0 semantic check in 57.848807225
+seconds before the next freeze. Native driver compilation qualification, actual
+Stage1-to-Stage2 regeneration and final behavioral/memory qualification remain
+pending. No 27-A PASS is claimed by this intermediate finding.
 
 ## Later pre-release work
 
