@@ -338,3 +338,22 @@ The next actual Stage1-to-Stage2 build deliberately records both source
 revisions: the C0-built development Stage1 above compiles the corrected current
 source closure. It claims no identical-source convergence or Stage3. Every
 final gate remains pending until the resulting product is independently tested.
+
+`runtime/selfhost27b-native-generic-float1` additionally passed an implicit
+owning `Vector<Item>` factory/local and f32/f64 compound operations against C0
+old-form oracles: four native O0/O2 targets returned 42, six strict compiler/
+program Valgrind streams were clean and six source-refusal sentinels held.
+The Vector library remains byte-exact legacy source.
+
+`runtime/selfhost27b-semantic-owners4` records fourteen fresh process-local
+semantic corruptions with four matched controls on the actual C0-built
+development Stage1. Independent consumers refused cleared/rebound language
+selection, field/local ownership omission, a coordinated signature/result-edge
+ownership omission, five recovered-call fact corruptions and four caught-message
+borrow/root corruptions. Each rejecting consumer actually returned false, the
+compiler returned 1 and the output sentinel survived. Controls returned true,
+compiled successfully and passed separate LLVM verification. The controller
+derives layouts from the exact frozen C0 Core dump and checks the actual
+optimized pointer signatures and live table dimensions before writes. Two
+earlier controller indexing mistakes are retained without PASS. This does not
+claim a new 101/52 historical cohort or qualify later Stage2 bytes.
