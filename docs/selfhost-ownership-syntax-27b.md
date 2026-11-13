@@ -236,3 +236,28 @@ The independent C0 execution oracles passed for scalar conditionals, selected
 owner cleanup, weak death/upgrade and sibling-owner use. C0 does not accept the
 new readonly-owned combination: that oracle uses an owned field which is never
 replaced; only the modern target stores and proves the separate borrowed field.
+
+The genuine 27-A Stage2-O2 host completed the committed `e6bb230` development
+compiler build in 2544.787 seconds. Its ELF is
+`5b1797c90639dba4c11a0626c1d47ccef8cd84dccdf6564d622dbc6e310a9feb`.
+`runtime/selfhost27b-native-syntax1` records seven successful cases: literals,
+ownership defaults, concise/trailing forms, views/C pointers, record expressions
+and punning, lazy scalar conditionals, and all ten compound operators. Fourteen
+native O0/O2 targets returned 42; twenty-one compiler/program strict Valgrind
+streams had zero errors, live blocks and suppressions. The subsequent combined
+Place case failed the independent physical contract, so this campaign has no
+complete PASS and did not reach its refusal cohort.
+
+Independent diagnostic isolation (`runtime/selfhost27b-compound-isolation1`)
+found that Class-field, nested-record and indexed Places passed physical
+verification; a copied scalar parameter failed. The emitter correctly records
+its entry initialization, but an older global lane inventory rejected all
+initial-value records for non-owning slots. The correction admits exactly a
+mutable copied parameter's one record; the separate entry consumer still checks
+its real parameter, alloca, single store, metadata and instruction order. Native
+requalification of that correction remains pending.
+
+The authored compiler recipe can now retain C0's **O2 optimized executable IR**
+for independent verification and exact downstream reuse. It does not relabel
+that dump as raw or O0 IR. The ordinary C0 and Astra producer routes remain
+available, with source/tool hashes and real out-of-source outputs.

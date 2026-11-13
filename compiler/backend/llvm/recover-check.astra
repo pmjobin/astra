@@ -175,7 +175,11 @@ bool recover_llvm_global_lanes(RecoverSsa ssa, RecoverLlvmIndex index, void* lay
 		} else {
 			var slot = ssa.cfg.core.flow.storage.slots[binder - 1];
 			if (!slot.owner) {
-				if (owner_armed[symbol] != null || owner_initial_values[symbol] != null || owner_initial_flags[symbol] != null) return false;
+				if (owner_armed[symbol] != null || owner_initial_flags[symbol] != null) return false;
+				bool copied_parameter = slot.parameter && recover_mutable(ssa.cfg.core.flow.data, slot.symbol);
+				if ((owner_initial_values[symbol] != null) != copied_parameter) return false;
+				// The entry consumer separately proves the exact source parameter,
+				// destination alloca, one initial store and instruction order.
 				if (!recover_mutable(ssa.cfg.core.flow.data, slot.symbol) && owner_addresses[symbol] != null) return false;
 			}
 		}

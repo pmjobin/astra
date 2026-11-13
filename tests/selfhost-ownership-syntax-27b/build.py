@@ -34,8 +34,10 @@ def main():
 	p.add_argument('--semantic-oracle-sha256')
 	p.add_argument('--build', type=Path, required=True)
 	p.add_argument('--runtime', type=Path, required=True)
+	p.add_argument('--retain-ir', action='store_true', help='Retain C0 O2 optimized IR for exact downstream reuse and diagnostics')
 	p.add_argument('--mode', choices=('O0', 'O2'), required=True)
 	a = p.parse_args()
+	assert not a.retain_ir or a.producer_kind == 'c0' and a.mode == 'O2'
 	assert re.fullmatch('[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
 	oracle = a.compiler
 	oracle_sha = a.compiler_sha256
@@ -103,7 +105,9 @@ def main():
 	library = subprocess.check_output(['llvm-config', '--link-shared', '--libs', 'core', 'analysis', 'native'], text=True).strip()
 	assert library.startswith('-l') and ' ' not in library
 	target = build/('astrac-'+a.mode)
-	if a.producer_kind == 'c0':
+	if a.retain_ir:
+		argv = [a.compiler, '--dump-llvm', '-O2', *inputs]
+	elif a.producer_kind == 'c0':
 		links = [arg for path in objects for arg in ('--link-object', path)]
 		argv = [a.compiler, '-'+a.mode, *inputs, *links, '--link-library', library[2:], '-o', target]
 	else:
@@ -111,13 +115,22 @@ def main():
 		argv = [a.compiler, '-c', '-'+a.mode, '-o', obj, *inputs]
 	write(runtime/'build-identity.json', dict(argv=list(map(str, argv)), sources=inputs, tools=tools, objects=objects, library=library, recipe_sha256=sha(__file__), support_sha256=sha(Path(__file__).with_name('support.py')), environment={k:env.get(k) for k in ('PATH', 'CC', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS', 'LIBRARY_PATH', 'CPATH', 'C_INCLUDE_PATH', 'LD_LIBRARY_PATH', 'LC_ALL', 'LANG')}))
 	run('compiler-build', argv, 7200)
-	if a.producer_kind == 'astra':
+	retained_ir = None
+	if a.retain_ir:
+		ir = build/'astrac-C0-O2.ll'
+		ir.write_bytes((runtime/'compiler-build/stdout').read_bytes())
+		assert re.search(rb'^define [^\n]*@main\(', ir.read_bytes(), re.M), 'C0 dump did not retain the executable entry'
+		run('compiler-ir-verify', ['opt', '-passes=verify', '-disable-output', ir])
+		obj = build/('astrac-'+a.mode+'.o')
+		run('compiler-ir-object', ['llc', '-O=2', '-relocation-model=pic', '-filetype=obj', ir, '-o', obj])
+		retained_ir = dict(path=str(ir), sha256=sha(ir), optimization='C0 O2 optimized executable dump; not raw O0 IR')
+	if a.producer_kind == 'astra' or a.retain_ir:
 		run('compiler-link', ['cc', '-no-pie', obj, *objects, library, '-o', target])
 	assert sha(a.compiler) == a.compiler_sha256 and sha(oracle) == oracle_sha and all(sha(p) == h for p, h in inputs.items())
 	assert all(sha(p) == h for p, h in tools.items())
 	assert all(sha(p) == h for p, h in objects.items())
 	write(runtime/'link.json', dict(objects=objects, libraries=[library]))
-	write(runtime/'result.json', dict(status='PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED', revision=revision, tree=tree, compiler_sources=len(compiler), libraries=len(libraries), producer=dict(path=str(a.compiler), sha256=a.compiler_sha256, kind=a.producer_kind), product=dict(path=str(target), sha256=sha(target)), mode=a.mode, commands_sha256=sha(runtime/'commands.json'), identity_sha256=sha(runtime/'build-identity.json'), scope='Build receipt only; run feature, negative, memory, ABI and physical correspondence gates separately. No Stage3 or release credit.'))
+	write(runtime/'result.json', dict(status='PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED', revision=revision, tree=tree, compiler_sources=len(compiler), libraries=len(libraries), producer=dict(path=str(a.compiler), sha256=a.compiler_sha256, kind=a.producer_kind), product=dict(path=str(target), sha256=sha(target)), mode=a.mode, retained_ir=retained_ir, commands_sha256=sha(runtime/'commands.json'), identity_sha256=sha(runtime/'build-identity.json'), scope='Build receipt only; run feature, negative, memory, ABI and physical correspondence gates separately. No Stage3 or release credit.'))
 	print('PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED', target, sha(target), flush=True)
 
 
