@@ -200,7 +200,7 @@ def main():
 	source = runtime/'ownership.astra'; source.write_text(SOURCE)
 	caught = [ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra', ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra']
 	inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.core_map, a.producer_ir or a.unoptimized_build_receipt, source, *caught)}
-	tools = tool_identity([a.compiler, '/usr/bin/time', *[shutil.which(n) for n in ('gdb', 'nm', 'opt')]])
+	tools = tool_identity([a.compiler, '/usr/bin/time', *[shutil.which(n) for n in ('gdb', 'nm', 'readelf', 'opt')]])
 	write(runtime/'identity.json', dict(compiler_sha256=a.compiler_sha256, inputs=inputs, tools=tools, offsets=offsets, sizes=sizes, addresses=addresses, pointer_route='Optimized retained IR signatures' if ir is not None else 'Authenticated unoptimized C0 O0 build, exact Core-map declarations and ELF64 x86-64 pointer ABI; live table shapes and four returning controls additionally prove routing before mutation.', scope='Exact identified C0-produced Stage1 only. No optimized or executable IR is claimed for the direct O0 build.'))
 	rows = []; env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', CCACHE_DISABLE='1')
 	env.pop('LD_PRELOAD', None); env.pop('VALGRIND_OPTS', None)
