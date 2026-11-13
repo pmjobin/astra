@@ -7,8 +7,10 @@ int main() {
 	try {
 		throw new Error("caught message");
 	} catch (Error error) {
-		if (!message_matches(error.message, 42)) return 1;
-		println_stderr(error.message);
-		return 42;
+		if (message_matches(error.message, 42)) {
+			println_stderr(error.message);
+			return 42;
+		}
+		return 1;
 	}
 }
