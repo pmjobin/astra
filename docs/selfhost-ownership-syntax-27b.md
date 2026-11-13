@@ -357,3 +357,34 @@ derives layouts from the exact frozen C0 Core dump and checks the actual
 optimized pointer signatures and live table dimensions before writes. Two
 earlier controller indexing mistakes are retained without PASS. This does not
 claim a new 101/52 historical cohort or qualify later Stage2 bytes.
+
+The further Stage1 checks preserve exact legacy meaning in seven surviving
+27-A program groups: record arrays, checked record results, both caught-message
+groups, distinct owned/borrowed calls, exit42 and UTF-8 multifile calls. All
+seven raw LLVM hashes equal the original Stage1 and Stage2 hashes. The authored
+`legacy.py` replay in `runtime/selfhost27b-legacy-stage1-1` also passed fourteen
+native O0/O2 targets against fresh C0 oracles and twenty-one strict returning
+memory streams. This is a selected replay, not the historical full 411 cohort.
+
+`runtime/selfhost27b-native-borrow-negatives1` passed the extra noncopyable field
+shorthand, borrow-after-move and raw-owner-adoption source sentinels, along with
+the sibling-borrow controls. `runtime/selfhost27b-concise-method1` passed a
+combined concise method, both concise getter forms and trailing commas at
+native O0/O2 with strict memory. These checks remain tied to development Stage1.
+
+The running corrected-source generation was independently observed through
+`/proc`: the exact C0-built Astra Stage1 executable was executing its full
+206-source frozen plan, with no imported process-launch function and no preload
+or Valgrind options. The receipt is
+`runtime/selfhost27b-stage2-current1/independent-producer-process.json`.
+
+Portable `audit.py`, `transport.py`, `delivered.py` and `recover_c0.py` recipes
+make the remaining review/publication/recovery work explicit. The C0 recovery
+plan has been checked against byte-exact baseline bootstrap sources and the
+actual LLVM23.1.4 tools without starting another C0 build. Transport selection
+will list and hash every local generated/tool/C0 debug omission. The C0 debug
+ELF alone exceeds the installed 25 MiB report limit when compressed; its exact
+local product is preserved rather than presented as a smaller substituted C0.
+The separate G5 recipe runs only after publication and does not rewrite the
+prepublication audit. Current-source final Stage2 qualification is still
+pending; no implementation acceptance follows from these recipes alone.

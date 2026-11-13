@@ -90,11 +90,12 @@ class Count {
 	init(int value,) { this.content = value; }
 	property int length => this.content;
 	property int twice { get => this.content*2; }
+	int plus(int value,) => this.content+value;
 }
 int main() {
 	Count count = new Count(7,);
 	int[2] values = {20,22,};
-	return add(values[0], values[1],) + count.length + count.twice - 21;
+	return add(values[0], values[1],) + count.length + count.twice + count.plus(1,) - 29;
 }
 '''
 VIEWS = '''extern(C) void* echo_ptr(void* pointer);
@@ -321,7 +322,7 @@ def main():
 	if 'initial' in a.feature:
 		cases += [('literal-widths', LITERALS, LITERALS.replace('0xffff_ffff_ffff_ffff', '18446744073709551615').replace('0x8000_0000_0000_0000', '9223372036854775808').replace('0b1010_1100', '172').replace('8_000_000', '8000000')),
 			('owner-fields-factory-local', OWNERS, OWNERS.replace('Item make(', 'owned Item make(').replace('\tItem item;', '\towned Item item;').replace('\tint[] data;', '\towned int[] data;').replace('Item first =', 'var first =').replace('Holder holder =', 'var holder =')),
-			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content*2;', 'get { return this.content*2; }').replace('Count count =', 'var count =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])')),
+			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('int plus(int value) => this.content+value;', 'int plus(int value) { return this.content+value; }').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content*2;', 'get { return this.content*2; }').replace('Count count =', 'var count =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])').replace('plus(1,)', 'plus(1)')),
 			('views-and-C-pointer', VIEWS, VIEWS.replace('void* raw(void* pointer) => pointer;', 'void* raw(void* pointer) { return pointer; }').replace('int length(int[] view) => len(view);', 'int length(int[] view) { return len(view); }').replace('int[] content =', 'owned int[] content ='))]
 	if 'initial' in a.feature:
 		cases.append(('generic-trailing', GENERIC_TRAILING, GENERIC_TRAILING.replace('<T,>', '<T>').replace('T value,)', 'T value)').replace('<int,>', '<int>').replace('42,)', '42)')))
@@ -397,7 +398,7 @@ def main():
 	if 'errors' in a.feature:
 		negative.append(('wrong-owning-result', ITEM+'Item bad(Item value) { return value; } int main() { var item = new Item(42); var other = bad(item); return other.value; }'))
 	if 'records' in a.feature:
-		negative += [('record-missing', 'struct Point { int x; int y; } int main() { var p = Point {x = 42}; return p.x; }'), ('record-duplicate', 'struct Point { int x; int y; } int main() { var p = Point {x = 42, x = 1}; return p.x; }')]
+		negative += [('record-missing', 'struct Point { int x; int y; } int main() { var p = Point {x = 42}; return p.x; }'), ('record-duplicate', 'struct Point { int x; int y; } int main() { var p = Point {x = 42, x = 1}; return p.x; }'), ('record-owner-pun', ITEM+'struct Pack { owned Item item; } int main() { var item = new Item(42); var pack = Pack {item}; return 42; }')]
 	if 'conditional' in a.feature:
 		negative += [('conditional-type', 'int main() { return true ? 42 : false; }'), ('conditional-condition', 'int main() { return 1 ? 42 : 0; }'), ('conditional-owner-alias', ITEM+'int main() { var owner = new Item(42); Item other = true ? move owner : owner; return other.value; }')]
 	if 'compound' in a.feature:
@@ -409,7 +410,9 @@ def main():
 	if 'borrowed' in a.feature:
 		negative += [('stored-borrow-external', ITEM+'class Holder { readonly borrowed Item view; init(Item incoming) { this.view = incoming; } } int main() { var item = new Item(42); var holder = new Holder(item); return holder.view.value; }'),
 			('stored-borrow-order', BORROWED.replace('this.root = move incoming; this.view = this.root;', 'this.view = this.root; this.root = move incoming;')),
-			('stored-borrow-replace', BORROWED.replace('return read(holder.view);', 'holder.view = holder.root; return 42;'))]
+			('stored-borrow-replace', BORROWED.replace('return read(holder.view);', 'holder.view = holder.root; return 42;')),
+			('borrow-after-move', ITEM+'int inspect(Item value) { return value.value; } void consume(owned Item value) { } int main() { var root = new Item(42); Item view = root; consume(move root); return inspect(view); }'),
+			('raw-owner-adoption', ITEM+'extern(C) void* echo_ptr(void* value); int main() { Item item = echo_ptr(null) as Item; return item.value; }')]
 	if a.oracle_only:
 		negative = []
 	for name, text in negative:
