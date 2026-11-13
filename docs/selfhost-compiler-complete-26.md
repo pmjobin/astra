@@ -1,5 +1,80 @@
 # Compiler-complete 26: current qualification
 
+All queued native work is finished. The production source remains frozen at
+`bfc3630284fd29927f470a06bb00884c7fbdb49b`; subsequent observer, recipe and
+audit changes have separate identities. No compiler process remains active.
+
+Milestone26 remains **PARTIAL** because the required R5 G12 chronology was
+not fully satisfied. The first verification authenticated the23.1.4 library
+and configuration but used23.1.5 `opt`/`llc` executable bytes. The corrected
+post-delivery supplement independently replays original R5 C0/Astra native
+programs, ABI and sixteen unsuppressed memory streams using exact23.1.4
+frontends. Some26 engineering preceded that correction. Successful later
+replays cannot retroactively establish the required pre-edit gate. The
+canonical R5 PASS/G12-pending report and all failed attempts remain unchanged;
+neither R5 nor the earlier R4 PARTIAL is relabelled.
+
+The completed native evidence includes:
+
+- All190 original and205 current source inputs translated through the actual
+  Astra pipeline by both frozen `completefinal1` compiler products. Each run
+  produces independently verified raw/optimized LLVM and target O0/O2 ELF
+  objects, retaining2392 original and2579 current source-function roots.
+  Raw LLVM is identical across emitter profiles for each source population.
+- Both corrected `observerqual1` campaigns complete12/12 jobs. Independent
+  consumers rebind340 inherited plus71 R5 source programs per profile,
+  101 semantic/52 LLVM-valid mutation categories, negatives, dynamic witnesses,
+  literal source identities, original flow_number, frozen cohorts, ABI and
+  memory evidence. The two test-observer repairs change no production input;
+  their binaries are distinct from the frozen whole-source emitters.
+- Independent original `CheckedIndex.add_signature` controls return42 from
+  both profiles: five source corruptions and three LLVM-valid corruptions,
+  restored after each. Actual source bytes identify the receiver field and
+  distinct grown owner. The historical55/2053/26/root0/slot6 deferral remains
+  historical. Real linked original/current services grow129 signatures across
+  four buffer expansions and pass both target profiles and eight strict Astra
+  memory streams, with generated-program output matching the C0 oracles.
+- Real256 generic instances pass and257 refuses with the exact resource
+  diagnostic and preserved sentinel.262 ordinary members execute normally.
+  Ten strict memory streams pass. Four original opt wiring failures and twenty
+  dependent nonexecutions remain failed; a separate24-job backend supplement
+  consumes the verified raw IR and completes the affected steps.
+- Fresh final-source SSA index, dominance, short-phi and sparse backing helper
+  replays pass. Exact original/current owner-pack and physical-index models,
+  corruption/restoration controls and actual Astra-to-C counted-string import
+  receipts remain source-bound. They supplement the complete pipeline evidence;
+  their isolated success is not used as a substitute for compiler translation.
+
+The O0 full-source probes take13208.844s original and14958.771s current;
+the O2 probes take1396.049s and1607.537s. These inclusive probe intervals
+include independent downstream jobs, not just source translation. They do
+not describe a changed-source rebuild. The208-input O2 harmless-comment
+cold rebuild takes2707.945s,2690.79 user,1.45 system,2304752KiB peak RSS;
+the exact original-product warm validation takes0.900s. The live source is
+restored byte-for-byte by an ordinary commit. No unit-incremental or matched
+full-normal-host speedup is claimed. The cost collector retains35307 GNU-time
+records and254 compiler attempts, accounting for overlapping intervals and
+inferred reboot clock domains separately.
+
+The native-compatible submission SHA-256 is
+`c2471bf201cf558a4c079d7b185ffb17454322366743e1719289232639f8558b`.
+It embeds the original ZIP byte-for-byte, SHA-256
+`43c89a44a04912f3fdefa4f4c73380095874301eea44cb5684ff0406368e2b11`.
+Both identities, unchanged task text and Git base remain disclosed.
+
+The consolidated audit's completed-source mode independently consumes the
+actual native receipts, input and product hashes, symbols, ABI, memory,
+current helper sources and preservation records. It keeps G0 unsatisfied and
+publication/G12 pending until their actual operations. It cannot grant a
+historical chronology exception. The remaining acceptance boundary requires
+an explicit decision about that recorded G0 discrepancy. No Stage1 or
+self-hosted astrac claim is made; that work remains milestone27.
+
+## Historical qualification checkpoints
+
+The following entries retain their status at the time of observation. Statements
+about pending/running jobs below do not describe the current process state.
+
 Milestone26 remains **PARTIAL**. The frozen production candidate
 `bfc3630284fd29927f470a06bb00884c7fbdb49b` now translates all190 original
 inputs and all205 current inputs through the actual Astra pipeline into

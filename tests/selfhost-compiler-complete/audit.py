@@ -306,6 +306,119 @@ def source_identities(paths, component, mode, version, consumer):
 	return dict(receipt=str(leaf/'result.json'), sha256=sha(leaf/'result.json'), original_source_identities=71, primary_source_identical=70, exact_original_caller=caller, current_primary_raw_identical=sum(row['raw_LLVM_equal'] for row in result['comparisons']), current_primary_Astra_ELF_identical=sum(row['Astra_ELF_equal'] for row in result['comparisons']), current_primary_C0_ELF_identical=sum(row['C0_ELF_equal'] for row in result['comparisons']), exact_original_source_pool_product_identities=pool, limitation=result['limitation'])
 
 
+def preservation():
+	"""Check the real host against the original protection and configuration record."""
+	assert sha(ROOT/'docs/selfhost-effects-25-abi-proposal.md') == 'd77c02f3144ab5dc3da41eb310b29cd02629b49876042934ea5071a1549ac66e'
+	old = json.loads((WORK/'runtime/effects25-r5-resume/initial.json').read_text())
+	protection = old['protection']
+	for name, expected in protection['protected'].items(): assert sha(ROOT/name) == expected
+	for name, row in protection['donor'].items():
+		path = ROOT.parent/'astra-bootstrap'/name
+		assert sha(path) == row['sha256'] and oct(path.stat().st_mode & 0o777) == row['mode']
+	donor = ROOT.parent/'astra-bootstrap'
+	assert subprocess.check_output(['git', '-C', str(donor), 'rev-parse', 'HEAD']).decode().strip() == protection['donor_head']
+	assert subprocess.check_output(['git', '-C', str(donor), 'status', '--porcelain=v2', '--untracked-files=all']).decode() == protection['donor_status']
+	for name, expected in protection['workflow'].items(): assert sha(name) == expected
+	for name, row in protection['hooks'].items(): assert sha(name) == row['sha256'] and oct(Path(name).stat().st_mode & 0o777) == row['mode']
+	assert git('config', '--show-origin', '--list').decode() == old['config']
+	proofs = json.loads((WORK/'runtime/indexpath18/historical-proof-outputs.json').read_text())
+	assert proofs['count'] == len(proofs['outputs']) == 1044
+	assert all(sha(name) == row['sha256'] for name, row in proofs['outputs'].items())
+	for name, row in json.loads((ROOT/'format/scope.json').read_text()).items():
+		if 'exclude' in row: assert sha(ROOT/name) == row['sha256']
+	return dict(paths=len(protection['protected']), donor_files=len(protection['donor']), historical_proof_hashes=proofs['count'], workflow_files=len(protection['workflow']), hooks=len(protection['hooks']), settings_unchanged=True, initial_receipt_sha256=sha(WORK/'runtime/effects25-r5-resume/initial.json'))
+
+
+def focused_receipt(leaf):
+	"""Rebind actual focused commands and captures; grant no pipeline credit."""
+	data = json.loads((leaf/'result.json').read_text())
+	for group in ('production_sources', 'sources', 'captured_inputs', 'source_inputs', 'inputs'):
+		for name, digest in data.get(group, {}).items():
+			path = Path(name) if name.startswith('/') else ROOT/name
+			assert sha(path) == digest, str(path)
+	if 'production_source_sha256' in data:
+		name = 'compiler/backend/llvm/recover-array-instructions.astra' if leaf.name.startswith('llvm-backing-') else 'compiler/ssa/recover.astra'
+		assert sha(ROOT/name) == data['production_source_sha256']
+	rows = json.loads((leaf/'commands.json').read_text()); assert rows
+	for row in rows:
+		assert row['exit'] in (0, 42) and not row.get('timed_out', False)
+		command = row.get('argv')
+		if command is None: command = json.loads((leaf/row['name']/'command.json').read_text())['argv']
+		for stream in ('stdout', 'stderr', 'time'):
+			if stream+'_sha256' not in row: continue
+			path = leaf/(row['name']+'.'+stream)
+			if not path.exists(): path = leaf/row['name']/stream
+			assert sha(path) == row[stream+'_sha256']
+		if any(Path(part).name == 'valgrind' for part in command):
+			assert '--default-suppressions=no' in command
+			path = leaf/(row['name']+'.stderr')
+			if not path.exists(): path = leaf/row['name']/'stderr'
+			assert all(marker in path.read_bytes() for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+	return dict(path=str(leaf/'result.json'), sha256=sha(leaf/'result.json'), status=data['status'], commands=len(rows), production_bindings=data.get('production_sources', data.get('sources')), limitation=data.get('limitation'))
+
+
+def capacity_receipts(runtime):
+	"""Keep raw wiring failures distinct from the successful backend supplement."""
+	summary = runtime/'capacity-final1-supplement/result.json'; data = json.loads(summary.read_text())
+	raw_path = runtime/'capacity-final1/jobs/result.json'; supplement_path = runtime/'capacity-final1-supplement/jobs/result.json'
+	assert sha(raw_path) == data['raw_receipt_sha256'] and sha(supplement_path) == data['supplement_receipt_sha256']
+	raw = json.loads(raw_path.read_text()); supplement = json.loads(supplement_path.read_text())
+	assert raw['status'] == 'JOB_FAILURES' and len(raw['failed_jobs']) == 24
+	assert supplement['status'] == 'JOB_OUTCOMES_MATCHED' and not supplement['failed_jobs'] and len(supplement['jobs']) == 24
+	assert set(raw['failed_jobs']) == set(supplement['jobs'])
+	assert sum(row['status'] == 'UNEXPECTED_OUTCOME' for row in raw['jobs'].values()) == 4
+	seen = {}; memory = 0
+	for leaf, result in ((raw_path.parent, raw), (supplement_path.parent, supplement)):
+		spec = json.loads((leaf.parent/'jobs.json').read_text()); jobs = {row['id']:row for row in spec['jobs']}
+		assert set(jobs) == set(result['jobs'])
+		for name, row in result['jobs'].items():
+			for group in ('inputs', 'tools'):
+				for path, digest in jobs[name].get(group, {}).items():
+					if path not in seen: seen[path] = sha(path)
+					assert seen[path] == digest
+			if name in result['failed_jobs']:
+				if row['status'] == 'UNEXPECTED_OUTCOME':
+					assert name.endswith('-opt')
+					for stream in ('stdout', 'stderr', 'time'): assert sha(leaf/name/stream) == row[stream+'_sha256']
+				else: assert row['status'] == 'DEPENDENCY_FAILED'
+				continue
+			assert row['status'] == 'EXPECTED_OUTCOME' and row['exit'] == jobs[name].get('expected_exit', 0) and not row['timed_out']
+			for stream in ('stdout', 'stderr', 'time'): assert sha(leaf/name/stream) == row[stream+'_sha256']
+			for artifact in row['artifacts'].values(): assert sha(artifact['path']) == artifact['sha256'] and Path(artifact['path']).stat().st_size == artifact['bytes']
+			for marker in jobs[name].get('required_stdout', []): assert marker.encode() in (leaf/name/'stdout').read_bytes()
+			command = json.loads((leaf/name/'command.json').read_text())['argv']
+			if name.endswith('-memory'):
+				assert '--default-suppressions=no' in command and row['exit'] == 42
+				assert all(marker in (leaf/name/'stderr').read_bytes() for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)')); memory += 1
+			if name.endswith('-generic-257-emit'):
+				assert row['exit'] == 4 and row['refusal_destination_preserved']
+				assert Path(command[2]).read_bytes() == jobs[name]['sentinels']['module.ll'].encode()
+	assert memory == data['clean_memory_streams'] == 10
+	return dict(path=str(summary), sha256=sha(summary), raw_failed_jobs=raw['failed_jobs'], clean_memory_streams=memory, observation=data)
+
+
+def completed_acceptance(a, profiles, intake):
+	"""Consolidate completed native proofs without repairing history by assertion."""
+	whole = complete_source_proofs(a.runtime_root, a.build_root, a.output.with_name(a.output.stem+'-whole-source.json'))
+	owner = signature_controls(a.runtime_root, a.build_root); assert owner['matched_profiles']
+	usage = linked_services(a.runtime_root)
+	focused = {}
+	for name in ('ssa-index-finalaudit1', 'ssa-dominance-finalaudit1', 'ssa-short-inputs-finalaudit1', 'llvm-backing-index-finalaudit1', 'ssa-owner-packs-fused2', 'ssa-owner-packs-currentfused2', 'ir-transport-astraimport2', 'llvm-physical-index-focused5'):
+		focused[name] = focused_receipt(a.runtime_root/name)
+	capacity = capacity_receipts(a.runtime_root)
+	cost_path = a.runtime_root/'costs-finalaudit1/result.json'; costs = json.loads(cost_path.read_text())
+	assert costs['status'] == 'MEASURED_CONTINUATION_COSTS' and costs['GNU_time_measurements'] and costs['compiler_attempts']
+	change_path = a.runtime_root/'full-cost-change1/result.json'; change = json.loads(change_path.read_text())
+	assert change['status'] == 'FULL_COMPILER_HARMLESS_CHANGE_COST_MEASURED'
+	assert sha(change['changed_compile_receipt']) == change['changed_build_receipt_sha256']
+	assert 'index.instance_count >= 256' in (ROOT/'compiler/semantic/generic.astra').read_text()
+	assert 'limit > 8000000' in (ROOT/'compiler/ssa/recover.astra').read_text()
+	g12 = r5_delivery(a.runtime_root)
+	result = dict(status='PARTIAL', assessment='COMPLETE_NATIVE_EVIDENCE_WITH_UNSATISFIED_HISTORICAL_G0_CHRONOLOGY', final_commit=git('rev-parse', 'HEAD').decode().strip(), final_tree=git('rev-parse', 'HEAD^{tree}').decode().strip(), original_packet_sha256='43c89a44a04912f3fdefa4f4c73380095874301eea44cb5684ff0406368e2b11', native_submission_sha256=intake['submission_sha256'], R5_post_delivery_G12=g12, protection=preservation(), profiles=profiles, complete_source=whole, independent_signature_owner=owner, linked_compiler_services=usage, focused_current_source=focused, capacity=capacity, costs=dict(path=str(cost_path), sha256=sha(cost_path), measurements=len(costs['GNU_time_measurements']), changed_source=dict(path=str(change_path), sha256=sha(change_path), observation=change)), gates=dict(G0='UNSATISFIED_PRE_EDIT_FRONTEND_VERIFICATION_CHRONOLOGY', G1_G9='NATIVE_EVIDENCE_REBOUND_WITH_EXACT_SCOPE_AND_LIMITATIONS_ABOVE', G10='CONSOLIDATED_CURRENT_SOURCE_AND_NATIVE_RECEIPTS_REBOUND', G11='PENDING_INSTALLED_PUBLICATION', G12='PENDING_SEPARATE_POST_DELIVERY_VERIFICATION'), full_milestone_credit=False, limitation='Original/current complete source translation, matched emitter products, both target objects, retained 411-source/profile qualification, independent original signature-owner controls and linked services are separately rebound. Some milestone26 engineering preceded the exact LLVM frontend correction for R5 G12; no subsequent replay can retroactively satisfy the required pre-edit chronology. The corrected focused R5 supplement is preserved without relabelling historical reports. This assessment remains PARTIAL; publication and this report\'s real post-delivery G12 are separate. No self-hosted astrac or Stage1 claim.')
+	write(a.output, result)
+	print(result['assessment'], flush=True)
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--build-root', type=Path, required=True)
@@ -313,7 +426,8 @@ def main():
 	p.add_argument('--build-version', required=True)
 	p.add_argument('--version', required=True)
 	p.add_argument('--fixture-version', default='fix26')
-	p.add_argument('--whole-source-result', type=Path, required=True)
+	p.add_argument('--whole-source-result', type=Path)
+	p.add_argument('--completed-source', action='store_true', help='Audit the completed original/current native campaign; retain the historical G0 chronology gap')
 	p.add_argument('--output', type=Path, required=True)
 	a = p.parse_args()
 	assert a.version.isalnum() and a.build_version.isalnum() and a.fixture_version.isalnum()
@@ -358,6 +472,10 @@ def main():
 		print(mode, 'current 340+71 and independent source/IR/ELF/ABI/memory/mutation receipts rebound', flush=True)
 	assert profiles['O0']['compiler']['project_input_hashes'] == profiles['O2']['compiler']['project_input_hashes']
 	assert profiles['O0']['compiler']['tools'] == profiles['O2']['compiler']['tools']
+	if a.completed_source:
+		completed_acceptance(a, profiles, intake)
+		return
+	assert a.whole_source_result is not None
 	whole = json.loads(a.whole_source_result.read_text())
 	population = json.loads((a.whole_source_result.parent/'population.json').read_text())
 	assert population['compiler_files'] == 180 and population['library_files'] == 10
