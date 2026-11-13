@@ -24,6 +24,21 @@ class RecoverSsaOwnerIndex {
 	}
 }
 
+void recover_ssa_owner_shortcut(RecoverSsaOwnerIndex index, RecoverCfg cfg, int b) {
+	var row = cfg.blocks[b]; int place = 0;
+	if (row.origin > 0) {
+		int symbol = cfg.core.nodes[row.origin - 1].value.symbol.index;
+		if (symbol > 0 && symbol < len(cfg.core.flow.storage.symbols)) place = cfg.core.flow.storage.symbols[symbol];
+	}
+	bool event = row.opcode == 22 || row.opcode == 23 || row.opcode == 36 || row.opcode == 37 || row.opcode == 38 || row.next > 0 && row.other > 0;
+	if (place > 0 && cfg.core.flow.storage.slots[place - 1].owner && (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46 || row.opcode == 27)) event = true;
+	int target = row.next; if (target == 0) target = row.other;
+	if (!event && target <= b) index.shortcuts[b + 1] = index.shortcuts[target];
+	else {
+		index.shortcuts[b + 1] = b + 1;
+	}
+}
+
 bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, RecoverWork work) {
 	int b = 0;
 	if (len(work.function_counts) == len(index.starts)) {
@@ -54,18 +69,7 @@ bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, Recover
 		int position = used[f]; used[f] = position + 1;
 		index.positions[b] = position;
 		index.blocks[index.starts[f] + position] = b + 1;
-		var row = cfg.blocks[b]; int place = 0;
-		if (row.origin > 0) {
-			int symbol = cfg.core.nodes[row.origin - 1].value.symbol.index;
-			if (symbol > 0 && symbol < len(cfg.core.flow.storage.symbols)) place = cfg.core.flow.storage.symbols[symbol];
-		}
-		bool event = row.opcode == 22 || row.opcode == 23 || row.opcode == 36 || row.opcode == 37 || row.opcode == 38 || row.next > 0 && row.other > 0;
-		if (place > 0 && cfg.core.flow.storage.slots[place - 1].owner && (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46 || row.opcode == 27)) event = true;
-		int target = row.next; if (target == 0) target = row.other;
-		if (!event && target <= b) index.shortcuts[b + 1] = index.shortcuts[target];
-		else {
-			index.shortcuts[b + 1] = b + 1;
-		}
+		recover_ssa_owner_shortcut(index, cfg, b);
 		b = b + 1;
 	}
 	if (!index.reservations_ready) {

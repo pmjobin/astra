@@ -463,7 +463,6 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	if (ssa.data.status != 0 || ssa.data.work_limit < 1 || ssa.data.work_limit > 8000000 || !recover_cfg_verify(ssa.cfg) || len(ssa.data.values) != ssa.cfg.core.count * 4 + ssa.cfg.core.flow.data.function_count + 1 || len(ssa.data.reachable) != ssa.cfg.block_count) return false;
 	var work = new RecoverWork(ssa.data.work_limit); var reachable = new bool[ssa.cfg.block_count];
 	if (!recover_ssa_build_dominance(ssa.cfg.blocks, ssa.cfg.block_count, ssa.cfg.entries, work)) return false;
-	if (!recover_ssa_weak_upgrades(ssa, work)) return false;
 	// The independently reconstructed dominator traversal also proves reach.
 	// Reverse block order builds Error and short-circuit phi lists in edge order
 	// during the definition scan instead of scanning the CFG a second time.
@@ -471,6 +470,18 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	var consumers = new int[ssa.cfg.core.count + 1];
 	var locals = new int[ssa.cfg.core.flow.checked.bindings.symbol_count + 1]; var owners = new RecoverSsaOwnerIndex(ssa.cfg);
 	var definitions = new bool[len(ssa.data.values)]; int b = ssa.cfg.block_count;
+	// Counts were reconstructed from every actual block during dominance.
+	// Fill the same per-function order while this physical scan walks backwards.
+	var owner_remaining = new int[len(owners.starts)]; int owner_function = 1;
+	while (owner_function < len(owners.starts)) {
+		if (!work.take()) return false;
+		int count = work.function_counts[owner_function];
+		if (count < 0 || count > ssa.cfg.block_count) return false;
+		owner_remaining[owner_function] = count;
+		owners.starts[owner_function] = owners.starts[owner_function - 1] + count;
+		owner_function = owner_function + 1;
+	}
+	if (owners.starts[len(owners.starts) - 1] != ssa.cfg.block_count) return false;
 	while (b > 0) {
 		reachable[b - 1] = work.dominance_first[b] > 0;
 		if (!work.take() || reachable[b - 1] != ssa.data.reachable[b - 1]) return false;
@@ -480,6 +491,11 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 			if (value.function != expected.function || value.block != b || value.type.index != expected.type.index || value.channel != expected.channel || value.edge != expected.edge) return false;
 		}
 		var row = ssa.cfg.blocks[b - 1]; int p = 1;
+		if (row.function < 1 || row.function >= len(owner_remaining) || owner_remaining[row.function] < 1) return false;
+		owner_remaining[row.function] = owner_remaining[row.function] - 1;
+		int owner_position = owner_remaining[row.function];
+		owners.positions[b - 1] = owner_position;
+		owners.blocks[owners.starts[row.function - 1] + owner_position] = b;
 		if (!recover_ssa_block_facts(ssa.cfg, b, locals, owners)) return false;
 		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || row.opcode == 11 || row.opcode == 67 || row.opcode == 44)) {
 			if (consumers[row.origin] == 0) consumers[row.origin] = b;
@@ -519,6 +535,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	if (parent_work.exhausted) work.exhausted = true;
 	v = 1;
 	while (v <= ssa.cfg.core.count) {
+		if (!recover_ssa_weak_upgrade(ssa, v, work)) return false;
 		if (definitions[v] && (!recover_ssa_shared_borrow(ssa, v, parents, work) || !recover_ssa_utf8(ssa, v, work) || !recover_ssa_array_view(ssa, v, parents, work))) return false;
 		v = v + 1;
 	}
@@ -526,6 +543,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		var row = ssa.cfg.blocks[b - 1];
+		recover_ssa_owner_shortcut(owners, ssa.cfg, b - 1);
 		if (row.opcode != 62 && row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return false;
 		if (row.opcode == 61 || row.opcode == 76) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value;
@@ -575,7 +593,9 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if (definitions[v] && !recover_ssa_owner(ssa.data, ssa.cfg, v, work)) return false;
 		v = v + 1;
 	}
-	return !work.exhausted && recover_ssa_slots(ssa, owners, work);
+	// The two existing physical scans produced the fresh local owner index.
+	// Standalone slot verification still reconstructs its own complete index.
+	return !work.exhausted && recover_owners_verify(ssa.cfg.core.owners, ssa.cfg.core.flow) && recover_ssa_packed_slots(ssa, owners, work);
 }
 
 owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {

@@ -417,3 +417,23 @@ arguments, match expressions, typed interpolation, safe slicing, lazy pipelines,
 comprehensions and complete idiomatic compiler/library/workload migration all
 remain reserved for 27-C. The fixed improved-source Stage1/2/3 convergence is
 27-D, and the first release is 28.
+
+The completed read-only diagnosis (`runtime/selfhost27b-ssa-diagnosis1`)
+observed 338,396 Core nodes and 449,141 blocks. The real exhaustion flag changed
+with zero remaining work inside `recover_ssa_slots`; SSA returned false and the
+inferior returned 1. The debugger controller's own exit 0 is not a compiler PASS.
+No primitive fact, result or work limit was overridden.
+
+The focused correction reuses already required scans. Weak-upgrade checks run
+inside the existing Core-node scan. The reverse physical block scan fills the
+owner index using independently reconstructed function counts; decrementing
+those counts gives the same per-function order as the standalone forward
+builder, including interleaved functions. The forward use scan builds the
+unchanged owner-event shortcuts. The same packed owner-state checks and
+independent owner verification still execute; standalone owner-slot consumers
+still reconstruct their own complete index. This removes one full Core scan
+and one full block scan, about 787,537 redundant work units on the failed graph,
+without changing the 8M limit or accepting producer liveness certificates.
+The complete current C0 Core preflight passed in 75.707 seconds
+(`runtime/selfhost27b-ssa-fused-preflight1`). A new C0-built production host and
+actual Stage2/native/mutation requalification remain required.
