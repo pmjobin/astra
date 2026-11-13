@@ -51,6 +51,16 @@ int main() {
 GENERIC_TRAILING = '''T identity<T,>(T value,) { return value; }
 int main() { return identity<int,>(42,); }
 '''
+ARRAY_RESULT = '''int[] make_values() {
+	var values = new int[2];
+	values[0] = 40; values[1] = 2;
+	return move values;
+}
+int main() {
+	int[] values = make_values();
+	return values[0] + values[1];
+}
+'''
 GENERIC_OWNER = ITEM+'''Vector<Item> make() {
 	var values = new Vector<Item>(1);
 	var item = new Item(42);
@@ -80,6 +90,12 @@ FLOAT_COMPOUND = '''int main() {
 	wide -= 1.0d;
 	wide /= 2.0d;
 	if (small != 10.0f || wide != 10.0d) return 1;
+	f32 negative_zero = -0.0f;
+	negative_zero *= 2.0f;
+	if (1.0f / negative_zero >= 0.0f) return 1;
+	f64 unordered = 0.0d / 0.0d;
+	unordered += 0.0d;
+	if (unordered == unordered) return 1;
 	return 42;
 }
 '''
@@ -99,10 +115,18 @@ int main() {
 }
 '''
 VIEWS = '''extern(C) void* echo_ptr(void* pointer);
+extern(C) void* anchor_ptr();
 void* raw(void* pointer) => pointer;
 int length(int[] view) => len(view);
+class RawHolder {
+	void* pointer;
+	init(void* pointer) { this.pointer = pointer; }
+}
 int main() {
 	int[] content = new int[2];
+	void* pointer = anchor_ptr();
+	RawHolder holder = new RawHolder(pointer);
+	if (pointer == null || echo_ptr(raw(holder.pointer)) != pointer) return 1;
 	if (echo_ptr(raw(null)) != null) return 1;
 	return length(content) + 40;
 }
@@ -211,6 +235,36 @@ int main() {
 	return success;
 }
 '''
+PARTIAL_FIELD = ITEM+'''Item make_piece(bool fail) throws Error {
+	if (fail) { throw new Error("partial factory"); }
+	var item = new Item(2);
+	return move item;
+}
+Item empty_piece() { return null; }
+class Holder {
+	Item first;
+	Item second;
+	init(owned Item incoming) {
+		this.first = move incoming;
+		this.second = empty_piece();
+	}
+	void finish(bool fail) throws Error {
+		var next = make_piece(fail);
+		this.second = move next;
+	}
+}
+int attempt(bool fail) {
+	var item = new Item(40);
+	try { var holder = new Holder(move item); holder.finish(fail); }
+	catch (Error error) { return 42; }
+	return 42;
+}
+int main() {
+	if (attempt(false) != 42 || drop_count() != 2 || drop_sum() != 42) return 1;
+	if (attempt(true) != 42 || drop_count() != 3 || drop_sum() != 82) return 1;
+	return 42;
+}
+'''
 
 CONDITIONAL_OWNER = ITEM+'''Item choose(bool first) {
 	var left = new Item(40);
@@ -302,7 +356,7 @@ def main():
 	providers = {path:digest for path, digest in link['objects'].items() if Path(path).name not in ('llvm-capi.o', 'arguments.o')}
 	assert len(providers) == 5 and all(sha(path) == digest for path, digest in providers.items())
 	bridge = runtime/'bridge.c'
-	bridge.write_text('static int drops, sum, ticks;\nvoid note_drop(int value) { ++drops; sum += value; }\nint drop_count(void) { return drops; }\nint drop_sum(void) { return sum; }\nvoid *echo_ptr(void *pointer) { return pointer; }\nint tick(int value) { ++ticks; return value; }\nint tick_count(void) { return ticks; }\n')
+	bridge.write_text('static int drops, sum, ticks, anchor = 42;\nvoid note_drop(int value) { ++drops; sum += value; }\nint drop_count(void) { return drops; }\nint drop_sum(void) { return sum; }\nvoid *echo_ptr(void *pointer) { return pointer; }\nvoid *anchor_ptr(void) { return &anchor; }\nint tick(int value) { ++ticks; return value; }\nint tick_count(void) { return ticks; }\n')
 	env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1')
 	env.pop('LD_PRELOAD', None)
 	env.pop('VALGRIND_OPTS', None)
@@ -330,9 +384,10 @@ def main():
 		cases += [('literal-widths', LITERALS, LITERALS.replace('0xffff_ffff_ffff_ffff', '18446744073709551615').replace('0x8000_0000_0000_0000', '9223372036854775808').replace('0b1010_1100', '172').replace('8_000_000', '8000000')),
 			('owner-fields-factory-local', OWNERS, OWNERS.replace('Item make(', 'owned Item make(').replace('\tItem item;', '\towned Item item;').replace('\tint[] data;', '\towned int[] data;').replace('Item first =', 'var first =').replace('Holder holder =', 'var holder =')),
 			('concise-trailing', SUGAR, SUGAR.replace('int add(int first, int second,) => first+second;', 'int add(int first, int second) { return first+second; }').replace('int value,)', 'int value)').replace('int plus(int value) => this.content+value;', 'int plus(int value) { return this.content+value; }').replace('property int length => this.content;', 'property int length { get { return this.content; } }').replace('get => this.content*2;', 'get { return this.content*2; }').replace('Count count =', 'var count =').replace('7,)', '7)').replace('20,22,}', '20,22}').replace('values[1],)', 'values[1])').replace('plus(1,)', 'plus(1)')),
-			('views-and-C-pointer', VIEWS, VIEWS.replace('void* raw(void* pointer) => pointer;', 'void* raw(void* pointer) { return pointer; }').replace('int length(int[] view) => len(view);', 'int length(int[] view) { return len(view); }').replace('int[] content =', 'owned int[] content ='))]
+			('views-and-C-pointer', VIEWS, VIEWS.replace('void* raw(void* pointer) => pointer;', 'void* raw(void* pointer) { return pointer; }').replace('int length(int[] view) => len(view);', 'int length(int[] view) { return len(view); }').replace('int[] content =', 'owned int[] content =').replace('RawHolder holder =', 'var holder ='))]
 	if 'initial' in a.feature:
 		cases.append(('generic-trailing', GENERIC_TRAILING, GENERIC_TRAILING.replace('<T,>', '<T>').replace('T value,)', 'T value)').replace('<int,>', '<int>').replace('42,)', '42)')))
+		cases.append(('array-owning-result', ARRAY_RESULT, ARRAY_RESULT.replace('int[] make_values()', 'owned int[] make_values()').replace('int[] values = make_values();', 'var values = make_values();')))
 		cases.append(('generic-owning-result', GENERIC_OWNER, GENERIC_OWNER.replace('Vector<Item> make()', 'owned Vector<Item> make()').replace('Vector<Item> values = make();', 'var values = make();').replace('Item item = values.take(0);', 'var item = values.take(0);')))
 	if 'records' in a.feature:
 		cases.append(('record-punning', RECORDS, 'struct Point { int x; int y; }\nPoint point(int y) { Point p = {x = 20, y = y}; return p; }\nint sum(Point p) { return p.x + p.y; }\nint main() { return sum(point(22)); }\n'))
@@ -359,6 +414,7 @@ def main():
 		cases.append(('crc-record-workload', CRC, legacy_crc))
 	if 'errors' in a.feature:
 		cases.append(('owning-error-result', ERROR_RESULT, ERROR_RESULT.replace('Item fallible(', 'owned Item fallible(').replace('Item item = fallible', 'var item = fallible')))
+		cases.append(('partial-field-error', PARTIAL_FIELD, PARTIAL_FIELD.replace('Item make_piece(', 'owned Item make_piece(').replace('Item empty_piece(', 'owned Item empty_piece(').replace('\tItem first;', '\towned Item first;').replace('\tItem second;', '\towned Item second;')))
 	if a.case:
 		assert set(a.case).issubset({case[0] for case in cases})
 		cases = [case for case in cases if case[0] in a.case]
@@ -374,7 +430,7 @@ def main():
 		extra_sources = []
 		if name == 'generic-owning-result':
 			extra_sources = [ROOT/'lib/astra/collections/vector.astra']
-		if name == 'owning-error-result':
+		if name in ('owning-error-result', 'partial-field-error'):
 			extra_sources = [ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra']
 		if extra_sources:
 			source_inputs.update({str(path):sha(path) for path in extra_sources})

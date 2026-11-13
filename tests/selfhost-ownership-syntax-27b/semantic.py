@@ -168,9 +168,12 @@ def layouts(core):
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
-	for key in ('compiler', 'core-map', 'producer-ir', 'build', 'runtime'): p.add_argument('--'+key, type=Path, required=True)
+	for key in ('compiler', 'core-map', 'build', 'runtime'): p.add_argument('--'+key, type=Path, required=True)
+	p.add_argument('--producer-ir', type=Path)
+	p.add_argument('--unoptimized-build-receipt', type=Path)
 	p.add_argument('--compiler-sha256', required=True)
 	a = p.parse_args()
+	assert bool(a.producer_ir) != bool(a.unoptimized_build_receipt)
 	assert re.fullmatch('[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
 	runtime = output_path(a.runtime, WORK/'runtime'); build = output_path(a.build, WORK/'build')
 	runtime.mkdir(parents=True, exist_ok=False); build.mkdir(parents=True, exist_ok=False)
@@ -178,17 +181,27 @@ def main():
 	offsets, sizes = layouts(core)
 	symbols = {v[2]:int(v[0], 16) for line in subprocess.check_output(['nm', '-an', a.compiler], text=True).splitlines() if len(v := line.split()) == 3}
 	addresses = {}
-	ir = a.producer_ir.read_text()
+	ir = a.producer_ir.read_text() if a.producer_ir else None
+	if a.unoptimized_build_receipt:
+		built = json.loads(a.unoptimized_build_receipt.read_text())
+		assert built['status'] == 'PRODUCTION_DRIVER_BUILT_NOT_QUALIFIED' and built['mode'] == 'O0' and built['producer']['kind'] == 'c0'
+		assert built['product'] == dict(path=str(a.compiler), sha256=a.compiler_sha256)
+		assert a.core_map.resolve() == (a.unoptimized_build_receipt.parent/'core-preflight/stdout').resolve()
+		assert sha(a.unoptimized_build_receipt.parent/'commands.json') == built['commands_sha256']
+		core_command = next(row for row in json.loads((a.unoptimized_build_receipt.parent/'commands.json').read_text()) if row['name'] == 'core-preflight')
+		assert core_command['result']['stdout_sha256'] == sha(a.core_map)
+		elf = subprocess.check_output(['readelf', '-h', a.compiler], text=True)
+		assert 'ELF64' in elf and 'Advanced Micro Devices X86-64' in elf
 	for kind, function in [('profile', 'syntax_program_languages_verified'), ('ownership', 'recover_flow_verify'), ('call', 'recover_types_verify'), ('borrow', 'recover_payload_calls_verified')]:
 		assert names.count(function) == 1
 		symbol = 'astra.fn.'+str(names.index(function)); addresses[kind] = symbols[symbol]
 		arguments = r'ptr [^,\n]*, ptr [^,\n]*' if kind == 'call' else r'ptr [^,\n]*'
-		assert re.search(r'^define [^\n]*@'+re.escape(symbol)+r'\('+arguments+r'\) ', ir, re.M), 'exact C0 pointer calling convention required'
+		if ir is not None: assert re.search(r'^define [^\n]*@'+re.escape(symbol)+r'\('+arguments+r'\) ', ir, re.M), 'exact C0 pointer calling convention required'
 	source = runtime/'ownership.astra'; source.write_text(SOURCE)
 	caught = [ROOT/'tests/selfhost-bootstrap-27a/caught-message-call.astra', ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra']
-	inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.core_map, a.producer_ir, source, *caught)}
+	inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.core_map, a.producer_ir or a.unoptimized_build_receipt, source, *caught)}
 	tools = tool_identity([a.compiler, '/usr/bin/time', *[shutil.which(n) for n in ('gdb', 'nm', 'opt')]])
-	write(runtime/'identity.json', dict(compiler_sha256=a.compiler_sha256, inputs=inputs, tools=tools, offsets=offsets, sizes=sizes, addresses=addresses, scope='Exact C0-produced development Stage1 only; Core-map layouts and actual optimized pointer signatures authenticated.'))
+	write(runtime/'identity.json', dict(compiler_sha256=a.compiler_sha256, inputs=inputs, tools=tools, offsets=offsets, sizes=sizes, addresses=addresses, pointer_route='Optimized retained IR signatures' if ir is not None else 'Authenticated unoptimized C0 O0 build, exact Core-map declarations and ELF64 x86-64 pointer ABI; live table shapes and four returning controls additionally prove routing before mutation.', scope='Exact identified C0-produced Stage1 only. No optimized or executable IR is claimed for the direct O0 build.'))
 	rows = []; env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', CCACHE_DISABLE='1')
 	env.pop('LD_PRELOAD', None); env.pop('VALGRIND_OPTS', None)
 	actions = ('profile-control', 'profile-clear', 'profile-rebind', 'ownership-control', 'field-default', 'local-default', 'result-default', 'call-control', 'call-result', 'call-message-member', 'call-message-borrow', 'call-message-type', 'call-pending-origin', 'borrow-control', 'borrow-missing-owner', 'borrow-owner-function', 'borrow-message-type', 'borrow-coargument-move')

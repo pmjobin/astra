@@ -453,3 +453,52 @@ old-form C0 oracles passed in
 `runtime/selfhost27b-conditional-both-oracles1`, including four destructor
 events with the expected values after two opposite owner selections. Modern
 native execution remains tied to the next actual compiler qualification.
+
+The optimized SSA-fusion development seed completed from `07fd55a` with ELF
+`0b68c5459fc7ef022e72c93fb811071cf80de18f22797eba2813de75a80f10fe`
+(`runtime/selfhost27b-driver5`). It remains a separately dated generation seed.
+The final audit requires both a current-source C0-built host and an actual
+Astra-produced Stage2 to qualify all eighteen feature groups, intrinsic ABI,
+physical refusals and strict memory, plus their selected legacy replays.
+The Stage2 generation seed is recorded separately from those qualified products;
+no identical-generation convergence or Stage3 follows from this arrangement.
+
+Additional development checks passed for strict f32 signed zero/f64 NaN
+compound operations (`runtime/selfhost27b-compound-ieee1`), a real non-null C
+static pointer retained as unmanaged native result/stored field
+(`runtime/selfhost27b-raw-static-field1`), and an implicit owning array result
+with typed local acquisition (`runtime/selfhost27b-array-result1`). Each has
+fresh C0 old-form behavior, actual native O0/O2 and clean strict memory.
+
+The partial-population probe first exposed C0's genuine refusal of throwing
+constructors and unchecked direct null adoption into an owned field. Those
+failed sources remain in `runtime/selfhost27b-partial-field1/2`. The existing
+function/method error channel and an owned empty-result factory preserve that
+ABI boundary. The next probe then exposed a Core provenance gap: both modern
+and explicit legacy all-null Class factories were rejected despite C0 accepting
+them (`runtime/selfhost27b-null-isolation1`). Read-only table observations
+confirmed correct typed nulls and owner-use relations. The older heap-witness
+rule required an allocation somewhere in every Class-result function.
+
+The correction independently proves that every return is a source-verified
+null of the exact declared Class type, with at least one actual return. Only
+that all-absent case can omit the heap witness; every other Class result retains
+the existing heap provenance and owner checks. No ABI, pointer-adoption or
+resource limit changes. Complete C0 Core preflight passed in 83.949 seconds
+(`runtime/selfhost27b-absence-core-preflight1`). Final native requalification of
+the correction and partial field population remains pending.
+
+The focused SSA component's first wrapper was refused at Flow after its C0
+Core preflight. Its revised zero-argument entry reuses the already qualified
+production OS argument transport only; loading and all compiler passes remain
+Astra source. `runtime/selfhost27b-ssa-component2` built that real component in
+2070.340 seconds and is checking its frozen full compiler graph. Its snapshots
+predate the separate absence fix; those old bytes and live-source divergence
+remain explicit and receive no final current-source compiler credit.
+
+A probe of C0 O0 dump mode confirmed it omits the executable entry; it is not
+called an executable IR product. The final current-source C0 O0 host uses the
+existing ordinary native build route, while the optimized development seed can
+generate the same corrected source as Stage2. The unoptimized corruption route
+is bound to the real C0 build receipt, Core-map output and ELF64 x86-64 ABI, with
+fresh live table checks and positive controls; it does not invent retained O0 IR.

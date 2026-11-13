@@ -33,8 +33,8 @@ def main():
 	for path in sources:
 		name = path.relative_to(ROOT); destination = snapshot/name; destination.parent.mkdir(parents=True, exist_ok=True)
 		destination.write_bytes(path.read_bytes()); destination.chmod(0o444); actual.append(destination)
-	providers = {path:h for path, h in json.loads(a.link.read_text())['objects'].items() if Path(path).name not in ('llvm-capi.o', 'arguments.o')}
-	assert len(providers) == 5 and all(sha(path) == h for path, h in providers.items())
+	providers = {path:h for path, h in json.loads(a.link.read_text())['objects'].items() if Path(path).name != 'llvm-capi.o'}
+	assert len(providers) == 6 and all(sha(path) == h for path, h in providers.items())
 	tools = tool_identity([a.compiler, a.c0, '/usr/bin/time', *[shutil.which(n) for n in ('cc', 'as', 'ld', 'opt', 'llc')]])
 	write(runtime/'identity.json', dict(compiler_sha256=a.compiler_sha256, c0_sha256=a.c0_sha256, inputs=inputs, full_graph=graph, full_graph_manifest_sha256=sha(a.inputs), tools=tools, providers=providers, actual_snapshot={str(path):sha(path) for path in actual}, scope='Actual current production source through SSA; LLVM backend and production CLI are not part of this focused component. No compiler, Stage2 or native-feature acceptance credit.'))
 	commands = []; env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1'); env.pop('LD_PRELOAD', None); env.pop('VALGRIND_OPTS', None)

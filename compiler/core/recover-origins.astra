@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Native-v14 checked Class results must have heap-factory provenance. A raw
+// Native-v14 checked Class results need heap provenance or proved absence. A raw
 // nullable Class TypeId alone may describe excluded caller-backed storage.
 // Each verifier invocation reconstructs these lookup edges from its own Flow.
 class RecoverHeapIndex {
@@ -80,13 +80,22 @@ bool recover_heap_witness(RecoverFlow flow, RecoverHeapIndex index, int id, bool
 
 bool recover_heap_results(RecoverFlow flow, RecoverHeapIndex index, RecoverOwnerBudget work) {
 	int f = 0; while (f < flow.data.function_count) { var function = flow.data.functions[f]; if (checked_kind(flow.checked, function.result) == 31) {
-			bool heap = false; int n = index.first_returns[f]; while (n > 0) {
+			bool heap = false; bool absent = true; bool returned = false;
+			int n = index.first_returns[f]; while (n > 0) {
 				if (!work.take()) return false;
 				var row = flow.data.nodes[n - 1];
+				int input = recover_owner_unwrap(flow.data, row.a);
+				if (input < 1 || input > flow.data.node_count) return false;
+				var value = flow.data.nodes[input - 1];
+				returned = true;
+				if (value.kind != 13 || value.type.index != function.result.index) absent = false;
 				var seen = new bool[flow.data.node_count];
 				heap = recover_heap_witness(flow, index, row.a, seen, work, 0) || heap;
 				n = index.next_returns[n - 1];
-			} if (!heap) return false;
+			}
+			// Source-verified absence has no caller-backed storage or allocation.
+			// All other Class results retain the independent heap witness rule.
+			if (!heap && !(returned && absent)) return false;
 		} f = f + 1; } return !work.exhausted;
 }
 
