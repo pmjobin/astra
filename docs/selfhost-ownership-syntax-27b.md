@@ -1,245 +1,227 @@
 # Ownership and syntax 27-B
 
-## Current qualification state
+## Verdict and scope
 
-ASTRA-SELFHOST-27B-OWNERSHIP-AND-SYNTAX is a separate submission after 27-A.
-The bounded implementation is committed. Final current-source compiler builds
-and their complete qualification are **pending**; there is no implementation,
-Stage3, convergence or release PASS from this document.
+The bounded 27-B ownership contract and all seven syntax groups are implemented
+and qualified through current-source C0-built O0 and actual Astra-built O2
+compilers. Each host generated actual native O0/O2 targets. The overall report
+is **PARTIAL** because earlier user-authorized cleanup deleted the original C0
+and historical raw proof population. Replacement C0 is separately qualified and
+identified; absent historical bytes are never claimed preserved or re-executed.
+This is a separate next submission after 27-A, with no Stage3 or release claim.
 
-Initial HEAD was `e750030baa139481d89946b2b2182dbe72628d31`, tree
-`8b242dffb1acd58b9a8225f466fbb5945c4d8fdd`. Original submission SHA-256:
+The final prepublication audit is produced by
+`tests/selfhost-ownership-syntax-27b/audit.py`. G5 remains PENDING in that audit;
+`delivered.py` performs the separately dated check only after installed
+publication. A successful build alone never grants qualification.
+
+## Intake, recovery and new 27-A G7
+
+Initial HEAD: `e750030baa139481d89946b2b2182dbe72628d31`.
+Initial tree: `8b242dffb1acd58b9a8225f466fbb5945c4d8fdd`.
+Original submission SHA-256:
 `67f26affa538914e1665528c3175d10e9b5aab735c65a42510d70c4e4dc7e7eb`.
-Its 289 members exceeded the unchanged installed pm-next limit of 256.
-Following explicit user authorization, lossless compatible packaging embeds the
-exact original ZIP, preserves the task and Git base, and passes native intake:
+
+All original 289 members were authenticated, but exceeded the unchanged
+installed pm-next cap of 256. Explicitly authorized lossless compatible
+packaging embeds that exact ZIP and preserves its task and Git base:
 19 members, SHA-256
 `6795f505907c8f19f25aee05f2677b33f6fa1d30344314507fdcee88340bc455`.
-The original inbox ZIP and installed workflow remain unchanged. This is an
-ordinary next publication, without amendment of 27-A.
+The original inbox file and installed workflow remain unchanged. Publication
+uses ordinary next mode, without amendment of 27-A.
 
-## Recovery and independent entry gate
-
-The exact predecessor report is 24,811,599 bytes, SHA-256
+Exact predecessor: 24,811,599 bytes, SHA-256
 `de5cd9ed28c3960c272bf9456cbdbb2127d3fd17ee3cb0e867e320fbe6ae2a7d`.
-Its 45 indexed members, 20 source Git blobs and 15 transport pieces were checked.
-The reconstructed transport is 24,656,244 bytes, SHA-256
-`2167b8ac6499931bfda2d6163d3aa53c7e1525239d521ad1612544fa8bb3d222`:
-10,006 logical files, 7,111 blobs and 1,072,696,425 logical bytes. Deleted
-first-selfbuild products and their frozen sources were restored only outside
-this checkout. Historical reference contents were never source replacements.
+Its 45 indexed members, 20 source Git blobs and 15 transport segments were
+verified. The 24,656,244-byte transport reconstructs 10,006 logical files,
+7,111 blobs and 1,072,696,425 logical bytes, SHA-256
+`2167b8ac6499931bfda2d6163d3aa53c7e1525239d521ad1612544fa8bb3d222`.
+Deleted first-selfbuild products and frozen source snapshots were recovered
+only outside this checkout. Historical references were never source replacements.
 
-The earlier user-authorized work-folder purge also deleted original C0 and the
-raw historical proof population. The user authorized proceeding without C0 or
-rebuilding it. Replacement C0 is separately identified as
+**New independent after-delivery 27-A G7 passed before source edits**, separately
+dated in `runtime/selfhost27b-g7v2/result.json`. Both actual old Stage2 hosts
+compiled fresh owner/borrow/array/loop/error/C-bridge programs: four native
+O0/O2 returns of 42, six strict unsuppressed memory streams, four source-negative
+categories, and nine independent fact corruptions with two positive controls.
+The original 27-A audit still records G7 PENDING at its original timestamp.
+
+The user authorized proceeding without original C0 or rebuilding it. The
+replacement SHA-256 is
 `19d744c828551b2184f06552740db1beb5b6eeb326b8e98ba56d2dfa5bca31b6`;
-the original pin
+the deleted original
 `e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b`
-is not relabeled. Unchanged bootstrap sources were rebuilt with the exact
-LLVM23.1.4 tool/library/SDK capsule. A build-only preinclude selects the existing
-GLib `g_free` function instead of its inferred-size macro:
+is not relabeled. Unchanged bootstrap sources use exact LLVM23.1.4 tools,
+library and SDK. A build-only preinclude selects GLib's existing `g_free`
+function instead of its inferred-size macro:
 
 ```c
 #include <glib.h>
 #undef g_free
 ```
 
-A separately retained allocation-size-join counterexample demonstrates the
-initial sized-free mismatch and its removal. Rebuilt C0 passes full semantic
-and Core preflights, native O0/O2 oracles, target memory and source negatives.
-Its GLib/LLVM process retains reachable global registries under all-kinds
-Valgrind and has **no strict process-memory PASS**. The public formatter's
-405 checks over 74 sources and its separate 66-check pilot passed; only the
-explicitly requalified compiler identity changed in `format/toolchain.json`.
-The portable recovery recipe is `tests/selfhost-ownership-syntax-27b/recover_c0.py`.
+A retained allocation-size-join counterexample demonstrates the original
+sized-free mismatch and its removal. C0 passes full source semantic/Core
+preflights, old-form native oracles, target memory and source negatives.
+Its own GLib/LLVM process retains reachable global registries under all-kinds
+Valgrind and has **no strict process-memory PASS**. Formatter qualification
+passed 405 checks over 74 sources and the separate 66-check pilot; the explicit
+replacement pin is recorded in `format/toolchain.json`. Other formatter pins
+and the installed six workflow files are unchanged. `recover_c0.py` records the
+portable source-preserving recovery recipe.
 
-**New after-delivery 27-A G7 passed before source edits**, separately dated in
-`runtime/selfhost27b-g7v2/result.json`. Both actual old Stage2 hosts generated
-fresh O0/O2 native owner/borrow/array/loop/error/C-bridge programs: four returns
-of 42, six strict unsuppressed compiler/program memory streams, four source
-negative categories and nine independent fact mutations with two controls.
-The original 27-A engineering audit still records G7 PENDING at its original
-timestamp. This new check never rewrites that historical audit.
+## Implemented language contract
 
-## Implemented contract
-
-A single initial `language astra27b;` selects the new source semantics.
-Absence or explicit `language legacy27a;` preserves legacy defaults. Unknown,
-late, repeated and generated-source directives refuse. Independent consumers
-re-lex source and authenticate the retained profile; declaration-source policy
-also governs calls across profiles. Compiler/library sources remain in the
-C0-accepted legacy spelling; broad migration is reserved for 27-C.
+A single initial `language astra27b;` selects modern semantics. Absence or
+explicit `language legacy27a;` preserves legacy defaults. Unknown, late,
+repeated and generated-source directives refuse. Independent consumers re-lex
+the original prefix; declaration-source policy governs cross-profile calls.
+Compiler/library implementation sources retain C0-accepted legacy spelling.
 
 Eligible native stored fields and owning results default to ownership. Typed
 locals acquire only from actual owning producers, equivalently to `var`;
-typed aliases do not acquire by type alone. Ordinary modern native parameters
-borrow; explicit `owned` parameters and `move` transfer ownership. Legacy
-implicit consuming Shared parameters retain their old meaning. Strings,
-views, unmanaged/raw pointers and foreign ABI channels keep their contracts.
+ownership is never inferred from alias type alone. Ordinary modern native
+parameters borrow; explicit `owned` and `move` consume/transfer. Legacy implicit
+consuming Shared parameters retain their meaning. Strings, views, raw pointers
+and foreign ABI channels retain their existing contracts.
 
-Explicit `readonly borrowed T` fields have a bounded lifetime rule: an earlier
-constructor initialization must bind the same exact native Class through a
-readonly owning sibling. External capture, replacement and use after movement
-refuse. This does not introduce general lifetime parameters.
+A `readonly borrowed T` field must bind an earlier initialized readonly owning
+sibling of the same exact native Class type. External capture, replacement,
+wrong ordering and use after movement refuse. Borrowed-field use is confined
+to the proved receiver and temporary borrowed calls; new local aliases without
+a supported source-root proof refuse. General lifetime parameter/alias admission
+is not claimed. Failed alias probes remain separate evidence.
 
-Weak observers support existing boxed Shared lifetimes and plain intrinsic
-`[Shared]` Classes. Boxed control blocks remain 24 bytes. Intrinsic native-v14
-headers retain descriptor/origin/strong/weak/monitor/thread words and the payload
-after byte 48. Unique Classes stay headerless; Error layout and E25-A-v1 stay
-unchanged. Upgrade requires a nonzero strong-count CAS, cannot resurrect an
-expired object, and its result needs a dominating non-null success check.
-Last strong release destroys the payload; final weak retirement frees storage.
-Generic/inherited intrinsic and Monitor-policy expansion are excluded.
+Weak observers support boxed Shared and plain intrinsic `[Shared]` lifetimes.
+Boxed blocks remain 24 bytes. Intrinsic native-v14 headers retain descriptor,
+origin, strong, weak, monitor and thread words; payload begins at byte 48.
+Unique Classes remain headerless. Error layout and E25-A-v1 remain unchanged.
+Upgrade requires nonzero strong-count CAS and a dominating non-null check;
+expired targets cannot resurrect. Last strong release destroys payload; final
+weak retirement frees storage. Generic/inherited intrinsic and Monitor-policy
+expansion remain outside the eligible set.
 
-All seven syntax groups are implemented through parser, semantics, effects,
-ownership, retained IR and physical correspondence:
+All seven syntax groups have real native qualification:
 
-- Compound assignment: all ten operators, exact types, checked writable Places,
-  one address/old-value evaluation before the RHS and one write. Nested record,
-  Class, index and copied-parameter Places are covered; computed properties
-  remain refused. f32 signed zero and f64 NaN retain strict behavior.
-- Hexadecimal, binary and separated integer literals: retained spelling,
-  independently decoded exact widths, signed minima and overflow refusals.
-- Trailing commas in calls, parameters, generic lists and initializers.
-- Concrete nominal copyable record expressions with complete unique fields.
-- Expression-bodied functions, methods and both concise getter forms.
+- Compound assignments: all ten supported operators, exact types, one checked
+  Place/old-value evaluation before RHS, one write, nested record/Class/index
+  and copied-parameter destinations. A RHS mutates the same array element and
+  the final value proves the old load preceded that mutation. Throwing RHS
+  performs no final write. Computed property destinations remain excluded.
+- Hexadecimal, binary and separated integer literals: exact widths, unsigned
+  extremes, signed minima, retained spans and malformed/overflow refusals.
+- Trailing commas in supported calls, parameters, generics and initializers.
+- Concrete copyable nominal records: nested construction, direct call arguments,
+  complete unique fields and reverse-written field evaluation order.
+- Expression-bodied functions/methods/getters, including conditional getters
+  and a concise owning factory with the existing checked error channel.
 - Copyable named-field shorthand; noncopyable owner punning refuses.
-- Lazy right-associative `?:`, including copyable joins and proven owning joins.
-  A selected direct move commits on its incoming edge; the other source remains
-  armed. Mixed owner/alias and unproved borrowed-view joins refuse.
+- Lazy right-associative `?:`: copyable and proven owning joins, both move
+  selections, fresh allocations and absence versus allocation. Unselected moves
+  remain armed. Mixed owner/alias and unproved borrowed-view joins refuse.
 
-The syntax model appends record/conditional/compound kinds after all 93 legacy
-codes. Maintained generators, source consumers, Core/CFG/SSA and LLVM physical
-consumers cover their typed edges. Ownership helper bytes, atomic ordering,
-call conventions, Place stores and phi associations are independently checked.
+The model appends three typed node families after all 93 legacy codes.
+Maintained generators and source/Core/CFG/SSA/LLVM consumers cover their edges.
+Record-call admission requires independent nominal/source/field proof; constructor
+conditionals check both branches at the same proved initialization point.
 
-## Production integration and retained failures
+## Products and actual qualification
 
-`build.py` freezes committed 196 compiler and 10 library inputs plus seven C
-providers, hashes tools/dependencies, runs fast semantic/Core preflights and
-builds out of source. A build receipt explicitly grants no feature acceptance.
-C0 O2 retained IR is identified as an optimized executable dump; C0 O0 dump
-mode omits the executable entry and is not presented as executable IR.
+`build.py` freezes committed 196 compiler sources, ten libraries and seven C
+providers, runs fast semantic/Core admission, and hashes inputs, tools,
+dependencies, commands, timings and products. Builds stay out of source.
+C0 O2 retained IR is an optimized executable dump; C0 O0 dump mode omits its
+entry and is not presented as executable IR.
 
-The optimized development seed from `07fd55a` is
-`0b68c5459fc7ef022e72c93fb811071cf80de18f22797eba2813de75a80f10fe`
-(`runtime/selfhost27b-driver5`), built in 2909.148 seconds. Final current C0 O0
-Stage1 and actual Astra O2 Stage2 builds froze the same corrected `83c23e1`
-source. The actual Stage2 producer is this separately identified development
-seed, not the parallel current C0 product. A live `/proc` witness binds its
-executable and full 206-input argv and checks non-delegating dynamic imports.
-No same-generation convergence follows from this arrangement.
+| Role | Frozen revision | ELF SHA-256 |
+|---|---|---|
+| Optimized C0-built development seed | `eef1b2cc319d84c10e21d702101e6b30e21543c8` | `593ad393bd9384a27176fc9bcde33d507ea77a7d8516488e98961aed115f813d` |
+| Qualified current C0-built O0 Stage1 | `fdcadeb5dfa3f7a44c64109c1790e67b3b81d828` | `d749bb6ba5bcc2922bf5ec315bae9ccd5359914ad94644fd351358c1927bc074` |
+| Qualified actual Astra-built O2 Stage2 | `7ef012447fcfdf9052248abf11b91b5c873180b1` | `cdec4cea1ce00a14640eb1ad2dde93ee71c88155e69028c7c5e081f993f05d92` |
 
-All failed/stopped probes remain separate. Material fixes include copied
-parameter entry-store admission/alignment, weak upgrade field guards, parser
-lookahead for readonly borrowed fields, and a C0-incompatible temporary nested
-projection replaced by a named syntax node. C0 rejects throwing constructors
-and unchecked direct null adoption into owned fields; the partial-population
-fixture uses its existing method/error channel and an owned empty-result
-factory. A Core correction admits only a nonempty set of source-verified null
-returns of the exact declared Class type without a heap allocation witness.
-All other Class results retain heap provenance and owner checks.
+Current Stage1/Stage2 snapshots contain identical compiler/library/provider
+source bytes despite different full Git revisions. Actual Stage2 producer is
+the separately versioned optimized seed, which predates the final record-call
+and constructor-conditional source checks. Its immutable Git snapshots remain
+bound separately. Live `/proc` observation authenticates the actual executable,
+206-input argv, environment and non-delegating imports. No same-generation byte
+convergence or Stage3 follows from this arrangement.
 
-The first final Stage2 attempt failed SSA after 1087.271 seconds. Read-only GDB
-observed the real 8M work exhaustion inside `recover_ssa_slots`; controller exit
-zero was not treated as compiler success. Scan fusion reuses existing Core,
-reverse-block and forward-use scans while retaining reconstructed owner indices
-and independent packed owner checks. Generic256 and SSA8M limits did not change.
-A byte-exact production dominance component passed independent graph oracles
-and a 100,000-block chain. The real SSA component then returned
-`CURRENT_PRODUCTION_SSA_VERIFIED_8M 338527 449389` in 968.280 seconds. Its outer
-controller correctly rejected later live-source divergence from the separate
-Core absence fix. `frozen-qualification.json` records the real frozen success
-and that failure without granting final current-source compiler credit.
+The optimized seed build took 2842.277 seconds; current C0 O0 build took
+2143.096 seconds; actual current-source Astra build took 2594.646 seconds.
+Full receipts retain wall/user/system time, RSS and all failed/stopped attempts.
 
-Earlier detailed development entries remain in Git history; their original
-failed receipts, sources and products remain local and selected for transport.
+Both final hosts passed:
 
-## Required final evidence and publication
+- `native.py`: eighteen cases, 36 native O0/O2 targets per host, matched explicit
+  C0 oracles, 21 source refusal categories/sentinels, and 54 strict compiler/target
+  returning memory streams per host. Cases include CRC32, generic/array owning
+  results, stored weak/borrowed fields and exceptional/nonempty field replacement.
+- `intrinsic.py`: actual linked C layout/count/destructor/free observations,
+  implicit strong stored field, expiry and unguarded-upgrade rejection; five
+  strict memory streams per host. C observers implement no ownership feature.
+- `physical.py`: fourteen actual LLVM-valid corruptions refused at independent
+  consumers, with six controls per host; calling convention, atomic/count/phi,
+  allocation, Place address, copied-parameter store and record-frame checks.
+- `legacy.py`: seven surviving exact 27-A groups, fourteen native targets and
+  21 strict memory streams per host; every raw LLVM identity equals the original
+  Stage1/Stage2 identity. This is not a complete 411-program replay.
 
-`native.py` covers eighteen cases, independent old-form C0 behavior, direct
-current compiler O0/O2 generation, source sentinels and strict unsuppressed
-compiler/program Valgrind. `intrinsic.py` uses a C bridge that only observes
-allocation/header/count/destructor/free behavior. `physical.py` injects fourteen
-actual LLVM mutations before structural verification, with six controls.
-`semantic.py` corrupts fourteen source/owner/call/borrow facts at independent
-consumers, with four controls. The C0 O0 route authenticates its real build,
-Core map, ELF64 calling ABI and live shapes without inventing retained O0 IR.
-`legacy.py` replays seven surviving exact 27-A groups against their original
-raw LLVM identities; it does not claim a full 411-program replay.
+`semantic.py` additionally passed fourteen source/profile/field/local/result/
+call/borrow corruptions and four controls on the current C0-built host. The O0
+route binds its actual build receipt, Core-map output, ELF64 ABI and live shapes
+without inventing retained O0 IR. Total final returning memory streams: **160**,
+zero errors, zero live blocks and zero suppressions under the explicit strict
+all-kinds options.
 
-`audit.py` requires final matched-source C0 Stage1 and Astra Stage2 receipts,
-both feature/ABI/physical/legacy campaigns, source fact negatives and 160 clean
-returning memory streams. It also checks 451 protected paths, 6,622 donor files,
-14 hooks, Git settings, the existing untracked user file, original scope entries,
-first-selfbuild products, exact predecessor report and approved proposal SHA
+## Retained failures and independent boundaries
+
+Material retained failures include readonly/borrow parser lookahead, a
+C0-incompatible temporary nested projection, copied parameter initialization,
+weak field guards, pure-null Class provenance, conditional heap provenance,
+record arguments, and preferred versus ABI stack alignment. C0 rejects throwing
+constructors and direct unchecked null adoption into owned fields; the tests
+use existing method/error and owned empty-result channels.
+
+The first Stage2 attempt exhausted the unchanged SSA8M budget. Read-only GDB
+observed real exhaustion; controller exit zero was never compiler success.
+Scan fusion reuses existing Core/reverse-block/forward-use scans while keeping
+reconstructed owner indices and packed independent checks. Generic256 and SSA8M
+limits are unchanged. The real SSA component passed its frozen graph in
+968.280 seconds, then correctly failed its separate live-source stability
+assertion after the absence fix; the disclosed frozen success grants no final
+current-source compiler credit.
+
+The next full build failed physical checking. A tiny actual module passed LLVM
+structural verification; exact LLVM23.1.4 independently reported ABI alignment 4,
+preferred alignment 8 and actual record alloca alignment 8. The consumer now
+requires preferred allocation alignment and ABI store alignment, preserving
+emitted bytes. Final controls and LLVM-valid alignment mutations both qualify it.
+
+## Preservation, publication and reserved milestones
+
+The audit checks all 451 protected paths, 6,622 donor files, fourteen hooks,
+Git settings, 5,291 original scope entries, five excluded Windows scripts,
+existing untracked user work, first-selfbuild products and exact predecessor.
+Approved proposal SHA-256 remains
 `d77c02f3144ab5dc3da41eb310b29cd02629b49876042934ea5071a1549ac66e`.
+Historical 411 identities/profile, 101/52 mutations/profile and R4/R5
+qualifications/limitations remain historical. The purged raw 1,044-proof
+population is not claimed preserved or re-executed. This prevents overall PASS.
 
-The historical 411 identity and 101/52 mutation qualifications remain historical.
-The purged raw 1,044-proof population is not claimed preserved or re-executed.
-Consequently the planned overall report is **PARTIAL**, even if current bounded
-implementation gates pass. `transport.py` lists hashes for every local omission,
-including external tool distributions and the oversized C0 debug product;
-actual 27-B compiler/native products and source snapshots are transported.
-Only unchanged installed pm-next publishes the canonical report. `delivered.py`
-runs separate exact-ZIP, live Stage2 native O0/O2, C ABI, strict memory and
-physical-negative G5 checks after publication. Prepublication G5 stays PENDING.
-
-## Reserved milestones
+`transport.py` hashes every explicit local omission: redundant predecessor
+transport, external tool distributions, scratch and oversized C0 debug products.
+Actual 27-B compilers, current snapshots, native products, receipts and failed
+attempts are transported. Oversized original C0 debug bytes remain local with
+hashes and rebuild commands; no substituted C0 binary is presented.
+Only unchanged installed pm-next publishes the canonical next report.
+`delivered.py` independently checks exact ZIP/source/transport identity and fresh
+live Stage2 O0/O2 CRC, C ABI, strict memory and physical negatives after delivery.
+Prepublication G5 remains PENDING.
 
 27-C retains complete idiomatic compiler/library/workload migration, named
-arguments, match expressions, typed interpolation, safe slicing, lazy pipelines,
-comprehensions and `(20..=80).step_by(5).collect_array()` with thirteen values.
-27-D retains fixed improved-source full Stage1/2/3 convergence. 28 is the first
-release. None is dropped or claimed by 27-B.
-
-The next full-source Astra generation passed SSA but stopped at the independent
-LLVM physical contract after 1485.544 seconds (`selfhost27b-stage2-current2`).
-A tiny mutable record reproduced the rejection. The captured emitted module
-passed independent LLVM structural verification; the exact LLVM23.1.4 C API
-confirmed ABI alignment 4, preferred alignment 8 and actual alloca alignment 8.
-The newly tightened checker had incorrectly required ABI alignment for both
-stack allocation and stores. It now independently requires preferred alignment
-for LLVMBuildAlloca and ABI alignment for its stores, preserving emitted bytes.
-The physical campaign adds a record-frame alignment corruption and a matched
-control. This correction requires fresh current-source production qualification.
-
-The `83c23e1` C0 O0 development host completed in 2124.418 seconds with ELF
-`bb2285248f6fa27843e86071b8790ed475f6c3b56da00edcb97be8328d57f971`.
-It predates the alignment correction and is not a final qualified host.
-A focused owner-conditional native probe exposed a separate Core provenance
-gap: the actual heap consumer did not follow kind-77 result branches. Its
-read-only debugger observation returned false; the source/owner checks were
-not overridden. The walker now follows only source-proven owning result
-branches, never the condition. Direct fresh constructor branches additionally
-require their exact independently reconstructed conditional consumer. The
-expanded fixture exercises both move selections, both fresh allocations and
-absence versus allocation; its explicit old-form C0 oracle returns 42 with
-seven destructions and sum 128. Final current-native proof remains required.
-
-Focused current development checks now cover a weak observer stored in a
-Watcher field and an implicit intrinsic Session strong field. Both have actual
-O0/O2 native execution, explicit C0 equivalents and clean strict memory. The
-final fixtures retain these field paths. Borrowed-field use remains bounded
-to the proved sibling receiver and temporary borrowed call; attempts to retain
-a new local alias are refused without a supported source-root proof. The
-separate failed alias probes are retained and grant no acceptance credit. This
-does not claim general lifetime/alias admission or infer ownership by type.
-
-The final fixture matrix now also covers nested nominal record expressions
-written directly as arguments, a compound RHS that throws before any write,
-a concise owning factory with a checked error channel, a conditional getter,
-constructor count conditionals and replacement of a nonempty owning field.
-Focused actual O0/O2 development runs passed the compound error effects,
-concise owning factory and replacement cleanup. C0 equivalents are separately
-authored; the first oracle probes' brace/no-shadow errors remain recorded.
-
-Direct record arguments exposed a retained-call source gate that omitted the
-record expression's checked marker 20. Admission now requires independent
-nominal/source/field proof, exact input type and the authenticated modern
-profile. Constructor source traversal also visits each conditional branch at
-the same proved initialization point; retained Flow and ownership consumers
-still reconstruct joins independently. These corrections require a current
-C0-built host and an actual Astra-built host with matching final source. The
-running optimized build is retained as an explicitly versioned development
-seed, without claiming that it already implements the later call-source fix.
+arguments, match expressions/nested patterns, typed interpolation, ranges,
+safe slicing, lazy pipelines/reducers and comprehensions. The fixed example
+`(20..=80).step_by(5).collect_array()` has thirteen values. 27-D retains fixed
+improved-source full Stage1/2/3 convergence. 28 is the first release. None is
+dropped or claimed by 27-B.
