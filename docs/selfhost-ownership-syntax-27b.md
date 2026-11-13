@@ -160,8 +160,8 @@ failed receipts, sources and products remain local and selected for transport.
 `native.py` covers eighteen cases, independent old-form C0 behavior, direct
 current compiler O0/O2 generation, source sentinels and strict unsuppressed
 compiler/program Valgrind. `intrinsic.py` uses a C bridge that only observes
-allocation/header/count/destructor/free behavior. `physical.py` injects thirteen
-actual LLVM mutations before structural verification, with five controls.
+allocation/header/count/destructor/free behavior. `physical.py` injects fourteen
+actual LLVM mutations before structural verification, with six controls.
 `semantic.py` corrupts fourteen source/owner/call/borrow facts at independent
 consumers, with four controls. The C0 O0 route authenticates its real build,
 Core map, ELF64 calling ABI and live shapes without inventing retained O0 IR.
@@ -192,3 +192,14 @@ arguments, match expressions, typed interpolation, safe slicing, lazy pipelines,
 comprehensions and `(20..=80).step_by(5).collect_array()` with thirteen values.
 27-D retains fixed improved-source full Stage1/2/3 convergence. 28 is the first
 release. None is dropped or claimed by 27-B.
+
+The next full-source Astra generation passed SSA but stopped at the independent
+LLVM physical contract after 1485.544 seconds (`selfhost27b-stage2-current2`).
+A tiny mutable record reproduced the rejection. The captured emitted module
+passed independent LLVM structural verification; the exact LLVM23.1.4 C API
+confirmed ABI alignment 4, preferred alignment 8 and actual alloca alignment 8.
+The newly tightened checker had incorrectly required ABI alignment for both
+stack allocation and stores. It now independently requires preferred alignment
+for LLVMBuildAlloca and ABI alignment for its stores, preserving emitted bytes.
+The physical campaign adds a record-frame alignment corruption and a matched
+control. This correction requires fresh current-source production qualification.

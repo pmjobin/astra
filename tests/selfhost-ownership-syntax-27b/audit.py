@@ -115,7 +115,7 @@ def main():
 	mutation_receipts = []
 	for intrinsic_directory, physical_directory, product in ((a.intrinsic, a.physical, second['product']), (a.stage1_intrinsic, a.stage1_physical, first['product'])):
 		intrinsic = receipt(intrinsic_directory, 'SELECTED_INTRINSIC_ABI_NATIVE_GATES_PASS'); assert intrinsic['compiler_sha256'] == product['sha256'] and not intrinsic['oracle_only']
-		physical = receipt(physical_directory, 'SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS'); assert physical['compiler_sha256'] == product['sha256'] and physical['mutations'] == 13 and physical['controls'] == 5
+		physical = receipt(physical_directory, 'SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS'); assert physical['compiler_sha256'] == product['sha256'] and physical['mutations'] == 14 and physical['controls'] == 6
 		mutation_receipts += [(intrinsic_directory, intrinsic), (physical_directory, physical)]
 	semantic = receipt(a.semantic, 'SELECTED_SOURCE_OWNERSHIP_FACT_MUTATIONS_PASS'); assert semantic['compiler_sha256'] == first['product']['sha256'] and semantic['mutations'] == 14 and semantic['controls'] == 4
 	for directory, product in ((a.legacy_stage1, first['product']), (a.legacy_stage2, second['product'])):

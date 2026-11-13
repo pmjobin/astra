@@ -270,7 +270,9 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 		} else { if (recover_mutable(ssa.cfg.core.flow.data, slot.symbol)) {
 				var address = owner_addresses[slot.symbol.index]; if (address == null || LLVMIsAInstruction(address) == null || LLVMGetInstructionOpcode(address) != 26 || LLVMGetInstructionParent(address) != entries[f] || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, slot.type, LLVMGetAllocatedType(address)) || owner_armed[slot.symbol.index] != null || owner_initial_flags[slot.symbol.index] != null) return false;
 				int alignment = LLVMABIAlignmentOfType(layout, LLVMGetAllocatedType(address));
-				if (LLVMGetAlignment(address) != alignment || LLVMHasMetadata(address) != 0 || LLVMGetNumOperands(address) != 1 || LLVMIsAConstantInt(LLVMGetOperand(address, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(address, 0)) != 1) return false;
+				// LLVMBuildAlloca uses preferred alignment; loads and stores use ABI
+				// alignment. In particular an {int, int} frame is 8 versus 4.
+				if (LLVMGetAlignment(address) != LLVMPreferredAlignmentOfType(layout, LLVMGetAllocatedType(address)) || LLVMHasMetadata(address) != 0 || LLVMGetNumOperands(address) != 1 || LLVMIsAConstantInt(LLVMGetOperand(address, 0)) == null || LLVMConstIntGetZExtValue(LLVMGetOperand(address, 0)) != 1) return false;
 				allocation_count = allocation_count + 1;
 				var initial = owner_initial_values[slot.symbol.index];
 				if (slot.parameter) {

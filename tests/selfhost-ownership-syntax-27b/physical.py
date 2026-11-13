@@ -29,6 +29,7 @@ int main() {
 COMPOUND = 'int main() { int x = 40; int y = 0; x += 2; y += 0; return x+y; }\n'
 PARAMETER = 'int adjust(int x) { x += 2; return x; } int main() { return adjust(40); }\n'
 CONDITIONAL = 'int main() { int value = true ? 42 : 99; return value; }\n'
+RECORD = 'struct Point { int x; int y; } int main() { Point p = {x = 40, y = 0}; p.x += 2; return p.x; }\n'
 CASES = {
 	'clone-field': ('box', 'astra.e25a.shared.clone', 'retain-field'),
 	'upgrade-zero-path': ('box', 'astra.e25a.weak.upgrade', 'upgrade-phi'),
@@ -41,6 +42,7 @@ CASES = {
 	'native-calling-convention': ('box', '@native', 'calling-convention'),
 	'compound-address': ('compound', 'main', 'compound-address'),
 	'parameter-initial-alignment': ('parameter', '@parameter', 'parameter-alignment'),
+	'record-frame-alignment': ('record', 'main', 'record-alignment'),
 	'conditional-branch-value': ('conditional', 'main', 'conditional-phi'),
 	'error-descriptor-field': ('box', 'astra.e25a.construct', 'error-field'),
 }
@@ -135,6 +137,11 @@ class Mutate(gdb.Breakpoint):
    before=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert before==4
    gdb.parse_and_eval('(void)LLVMSetAlignment((void*)%d,16)'%target)
    after=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert after==16
+  elif action=='record-alignment':
+   target=next(value for value in instructions(body[0]) if opcode(value)==26)
+   before=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert before==8
+   gdb.parse_and_eval('(void)LLVMSetAlignment((void*)%d,4)'%target)
+   after=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert after==4
   elif action=='conditional-phi':
    for block in body:
     for value in instructions(block):
@@ -171,7 +178,7 @@ def main():
 	runtime.mkdir(parents=True, exist_ok=False)
 	build.mkdir(parents=True, exist_ok=False)
 	sources = {}
-	for key, text in dict(box=BOX, intrinsic=INTRINSIC, compound=COMPOUND, parameter=PARAMETER, conditional=CONDITIONAL).items():
+	for key, text in dict(box=BOX, intrinsic=INTRINSIC, compound=COMPOUND, parameter=PARAMETER, conditional=CONDITIONAL, record=RECORD).items():
 		path = runtime/(key+'.astra')
 		path.write_text('language astra27b;\n'+text)
 		sources[key] = path
