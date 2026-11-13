@@ -397,6 +397,65 @@ def capacity_receipts(runtime):
 	return dict(path=str(summary), sha256=sha(summary), raw_failed_jobs=raw['failed_jobs'], clean_memory_streams=memory, observation=data)
 
 
+def intake_worktree(intake):
+	"""Preserve the actual intake-untracked recipe and a byte-exact Git copy."""
+	assert not git('diff', '--name-only').strip() and not git('diff', '--cached', '--name-only').strip()
+	names = sorted(name for name in git('ls-files', '--others', '--exclude-standard', '-z').split(b'\0') if name)
+	digest = __import__('hashlib').sha256(b''.join(name+b'\0' for name in names)).hexdigest()
+	assert dict(count=len(names), sha256=digest) == intake['initial_untracked_identity']
+	assert names == [b'tests/selfhost-compiler-complete/run.py']
+	actual = ROOT/names[0].decode(); durable = actual.with_name('run-recipe.py')
+	assert actual.read_bytes() == durable.read_bytes() == git('show', 'HEAD:'+str(durable.relative_to(ROOT)))
+	return dict(initial_untracked_identity=intake['initial_untracked_identity'], actual_path=str(actual), durable_Git_path=str(durable.relative_to(ROOT)), sha256=sha(actual), limitation='run.py was already untracked at intake, then added during this task. Its actual bytes and prior Git history are preserved; the exact durable recipe is tracked as run-recipe.py. No intake, ignore rule or installed workflow is changed.')
+
+
+def source_closure(runtime, whole):
+	"""Reconstruct the original build inclusion graph and independent C0 ASTs."""
+	from accelerate import authenticated_inputs
+	from run import declarations, population
+	inputs = authenticated_inputs(SimpleNamespace(inputs=runtime/'opaque-flow-inputs.json', scope='original'))
+	leaf = Path(next(iter(inputs)).split('/original-inputs/', 1)[0])
+	assert leaf.is_relative_to(WORK/'runtime') and (leaf/'population.json').is_file()
+	old = json.loads((leaf/'population.json').read_text())
+	commands = {row['name']:row for row in json.loads((leaf/'commands.json').read_text())}
+	current = population(); rows = []; count = 0
+	assert old['baseline_commit'] == BASE and old['compiler_files'] == 180 and old['library_files'] == 10
+	assert {row['path'] for row in old['files']} == {row['path'] for row in current['files']}
+	for row in old['files']:
+		path = Path(row['input_path']); assert str(path) in inputs and sha(path) == row['baseline_sha256'] == inputs[str(path)]
+		assert row['baseline_blob'] == git('rev-parse', BASE+':'+row['path']).decode().strip()
+		syntax = row['C0_syntax']; command = commands[syntax['receipt']]
+		assert command['exit'] == 0 and not command['timed_out'] and command['argv'][1:] == ['--dump-syntax', str(path)]
+		assert sha(command['argv'][0]) == 'e3b2a5d6a4b9c5a42becbc3704f2d062489fb6f99a5ed1727461dfef4cf8681b'
+		for stream in ('stdout', 'stderr'): assert sha(leaf/(syntax['receipt']+'.'+stream)) == command[stream+'_sha256']
+		assert command['stdout_sha256'] == syntax['raw_AST_sha256']
+		actual = declarations((leaf/(syntax['receipt']+'.stdout')).read_text()); assert actual == syntax['declarations']; count += len(actual)
+		rows.append(dict(path=row['path'], input_path=str(path), sha256=inputs[str(path)], original_Git_blob=row['baseline_blob'], inclusion='entire original compiler tree' if row['path'].startswith('compiler/') else 'explicit original compiler build dependency', C0_AST_sha256=syntax['raw_AST_sha256'], declarations=actual, C0_semantic_disposition='PASS in the complete original context', source_stage_coverage='Typecore/Flow/Core/CFG/SSA/LLVM and target O0/O2 objects in each frozen emitter profile; complete_source proof references below'))
+	assert len(rows) == 190 and count == 1926
+	return dict(status='FULL_ORIGINAL_BUILD_INCLUSION_AND_C0_DECLARATIONS_REBOUND', baseline_commit=BASE, original_population_sha256=sha(leaf/'population.json'), original_commands_sha256=sha(leaf/'commands.json'), compiler_files=180, library_files=10, files=rows, C0_top_level_declarations=count, build_inclusion_edges=[dict(source='original compiler compilation unit', target=row['path'], reason=row['inclusion']) for row in rows], original_library_authority=current['original_library_authority'], other_libraries=current['other_libraries'], complete_source_manifests=whole['input_manifests'], C0_complete_context=whole['original_C0_semantics'], limitation='The dependency graph records the authoritative complete build inclusion, with every original compiler file and explicit library dependency. Per-file C0 AST identities and declarations are independent source inventory; admission additionally depends on the actual complete-context stage/object proofs. Generic source templates are source-checked; emitted concrete function roots are separately inventoried. No removed source, synthetic replacement or Stage1 claim.')
+
+
+def sequencing_acceptance(path, runtime):
+	assert path == ROOT/'docs/selfhost-compiler-complete-26-sequencing-acceptance.json' and not path.is_symlink()
+	data = json.loads(path.read_text())
+	assert data['format'] == 'astra-milestone26-sequencing-acceptance/1' and data['milestone'] == 'ASTRA-SELFHOST-COMPILER-COMPLETE-26'
+	assert data['user_instruction'] == 'I accept the disclosed R5 G12 sequencing deviation for milestone 26, using the corrected exact-LLVM-23.1.4 verification as remediation. Preserve the original discrepancy, chronology and failed receipts. All technical acceptance requirements remain mandatory.'
+	assert data['technical_acceptance_requirements_remain_mandatory'] and data['preserve_original_discrepancy_chronology_failed_receipts']
+	assert not data['original_ordering_satisfied'] and not data['earlier_reports_relabelled'] and not data['Stage1_authorized']
+	assert not data['compiler_or_ABI_or_toolchain_changes_authorized']
+	assert data['previous_report_sha256'] == '96c9229d02a629381cb8c8b7ae758d4e759c4552519670d7f081b557ca387bc5'
+	assert data['previous_final_commit'] == 'f3f9fc1e1f20990a57e2cd3d09472ce76bbd32bb'
+	assert git('merge-base', '--is-ancestor', data['previous_final_commit'], 'HEAD') == b''
+	assert data['corrected_R5_frontend_receipt_sha256'] == sha(runtime/'g12-frontends-supplement6/verdict.json')
+	prior = WORK/'runtime/report-history'/(data['previous_report_sha256']+'.zip')
+	if not prior.exists(): prior = WORK.parent.parent/'reports/astra-report-current.zip'
+	assert sha(prior) == data['previous_report_sha256']
+	with zipfile.ZipFile(prior) as z:
+		old = json.loads(z.read('RESULT.json'))
+		assert old['status'] == 'PARTIAL' and old['final_commit'] == data['previous_final_commit']
+	return dict(path=str(path), sha256=sha(path), instruction=data['user_instruction'], previous_report_sha256=data['previous_report_sha256'], original_ordering_satisfied=False, remedy='User accepted the corrected exact-LLVM-23.1.4 verification for this sequencing deviation only; all technical requirements remain mandatory.')
+
+
 def completed_acceptance(a, profiles, intake):
 	"""Consolidate completed native proofs without repairing history by assertion."""
 	whole = complete_source_proofs(a.runtime_root, a.build_root, a.output.with_name(a.output.stem+'-whole-source.json'))
@@ -423,7 +482,15 @@ def completed_acceptance(a, profiles, intake):
 	assert 'index.instance_count >= 256' in (ROOT/'compiler/semantic/generic.astra').read_text()
 	assert 'limit > 8000000' in (ROOT/'compiler/ssa/recover.astra').read_text()
 	g12 = r5_delivery(a.runtime_root)
+	closure = source_closure(a.runtime_root, whole)
+	closure_path = a.output.with_name(a.output.stem+'-source-closure.json'); assert not closure_path.exists(); write(closure_path, closure)
 	result = dict(status='PARTIAL', assessment='COMPLETE_NATIVE_EVIDENCE_WITH_UNSATISFIED_HISTORICAL_G0_CHRONOLOGY', final_commit=git('rev-parse', 'HEAD').decode().strip(), final_tree=git('rev-parse', 'HEAD^{tree}').decode().strip(), original_packet_sha256='43c89a44a04912f3fdefa4f4c73380095874301eea44cb5684ff0406368e2b11', native_submission_sha256=intake['submission_sha256'], R5_post_delivery_G12=g12, protection=preservation(), profiles=profiles, complete_source=whole, independent_signature_owner=owner, linked_compiler_services=usage, focused_current_source=focused, capacity=capacity, costs=dict(path=str(cost_path), sha256=sha(cost_path), measurements=len(costs['GNU_time_measurements']), changed_source=dict(path=str(change_path), sha256=sha(change_path), observation=change)), gates=dict(G0='UNSATISFIED_PRE_EDIT_FRONTEND_VERIFICATION_CHRONOLOGY', G1_G9='NATIVE_EVIDENCE_REBOUND_WITH_EXACT_SCOPE_AND_LIMITATIONS_ABOVE', G10='CONSOLIDATED_CURRENT_SOURCE_AND_NATIVE_RECEIPTS_REBOUND', G11='PENDING_INSTALLED_PUBLICATION', G12='PENDING_SEPARATE_POST_DELIVERY_VERIFICATION'), full_milestone_credit=False, limitation='Original/current complete source translation, matched emitter products, both target objects, retained 411-source/profile qualification, independent original signature-owner controls and linked services are separately rebound. Some milestone26 engineering preceded the exact LLVM frontend correction for R5 G12; no subsequent replay can retroactively satisfy the required pre-edit chronology. The corrected focused R5 supplement is preserved without relabelling historical reports. This assessment remains PARTIAL; publication and this report\'s real post-delivery G12 are separate. No self-hosted astrac or Stage1 claim.')
+	result['source_dependency_and_declaration_manifest'] = dict(path=str(closure_path), sha256=sha(closure_path), status=closure['status'], compiler_files=closure['compiler_files'], library_files=closure['library_files'], C0_top_level_declarations=closure['C0_top_level_declarations'], limitation=closure['limitation'])
+	if a.sequencing_acceptance:
+		acceptance = sequencing_acceptance(a.sequencing_acceptance, a.runtime_root)
+		result.update(status='PASS', assessment='ENGINEERING_G0_G10_VERIFIED_WITH_ACCEPTED_SEQUENCING_EXCEPTION', sequencing_acceptance=acceptance, intake_worktree=intake_worktree(intake), full_milestone_credit=False)
+		result['gates'] = dict(G0=dict(status='PASS_WITH_ACCEPTED_SEQUENCING_EXCEPTION', evidence=['R5_post_delivery_G12', 'sequencing_acceptance', 'protection', 'intake_worktree']), G1=dict(status='PASS', evidence=['source_dependency_and_declaration_manifest', 'complete_source.original_C0_semantics']), G2=dict(status='PASS', evidence=['complete_source', 'independent_signature_owner', 'profiles', 'focused_current_source']), G3=dict(status='PASS', evidence=['complete_source', 'linked_compiler_services']), G4=dict(status='PASS', evidence=['capacity', 'focused_current_source', 'complete_source.profiles']), G5=dict(status='PASS', evidence=['profiles']), G6=dict(status='PASS', evidence=['profiles.support', 'profiles.bounded_native', 'linked_compiler_services']), G7=dict(status='PASS', evidence=['costs']), G8=dict(status='PASS', evidence=['protection', 'profiles.compiler.tools', 'complete_source', 'focused_current_source', 'capacity.raw_failed_jobs']), G9=dict(status='PASS', evidence=['protection', 'profiles.retained', 'independent_signature_owner']), G10=dict(status='PASS', evidence=['complete_source', 'source_dependency_and_declaration_manifest', 'profiles', 'costs', 'protection']), G11=dict(status='PENDING', evidence='actual installed publication of the amended report'), G12=dict(status='PENDING', evidence='separate verification after actual amended-report delivery'))
+		result['limitation'] = 'Engineering G0-G10 is verified with the explicitly accepted R5 sequencing deviation. The original ordering failure, corrected exact23.1.4 supplement, historical PARTIAL reports and all raw failed/stopped receipts remain historical and unchanged. Both whole-source emitter products and corrected regression products retain their actual separate identities. Build inclusion and C0 declarations are independently reconstructed; source, LLVM, object, linked, ABI and memory evidence are separate. G11 and G12 are pending actual amended publication and an independent after-delivery check; this pre-publication audit cannot grant full milestone credit. No Stage1, packaged astrac, public release or isolated optimization speedup claim.'
 	write(a.output, result)
 	print(result['assessment'], flush=True)
 
@@ -437,13 +504,15 @@ def main():
 	p.add_argument('--fixture-version', default='fix26')
 	p.add_argument('--whole-source-result', type=Path)
 	p.add_argument('--completed-source', action='store_true', help='Audit the completed original/current native campaign; retain the historical G0 chronology gap')
+	p.add_argument('--sequencing-acceptance', type=Path, help='Committed explicit user acceptance of the R5 sequencing deviation only')
 	p.add_argument('--output', type=Path, required=True)
 	a = p.parse_args()
 	assert a.version.isalnum() and a.build_version.isalnum() and a.fixture_version.isalnum()
 	assert not a.output.exists() and a.output.resolve().is_relative_to(a.runtime_root.resolve())
-	assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
 	assert git('merge-base', '--is-ancestor', BASE, 'HEAD') == b''
 	intake = json.loads((WORK/'runtime/native-current/pm-next-intake.json').read_text())
+	if a.sequencing_acceptance: intake_worktree(intake)
+	else: assert not git('status', '--porcelain=v1', '--untracked-files=all').strip()
 	assert intake['milestone_id'] == 'ASTRA-SELFHOST-COMPILER-COMPLETE-26' and intake['base_commit'] == BASE
 	assert intake['submission_sha256'] == 'c2471bf201cf558a4c079d7b185ffb17454322366743e1719289232639f8558b'
 	assert sha(intake['submission_path']) == intake['submission_sha256']

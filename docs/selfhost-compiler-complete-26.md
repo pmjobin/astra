@@ -1,5 +1,49 @@
 # Compiler-complete 26: current qualification
 
+The user explicitly accepted the disclosed R5 G12 sequencing deviation, using
+the corrected exact LLVM 23.1.4 verification as remediation. The literal user
+instruction and its narrow scope are committed in
+`docs/selfhost-compiler-complete-26-sequencing-acceptance.json`. All technical
+acceptance requirements remain mandatory. The original ordering is still
+recorded as unsatisfied; no historical report or failed receipt is relabelled.
+
+The final audit can evaluate G0 with this accepted exception only after
+independently checking the corrected R5 receipt, the prior PARTIAL report and
+the explicit instruction. It separately reconstructs the full original build
+inclusion manifest and all 1,926 C0 syntax declarations from 190 original
+inputs, then consumes the actual original/current stage, LLVM, object, linked,
+regression, ownership, ABI, memory, capacity and cost proofs. G11 publication
+and G12 remain actual operations after the pre-publication engineering audit.
+
+The previous milestone26 PARTIAL report has SHA-256
+`96c9229d02a629381cb8c8b7ae758d4e759c4552519670d7f081b557ca387bc5`.
+Its separate post-delivery G12 passed: 227 indexed payloads, 207 source blobs,
+all 20,285 selected evidence files restored, current source/Git/protection
+rechecked, and fresh original flow_number C0/Astra O0/O2 source-to-native
+replays passed with strict memory checks. All four fresh ELFs matched their
+qualified bytes. These facts belong to that report and are preserved during
+amendment; a new delivered report requires its own separate G12.
+
+The unchanged publisher also requires the original untracked-path inventory.
+At intake, `tests/selfhost-compiler-complete/run.py` was the sole untracked
+path; this task subsequently committed it. The actual file remains byte-exact
+and returns to that original untracked state. Its durable, identical recipe is
+now tracked as `tests/selfhost-compiler-complete/run-recipe.py`; the earlier
+commits remain in history. The final audit checks both byte equality and the
+original path-inventory hash. No intake record, ignore rule, installed script
+or hook is edited. A fresh source checkout can reconstruct this compatibility
+path with `cp tests/selfhost-compiler-complete/run-recipe.py tests/selfhost-compiler-complete/run.py`.
+
+All production compiler and library inputs remain byte-identical to the
+qualified candidate. These acceptance, audit and recipe-preservation changes
+require receipt/source revalidation, without rebuilding unchanged compiler
+products. Stage 1 and milestone27 remain unauthorized.
+
+## Prior delivered qualification checkpoint
+
+The following assessment describes the report before the user accepted the
+sequencing exception. It is retained as historical evidence.
+
 All queued native work is finished. The production source remains frozen at
 `bfc3630284fd29927f470a06bb00884c7fbdb49b`; subsequent observer, recipe and
 audit changes have separate identities. No compiler process remains active.
