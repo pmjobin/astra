@@ -89,6 +89,15 @@ def main():
 	assert witness['input_manifest_sha256'] == sha(a.inputs/'inputs.json') and not witness['imported_process_launch_functions']
 	assert witness['dynamic_symbol_dump_sha256'] == sha(a.rebuild/'Stage1-dynamic-symbols.txt')
 	assert any(row['argv'] == translation['argv'] and row['executable'] == str(a.stage1) and row['executable_sha256'] == stage1_hash for row in witness['observed_processes'])
+	contract = load(a.rebuild/'environment-and-tools.json')
+	assert contract['status'] == 'ACTUAL_RUNNING_PRODUCER_ENV_AND_AUTHENTICATED_TOOLCHAIN' and contract['LLVM_version'] == '23.1.4'
+	assert contract['selected_environment'] == load(a.rebuild/'actual-selected-environment.json')
+	assert any(row['pid'] == contract['producer_pid'] and row['start_ticks'] == contract['producer_start_ticks'] and row['argv'] == translation['argv'] for row in witness['observed_processes'])
+	assert set(contract['seed_to_selfbuild_environment_changes']) <= {'PATH'}
+	assert all(sha(path) == h for path, h in contract['tools'].items())
+	for name in ('cc', 'opt', 'llc', 'llvm-config'):
+		path = str(Path(contract['resolved_external_tools'][name]).resolve())
+		assert contract['tools'][path] == plan['tools'][path]
 	for row in commands:
 		assert row['result']['status'] == 'EXPECTED_OUTCOME' and row['result']['exit'] == 0
 		assert all(sha(p) == h for p, h in row['input_hashes'].items())
