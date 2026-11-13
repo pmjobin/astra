@@ -52,6 +52,52 @@ int llvm_check_predicate(string op, int kind) {
 
 u64 llvm_check_mask(int width) { if (width == 64) return 18446744073709551615; return (1 as u64 << width) - 1; }
 
+// Reconstruct the physical constant from source independently of semantic
+// magnitude decoding and both emitters. Reject malformed spelling and wrap.
+SyntaxIntegerMagnitude llvm_check_integer_source(CheckedIndex checked, SyntaxTokenId token) throws Error {
+	var spelling = checked.bindings.program.arena.token_message(token);
+	string text = spelling.text;
+	bool modern = syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.token_span(token).source) == 1;
+	SyntaxIntegerMagnitude result = {value = 0, valid = false};
+	int radix = 10;
+	int at = 0;
+	if (text.byte_length > 1 && astra_host_text_byte(text, 0) == 48 && modern) {
+		int prefix = astra_host_text_byte(text, 1);
+		if (prefix == 120 || prefix == 88) {
+			radix = 16;
+			at = 2;
+		}
+		if (prefix == 98 || prefix == 66) {
+			radix = 2;
+			at = 2;
+		}
+	}
+	int digits = 0;
+	bool separator = false;
+	while (at < text.byte_length) {
+		int byte = astra_host_text_byte(text, at);
+		if (byte == 95) {
+			if (!modern || digits == 0 || separator) return result;
+			separator = true;
+		} else {
+			int digit = -1;
+			if (byte >= 48 && byte <= 57) digit = byte - 48;
+			if (byte >= 65 && byte <= 70) digit = byte - 55;
+			if (byte >= 97 && byte <= 102) digit = byte - 87;
+			if (digit < 0 || digit >= radix) return result;
+			u64 quotient = 18446744073709551615 / radix as u64;
+			u64 remainder = 18446744073709551615 % radix as u64;
+			if (result.value > quotient || result.value == quotient && digit as u64 > remainder) return result;
+			result.value = result.value * radix as u64 + digit as u64;
+			digits = digits + 1;
+			separator = false;
+		}
+		at = at + 1;
+	}
+	result.valid = digits > 0 && !separator;
+	return result;
+}
+
 bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBudget budget) throws Error {
 	int kind = checked_kind(checked, node.type);
 	if (kind == 15 && checked.class_storage) {
@@ -83,10 +129,10 @@ bool llvm_check_literal(CheckedIndex checked, CoreNode node, void* value, SsaBud
 		if (text.text == "true") bits = 1;
 	}
 	else {
-		int i = 0; while (i < text.text.byte_length && budget.take(1)) {
-			bits = bits * 10 + (astra_host_text_byte(text.text, i) - 48) as u64;
-			i = i + 1;
-		}
+		if (!budget.take(text.text.byte_length)) return false;
+		var magnitude = llvm_check_integer_source(checked, node.token);
+		if (!magnitude.valid) return false;
+		bits = magnitude.value;
 		if (node.kind == 2) {
 			var sign = checked.bindings.program.arena.token_message(node.operation);
 			if (sign.text == "-") {

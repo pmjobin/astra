@@ -92,7 +92,8 @@ enum TokenKind {
 	MINUS,
 	STAR,
 	SLASH,
-	PERCENT
+	PERCENT,
+	FAT_ARROW
 }
 
 string token_kind_name(TokenKind kind) {
@@ -189,6 +190,7 @@ string token_kind_name(TokenKind kind) {
 		case TokenKind.STAR(): { return "STAR"; }
 		case TokenKind.SLASH(): { return "SLASH"; }
 		case TokenKind.PERCENT(): { return "PERCENT"; }
+		case TokenKind.FAT_ARROW(): { return "FAT_ARROW"; }
 	}
 }
 
@@ -231,6 +233,53 @@ int syntax_byte(borrowed SourceBuffer source, int offset) throws SourceBoundsErr
 }
 
 int syntax_length(borrowed SourceBuffer source) { return source.length; }
+
+struct SyntaxIntegerMagnitude {
+	u64 value;
+	bool valid;
+}
+
+int syntax_integer_digit(int byte) {
+	if (byte >= 48 && byte <= 57) return byte - 48;
+	if (byte >= 97 && byte <= 102) return byte - 87;
+	if (byte >= 65 && byte <= 70) return byte - 55;
+	return -1;
+}
+
+// This decodes spelling, not a signed machine value. The caller supplies the
+// exact contextual magnitude limit, including the signed-minimum case.
+SyntaxIntegerMagnitude syntax_integer_magnitude(string text, u64 limit, bool modern) {
+	SyntaxIntegerMagnitude result = {value = 0, valid = false};
+	int base = 10;
+	int i = 0;
+	if (modern && text.byte_length >= 2 && astra_host_text_byte(text, 0) == 48) {
+		int prefix = astra_host_text_byte(text, 1);
+		if (prefix == 120 || prefix == 88) {
+			base = 16;
+			i = 2;
+		}
+		if (prefix == 98 || prefix == 66) {
+			base = 2;
+			i = 2;
+		}
+	}
+	bool digit_before = false;
+	while (i < text.byte_length) {
+		int byte = astra_host_text_byte(text, i);
+		if (modern && byte == 95) {
+			if (!digit_before) return result;
+			digit_before = false;
+		} else {
+			int digit = syntax_integer_digit(byte);
+			if (digit < 0 || digit >= base || digit as u64 > limit || result.value > (limit - digit as u64) / base as u64) return result;
+			result.value = result.value * base as u64 + digit as u64;
+			digit_before = true;
+		}
+		i = i + 1;
+	}
+	result.valid = digit_before;
+	return result;
+}
 
 int syntax_encoding_error(borrowed SourceBuffer source) { return source.encoding_error(); }
 
@@ -331,6 +380,7 @@ int token_kind_code(TokenKind kind) {
 		case TokenKind.STAR(): { return 89; }
 		case TokenKind.SLASH(): { return 90; }
 		case TokenKind.PERCENT(): { return 91; }
+		case TokenKind.FAT_ARROW(): { return 92; }
 	}
 }
 
@@ -427,6 +477,7 @@ TokenKind token_kind_from_code(int code) {
 	if (code == 89) return TokenKind.STAR();
 	if (code == 90) return TokenKind.SLASH();
 	if (code == 91) return TokenKind.PERCENT();
+	if (code == 92) return TokenKind.FAT_ARROW();
 	assert_that(false);
 	return TokenKind.EOF();
 }

@@ -130,13 +130,9 @@ bool recover_llvm_literal(CheckedIndex checked, RecoverNode row, void* value) th
 		if (text.text == "true") bits = 1;
 	}
 	else {
-		int i = 0;
-		while (i < text.text.byte_length) {
-			int digit = astra_host_text_byte(text.text, i) - 48;
-			if (digit < 0 || digit > 9) return false;
-			bits = bits * 10 + digit as u64;
-			i = i + 1;
-		}
+		var magnitude = llvm_check_integer_source(checked, row.token);
+		if (!magnitude.valid) return false;
+		bits = magnitude.value;
 	}
 	int width = 1; if (row.type.index != 13) width = type_width(checked_kind(checked, row.type)); if (width < 64) bits = bits & ((1 as u64 << width) - 1);
 	return LLVMGetIntTypeWidth(LLVMTypeOf(value)) == width && LLVMConstIntGetZExtValue(value) == bits;

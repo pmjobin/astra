@@ -63,6 +63,7 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	if (signature.declaration.index != symbol.index || signature.callable.index != checked.symbol_types[symbol.index].index || signature.flags != checked.symbol_flags[symbol.index] || signature.dispatch != 0 || (signature.flags & ~(4 | 64)) != 0 || !checked_effect_signature_verified(checked, signature)) return false;
 	if ((signature.flags & 64) != 0 && checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_name(node), "main")) return false;
 	var shape = checked.types.row(signature.callable); if (shape.kind != 25 || shape.count < 1 || shape.count > 257 || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(node)) != shape.count - 1) return false;
+	if (!ownership_result_source_verified(checked, node, signature.callable)) return false;
 	int p = 0; while (p < shape.count) {
 		var channel = checked.types.argument(checked.types, signature.callable, p);
 		if (!recover_storage_channel(checked, channel.type, channel.flags, p == 0)) return false;

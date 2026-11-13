@@ -65,19 +65,9 @@ TypeId checked_integer_literal(CheckedIndex index, SyntaxNodeId literal, SyntaxS
 			limit = limit - 1;
 		}
 	}
-	u64 value = 0;
-	int i = 0;
-	bool valid = spelling.text.byte_length > 0;
-	while (i < spelling.text.byte_length && valid) {
-		int digit = astra_host_text_byte(spelling.text, i) - 48;
-		if (digit < 0 || digit > 9 || value > (limit - digit as u64) / 10) {
-			valid = false;
-		} else {
-			value = value * 10 + digit as u64;
-		}
-		i = i + 1;
-	}
-	if (!valid) {
+	var source = index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_literal(literal)).source;
+	var magnitude = syntax_integer_magnitude(spelling.text, limit, syntax_source_language_profile(index.bindings.program.arena, source) == 1);
+	if (!magnitude.valid) {
 		var output = new Utf8ByteBuilder();
 		source_append_text(output, "integer literal is out of range for '");
 		source_append_text(output, name.text);
@@ -544,8 +534,7 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 		}
 	}
 	if (shift && valid && index.bindings.program.arena.kind(right_node) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
-		var spelling = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(right_node));
-		int count = checked_decimal(spelling.text, 64);
+		int count = checked_integer_extent(index, index.bindings.program.arena.get_token_literal(right_node), 64);
 		if (count < 0 || count >= type_width(code)) {
 			index.fail(index.bindings.program.arena.header(right_node).span, "shift count is outside the exact integer width");
 			return no_type();

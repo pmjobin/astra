@@ -183,7 +183,7 @@ bool class_storage_prepare_fields(CheckedIndex index, TypeId type, int depth) th
 		if (symbol.index == 0) return false;
 		if (index.symbol_types[symbol.index].index == 0) {
 			var field = index.bindings.symbol(symbol); int context = 1;
-			if (index.bindings.program.arena.get_token_owned_keyword(node).index != 0) context = 2;
+			if (index.bindings.program.arena.get_token_owned_keyword(node).index != 0 || checked_modern_source(index, node)) context = 2;
 			var ignored = checked_declared(index, field, index.bindings.program.arena.get_node_type_name(node), context);
 		}
 		if (index.failed() || !class_storage_prepare_fields(index, index.symbol_types[symbol.index], depth + 1)) return false;

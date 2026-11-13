@@ -605,15 +605,12 @@ class RecoverLlvm {
 			if (text.text == "true") bits = 1;
 		}
 		else {
-			int i = 0;
-			while (i < text.text.byte_length) {
-				int digit = astra_host_text_byte(text.text, i) - 48;
-				if (digit < 0 || digit > 9) {
-					throw new Error("LLVM_DEFERRED: nondecimal recover literal");
-				}
-				bits = bits * 10 + digit as u64;
-				i = i + 1;
+			var source = ssa.cfg.core.flow.checked.bindings.program.arena.token_span(row.token).source;
+			var magnitude = syntax_integer_magnitude(text.text, 18446744073709551615, syntax_source_language_profile(ssa.cfg.core.flow.checked.bindings.program.arena, source) == 1);
+			if (!magnitude.valid) {
+				throw new Error("LLVM_INVALID_UPSTREAM: integer magnitude");
 			}
+			bits = magnitude.value;
 		}
 		var type = this.scalar(ssa.cfg.core.flow.checked, row.type); int width = LLVMGetIntTypeWidth(type); if (width < 64) bits = bits & ((1 as u64 << width) - 1); return LLVMConstInt(type, bits, 0);
 	}

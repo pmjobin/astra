@@ -76,9 +76,9 @@ directives are errors. Generated helper sources cannot select a new profile.
 
 The parsed directive retains original source/token identities. Independent
 validation rereads the source prefix before trusting the selected profile.
-Ownership defaults will use the declaration's own source profile, including
+Ownership defaults use the declaration's own source profile, including
 when a modern caller uses a legacy library signature. Raw pointers, text/slice
-views and foreign ABI declarations retain their existing contracts.
+parameters and foreign ABI declarations retain their existing contracts.
 
 The initial policy component is implemented and qualified at native O0 through
 the authored `tests/selfhost-ownership-syntax-27b/language.py` recipe. Its actual
@@ -95,8 +95,39 @@ It records exact source/tool/product identities and accepts cached products only
 when the full compilation identity matches. Run inside the authenticated tool
 capsule; build and receipt paths must be external project work paths.
 
-Ownership default resolution and the seven syntax groups still require their
-implementation and qualification. No broad source migration is authorized:
+The next component receipt, `runtime/selfhost27b-syntax3/result.json`, covers
+hexadecimal/binary/separated integer spelling, exact unsigned magnitude limits,
+signed-minimum magnitudes, invalid prefixes/separators/suffixes, retained source
+spans, lexer forks, trailing commas in calls/parameters/generics/initializers,
+expression-bodied functions and both concise getter forms. The actual native
+O0 component returns 42 with zero errors, live blocks and suppressions under
+strict Valgrind. These tests execute the real Astra syntax implementation in a
+C0-built component. They do not prove generated native programs using the new
+forms. A mistaken expected literal start/end offset caused the first native
+test failure; the failed execution and debugger evidence remain separate.
+
+Integer semantic, extent/shift/bounds and both LLVM paths now decode the retained
+source spelling. The independent LLVM correspondence consumer reconstructs the
+magnitude separately from both emitters. Ownership default implementation covers
+eligible native field/result channels and typed-local acquisition from actual
+owning producers. Ordinary native parameters borrow, explicit `owned` and
+`move` remain consuming, and typed aliases never acquire by type alone. Source
+consumers reconstruct default field/result flags and acquisition provenance.
+The whole 196+10 source graph passes C0 semantic preflight. Current-compiler
+native, ownership, ABI, error and physical mutation qualification is pending;
+there is no full ownership or numeric acceptance claim at this stage.
+
+`tests/selfhost-ownership-syntax-27b/build.py` builds the real production driver
+from an immutable Git-authenticated snapshot with explicit compiler/hash/mode,
+out-of-source build/runtime paths and the exact LLVM23.1.4 capsule. It runs the
+fast C0 semantic preflight before a complete build and records source Git blob,
+tool, dependency, provider, command and product hashes. A successful build is
+explicitly reported as unqualified until its separate execution gates pass.
+
+Compound assignments, nominal record expressions, copyable field shorthand,
+conditional expressions and the complete borrowed/weak lifetime contracts still
+require implementation and proof. All seven syntax groups and ownership gates
+remain required for 27-B acceptance. No broad source migration is authorized:
 27-C retains named arguments, match expressions, interpolation, ranges, safe
 slicing, lazy pipelines, comprehensions and idiomatic compiler/library/workload
 migration. The inclusive stepped range example remains thirteen values.

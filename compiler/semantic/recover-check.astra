@@ -87,8 +87,7 @@ bool recover_child_scalars_with_bindings(RecoverFlowData flow, CheckedIndex chec
 			var count = checked.bindings.program.arena.get_node_right(source);
 			if (checked.bindings.program.arena.kind(count) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
 				try {
-					var spelling = checked.bindings.program.arena.token_message(checked.bindings.program.arena.get_token_literal(count));
-					int value = checked_decimal(spelling.text, 64);
+					int value = checked_integer_extent(checked, checked.bindings.program.arena.get_token_literal(count), 64);
 					if (value < 0 || value >= type_width(checked_kind(checked, left.type))) return false;
 				} catch (Error error) {
 					return false;

@@ -2,10 +2,75 @@
 // Match the existing C0 Class-local acquisition boundary. Empty results of
 // independently qualified heap factories remain legal; a direct null local
 // is not a factory result. Inferred locals unwrap parentheses as C0 does.
+// Read the source profile and declared family independently of the default
+// producer. Storage, lifetime and transfer consumers still prove admission.
+bool ownership_source_default(CheckedIndex checked, SyntaxNodeId node, TypeId type) {
+	if (!checked.class_storage || node.index < 1 || !checked.types.valid_id(type)) return false;
+	var source = checked.bindings.program.arena.header(node).span.source;
+	if (syntax_source_language_profile(checked.bindings.program.arena, source) != 1) return false;
+	int family = checked.types.row(type).kind;
+	if (family == 22 || family == 23 || family == 27 || family == 28) return true;
+	if (family == 33) {
+		try { return checked_parameter_capability(checked, type, "ExactHeapClass"); }
+		catch (Error error) { return false; }
+	}
+	if (family != 31 && family != 34) return false;
+	var id = checked.types.row(type).nominal;
+	if (id.index < 1 || id.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(id);
+	if (declaration.kind != 4) return false;
+	var syntax = declaration.node;
+	if (checked.bindings.program.arena.get_bool_is_interface(syntax)) return false;
+	if (checked.bindings.program.arena.get_node_foreign_import(syntax).index != 0 || checked.bindings.program.arena.get_node_foreign_export(syntax).index != 0) return false;
+	return checked.bindings.program.arena.get_node_com_export(syntax).index == 0 && checked.bindings.program.arena.get_node_gobject_export(syntax).index == 0;
+}
+
+bool ownership_result_source_verified(CheckedIndex checked, SyntaxNodeId node, TypeId callable) {
+	if (syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(node).span.source) != 1) return true;
+	if (checked.bindings.program.arena.computed_is_c_import(node) || checked.bindings.program.arena.computed_is_c_export(node)) return true;
+	var edge = checked.types.argument(checked.types, callable, 0);
+	int flags = checked_flags(checked.bindings.program.arena, node) & 7;
+	var result = checked.bindings.program.arena.get_node_return_type(node);
+	if (result.index != 0 && checked.bindings.program.arena.kind(result) == SyntaxKind.NonNullTypeSyntax()) flags = flags | 1;
+	if ((flags & 6) == 0 && ownership_source_default(checked, node, edge.type)) flags = flags | 4;
+	if (generic_record_channel(checked, result, edge.type)) flags = flags & ~4;
+	if (checked.semantic_admission && checked_record_owned(checked, edge.type, 0)) flags = flags | 4;
+	return edge.flags == flags;
+}
+
+bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, SymbolId symbol) {
+	if (checked.bindings.program.arena.kind(source) != SyntaxKind.LocalDeclarationSyntax() || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(source).span.source) != 1) return true;
+	var type = checked.symbol_types[symbol.index];
+	if (!ownership_source_default(checked, source, type)) return true;
+	if (checked.bindings.program.arena.get_token_owned_keyword(source).index != 0) return true;
+	var initializer = checked.bindings.program.arena.get_node_initializer(source);
+	int depth = 0;
+	while (initializer.index > 0 && checked.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
+		initializer = checked.bindings.program.arena.get_node_expression(initializer);
+		depth = depth + 1;
+	}
+	if (initializer.index < 1 || depth == 192) return false;
+	var kind = checked.bindings.program.arena.kind(initializer);
+	bool producer = kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax();
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var target = checked_target(checked, initializer, checked.bindings.program.arena.get_token_identifier(initializer));
+		if (target.index > 0) {
+			var callable = checked.symbol_types[target.index];
+			if (checked_kind(checked, callable) != 25) return false;
+			producer = (checked.types.argument(checked.types, callable, 0).flags & 4) != 0;
+		} else {
+			int action = checked_shared_action(checked, initializer);
+			producer = action == 1 || action == 2;
+		}
+	}
+	return ((checked.symbol_flags[symbol.index] & 4) != 0) == producer;
+}
+
 bool recover_class_local_source(CheckedIndex checked, SyntaxNodeId source, SymbolId symbol) {
+	if (!ownership_local_source_verified(checked, source, symbol)) return false;
 	if (checked_kind(checked, checked.symbol_types[symbol.index]) != 31 || (checked.symbol_flags[symbol.index] & 4) == 0) return true;
 	var initializer = checked.bindings.program.arena.get_node_initializer(source); int depth = 0;
-	if (checked.bindings.program.arena.kind(source) == SyntaxKind.InferredLocalDeclarationSyntax()) {
+	if (checked.bindings.program.arena.kind(source) == SyntaxKind.InferredLocalDeclarationSyntax() || syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(source).span.source) == 1) {
 		while (initializer.index > 0 && checked.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
 			initializer = checked.bindings.program.arena.get_node_expression(initializer);
 			depth = depth + 1;

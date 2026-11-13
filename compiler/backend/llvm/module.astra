@@ -1071,16 +1071,13 @@ class LlvmModule {
 				if (!type_integer(checked_kind(program.cfg.core.flow.checked, row.type))) {
 					throw new Error("LLVM_DEFERRED: literal");
 				}
-				int i = 0;
-				while (i < text.text.byte_length) {
-					this.take(1);
-					int digit = astra_host_text_byte(text.text, i) - 48;
-					if (digit < 0 || digit > 9) {
-						throw new Error("LLVM_INVALID_IR: literal bits");
-					}
-					bits = bits * 10 + digit as u64;
-					i = i + 1;
+				this.take(text.text.byte_length);
+				var source = program.cfg.core.flow.checked.bindings.program.arena.token_span(row.token).source;
+				var magnitude = syntax_integer_magnitude(text.text, 18446744073709551615, syntax_source_language_profile(program.cfg.core.flow.checked.bindings.program.arena, source) == 1);
+				if (!magnitude.valid) {
+					throw new Error("LLVM_INVALID_IR: literal bits");
 				}
+				bits = magnitude.value;
 				if (op == 2) {
 					var sign = program.cfg.core.flow.checked.bindings.program.arena.token_message(row.operation);
 					if (sign.text == "-") {

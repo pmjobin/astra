@@ -144,8 +144,11 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 				checked_mismatch(index, index.bindings.program.arena.header(initializer).span, expected, actual, "initializer");
 			}
 		}
+		if (index.class_storage && kind != SyntaxKind.InferredLocalDeclarationSyntax() && (index.symbol_flags[id.index] & 6) == 0 && checked_modern_source(index, node) && checked_default_owner_type(index, expected) && checked_local_owner_producer(index, initializer)) {
+			index.symbol_flags[id.index] = index.symbol_flags[id.index] | 4;
+		}
 		int contract = checked_contract(index, initializer, index.symbol_flags[id.index]);
-		if (index.native_abi && kind != SyntaxKind.InferredLocalDeclarationSyntax() && checked_kind(index, expected) == 31 && index.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax()) {
+		if (index.native_abi && !checked_modern_source(index, node) && kind != SyntaxKind.InferredLocalDeclarationSyntax() && checked_kind(index, expected) == 31 && index.bindings.program.arena.kind(initializer) == SyntaxKind.ParenthesizedExpressionSyntax()) {
 			var inner = initializer; int steps = 0;
 			while (index.bindings.program.arena.kind(inner) == SyntaxKind.ParenthesizedExpressionSyntax() && steps < 256) {
 				inner = index.bindings.program.arena.get_node_expression(inner);

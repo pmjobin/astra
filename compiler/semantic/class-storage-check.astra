@@ -141,6 +141,7 @@ bool class_storage_fields_verified(CheckedIndex checked, TypeId type, int depth)
 		// Field qualifiers come directly from source, without a dependency
 		// on the Flow solver or its graph representation.
 		int source_flags = checked_flags(checked.bindings.program.arena, node) & 7;
+		if ((source_flags & 6) == 0 && ownership_source_default(checked, node, checked.symbol_types[symbol.index])) source_flags = source_flags | 4;
 		var source_type = checked.bindings.program.arena.get_node_type_name(node);
 		if (source_type.index != 0 && checked.bindings.program.arena.kind(source_type) == SyntaxKind.NonNullTypeSyntax()) source_flags = source_flags | 1;
 		if ((flags & 7) != source_flags || (flags & 384) != (checked_flags(checked.bindings.program.arena, node) & 384)) return false;

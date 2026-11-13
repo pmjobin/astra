@@ -9,12 +9,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT.parent/'codex/work/astra'
-sys.path.insert(0, str(ROOT/'tests/selfhost-compiler-complete'))
-from acceleration import execute, output_path, tool_identity, write
+from support import execute, output_path, tool_identity, write
 
 
 def sha(path):
@@ -61,7 +59,7 @@ def main():
 		return r
 	def cached(name, argv, target, dependencies):
 		argv = list(map(str, argv))
-		identity = dict(argv=argv, inputs={str(path):sha(path) for path in dependencies}, tools=tools,
+		identity = dict(argv=argv, inputs={str(path):sha(path) for path in [*dependencies, Path(__file__).with_name('support.py')]}, tools=tools,
 			environment={key:env.get(key) for key in ('PATH', 'CC', 'CFLAGS', 'LDFLAGS', 'LD_LIBRARY_PATH', 'LC_ALL', 'LANG')})
 		sidecar = target.with_suffix(target.suffix+'.identity.json')
 		if target.exists() or sidecar.exists():

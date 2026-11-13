@@ -31,6 +31,13 @@ class SyntaxParser {
 
 	// A failed scan has no token. Preserve its authoritative diagnostic when
 	// reference error paths inspect a nullable cursor after that failure.
+	bool modern() { return this.lexer.modern; }
+
+	bool trailing_type_close(SyntaxArena arena) {
+		var kind = this.token_kind(arena, this.current);
+		return this.modern() && (kind == TokenKind.GREATER() || kind == TokenKind.SHIFT_RIGHT());
+	}
+
 	TokenKind token_kind(SyntaxArena arena, SyntaxTokenId token) {
 		if (token.index == 0) {
 			assert_that(this.error_message.text.byte_length != 0);
@@ -189,6 +196,7 @@ class SyntaxParser {
 				SyntaxListId tmp_6 = {index = 0};
 				return tmp_6;
 			}
+			if (this.trailing_type_close(arena)) break;
 		}
 		SyntaxListId tmp_7 = {index = 0};
 		if ((this.type_close(arena, "expected '>' after type parameters").index == 0)) {
@@ -261,6 +269,7 @@ class SyntaxParser {
 				SyntaxListId tmp_14 = {index = 0};
 				return tmp_14;
 			}
+			if (this.trailing_type_close(arena)) break;
 		}
 		SyntaxListId tmp_15 = {index = 0};
 		if ((this.type_close(arena, "expected '>' after type arguments").index == 0)) {
@@ -2458,8 +2467,14 @@ class SyntaxParser {
 				return tmp_14;
 			}
 		}
+		SyntaxNodeId concise_body = {index = 0};
+		bool concise = v_name_10.index != 0 && this.modern() && this.token_kind(arena, this.current) == TokenKind.FAT_ARROW() && !arg_foreign_declaration;
+		if (concise) {
+			concise_body = this.parse_expression_body(arena, true);
+			if (concise_body.index == 0) return syntax_no_node();
+		}
 		var tmp_15 = (v_name_10.index == 0);
-		if (!tmp_15) {
+		if (!tmp_15 && !concise) {
 			tmp_15 = (this.expect(arena, TokenKind.OPEN_BRACE(), "computed property requires '{' and accessor bodies; initializers and indexed properties are unsupported").index == 0);
 		}
 		if (tmp_15) {
@@ -2468,8 +2483,13 @@ class SyntaxParser {
 		}
 		SyntaxNodeId v_getter_17 = {index = 0};
 		SyntaxNodeId v_setter_18 = {index = 0};
+		if (concise) {
+			var get = arena.generated_token(TokenKind.IDENTIFIER(), arena.token_span(v_name_10), "get");
+			SyntaxNodeId no_parameter = {index = 0};
+			v_getter_17 = syntax_make_PropertyAccessorSyntax(arena, get, no_parameter, concise_body);
+		}
 		while (true) {
-			if (!((this.token_kind(arena, this.current) != TokenKind.CLOSE_BRACE()))) {
+			if (concise || !((this.token_kind(arena, this.current) != TokenKind.CLOSE_BRACE()))) {
 				break;
 			}
 			var v_accessor_19 = this.current;
@@ -2620,7 +2640,11 @@ class SyntaxParser {
 					source_append_text(tmp_60, "setter body");
 				}
 				var tmp_61 = tmp_60.snapshot();
-				v_body_57 = this.parse_block(arena, tmp_61.text);
+				if (v_get_22 && this.modern() && this.token_kind(arena, this.current) == TokenKind.FAT_ARROW()) {
+					v_body_57 = this.parse_expression_body(arena, true);
+				} else {
+					v_body_57 = this.parse_block(arena, tmp_61.text);
+				}
 			}
 			if ((v_body_57.index == 0)) {
 				SyntaxNodeId tmp_62 = {index = 0};
@@ -2634,6 +2658,7 @@ class SyntaxParser {
 			}
 		}
 		var v_close_64 = this.current;
+		if (concise) v_close_64 = arena.get_token_close_brace(concise_body);
 		if ((v_getter_17.index == 0)) {
 			var tmp_65 = arena.token_message(v_name_10);
 			var tmp_66 = new Utf8ByteBuilder();
@@ -2684,7 +2709,7 @@ class SyntaxParser {
 				return tmp_78;
 			}
 		}
-		if ((!this.advance(arena))) {
+		if (!concise && !this.advance(arena)) {
 			SyntaxNodeId tmp_79 = {index = 0};
 			return tmp_79;
 		}
@@ -2759,6 +2784,7 @@ class SyntaxParser {
 				SyntaxNodeId tmp_15 = {index = 0};
 				return tmp_15;
 			}
+			if (this.modern() && this.token_kind(arena, this.current) == TokenKind.CLOSE_BRACE()) break;
 		}
 		var v_close_16 = this.expect(arena, TokenKind.CLOSE_BRACE(), "expected '}' after vector lanes");
 		SyntaxNodeId tmp_17 = {index = 0};
@@ -2783,7 +2809,7 @@ class SyntaxParser {
 		int used = 1;
 		while (used > 0) {
 			var frame = frames[used - 1];
-			if (frame.state == 0 && this.token_kind(arena, this.current) == TokenKind.CLOSE_BRACE()) {
+			if ((frame.state == 0 || this.modern() && frame.state == 1) && this.token_kind(arena, this.current) == TokenKind.CLOSE_BRACE()) {
 				var close = this.current;
 				if (!this.advance(arena)) {
 					return none;
@@ -4189,6 +4215,7 @@ class SyntaxParser {
 					SyntaxNodeId tmp_38 = {index = 0};
 					return tmp_38;
 				}
+				if (this.modern() && this.token_kind(arena, this.current) == TokenKind.CLOSE_PAREN()) break;
 			}
 		}
 		var v_close_39 = this.expect(arena, TokenKind.CLOSE_PAREN(), "expected ')' after parameters");
@@ -4392,7 +4419,12 @@ class SyntaxParser {
 				}
 				v_body_80 = syntax_make_BlockStatementSyntax(arena, v_end_101, arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax())), v_end_101);
 			} else {
-				v_body_80 = this.parse_block(arena, "function body");
+				if (this.modern() && this.token_kind(arena, this.current) == TokenKind.FAT_ARROW() && param_return_type.index != 0) {
+					var result_name = arena.type_message(param_return_type);
+					v_body_80 = this.parse_expression_body(arena, result_name.text != "void");
+				} else {
+					v_body_80 = this.parse_block(arena, "function body");
+				}
 			}
 		}
 		if ((v_body_80.index == 0)) {
@@ -4421,6 +4453,38 @@ class SyntaxParser {
 		arena.set_list_type_parameters(v_function_108, v_type_parameters_8);
 		arena.set_list_where_clauses(v_function_108, v_clauses_76);
 		return v_function_108;
+	}
+
+	// Desugar one expression to the existing checked return/call and block
+	// representation. Original expression tokens and the real ';' are retained.
+	SyntaxNodeId parse_expression_body(SyntaxArena arena, bool returns_value) throws Error {
+		SyntaxNodeId none = {index = 0};
+		if (!this.modern() || this.token_kind(arena, this.current) != TokenKind.FAT_ARROW()) return none;
+		var arrow = this.current;
+		if (!this.advance(arena)) return none;
+		SyntaxNodeId expression = {index = 0};
+		if (this.token_kind(arena, this.current) == TokenKind.MOVE()) {
+			expression = this.parse_owned_initializer(arena, false, false);
+		} else {
+			expression = this.parse_expression(arena, 0, 0);
+		}
+		if (expression.index == 0) return none;
+		var end = this.expect(arena, TokenKind.SEMICOLON(), "expression body requires one expression followed by ';'");
+		if (end.index == 0) return none;
+		var statements = arena.new_list(syntax_kind_code(SyntaxKind.StatementSyntax()));
+		if (returns_value) {
+			var keyword = arena.generated_token(TokenKind.RETURN(), arena.token_span(arrow), "return");
+			arena.append_node(statements, syntax_make_ReturnStatementSyntax(arena, keyword, expression, end));
+		} else {
+			if (arena.kind(expression) != SyntaxKind.CallExpressionSyntax()) {
+				this.fail(arena, arena.header(expression).span, "void expression body requires a call statement");
+				return none;
+			}
+			arena.append_node(statements, syntax_make_CallStatementSyntax(arena, expression, end));
+		}
+		var open = arena.generated_token(TokenKind.OPEN_BRACE(), arena.token_span(arrow), "{");
+		var close = arena.generated_token(TokenKind.CLOSE_BRACE(), arena.token_span(end), "}");
+		return syntax_make_BlockStatementSyntax(arena, open, statements, close);
 	}
 
 	SyntaxNodeId parse_block(SyntaxArena arena, string arg_context) throws Error {
@@ -6223,6 +6287,7 @@ class SyntaxParser {
 					SyntaxNodeId tmp_19 = {index = 0};
 					return tmp_19;
 				}
+				if (this.modern() && this.token_kind(arena, this.current) == TokenKind.CLOSE_PAREN()) break;
 			}
 		}
 		var v_close_20 = this.expect(arena, TokenKind.CLOSE_PAREN(), "expected ')' after call arguments");

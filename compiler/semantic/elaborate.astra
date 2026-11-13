@@ -8,6 +8,15 @@ bool checked_nullable(CheckedIndex index, TypeId type) {
 	return kind == 16 || kind == 20 || kind == 31 || kind == 26 || kind == 27 || kind == 28 || kind == 29 || kind == 35;
 }
 
+int checked_integer_extent(CheckedIndex index, SyntaxTokenId token, int limit) throws Error {
+	if (limit < 0) return -1;
+	var text = index.bindings.program.arena.token_message(token);
+	var source = index.bindings.program.arena.token_span(token).source;
+	var magnitude = syntax_integer_magnitude(text.text, limit as u64, syntax_source_language_profile(index.bindings.program.arena, source) == 1);
+	if (!magnitude.valid) return -1;
+	return magnitude.value as int;
+}
+
 int checked_decimal(string text, int limit) {
 	int n = 0;
 	int i = 0;
@@ -136,8 +145,7 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 			}
 		}
 		if (constructor == 24) {
-			var lanes = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_lane_count(node));
-			extent = checked_decimal(lanes.text, 16);
+			extent = checked_integer_extent(index, index.bindings.program.arena.get_token_lane_count(node), 16);
 			if ((!type_numeric(code) && code != 13) || code == 9 || code == 10 || (extent != 2 && extent != 4 && extent != 8 && extent != 16) || (code != 13 && type_width(code) * extent > 128)) {
 				index.fail(span, "unsupported vector element or lane count (2,4,8,16; numeric payload at most 128 bits)");
 				return no_type();
@@ -160,8 +168,7 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 				if (index.bindings.program.arena.kind(expression) != SyntaxKind.IntegerLiteralExpressionSyntax()) {
 					return index.defer(node, 11);
 				}
-				var text = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(expression));
-				extent = checked_decimal(text.text, 1024);
+				extent = checked_integer_extent(index, index.bindings.program.arena.get_token_literal(expression), 1024);
 				if (extent < 1) {
 					index.fail(index.bindings.program.arena.header(expression).span, "ARRAY-1 array length must be in 1..1024 (current implementation bound)");
 					return no_type();
@@ -346,6 +353,36 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 	return index.record(node, generic_concrete_type(index, index.types.intern(constructor, target, 0, edges), 0), 0);
 }
 
+bool checked_modern_source(CheckedIndex index, SyntaxNodeId node) {
+	return node.index > 0 && syntax_source_language_profile(index.bindings.program.arena, index.bindings.program.arena.header(node).span.source) == 1;
+}
+
+bool checked_default_owner_type(CheckedIndex index, TypeId type) throws Error {
+	int kind = checked_kind(index, type);
+	if (kind == 22 || kind == 23 || kind == 27 || kind == 28) return true;
+	if (kind == 33) return checked_parameter_capability(index, type, "ExactHeapClass");
+	if (kind != 31 && kind != 34) return false;
+	var row = index.types.row(type);
+	if (row.nominal.index < 1 || row.nominal.index > index.bindings.symbol_count) return false;
+	var nominal = index.bindings.symbol(row.nominal);
+	if (nominal.kind != 4) return false;
+	var node = nominal.node;
+	return !index.bindings.program.arena.get_bool_is_interface(node) && index.bindings.program.arena.get_node_foreign_import(node).index == 0 && index.bindings.program.arena.get_node_foreign_export(node).index == 0 && index.bindings.program.arena.get_node_com_export(node).index == 0 && index.bindings.program.arena.get_node_gobject_export(node).index == 0;
+}
+
+// Acquisition follows a real owning producer, never the type of an alias.
+bool checked_local_owner_producer(CheckedIndex index, SyntaxNodeId initializer) {
+	var node = initializer;
+	int depth = 0;
+	while (node.index > 0 && index.bindings.program.arena.kind(node) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 192) {
+		node = index.bindings.program.arena.get_node_expression(node);
+		depth = depth + 1;
+	}
+	if (node.index == 0 || depth == 192 || (index.uses[node.index].flags & 4) == 0) return false;
+	var kind = index.bindings.program.arena.kind(node);
+	return kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax();
+}
+
 TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId type, int context) throws Error {
 	var resolved = checked_resolve(index, type, context, 0);
 	bool record_channel = generic_record_channel(index, type, resolved);
@@ -361,6 +398,8 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 	if (type.index != 0) {
 		flags = flags | index.uses[type.index].flags;
 	}
+	if (index.class_storage && symbol.kind == 6 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && checked_default_owner_type(index, resolved)) flags = flags | 4;
+	if (index.class_storage && symbol.kind == 7 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && checked_kind(index, resolved) == 27) flags = flags | 2;
 	if (record_channel) flags = flags & ~4;
 	if (index.semantic_admission && symbol.kind == 7 && checked_record_owned(index, resolved, 0) && (flags & 2) == 0) flags = flags | 4;
 	index.symbol_flags[index.node_symbols[symbol.node.index].index] = flags;
@@ -403,7 +442,7 @@ void checked_heads(CheckedIndex index) throws Error {
 			if ((phase == 0 && member) || (phase == 1 && !member)) {
 				if (symbol.kind == 6 || symbol.kind == 14 || symbol.kind == 17) {
 					int context = 1;
-					if (symbol.kind == 6 && index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0) {
+					if (symbol.kind == 6 && (index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0 || checked_modern_source(index, symbol.node))) {
 						context = 2;
 					}
 					var resolved = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), context);
@@ -435,6 +474,7 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	if (return_node.index != 0) {
 		flags = flags | index.uses[return_node.index].flags;
 	}
+	if (index.class_storage && (flags & 6) == 0 && checked_modern_source(index, node) && !index.bindings.program.arena.computed_is_c_import(node) && !index.bindings.program.arena.computed_is_c_export(node) && checked_default_owner_type(index, result)) flags = flags | 4;
 	if (generic_record_channel(index, return_node, result)) flags = flags & ~4;
 	if (index.semantic_admission && checked_record_owned(index, result, 0)) flags = flags | 4;
 	if ((flags & 4) != 0 && (type_numeric(checked_kind(index, result)) || result.index == 13 || result.index == 14 || result.index == 16)) {

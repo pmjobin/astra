@@ -21,8 +21,98 @@ owned SyntaxProgram language_program(string text) throws Error {
 	return move result;
 }
 
+void language_literals() throws Error {
+	var hex = syntax_integer_magnitude("0xffff_ffff_ffff_ffff", 18446744073709551615, true);
+	assert_that(hex.valid && hex.value == 18446744073709551615);
+	var binary = syntax_integer_magnitude("0b1010_1100", 255, true);
+	assert_that(binary.valid && binary.value == 172);
+	var separated = syntax_integer_magnitude("8_000_000", 8000000, true);
+	assert_that(separated.valid && separated.value == 8000000);
+	var minimum = syntax_integer_magnitude("0x8000_0000_0000_0000", 9223372036854775808, true);
+	assert_that(minimum.valid && minimum.value == 9223372036854775808);
+	assert_that(!syntax_integer_magnitude("0x8000_0000_0000_0000", 9223372036854775807, true).valid);
+	assert_that(!syntax_integer_magnitude("0x1_0000_0000_0000_0000", 18446744073709551615, true).valid);
+	assert_that(!syntax_integer_magnitude("18446744073709551616", 18446744073709551615, true).valid);
+	assert_that(!syntax_integer_magnitude("0b2", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("0x", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("0x_ff", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("1__0", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("_10", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("10_", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("1", 0, true).valid);
+	assert_that(!syntax_integer_magnitude("", 255, true).valid);
+	assert_that(!syntax_integer_magnitude("0xff", 255, false).valid);
+	assert_that(!syntax_integer_magnitude("1_0", 255, false).valid);
+	var good = language_program("language astra27b; u64 bits() { return 0xffff_ffff_ffff_ffff; } int value() { return 0b10_1010 + 8_000_000; }");
+	assert_that(!good.failed() && syntax_program_languages_verified(good));
+	var bad_prefix = language_program("language astra27b; int value() { return 0x; }");
+	assert_that(bad_prefix.failed());
+	var bad_binary = language_program("language astra27b; int value() { return 0b2; }");
+	assert_that(bad_binary.failed());
+	var bad_adjacent = language_program("language astra27b; int value() { return 1__0; }");
+	assert_that(bad_adjacent.failed());
+	var bad_suffix = language_program("language astra27b; int value() { return 42u; }");
+	assert_that(bad_suffix.failed());
+	var bad_float = language_program("language astra27b; f64 value() { return 1_0.5; }");
+	assert_that(bad_float.failed());
+	var old_hex = language_program("int value() { return 0xff; }");
+	assert_that(old_hex.failed());
+	var old_separated = language_program("language legacy27a; int value() { return 1_000; }");
+	assert_that(old_separated.failed());
+	var floats = language_program("language astra27b; f64 value() { return 1.5e+2d; }");
+	assert_that(!floats.failed());
+	var sources = language_sources("language astra27b; 0b10_1010");
+	var backing = sources.source(0);
+	var scanner = lexer(move backing);
+	var first = scanner.next_token();
+	var second = scanner.next_token();
+	var third = scanner.next_token();
+	assert_that(scanner.modern);
+	var fork = scanner.fork();
+	var literal = scanner.next_token();
+	var fork_literal = fork.next_token();
+	var kind = literal.kind();
+	assert_that(kind == TokenKind.INTEGER() && literal.spelling.text == "0b10_1010" && literal.span.start == 19 && literal.span.end == 28);
+	assert_that(fork_literal.spelling.text == literal.spelling.text && fork_literal.span.start == literal.span.start && fork_literal.span.end == literal.span.end);
+}
+
+void language_small_syntax() throws Error {
+	var functions = language_program("language astra27b; int add(int x, int y,) => x+y; int value() { return add(20,22,); } void action() { } void concise() => action();");
+	assert_that(!functions.failed() && syntax_program_languages_verified(functions));
+	var generic = language_program("language astra27b; T identity<T,>(T x,) { return x; } int value() { return identity<int,>(42,); }");
+	assert_that(!generic.failed());
+	var nested_generic = language_program("language astra27b; class Box<T,> { } Box<Box<int,>,> identity(Box<Box<int,>,> value,) { return value; }");
+	assert_that(!nested_generic.failed());
+	var initializers = language_program("language astra27b; struct Point { int x; int y; } int value() { Point p = {x = 20, y = 22,}; int[2] a = {20,22,}; return a[0]+p.y; }");
+	assert_that(!initializers.failed());
+	var properties = language_program("language astra27b; class Count { int content; init(int x,) { this.content = x; } property int length => this.content; property int twice { get => this.content*2; } }");
+	assert_that(!properties.failed());
+	var elision = language_program("language astra27b; int value() { return add(20,,22); }");
+	assert_that(elision.failed());
+	var empty_argument = language_program("language astra27b; int value() { return add(,); }");
+	assert_that(empty_argument.failed());
+	var empty_generic = language_program("language astra27b; int identity<,>(int x) { return x; }");
+	assert_that(empty_generic.failed());
+	var missing_semicolon = language_program("language astra27b; int value() => 42");
+	assert_that(missing_semicolon.failed());
+	var statements = language_program("language astra27b; int value() => { return 42; };");
+	assert_that(statements.failed());
+	var void_value = language_program("language astra27b; void value() => 42;");
+	assert_that(void_value.failed());
+	var old_body = language_program("int value() => 42;");
+	assert_that(old_body.failed());
+	var old_parameters = language_program("int value(int x,) { return x; }");
+	assert_that(old_parameters.failed());
+	var old_call = language_program("int value() { return add(20,22,); }");
+	assert_that(old_call.failed());
+	var old_initializer = language_program("int value() { int[2] a = {20,22,}; return a[0]; }");
+	assert_that(old_initializer.failed());
+}
+
 int main() {
 	try {
+		language_literals();
+		language_small_syntax();
 		var legacy = language_program("int value() { return 42; }");
 		assert_that(!legacy.failed());
 		SyntaxSourceId source = {index = 1};
