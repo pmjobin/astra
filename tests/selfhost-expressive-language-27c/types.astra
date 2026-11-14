@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Real production type-table constructors/queries; no source or target claim.
+int main() {
+	var types = new TypeTable(100);
+	var none = new TypeEdge[0];
+	var environment = types.intern(31, type_symbol(1), 0, none);
+	var error = types.intern(31, type_symbol(2), 0, none);
+	var channels = new TypeEdge[4];
+	TypeEdge captured = {type = environment, flags = 0};
+	TypeEdge bound = {type = error, flags = 0};
+	TypeEdge integer = {type = type_id(1), flags = 0};
+	channels[0] = captured; channels[1] = bound; channels[2] = integer; channels[3] = integer;
+	var closure = types.intern(35, type_symbol(0), 0, channels);
+	assert_that(closure.index > 0 && types.row(closure).kind == 35 && types.row(closure).count == 4 && !types.integer_range_type(closure));
+	var range = types.unary(36, type_id(1), 0);
+	assert_that(range.index > 0 && types.integer_range_type(range) && types.row(range).kind == 36 && types.valid());
+	assert_that(types.unary(36, type_id(13), 0).index == 0);
+	assert_that(types.unary(36, type_id(12), 0).index == 0);
+	assert_that(types.unary(36, type_id(1), 1).index == 0);
+	assert_that(types.intern(36, type_symbol(1), 0, channels).index == 0);
+	var owned_channels = new TypeEdge[1]; var changed = integer; changed.flags = 4; owned_channels[0] = changed;
+	assert_that(types.intern(36, type_symbol(0), 0, owned_channels).index == 0 && types.valid());
+	return 42;
+}

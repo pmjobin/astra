@@ -248,6 +248,18 @@ TypeId checked_resolve_inner(CheckedIndex index, SyntaxNodeId node, int context,
 	}
 	var arguments = index.bindings.program.arena.get_list_type_arguments(node);
 	int count = index.bindings.program.arena.list_count(arguments);
+	if (target.index == 0 && index.bindings.program.arena.get_token_namespace_qualifier(node).index == 0 && name.text == "Range") {
+		if (!checked_modern_source(index, node) || count != 1) {
+			index.fail(span, "Range requires the modern profile and one concrete integer type");
+			return no_type();
+		}
+		var element = checked_resolve(index, index.bindings.program.arena.node_at(arguments, 0), 0, depth + 1);
+		if (!type_integer(checked_kind(index, element)) || index.uses[index.bindings.program.arena.node_at(arguments, 0).index].flags != 0) {
+			index.fail(span, "Range element requires one concrete integer type");
+			return no_type();
+		}
+		return index.record(node, index.types.unary(36, element, 0), 0);
+	}
 	if (count > 257) {
 		index.fail(span, "too many type arguments");
 		return no_type();

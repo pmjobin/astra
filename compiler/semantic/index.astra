@@ -712,7 +712,8 @@ class BindingIndex {
 		if (result.target.index != 0) {
 			result.state_code = 1;
 		} else {
-			if (domain == 1 && (binding_builtin(name) || binding_type_constructor(name))) {
+			bool range = name == "Range" && node.index > 0 && node.index <= this.program.arena.node_count && this.program.arena.kind(node) == SyntaxKind.GenericTypeApplicationSyntax() && syntax_source_language_profile(this.program.arena, this.program.arena.header(node).span.source) == 1;
+			if (domain == 1 && (binding_builtin(name) || binding_type_constructor(name) || range)) {
 				result.state_code = 6;
 			}
 		}

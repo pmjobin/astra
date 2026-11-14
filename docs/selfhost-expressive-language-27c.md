@@ -397,3 +397,26 @@ inside its owning Class. Full C0 source semantics passes after that correction
 typed range and metadata controls. Native range storage, iteration, slices,
 lazy callables, materialization and interpolation remain engineering work;
 this typing candidate grants none of those acceptance claims.
+
+The first prototype's type code 35 conflicted with the existing CheckedClosure
+constructor. It is rejected as a range identity: current ranges use code 36,
+and CheckedClosure keeps code 35. The ef7e760 development build was deliberately
+stopped after 348.537 seconds of compiler work (exit 143); its frozen inputs,
+actual producer/LLVM observation and logs remain intact. No product from that
+attempt receives acceptance credit. Semantic5's successful narrow range tests
+also do not qualify the conflicted identity. The original and prototype source
+CLIs both return 42 for an unused CheckedClosure parameter, so those CLI results
+alone do not demonstrate its complete retained type shape.
+
+The focused types2 component executes the real production type-table API. It
+retains a four-channel code-35 closure, independently recognizes code-36 ranges,
+and refuses float/bool elements, nonzero extent/nominal and owned element edges.
+Native exit is 42 and strict returning Valgrind has zero live bytes, errors or
+suppressions. Its product SHA-256 is
+`a4bb679bdf8624d92b8b47d0beaf2b4bd123aa38fcc4f8fb0c3e58784f642358`.
+The added small `types` selection uses original production records and TypeTable,
+without replacement models or target range claims. Full C0 production semantics
+passes with the corrected identity and modern-only soft `Range<T>` constructor
+(preflight 38, 64.953 seconds). Semantic6 is building the integrated range and
+explicit CheckedClosure shape/name controls. Legacy lookup and existing declared
+types named Range keep their prior resolution precedence.

@@ -156,7 +156,7 @@ void expressive_owning_patterns() throws Error {
 }
 
 void expressive_range_values() throws Error {
-	var checked = expressive_checked("language astra27b; int main() { var interval = 20..=80; var other = (1+2)..(20-1); var unsigned = (0 as u64)..=18446744073709551615; return 42; }");
+	var checked = expressive_checked("language astra27b; int main() { Range<int> interval = 20..=80; var other = (1+2)..(20-1); var unsigned = (0 as u64)..=18446744073709551615; return 42; }");
 	assert_that(range_value_facts_verified(checked));
 	int count = 0; int at = 1;
 	while (at < len(checked.uses)) {
@@ -178,6 +178,23 @@ void expressive_range_values() throws Error {
 		at = at + 1;
 	}
 	assert_that(count == 3);
+}
+
+void expressive_checked_closure_preserved() throws Error {
+	var checked = expressive_checked("language astra27b; class Environment { init() {} } [ExceptionRoot] class Error { readonly string text; init(string message) { this.text=message; } virtual property string message { get { return this.text; } } } int read(borrowed CheckedClosure<Environment,Error,int,int> callback) { return 42; } int main() { return 42; }");
+	int count = 0; int at = 1;
+	while (at <= checked.bindings.symbol_count) {
+		var symbol = checked.bindings.symbol(type_symbol(at));
+		if (symbol.kind == 7 && checked.bindings.program.arena.token_is(symbol.token, "callback")) {
+			var type = checked.symbol_types[at]; var row = checked.types.row(type);
+			assert_that(row.kind == 35 && row.count == 4 && checked.symbol_flags[at] == 2 && !range_type_verified(checked.types, type));
+			var name = checked_type_name(checked, type);
+			assert_that(name.text == "CheckedClosure<Environment,Error,int,int>");
+			count = count + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(count == 1 && checked.validate());
 }
 
 int main(string[] args) {
@@ -208,6 +225,7 @@ int main(string[] args) {
 		expressive_pattern_context();
 		expressive_constructor_match();
 		expressive_owning_patterns();
+		expressive_checked_closure_preserved();
 		expressive_range_values();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
