@@ -1374,3 +1374,59 @@ suppressions, absence of imported process-launch functions and mapped LLVM SHA
 This active build earns no successful generation credit before it finishes.
 Idiomatic migration, full stable qualification, installed publication and a
 separate newly dated post-delivery G7 remain outstanding.
+
+Dev15 subsequently finishes with a real current-source refusal after 1339.378
+seconds: SSA status 1, phase 7, item 0, remaining 0, exhausted 1. It creates no
+qualified Astra generation. The diagnostic fields identify the failure without
+another replay solely to locate its phase. A bounded read-only replay now
+captures the actual graph and remaining work at entry to that final slot proof;
+this capture grants no source or generation acceptance.
+
+The next owner candidate retains the exact sparse reservation set during the
+already complete fresh physical CFG scan. Its final proof checks cardinality,
+uniqueness and every reservation path, avoiding a second scan of unrelated Core
+nodes. The unchanged packed state and returning-exit proofs still run. Focused
+owner-kernel9 and owner-kernel10 both pass O0/O2, scalar/generated/word-boundary
+comparisons, independent sparse-index corruptions and strict returning memory
+with zero live bytes, errors and suppressions. Owner-kernel10 additionally
+retains the exact dd31bc34 packed entry as a name-only-renamed baseline. Its
+binary decoder controls demonstrate both helpers accepting a complete isolated
+proof, the preceding helper exhausting a five-unit remaining budget, and the
+candidate accepting exactly at that same limit. Missing cleanup, malformed
+counts and truncated transport are independently refused; decoder memory is
+clean in both modes (selfhost27c-owner-kernel10-inputs1). These small controls
+do not establish full compiler headroom.
+
+The next dominance candidate uses the predecessor index already reconstructed
+from every checked physical edge. A block with exactly one physical predecessor
+has that predecessor as its immediate dominator, so it needs neither another
+predecessor-list walk nor a chain intersection. Root, rank and predecessor
+readiness checks remain, and genuine joins retain the existing convergence
+algorithm. Owner-kernel11 passes the existing 15002 exhaustive small graphs,
+237409 independent oracle queries, 4096 generated cyclic graphs, chain and
+owner/physical controls, with strict returning O0/O2 memory at zero live bytes,
+errors and suppressions. On the same captured 533856-block dev12 graph, both
+O0/O2 versions accept and dominance work falls from 5253895 (owner-kernel10)
+to 4753261 (owner-kernel11), saving 500634 units under the unchanged 8M ceiling
+(selfhost27c-dev12-cfg-replay2). This before/after helper replay grants no full
+compiler-source or generation acceptance.
+
+The dev15 owner-entry diagnostic completes in 1344.034 seconds and captures
+534056 blocks, 399730 Core nodes, 2974 functions, 27614 storage slots and 563
+reservations. Exactly 175508 work units remain before the final slot proof.
+The existing kernel independently rebuilds its index from the captured physical
+graph. Both O0/O2 isolated proofs accept: the preceding packed entry costs
+599295 units and the sparse candidate 200128. Both exhaust the actual remaining
+budget, leaving the sparse change alone 24620 units short
+(selfhost27c-dev15-owner-replay1). Those actual-budget refusals remain failures.
+
+On that same dev15 graph, the old and new dominance helpers independently
+accept in both modes, using 5256268 and 4755441 units: a saving of 500827.
+A separate explicitly derived prospective header adds only this measured saving
+to the captured remaining budget. The combined candidate then accepts with
+476207 units left; the original capture is immutable. The actual-graph replay
+also passes strict returning O2 memory with zero live bytes, errors and
+suppressions (selfhost27c-dev15-owner-replay2). This measures the combined repair
+on the unchanged captured graph, not a completed compilation of the next source
+revision. A fresh complete C0-built host and genuine Astra-source build remain
+required before migration.

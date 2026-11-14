@@ -34,6 +34,17 @@ The default kernel also compares packed owner states against the preserved
 scalar checker, with current reservation metadata, generated graphs and word
 boundary controls. Its reported 256-slot work count supports focused before/
 after cost comparisons under the same 8M ceiling.
+The executable also accepts `--owner-graph COUNTS BLOCKS CORE VALUES SLOTS
+ENTRIES OWNER_SLOTS CONSUMERS CATCH_TRY REACHABLE REGIONS`, with eleven explicit
+binary paths. The eight signed little-endian counts are block, Core node,
+function, storage slot, SSA value and symbol counts, actual remaining work and
+reservation count. The retained x86-64 row widths are 40, 80, 20, 24, 4, 4, 4,
+4, 1 and 12 bytes respectively. It checks lengths, reconstructs the private
+physical index, and compares the exact preceding Git-pinned packed entry with
+the candidate under both an isolated 8M budget and the captured remaining
+budget. Synthetic decoder controls include missing cleanup, malformed counts
+and truncated transport. This remains helper replay evidence, with no complete
+source, generation or compiler-memory acceptance.
 
 `named.py` exercises actual targets through `--feature named`, `match`, `range`,
 `format` or `collection`. It requires the same explicit producer/C0 identities,

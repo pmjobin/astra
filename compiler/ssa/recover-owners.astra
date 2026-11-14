@@ -8,6 +8,8 @@ class RecoverSsaOwnerIndex {
 	owned int[] blocks;
 	owned int[] reservations;
 	owned int[] reservation_blocks;
+	owned int[] reservation_origins;
+	int reservation_count;
 	owned int[] moves;
 	owned int[] shortcuts;
 	// A fresh SSA verifier sets this only after its complete physical scan.
@@ -20,6 +22,8 @@ class RecoverSsaOwnerIndex {
 		this.blocks = new int[cfg.block_count];
 		this.reservations = new int[cfg.core.count];
 		this.reservation_blocks = new int[cfg.core.count];
+		this.reservation_origins = new int[cfg.core.count];
+		this.reservation_count = 0;
 		this.moves = new int[cfg.core.flow.storage.count];
 		this.shortcuts = new int[cfg.block_count + 1];
 		this.reservations_ready = false;
@@ -30,10 +34,14 @@ bool recover_ssa_index_reservation(RecoverSsaOwnerIndex index, RecoverCfg cfg, i
 	var row = cfg.blocks[block - 1]; if (row.opcode != 10) return true;
 	if (row.origin < 1 || row.origin > cfg.core.count || cfg.core.nodes[row.origin - 1].value.kind != 10) return false;
 	int place = cfg.core.owners.slots[row.origin - 1];
-	if (place < 1 || place > len(index.moves) || index.reservations[row.origin - 1] != 0 || cfg.regions[row.origin - 1].operation != block) return false;
+	if (place < 1 || place > len(index.moves) || index.reservations[row.origin - 1] != 0 || cfg.regions[row.origin - 1].operation != block || index.reservation_count < 0 || index.reservation_count >= len(index.reservation_origins)) return false;
 	index.reservations[row.origin - 1] = index.moves[place - 1] + 2;
 	index.moves[place - 1] = index.moves[place - 1] + 1;
 	index.reservation_blocks[row.origin - 1] = block;
+	// The independently verified physical scan already visits every actual
+	// reservation. Retain that exact sparse set for the final path proofs.
+	index.reservation_origins[index.reservation_count] = row.origin;
+	index.reservation_count = index.reservation_count + 1;
 	return true;
 }
 

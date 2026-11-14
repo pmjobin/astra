@@ -123,15 +123,12 @@ bool recover_ssa_owner_pack(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverS
 }
 
 bool recover_ssa_packed_slots(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverWork work) {
-	int origin = 1;
-	while (origin <= len(index.reservation_blocks)) {
-		if (!work.take()) return false;
-		if (index.reservation_blocks[origin - 1] > 0 && !recover_ssa_reservation_paths(ssa, index, origin, work)) return false;
-		origin = origin + 1;
-	}
-	var packs = new RecoverSsaOwnerPacks(ssa.cfg); int place = ssa.cfg.core.flow.storage.count;
+	if (len(index.moves) != ssa.cfg.core.flow.storage.count || len(index.reservation_origins) != ssa.cfg.core.count || len(index.reservation_blocks) != ssa.cfg.core.count || index.reservation_count < 0 || index.reservation_count > len(index.reservation_origins)) return false;
+	var packs = new RecoverSsaOwnerPacks(ssa.cfg); int place = ssa.cfg.core.flow.storage.count; int reservations = 0;
 	while (place > 0) {
 		if (!work.take()) return false;
+		int moves = index.moves[place - 1]; if (moves < 0 || moves > len(index.reservation_origins) - reservations) return false;
+		reservations = reservations + moves;
 		var slot = ssa.cfg.core.flow.storage.slots[place - 1];
 		if (slot.owner) {
 			if (slot.function < 1 || slot.function > len(packs.heads) || slot.symbol.index < 1 || slot.symbol.index >= len(packs.places) || packs.places[slot.symbol.index] != 0) return false;
@@ -139,6 +136,19 @@ bool recover_ssa_packed_slots(RecoverSsa ssa, RecoverSsaOwnerIndex index, Recove
 			packs.links[place - 1] = packs.heads[slot.function - 1]; packs.heads[slot.function - 1] = place;
 		}
 		place = place - 1;
+	}
+	if (reservations != index.reservation_count) return false;
+	// Fresh index construction proves the complete set while scanning actual
+	// CFG rows. Check its cardinality and uniqueness, then visit reservations
+	// directly instead of rescanning every unrelated Core value.
+	var seen = new bool[len(index.reservation_blocks)]; int position = 0;
+	while (position < index.reservation_count) {
+		if (!work.take()) return false;
+		int origin = index.reservation_origins[position];
+		if (origin < 1 || origin > len(seen) || seen[origin - 1] || index.reservation_blocks[origin - 1] < 1) return false;
+		seen[origin - 1] = true;
+		if (!recover_ssa_reservation_paths(ssa, index, origin, work)) return false;
+		position = position + 1;
 	}
 	int function = 1; int group = 0;
 	while (function <= len(packs.heads)) {

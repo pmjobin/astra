@@ -207,6 +207,14 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 				}
 				if (parent[node] == node) continue;
 				int candidate = 0; int edge = incoming[node]; int first_predecessor = 0; bool joined = false;
+				// A physical single predecessor is already indexed by the full
+				// checked edge scan. Its immediate dominator is that predecessor;
+				// no predecessor-list walk or chain intersection is necessary.
+				if (edge > 0 && links[edge] == 0) {
+					candidate = (edge - 1)/2 + 1;
+					if (parent[candidate] == 0) return false;
+					edge = 0;
+				}
 				while (edge > 0) {
 					if (!work.take()) return false;
 					int predecessor = (edge - 1) / 2 + 1; edge = links[edge];

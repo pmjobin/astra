@@ -220,6 +220,19 @@ bool kernel_generated_slots() {
 	return true;
 }
 
+bool kernel_sparse_reservations() {
+	var ssa = kernel_reservations(2); var work = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
+	if (!recover_ssa_owner_index(index, ssa.cfg, work) || index.reservation_count != 2 || !recover_ssa_packed_slots(ssa, index, work)) return false;
+	int original = index.reservation_origins[1]; index.reservation_origins[1] = index.reservation_origins[0];
+	var duplicate = new RecoverWork(8000000); if (recover_ssa_packed_slots(ssa, index, duplicate)) return false;
+	index.reservation_origins[1] = original; index.reservation_count = 1;
+	var missing = new RecoverWork(8000000); if (recover_ssa_packed_slots(ssa, index, missing)) return false;
+	index.reservation_count = 2; index.moves[0] = 1;
+	var count = new RecoverWork(8000000); if (recover_ssa_packed_slots(ssa, index, count)) return false;
+	index.moves[0] = 2;
+	var restored = new RecoverWork(8000000); return recover_ssa_packed_slots(ssa, index, restored);
+}
+
 int kernel_graph_word(FileBytes bytes, int offset) throws FileError {
 	u32 bits = bytes.byte_at(offset) as u32;
 	bits = bits | ((bytes.byte_at(offset + 1) as u32) << 8);
@@ -251,12 +264,78 @@ bool kernel_captured_graph(string block_path, string entry_path) throws Error {
 	return accepted && !work.exhausted;
 }
 
+void kernel_owner_observed(string label, bool accepted, int limit, RecoverWork work) throws Error {
+	var output = new Utf8ByteBuilder(); append_text(output, label); append_text(output, " accepted="); append_bool(output, accepted); append_text(output, " work="); append_int(output, limit - work.remaining); append_text(output, " remaining="); append_int(output, work.remaining); append_text(output, " exhausted="); append_bool(output, work.exhausted); var message = output.snapshot(); println(message.text);
+}
+
+// Decode the retained x86-64 private layouts captured before the actual final
+// slot proof. These minimal containers replay only the two exact helper
+// versions; they do not replace full-source or generation qualification.
+bool kernel_captured_owners(string[] args) throws Error {
+	var counts = read_file(args[2]); if (counts.byte_count() != 32) return false;
+	int blocks = kernel_graph_word(counts, 0); int nodes = kernel_graph_word(counts, 4); int functions = kernel_graph_word(counts, 8); int slots = kernel_graph_word(counts, 12);
+	int values = kernel_graph_word(counts, 16); int symbols = kernel_graph_word(counts, 20); int remaining = kernel_graph_word(counts, 24); int reservations = kernel_graph_word(counts, 28);
+	if (blocks < 1 || blocks > 8000000 || nodes < 1 || nodes > 8000000 || functions < 1 || functions > blocks || slots < 0 || slots > 8000000 || values < 1 || values > 8000000 || symbols < 1 || symbols > 8000000 || remaining < 1 || remaining > 8000000 || reservations < 0 || reservations > nodes) return false;
+	var block_bytes = read_file(args[3]); var node_bytes = read_file(args[4]); var value_bytes = read_file(args[5]); var slot_bytes = read_file(args[6]); var entry_bytes = read_file(args[7]);
+	var owner_bytes = read_file(args[8]); var consumer_bytes = read_file(args[9]); var catch_bytes = read_file(args[10]); var reachable_bytes = read_file(args[11]); var region_bytes = read_file(args[12]);
+	if (block_bytes.byte_count() != blocks*40 || node_bytes.byte_count() != nodes*80 || value_bytes.byte_count() != values*20 || slot_bytes.byte_count() != slots*24 || entry_bytes.byte_count() != functions*4 || owner_bytes.byte_count() != nodes*4 || consumer_bytes.byte_count() != nodes*4 || catch_bytes.byte_count() != nodes*4 || reachable_bytes.byte_count() != blocks || region_bytes.byte_count() != nodes*12) return false;
+	var ssa = new RecoverSsa(blocks, nodes, functions, slots, symbols, values); int at = 0;
+	while (at < blocks) {
+		int offset = at*40;
+		RecoverBlock row = {function = kernel_graph_word(block_bytes, offset), origin = kernel_graph_word(block_bytes, offset + 4), opcode = kernel_graph_word(block_bytes, offset + 8), a = kernel_graph_word(block_bytes, offset + 12), b = kernel_graph_word(block_bytes, offset + 16), next = kernel_graph_word(block_bytes, offset + 20), other = kernel_graph_word(block_bytes, offset + 24), owner = kernel_graph_word(block_bytes, offset + 28), carry = kernel_graph_word(block_bytes, offset + 32), rank = kernel_graph_word(block_bytes, offset + 36)};
+		if (row.function < 1 || row.function > functions || row.origin < 0 || row.origin > nodes || row.next < 0 || row.next > blocks || row.other < 0 || row.other > blocks) return false;
+		ssa.cfg.blocks[at] = row; ssa.data.reachable[at] = reachable_bytes.byte_at(at) != 0; at = at + 1;
+	}
+	at = 0;
+	while (at < nodes) {
+		int offset = at*80;
+		RecoverNode row = {kind = kernel_graph_word(node_bytes, offset), function = kernel_graph_word(node_bytes, offset + 4), source = {index = kernel_graph_word(node_bytes, offset + 8)}, type = {index = kernel_graph_word(node_bytes, offset + 12)}, token = {index = kernel_graph_word(node_bytes, offset + 16)}, symbol = {index = kernel_graph_word(node_bytes, offset + 20)}, a = kernel_graph_word(node_bytes, offset + 24), b = kernel_graph_word(node_bytes, offset + 28), c = kernel_graph_word(node_bytes, offset + 32), first = kernel_graph_word(node_bytes, offset + 36), count = kernel_graph_word(node_bytes, offset + 40), handler = kernel_graph_word(node_bytes, offset + 44), caught = kernel_graph_word(node_bytes, offset + 48), execution = kernel_graph_word(node_bytes, offset + 52)};
+		ssa.cfg.core.nodes[at].value = row; ssa.cfg.core.flow.data.nodes[at] = row;
+		ssa.cfg.core.nodes[at].error.index = kernel_graph_word(node_bytes, offset + 56); ssa.cfg.core.nodes[at].result_role = kernel_graph_word(node_bytes, offset + 60); ssa.cfg.core.nodes[at].place = kernel_graph_word(node_bytes, offset + 64); ssa.cfg.core.nodes[at].error_owner = kernel_graph_word(node_bytes, offset + 68); ssa.cfg.core.nodes[at].borrowed_owner = kernel_graph_word(node_bytes, offset + 72); ssa.cfg.core.nodes[at].conditional = node_bytes.byte_at(offset + 76) != 0;
+		ssa.cfg.core.owners.slots[at] = kernel_graph_word(owner_bytes, at*4); ssa.cfg.core.owners.consumers[at] = kernel_graph_word(consumer_bytes, at*4); ssa.cfg.catch_try[at] = kernel_graph_word(catch_bytes, at*4);
+		RecoverRegion region = {entry = kernel_graph_word(region_bytes, at*12), operation = kernel_graph_word(region_bytes, at*12 + 4), next = kernel_graph_word(region_bytes, at*12 + 8)}; ssa.cfg.regions[at] = region;
+		at = at + 1;
+	}
+	at = 0;
+	while (at < values) {
+		int offset = at*20; RecoverValue row = {function = kernel_graph_word(value_bytes, offset), block = kernel_graph_word(value_bytes, offset + 4), type = {index = kernel_graph_word(value_bytes, offset + 8)}, channel = kernel_graph_word(value_bytes, offset + 12), edge = kernel_graph_word(value_bytes, offset + 16)}; ssa.data.values[at] = row; at = at + 1;
+	}
+	at = 0;
+	while (at < slots) {
+		int offset = at*24; RecoverSlot row = {symbol = {index = kernel_graph_word(slot_bytes, offset)}, type = {index = kernel_graph_word(slot_bytes, offset + 4)}, flags = kernel_graph_word(slot_bytes, offset + 8), function = kernel_graph_word(slot_bytes, offset + 12), scope = kernel_graph_word(slot_bytes, offset + 16), parameter = slot_bytes.byte_at(offset + 20) != 0, owner = slot_bytes.byte_at(offset + 21) != 0};
+		if (row.symbol.index < 0 || row.symbol.index >= symbols) return false;
+		ssa.cfg.core.flow.storage.slots[at] = row; if (row.symbol.index > 0) ssa.cfg.core.flow.storage.symbols[row.symbol.index] = at + 1;
+		at = at + 1;
+	}
+	at = 0;
+	while (at < functions) {
+		int entry = kernel_graph_word(entry_bytes, at*4); if (entry < 1 || entry > blocks || ssa.cfg.blocks[entry - 1].function != at + 1) return false;
+		ssa.cfg.entries[at] = entry; at = at + 1;
+	}
+	// Setup is measured separately: the actual verifier already constructed its
+	// fresh physical index before the captured remaining-budget boundary.
+	var setup = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
+	bool indexed = recover_ssa_owner_index(index, ssa.cfg, setup); kernel_owner_observed("CAPTURED_OWNER_INDEX", indexed, 8000000, setup);
+	if (!indexed || setup.exhausted || index.reservation_count != reservations) return false;
+	var baseline = new RecoverWork(8000000); bool old_full = baseline_packed_slots(ssa, index, baseline); kernel_owner_observed("CAPTURED_OWNER_BASELINE_FULL", old_full, 8000000, baseline);
+	var candidate = new RecoverWork(8000000); bool new_full = recover_ssa_packed_slots(ssa, index, candidate); kernel_owner_observed("CAPTURED_OWNER_CANDIDATE_FULL", new_full, 8000000, candidate);
+	var old_budget = new RecoverWork(remaining); bool old_actual = baseline_packed_slots(ssa, index, old_budget); kernel_owner_observed("CAPTURED_OWNER_BASELINE_ACTUAL", old_actual, remaining, old_budget);
+	var new_budget = new RecoverWork(remaining); bool new_actual = recover_ssa_packed_slots(ssa, index, new_budget); kernel_owner_observed("CAPTURED_OWNER_CANDIDATE_ACTUAL", new_actual, remaining, new_budget);
+	return old_full && new_full && new_actual && !candidate.exhausted && !new_budget.exhausted && candidate.remaining > baseline.remaining;
+}
+
 int main(string[] args) {
 	if (len(args) > 1) {
-		if (len(args) != 4 || args[1] != "--graph") return 2;
 		try {
-			if (kernel_captured_graph(args[2], args[3])) return 42;
-			return 1;
+			if (len(args) == 4 && args[1] == "--graph") {
+				if (kernel_captured_graph(args[2], args[3])) return 42;
+				return 1;
+			}
+			if (len(args) == 13 && args[1] == "--owner-graph") {
+				if (kernel_captured_owners(args)) return 42;
+				return 1;
+			}
+			return 2;
 		} catch (Error error) { println_stderr(error.message); return 3; }
 	}
 	if (!kernel_slot_controls()) return 1;
@@ -268,5 +347,6 @@ int main(string[] args) {
 		if (!kernel_width_controls()) return 6;
 	} catch (Error error) { println_stderr(error.message); return 8; }
 	if (!kernel_generated_slots()) return 7;
+	if (!kernel_sparse_reservations()) return 9;
 	return 42;
 }
