@@ -11,6 +11,11 @@ int recover_slice_consumer(RecoverFlow flow, int value, RecoverOwnerParent[] par
 	}
 	if (!work.take() || parent.node < 1 || parent.node > flow.data.node_count) return -1;
 	var row = flow.data.nodes[parent.node - 1];
+	if (!slot_borrow && input.kind == 56 && range_slice_verified(flow.checked, input.source) && row.function == input.function) {
+		if (row.kind == 14 && parent.argument == 0 && row.count == 1 && row.type.index == 1) return parent.node;
+		if (row.kind == 56 && parent.argument == 0 && row.count == 3 && range_slice_verified(flow.checked, row.source) && row.type.index == input.type.index) return parent.node;
+		if (row.kind == 55 && parent.argument == -1 && recover_owner_unwrap(flow.data, row.a) == recover_owner_unwrap(flow.data, value) && checked_kind(flow.checked, row.type) != 31) return parent.node;
+	}
 	if (row.kind != 4 && !recover_constructor_kind(row.kind) || row.function != input.function || parent.argument < 0 || parent.argument >= row.count) return -1;
 	var signature = flow.checked.signatures[flow.checked.symbol_signatures[row.symbol.index].index - 1];
 	int offset = 1; if (recover_constructor_kind(row.kind)) offset = 2;

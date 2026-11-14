@@ -202,6 +202,9 @@ int flow_unwind(borrowed FlowGraph graph, CheckedIndex checked, int[] class_orig
 int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId value, SyntaxNodeId call, int region, int next) {
 	var node = flow_unwrap(checked, value);
 	int source = flow_origin(graph, checked, class_origins, node);
+	if (source == 0 && range_slice_verified(checked, node)) {
+		var root = range_slice_root(checked, checked.bindings.program.arena.get_node_container(node)); source = graph.slot_for(root);
+	}
 	if (source == 0 && checked.class_storage && checked.bindings.program.arena.kind(node) == SyntaxKind.FieldAccessExpressionSyntax()) {
 		int field = flowsem_place(graph, checked, node, 0);
 		if (field > 0) source = graph.fields[field - 1].root;
@@ -541,7 +544,7 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_operand(node), region, next, 0, depth + 1);
 	}
 	if (checked_flow_index_kind(kind)) {
-		if (checked.class_storage && !indexpath_snapshot(checked, node, 0)) graph.defer(node, 18);
+		if (checked.class_storage && !range_slice_verified(checked, node) && !indexpath_snapshot(checked, node, 0)) graph.defer(node, 18);
 		int tail = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_subscript(node), region, next, 0, depth + 1);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_container(node), region, tail, 0, depth + 1);
 	}

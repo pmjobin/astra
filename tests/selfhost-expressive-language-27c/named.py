@@ -607,6 +607,27 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-slices', TICKS+'''int read(borrowed int[] values) { return len(values)+values[0]; }
+int main() {
+	owned int[] data = new int[13]; data[0] = 20; data[12] = 22;
+	if (len(data[0..13]) != 13 || data[0..1][0] != 20 || read(data[12..13]) != 23 || len(data[0..13][1..12]) != 11 || len(data[13..13]) != 0) return 1;
+	reset_trace(); if (len(data[tick(1)..tick(3)]) != 2 || trace() != 13) return 2;
+	owned int[] empty = new int[0]; if (len(empty[0..0]) != 0) return 3;
+	int[4] fixed = {20,21,22,23}; if (read(fixed[2..3]) != 23 || len(fixed[4..4]) != 0) return 4;
+	return 42;
+}
+''', TICKS+'''int extent(borrowed int[] values, int first, int end) { if (first < 0 || end < first || end > len(values)) return -1; return end-first; }
+int read(borrowed int[] values, int first, int end) { if (first < 0 || end <= first || end > len(values)) return -1; return end-first+values[first]; }
+int fixed_read(borrowed int[] values) { return len(values)+values[0]; }
+int main() {
+	owned int[] data = new int[13]; data[0] = 20; data[12] = 22;
+	if (extent(data,0,13) != 13 || data[0] != 20 || read(data,12,13) != 23 || extent(data,1,12) != 11 || extent(data,13,13) != 0) return 1;
+	reset_trace(); int first = tick(1); int end = tick(3); if (extent(data,first,end) != 2 || trace() != 13) return 2;
+	owned int[] empty = new int[0]; if (extent(empty,0,0) != 0) return 3;
+	int[4] fixed = {20,21,22,23}; if (fixed_read(slice(fixed,2,1)) != 23 || len(slice(fixed,4,0)) != 0) return 4;
+	return 42;
+}
+''', False),
 	('range-stride', TICKS+'''RangeSequence<int> interval(int first, int last, int stride) { return (first..=last).step_by(stride); }
 int total(RangeSequence<int> sequence) { int sum = 0; foreach (var item in sequence) { sum = sum+item; } return sum; }
 int main() {
@@ -728,6 +749,14 @@ int main() {
 ''', False),
 ]
 RANGE_NEGATIVE = [
+	('range-slice-retain', 'int main() { owned int[] data = new int[13]; var view = data[0..3]; return len(view)+39; }'),
+	('range-slice-write', 'int main() { owned int[] data = new int[13]; data[0..3][0] = 42; return 42; }'),
+	('range-slice-inclusive', 'int main() { owned int[] data = new int[13]; return len(data[0..=3]); }'),
+	('range-slice-negative', 'int main() { owned int[] data = new int[13]; return len(data[-1..3]); }'),
+	('range-slice-reversed', 'int main() { owned int[] data = new int[13]; return len(data[3..1]); }'),
+	('range-slice-move-bound', 'int steal(owned int[] data) { return 3; } int main() { owned int[] data = new int[13]; return len(data[0..steal(move data)]); }'),
+	('range-slice-move-consumer', 'int use(borrowed int[] view, owned int[] data) { return len(view)+len(data); } int main() { owned int[] data = new int[13]; return use(data[0..3],move data); }'),
+	('range-slice-escape', 'borrowed int[] escape(owned int[] data) { return data[0..3]; } int main() { return 42; }'),
 	('range-stride-zero', 'int main() { var sequence = (0..10).step_by(0); return 42; }'),
 	('range-stride-negative', 'int main() { var sequence = (0..10).step_by(-1); return 42; }'),
 	('range-stride-float', 'int main() { var sequence = (0..10).step_by(1.0); return 42; }'),

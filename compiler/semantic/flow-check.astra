@@ -66,6 +66,9 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 			return false;
 		}
 		int source = flow_origin(graph, checked, class_origins, loan.node);
+		if (source == 0 && range_slice_verified(checked, loan.node)) {
+			var root = range_slice_root(checked, checked.bindings.program.arena.get_node_container(loan.node)); source = graph.slot_for(root);
+		}
 		if (source == 0 && checked.class_storage && checked.bindings.program.arena.kind(loan.node) == SyntaxKind.FieldAccessExpressionSyntax()) {
 			int field = flowsem_place(graph, checked, loan.node, 0);
 			if (field > 0) source = graph.fields[field - 1].root;

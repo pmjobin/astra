@@ -544,3 +544,39 @@ Separately authored C0 expanded foreach and stride programs return 42. They
 check lexical bounds/step evaluation, thirteen values 20 through 80, sum 650,
 nested loops, empty ranges, break/continue and signed/unsigned endpoint guards
 (selfhost27c-range-oracles2). These are references, not new-syntax product credit.
+
+The focused ssa8 foreach consumer passes C0 O0 compilation (1468.327 seconds),
+native execution (42) and strict returning Valgrind (32.975 seconds), with zero
+live bytes/errors/suppressions. It checks actual source through SSA, immutable
+scoped integers, inclusive signed/unsigned MAX loops and altered control edges.
+Its product SHA-256 is
+`1791a5feb960b43af50c89d88783b4aa8a9202852ff0ecd4f563ebcb4e3e4884`;
+163 exact input/recipe hashes are independently bound to 78c86cb. Types3's 21
+inputs/recipes are independently bound to 1a6a10d. These focused results still
+provide no new-feature LLVM/ELF or full-current-source acceptance by themselves.
+
+The borrowed slicing candidate admits modern `buffer[a..b]` with direct int
+half-open bounds and a stable named numeric/bool owned or borrowed buffer, or a
+fixed numeric local. Nested new range slices retain that same root. Its initial
+bounded subset supports immediate read indexing, len, nested slicing and exact
+borrowed Astra call arguments. Retained local descriptors, escaping results,
+writes through slices, computed/Class-field roots, stored range indices and
+inclusive indices remain explicitly unsupported; no raw-pointer fallback or
+owned copy is introduced. This remaining view subset is disclosed under the
+packet's bounded-slicing allowance, not treated as a general borrowed-local API.
+
+Typing independently reconstructs element/root/bound facts and re-lexes actual
+brackets and the range operator. Flow lowers one receiver/start/end sequence to
+the existing borrowed slice operation. Its existing native helper checks start,
+length and remaining extent. The end-minus-start difference has no LLVM overflow
+promises; the physical consumer checks exact operands or independently evaluates
+its folded 32-bit result. The combined checks reject negative/reversed ends even
+when the raw difference wraps. Core/SSA retain the real owner root through the
+immediate consumer and reject moves/replacements before use. New nested/read/len
+consumers are restricted to the new source-verified range slice form, preserving
+the earlier slice intrinsic's admission. No storage lifetime follows from merely
+having a pointer/count pair. Full C0 source semantics passes (range-preflight7,
+71.466 seconds); focused ssa10 semantic preflight passes in 57.357 seconds and
+actual native lowering/memory checks remain pending. The separately authored
+C0 slice oracle returns 42, including actual legacy fixed-array slice ABI and
+equivalent named-buffer reads (selfhost27c-range-oracles3).

@@ -237,7 +237,8 @@ bool recover_owner_parents(RecoverFlowData flow, RecoverOwnerParent[] parents, R
 				a = a + 1;
 			}
 		}
-		if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69 || row.kind == 71) {
+		if (row.kind == 55 && !recover_owner_parent(parents, row.a, n + 1, -1)) return false;
+		if (row.kind == 14 || row.kind == 56 || row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69 || row.kind == 71) {
 			int a = 0;
 			while (a < row.count) {
 				if (!work.take() || !recover_owner_parent(parents, flow.edges[row.first + a], n + 1, a)) return false;

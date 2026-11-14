@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// The initial borrowed-view subset has a named numeric buffer/fixed root and
+// direct half-open int bounds. Views are ephemeral and read-only; no new owner
+// or escaping descriptor lifetime follows from their counted representation.
+bool range_slice_form(SyntaxArena arena, SyntaxNodeId node) {
+	if (arena.kind(node) != SyntaxKind.IndexExpressionSyntax()) return false;
+	var interval = arena.get_node_subscript(node);
+	return arena.kind(interval) == SyntaxKind.BinaryExpressionSyntax() && arena.token_is(arena.get_token_operator_token(interval), "..");
+}
+
+SymbolId range_slice_root(CheckedIndex index, SyntaxNodeId node) {
+	var current = node; int depth = 0;
+	while (current.index > 0 && depth < 128) {
+		if (index.bindings.program.arena.kind(current) == SyntaxKind.ParenthesizedExpressionSyntax()) current = index.bindings.program.arena.get_node_expression(current);
+		else {
+			if (range_slice_form(index.bindings.program.arena, current)) current = index.bindings.program.arena.get_node_container(current); else {
+				break;
+			}
+		}
+		depth = depth + 1;
+	}
+	if (depth == 128 || index.bindings.program.arena.kind(current) != SyntaxKind.NameExpressionSyntax()) return type_symbol(0);
+	var symbol = checked_target(index, current, index.bindings.program.arena.get_token_identifier(current));
+	if (symbol.index < 1 || symbol.index > index.bindings.symbol_count) return type_symbol(0);
+	var declaration = index.bindings.symbol(symbol); var type = index.symbol_types[symbol.index]; int kind = checked_kind(index, type); int flags = index.symbol_flags[symbol.index];
+	if (declaration.kind != 7 && declaration.kind != 8 || !index.bindings.accessible(symbol, index.bindings.scope_for_node(node))) return type_symbol(0);
+	if (kind == 21 && declaration.kind == 8 && flags == 0 && recover_storage_fixed(index, type)) return symbol;
+	if (kind == 22 && (flags == 4 || declaration.kind == 7 && (flags == 0 || flags == 2))) return symbol;
+	return type_symbol(0);
+}
+
+bool range_slice_bounds(CheckedIndex index, SyntaxNodeId node) {
+	var interval = index.bindings.program.arena.get_node_subscript(node); var container = index.bindings.program.arena.get_node_container(node);
+	int maximum = 2147483647; var type = index.uses[container.index].type; if (checked_kind(index, type) == 21) maximum = index.types.row(type).extent;
+	var first = recover_array_bound(index, index.bindings.program.arena.get_node_left(interval), maximum);
+	var end = recover_array_bound(index, index.bindings.program.arena.get_node_right(interval), maximum);
+	return first.valid && end.valid && (!first.constant || !end.constant || first.value <= end.value);
+}
+
+TypeId checked_range_slice(CheckedIndex index, SyntaxNodeId node, TypeId container, int depth) throws Error {
+	var interval = index.bindings.program.arena.get_node_subscript(node);
+	var bounds = checked_expression(index, interval, no_type(), depth + 1);
+	int kind = checked_kind(index, container);
+	if (!checked_modern_source(index, node) || !range_type_verified(index.types, bounds) || index.types.argument(index.types, bounds, 0).type.index != 1 || index.uses[interval.index].flags != 0 || kind != 21 && kind != 22 || range_slice_root(index, index.bindings.program.arena.get_node_container(node)).index == 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "range slice requires direct half-open int bounds and a named numeric buffer/fixed root"); return no_type();
+	}
+	var element = index.types.argument(index.types, container, 0);
+	if (element.flags != 0 || !type_numeric(checked_kind(index, element.type)) && checked_kind(index, element.type) != 13 || !range_slice_bounds(index, node)) {
+		index.fail(index.bindings.program.arena.header(node).span, "range slice has unsupported element or invalid constant bounds"); return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 19; index.uses[node.index] = use;
+	return index.types.unary(22, element.type, 0);
+}
+
+bool range_slice_source(SyntaxArena arena, SyntaxNodeId node) {
+	var whole = arena.header(node).span; var container = arena.header(arena.get_node_container(node)).span; var interval = arena.header(arena.get_node_subscript(node)).span; var close = arena.token_span(arena.get_token_close(node));
+	if (whole.source.index != container.source.index || whole.source.index != interval.source.index || whole.source.index != close.source.index || whole.start != container.start || whole.end != close.end || container.end > interval.start || interval.end > close.start || arena.token_kind(arena.get_token_close(node)) != TokenKind.CLOSE_BRACKET() || !arena.token_is(arena.get_token_close(node), "]") || !range_source_verified(arena, arena.get_node_subscript(node))) return false;
+	try {
+		var backing = arena.source(whole.source);
+		if (!source_valid_span(shared_borrow(backing), container.end, interval.start) || !source_valid_span(shared_borrow(backing), interval.end, whole.end)) return false;
+		var prefix = source_bytes(shared_borrow(backing), container.end, interval.start); var buffer = source_buffer("<range-slice-prefix-proof>", move prefix, false); var retained = shared_acquire(move buffer); var scanner = lexer(move retained);
+		var opening = scanner.next_token(); var eof = scanner.next_token(); if (scanner.failed || opening.kind() != TokenKind.OPEN_BRACKET() || eof.kind() != TokenKind.EOF()) return false;
+		var suffix = source_bytes(shared_borrow(backing), interval.end, whole.end); var tail_buffer = source_buffer("<range-slice-suffix-proof>", move suffix, false); var tail_retained = shared_acquire(move tail_buffer); var tail = lexer(move tail_retained);
+		var closing = tail.next_token(); var end = tail.next_token();
+		return !tail.failed && closing.kind() == TokenKind.CLOSE_BRACKET() && interval.end + closing.span.start == close.start && interval.end + closing.span.end == close.end && end.kind() == TokenKind.EOF();
+	} catch (Error error) { return false; }
+}
+
+bool range_slice_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!range_slice_form(index.bindings.program.arena, node) || !checked_modern_source(index, node) || !range_slice_source(index.bindings.program.arena, node)) return false;
+	var interval = index.bindings.program.arena.get_node_subscript(node); var container = index.bindings.program.arena.get_node_container(node); var type = index.uses[container.index].type;
+	var bounds = index.uses[interval.index]; var use = index.uses[node.index]; int kind = checked_kind(index, type);
+	if (kind != 21 && kind != 22 || !range_type_verified(index.types, bounds.type) || index.types.argument(index.types, bounds.type, 0).type.index != 1 || bounds.flags != 0 || bounds.deferred != 0 || use.flags != 0 || use.deferred != 19 || checked_kind(index, use.type) != 22 || !range_slice_bounds(index, node) || range_slice_root(index, container).index == 0) return false;
+	var element = index.types.argument(index.types, type, 0); var actual = index.types.argument(index.types, use.type, 0);
+	return element.flags == 0 && actual.flags == 0 && element.type.index == actual.type.index && (type_numeric(checked_kind(index, element.type)) || checked_kind(index, element.type) == 13);
+}

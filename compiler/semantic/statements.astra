@@ -191,6 +191,9 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 			var ignored = index.defer(node, 15); return;
 		}
 		var symbol = index.bindings.symbol(id);
+		if (range_slice_form(index.bindings.program.arena, index.bindings.program.arena.get_node_initializer(node))) {
+			index.fail(index.bindings.program.arena.header(node).span, "borrowed range views must be consumed immediately; retained local descriptors are not yet admitted"); return;
+		}
 		if (kind != SyntaxKind.InferredLocalDeclarationSyntax()) {
 			expected = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(node), 1);
 		}

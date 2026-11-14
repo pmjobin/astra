@@ -155,6 +155,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		operand = index.bindings.program.arena.get_node_pointer(node);
 	}
 	var type = checked_expression(index, operand, no_type(), depth + 1);
+	if (range_slice_form(index.bindings.program.arena, node)) return checked_range_slice(index, node, type, depth);
 	if (checked_flow_index_kind(kind)) {
 		var subscript = index.bindings.program.arena.get_node_subscript(node);
 		var actual = checked_expression(index, subscript, type_id(1), depth + 1);
@@ -210,6 +211,9 @@ bool checked_flow_statement(CheckedIndex index, SyntaxNodeId node, int depth) th
 		return false;
 	}
 	var target = index.bindings.program.arena.get_node_target(node);
+	if (kind == SyntaxKind.IndexedAssignmentSyntax() && (range_slice_form(index.bindings.program.arena, target) || range_slice_form(index.bindings.program.arena, index.bindings.program.arena.get_node_container(target)))) {
+		index.fail(index.bindings.program.arena.header(node).span, "borrowed range slices are read-only"); return true;
+	}
 	var expected = checked_expression(index, target, no_type(), depth + 1);
 	var value = index.bindings.program.arena.get_node_expression(node);
 	var actual = checked_expression(index, value, expected, depth + 1);

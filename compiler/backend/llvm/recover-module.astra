@@ -1911,6 +1911,7 @@ class RecoverLlvm {
 				if (row.count == 3) {
 					arguments[2] = this.values[ssa.cfg.core.flow.data.edges[row.first + 1]];
 					arguments[3] = this.values[ssa.cfg.core.flow.data.edges[row.first + 2]];
+					if (range_slice_verified(ssa.cfg.core.flow.checked, row.source)) arguments[3] = LLVMBuildSub(this.builder, arguments[3], arguments[2], this.empty);
 				}
 			} else {
 				arguments[2] = this.values[row.b];

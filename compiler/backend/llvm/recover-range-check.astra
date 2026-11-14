@@ -169,3 +169,17 @@ int recover_range_step_instruction(RecoverSsa ssa, RecoverNode row, void* value,
 	if (!folded && LLVMIsNull(current) == 0) return 0;
 	return instructions;
 }
+
+// The existing slice helper checks start >= 0, length >= 0, start <= count
+// and length <= count-start. A wrapping difference cannot pass these guards
+// for a negative/reversed end; no signed overflow promise is introduced.
+int recover_range_slice_length(void* length, void* start, void* end, void* block) {
+	if (length == null || start == null || end == null) return -1;
+	if (LLVMIsAConstantInt(length) != null) {
+		if (LLVMIsAConstantInt(start) == null || LLVMIsAConstantInt(end) == null) return -1;
+		u64 expected = (LLVMConstIntGetZExtValue(end)-LLVMConstIntGetZExtValue(start)) & 4294967295;
+		if (!recover_llvm_bits(length, 32, expected)) return -1; return 0;
+	}
+	if (LLVMIsAInstruction(length) == null || LLVMGetInstructionOpcode(length) != 10 || LLVMGetNumOperands(length) != 2 || LLVMGetOperand(length, 0) != end || LLVMGetOperand(length, 1) != start || LLVMGetInstructionParent(length) != block || LLVMGetNUW(length) != 0 || LLVMGetNSW(length) != 0 || LLVMHasMetadata(length) != 0) return -1;
+	return 1;
+}
