@@ -671,6 +671,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (range_query_action(index, node) != 0) {
+		var result = checked_range_query(index, node, depth);
+		if (result.index != 0 || index.failed()) return result;
+	}
 	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 && (checked_shared_action(index, node) != 0 || checked_slice_intrinsic(index, node) || class_storage_slot_action(index, node) > 0 || checked_flow_intrinsic(index, node))) {
 		index.fail(index.bindings.program.arena.header(node).span, "intrinsic call has no declared parameter labels");
 		return no_type();

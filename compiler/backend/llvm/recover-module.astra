@@ -81,6 +81,7 @@ class RecoverLlvm {
 	void* error_owner_function;
 	void* class_snapshot;
 	void* utf8_function;
+	owned void*[] range_queries;
 	owned void*[] integer_functions;
 	owned void*[] shift_functions;
 	owned void*[] float_integer_functions;
@@ -127,6 +128,7 @@ class RecoverLlvm {
 		this.snapshot_initialize_function = null;
 		this.class_snapshot = null;
 		this.utf8_function = null;
+		this.range_queries = new void*[20];
 		this.integer_functions = new void*[20];
 		this.shift_functions = new void*[200];
 		this.float_integer_functions = new void*[20];
@@ -597,6 +599,41 @@ class RecoverLlvm {
 		}
 	}
 
+	void range_query_declare(CheckedIndex checked, SyntaxNodeId source) throws Error {
+		var type = range_query_receiver(checked, source);
+		var element = checked.types.argument(checked.types, type, 0).type;
+		int kind = checked_kind(checked, element); int action = range_query_action(checked, source);
+		int index = (kind - 1) * 2 + action - 1; if (this.range_queries[index] != null) return;
+		var name = llvm_name("astra.range.query.", index);
+		var integer = this.scalar(checked, element); var parameters = new void*[action + 2];
+		parameters[0] = integer; parameters[1] = integer; parameters[2] = this.boolean;
+		if (action == 2) parameters[3] = integer;
+		var function = this.function(name.text, this.boolean, parameters, true); this.range_queries[index] = function;
+		var entry = llvm12_block(this.context, function, "range.query"); LLVMPositionBuilderAtEnd(this.builder, entry);
+		var start = LLVMGetParam(function, 0); var end = LLVMGetParam(function, 1); var inclusive = LLVMGetParam(function, 2);
+		int greater = 34; int at_least = 35; int less = 36; int at_most = 37;
+		if (type_signed(kind)) {
+			greater = 38;
+			at_least = 39;
+			less = 40;
+			at_most = 41;
+		}
+		if (action == 1) {
+			var strict = LLVMBuildICmp(this.builder, greater, start, end, this.empty);
+			var half_open = LLVMBuildICmp(this.builder, at_least, start, end, this.empty);
+			var result = LLVMBuildSelect(this.builder, inclusive, strict, half_open, this.empty);
+			var returned = LLVMBuildRet(this.builder, result);
+		} else {
+			var item = LLVMGetParam(function, 3);
+			var lower = LLVMBuildICmp(this.builder, at_least, item, start, this.empty);
+			var closed = LLVMBuildICmp(this.builder, at_most, item, end, this.empty);
+			var half_open = LLVMBuildICmp(this.builder, less, item, end, this.empty);
+			var upper = LLVMBuildSelect(this.builder, inclusive, closed, half_open, this.empty);
+			var result = LLVMBuildAnd(this.builder, lower, upper, this.empty);
+			var returned = LLVMBuildRet(this.builder, result);
+		}
+	}
+
 	void declarations(RecoverSsa ssa) throws Error {
 		var integer_runtime = new RecoverIntegerRuntime(this.context, this.module, this.builder, this.handles, this.trap_function);
 		var shift_runtime = new RecoverShiftRuntime(this.context, this.module, this.builder, this.handles, this.trap_function);
@@ -604,6 +641,7 @@ class RecoverLlvm {
 		int n = 0;
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
+			if (row.kind == 88) this.range_query_declare(ssa.cfg.core.flow.checked, row.source);
 			if (row.kind == 54) {
 				int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 				int target = checked_kind(ssa.cfg.core.flow.checked, row.type);
@@ -1013,6 +1051,23 @@ class RecoverLlvm {
 			}
 		}
 		if (op == 3) value = this.binary(ssa, row);
+		if (op == 88) {
+			var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+			void* aggregate = this.locals[row.symbol.index];
+			if (row.a > 0) aggregate = this.values[row.a];
+			else {
+				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, type), this.owner_addresses[row.symbol.index]);
+			}
+			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+			int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+			int action = range_query_action(ssa.cfg.core.flow.checked, row.source); var arguments = new void*[action + 2];
+			int field = 0; while (field < 3) {
+				arguments[field] = LLVMBuildExtractValue(this.builder, aggregate, field, this.empty);
+				field = field + 1;
+			}
+			if (action == 2) arguments[3] = this.values[row.b];
+			value = this.call(this.range_queries[(kind - 1) * 2 + action - 1], arguments, true); operation = value;
+		}
 		if (op == 79) {
 			var binary = row;
 			binary.type = ssa.cfg.core.nodes[row.a - 1].value.type;
@@ -2114,6 +2169,33 @@ class RecoverLlvm {
 		return true;
 	}
 
+	bool range_queries_verified(RecoverSsa ssa) throws Error {
+		if (len(this.range_queries) != 20) return false; var needed = new bool[20]; int at = 0;
+		while (at < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 88) {
+				var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+				if (!range_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
+				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+				int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+				int action = range_query_action(ssa.cfg.core.flow.checked, row.source); if (action < 1 || action > 2) return false;
+				needed[(kind - 1) * 2 + action - 1] = true;
+			}
+			at = at + 1;
+		}
+		at = 0; while (at < 20) {
+			if (needed[at]) {
+				var name = llvm_name("astra.range.query.", at);
+				if (!recover_range_query_helper(this.range_queries[at], at / 2 + 1, at % 2 + 1, name.text)) return false;
+			}
+			else {
+				if (this.range_queries[at] != null) return false;
+			}
+			at = at + 1;
+		}
+		return true;
+	}
+
 	bool integer_helpers_verified(RecoverSsa ssa) throws Error {
 		if (len(this.integer_functions) != 20) return false;
 		var needed = new bool[20];
@@ -2262,7 +2344,7 @@ class RecoverLlvm {
 		} else {
 			if (this.utf8_function != null) return false;
 		}
-		if (!this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.float_integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
+		if (!this.range_queries_verified(ssa) || !this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.float_integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
 		bool initialize_needed = false; int initialize = 0;
 		while (initialize < ssa.cfg.core.count) {
 			if (ssa.cfg.core.nodes[initialize].value.kind == 65) initialize_needed = true;
@@ -2309,6 +2391,11 @@ class RecoverLlvm {
 			if (array < len(this.slice_functions) && this.slice_functions[array] != null) helper_count = helper_count + 1;
 			array = array + 1;
 		}
+		int range_at = helper_count; int range_query = 0;
+		while (range_query < 20) {
+			if (this.range_queries[range_query] != null) helper_count = helper_count + 1;
+			range_query = range_query + 1;
+		}
 		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
 		if (initialize_needed) helpers[initialize_at] = this.snapshot_initialize_function;
 		if (this.shared_runtime.context != null) {
@@ -2331,6 +2418,13 @@ class RecoverLlvm {
 			helpers[intrinsic_weak_start] = this.intrinsic_shared.downgrade; helpers[intrinsic_weak_start + 1] = this.intrinsic_shared.weak_clone; helpers[intrinsic_weak_start + 2] = this.intrinsic_shared.upgrade; helpers[intrinsic_weak_start + 3] = this.intrinsic_shared.weak_drop;
 		}
 		if (utf8_needed) helpers[utf8_at] = this.utf8_function;
+		range_query = 0; while (range_query < 20) {
+			if (this.range_queries[range_query] != null) {
+				helpers[range_at] = this.range_queries[range_query];
+				range_at = range_at + 1;
+			}
+			range_query = range_query + 1;
+		}
 		integer = 0;
 		while (integer < 20) {
 			if (this.integer_functions[integer] != null) {

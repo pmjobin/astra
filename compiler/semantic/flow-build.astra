@@ -221,6 +221,14 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 
 int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
 	bool getter = class_getter_call_present(checked, node);
+	if (range_query_verified(checked, node)) {
+		int head = next;
+		var arguments = checked.bindings.program.arena.get_list_arguments(node);
+		if (range_query_action(checked, node) == 2) head = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, 0), region, head, 0, depth + 1);
+		var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
+		if (receiver.index > 0) head = flow_expression(graph, checked, class_origins, receiver, region, head, 0, depth + 1);
+		return head;
+	}
 	if (class_storage_construction(checked, node)) return flowsem_construction(graph, checked, class_origins, node, region, next, depth + 1);
 	if (class_storage_slot_call_present(checked, node)) return class_storage_slot_flow(graph, checked, class_origins, node, region, next, depth + 1);
 	var arguments = checked_call_arguments(checked, node);

@@ -602,12 +602,76 @@ MATCH_NEGATIVE = [
 ]
 
 
+BOUNDS = '''struct Bounds { int start; int end; bool inclusive; }
+Bounds interval(int first, int last) { Bounds result = {start = first, end = last, inclusive = true}; return result; }
+int measure(Bounds value) { return value.end-value.start; }
+'''
+RANGE_CASES = [
+	('range-bounds', TICKS+'''Range<int> interval(int first, int last) { return first..=last; }
+int measure(Range<int> value) { return value.end-value.start; }
+int main() {
+	reset_trace(); var values = tick(2)..=tick(4);
+	if (trace() != 24 || values.start != 2 || values.end != 4) return 1;
+	var copied = values; values = interval(20,62);
+	if (copied.start != 2 || copied.end != 4 || measure(values) != 42) return 2;
+	if ((20..62).end != 62 || (20..=62).start != 20) return 3;
+	return 42;
+}
+''', TICKS+BOUNDS+'''int main() {
+	reset_trace(); int first = tick(2); int last = tick(4);
+	Bounds values = {start = first, end = last, inclusive = true};
+	if (trace() != 24 || values.start != 2 || values.end != 4) return 1;
+	var copied = values; values = interval(20,62);
+	if (copied.start != 2 || copied.end != 4 || measure(values) != 42) return 2;
+	return 42;
+}
+''', False),
+	('range-domains', '''bool member(int start, int end, int item) { return (start..=end).contains(item); }
+int main() {
+	var half = 20..80; var closed = 20..=80; var empty = 20..20; var singleton = 20..=20; var reversed = 80..20;
+	if (half.is_empty() || closed.is_empty() || !empty.is_empty() || singleton.is_empty() || !reversed.is_empty()) return 1;
+	if (half.contains(80) || !closed.contains(80) || !singleton.contains(20) || reversed.contains(40)) return 2;
+	if (!member(-20,22,0) || member(-20,22,23)) return 3;
+	i64 minimum = -9223372036854775808; i64 maximum = 9223372036854775807;
+	var whole = minimum..=maximum;
+	if (whole.is_empty() || !whole.contains(minimum) || !whole.contains(maximum)) return 4;
+	u64 zero = 0; u64 last = 18446744073709551615;
+	var unsigned = zero..=last; var final = last..=last; var absent = last..last;
+	if (unsigned.is_empty() || !unsigned.contains(last) || final.is_empty() || !final.contains(last) || !absent.is_empty() || absent.contains(last)) return 5;
+	return 42;
+}
+''', '''bool member(int start, int end, int item) { return item >= start && item <= end; }
+int main() {
+	int first = 20; int last = 80;
+	if (first >= last || first > last || first < first || first > first || last < first) return 1;
+	if (last < last || !(last <= last) || !(first >= first && first <= first) || last <= 40 && 40 < first) return 2;
+	if (!member(-20,22,0) || member(-20,22,23)) return 3;
+	i64 minimum = -9223372036854775808; i64 maximum = 9223372036854775807;
+	if (minimum > maximum || !(minimum >= minimum && minimum <= maximum) || !(maximum >= minimum && maximum <= maximum)) return 4;
+	u64 zero = 0; u64 limit = 18446744073709551615;
+	if (zero > limit || !(limit >= zero && limit <= limit) || limit > limit || !(limit >= limit && limit <= limit) || limit < limit || limit < limit) return 5;
+	return 42;
+}
+''', False),
+]
+RANGE_NEGATIVE = [
+	('range-mixed', 'int main() { var value = 0..true; return 42; }'),
+	('range-float', 'int main() { var value = 0.0..1.0; return 42; }'),
+	('range-type-float', 'int main() { Range<float> value = 0..1; return 42; }'),
+	('range-property', 'int main() { var value = 0..1; return value.middle; }'),
+	('range-query-arity', 'int main() { var value = 0..1; if (value.is_empty(0)) return 1; return 42; }'),
+	('range-query-label', 'int main() { var value = 0..1; if (value.contains(item: 0)) return 1; return 42; }'),
+	('range-query-type', 'int main() { var value = 0..1; if (value.contains(true)) return 1; return 42; }'),
+	('range-owning', 'owned Range<int> interval() { return 0..1; } int main() { return 42; }'),
+]
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
-	p.add_argument('--feature', choices=('named', 'match'), default='named')
+	p.add_argument('--feature', choices=('named', 'match', 'range'), default='named')
 	a = p.parse_args()
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
@@ -637,6 +701,9 @@ def main():
 	if a.feature == 'match':
 		cases = [r for r in MATCH_CASES if not a.case or r[0] in a.case]
 		negatives = MATCH_NEGATIVE
+	if a.feature == 'range':
+		cases = [r for r in RANGE_CASES if not a.case or r[0] in a.case]
+		negatives = RANGE_NEGATIVE
 	assert cases and (not a.case or set(a.case) == {r[0] for r in cases})
 	for name, modern, expanded, errors in cases:
 		source = runtime/(name+'.astra'); source.write_text('language astra27b;\n'+modern)

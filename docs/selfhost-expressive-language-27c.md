@@ -443,3 +443,32 @@ Preflight1 and focused ssa4/ssa5 refused authoring mistakes in temporary borrowe
 arena access and a nested borrowed test call; those failures remain recorded.
 Iteration, lazy transformations, slices, explicit materialization, interpolation
 and idiomatic migration are still required work.
+
+The dev5 Astra-built attempt at 6fa0326 failed SSA verification after 1264.303
+seconds, before native LLVM emission. No dev5 product or native owning-match
+acceptance is claimed. The exact inputs, producer process/LLVM observation and
+failure logs remain in selfhost27c-dev5. A focused native SSA source consumer is
+being built to identify the failing phase/item and remaining work. The diagnostic
+API reuses the same independent verifier and eight-million-work ceiling; it
+adds no producer certificate or proof exception. Current source has not yet
+established whether the older producer's failure also occurs in the new verifier.
+
+The range query candidate adds exact positional `is_empty()` and `contains(x)`.
+Reversed ranges are empty; equal endpoints are empty for half-open ranges and a
+singleton for inclusive ranges. Queries use exact signed or unsigned comparisons
+without subtracting endpoints. The private native helpers receive two bounds,
+inclusive bit and optional item. Their signatures, complete instruction bodies,
+signedness, inclusive select, call arguments and module-owned inventory have
+independent consumers. This is implemented candidate code, with native new-query
+acceptance still pending. Full C0 source semantics passed before diagnostic edits
+(range-preflight3, 67.174 seconds); the focused ssa7 C0 semantic preflight including
+those edits passed in 54.839 seconds. The range carrier's entry instruction count
+now also includes its three parameter reconstruction inserts.
+
+Two separately authored expanded C0 oracle programs exercise bound evaluation
+order, copying/reassignment, private function transport, empty/singleton/reversed
+queries, signed negative intervals and signed/unsigned extrema. Both return 42
+and strict returning Valgrind reports zero live bytes, errors and suppressions
+(selfhost27c-range-oracles1 and selfhost27c-range-oracle-memory1). These reference
+results do not stand in for native new-syntax targets. The original ssa6 range
+consumer continues separately against its frozen addbbc4 source snapshot.

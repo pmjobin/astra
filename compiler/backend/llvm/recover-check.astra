@@ -258,7 +258,7 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 				var parameter = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(parameters, p);
 				if (ssa.cfg.core.flow.checked.node_symbols[parameter.index].index == slot.symbol.index) source = p;
 				p = p + 1;
-			} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 32) allocation_count = allocation_count + 1; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 15) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
+			} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 32) allocation_count = allocation_count + 1; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 15) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
 		} else {
 			int candidate = index.declarations[slot.symbol.index];
 			var local = ssa.cfg.core.nodes[candidate - 1].value;
@@ -321,6 +321,18 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		} else {
 			if (op == 10 || values[block.origin] != locals[row.symbol.index]) return 0;
 		}
+	}
+	if (op == 88) {
+		var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = locals[row.symbol.index]; int loaded = 0;
+		if (row.a > 0) aggregate = values[row.a];
+		else { if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+				aggregate = LLVMGetFirstInstruction(physical);
+				if (aggregate == null || LLVMGetInstructionOpcode(aggregate) != 27 || LLVMGetOperand(aggregate, 0) != owner_addresses[row.symbol.index] || LLVMGetAlignment(aggregate) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(aggregate)) || LLVMGetVolatile(aggregate) != 0 || LLVMGetOrdering(aggregate) != 0 || LLVMHasMetadata(aggregate) != 0) return 0;
+				loaded = 1;
+			} }
+		if (values[block.origin] != operation) return 0;
+		int introduced = recover_range_query_call(ssa, row, operation, aggregate, values[row.b], LLVMGetGlobalParent(functions[row.function - 1]));
+		if (introduced == 0) return 0; instruction_count = introduced + loaded;
 	}
 	if (op == 79) {
 		if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetInstructionParent(operation) != physical || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
@@ -666,7 +678,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+	if (op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
 	else {
 		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
 	}

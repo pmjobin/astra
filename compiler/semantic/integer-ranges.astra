@@ -114,3 +114,74 @@ bool range_value_facts_verified(CheckedIndex index) {
 	}
 	return true;
 }
+
+int range_query_action(CheckedIndex index, SyntaxNodeId node) {
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || !checked_modern_source(index, node)) return 0;
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	if (index.bindings.program.arena.token_is(token, "is_empty")) return 1;
+	if (index.bindings.program.arena.token_is(token, "contains")) return 2;
+	return 0;
+}
+
+TypeId range_query_receiver(CheckedIndex index, SyntaxNodeId node) {
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node);
+	if (receiver.index > 0) return index.uses[receiver.index].type;
+	var target = checked_target(index, node, index.bindings.program.arena.get_token_receiver(node));
+	if (target.index > 0) return index.symbol_types[target.index];
+	return no_type();
+}
+
+TypeId checked_range_query(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	int action = range_query_action(index, node); if (action == 0) return no_type();
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node);
+	var type = no_type();
+	if (receiver.index > 0) type = checked_expression(index, receiver, no_type(), depth + 1);
+	else {
+		type = range_query_receiver(index, node);
+	}
+	if (!range_type_verified(index.types, type)) return no_type();
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.list_count(arguments) != action - 1 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node)) {
+		index.fail(index.bindings.program.arena.header(node).span, "range query requires its exact positional signature"); return no_type();
+	}
+	if (action == 2) {
+		var argument = index.bindings.program.arena.node_at(arguments, 0);
+		var expected = index.types.argument(index.types, type, 0).type;
+		var actual = checked_expression(index, argument, expected, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(argument).span, expected, actual, "range containment argument");
+		if (index.uses[argument.index].flags != 0) {
+			index.fail(index.bindings.program.arena.header(argument).span, "range containment requires a copied integer");
+			return no_type();
+		}
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 0; index.uses[node.index] = use;
+	return type_id(13);
+}
+
+bool range_query_source(SyntaxArena arena, SyntaxNodeId node) {
+	var whole = arena.header(node).span; var receiver = arena.token_span(arena.get_token_receiver(node));
+	var aggregate = arena.get_node_receiver_place(node); if (aggregate.index > 0) receiver = arena.header(aggregate).span;
+	var token = arena.get_token_identifier(node); var method = arena.token_span(token); var opening = arena.token_span(arena.get_token_open_paren(node)); var closing = arena.token_span(arena.get_token_close_paren(node));
+	if (whole.source.index != receiver.source.index || whole.source.index != method.source.index || whole.source.index != opening.source.index || whole.source.index != closing.source.index || whole.start != receiver.start || whole.end != closing.end || receiver.end > method.start || method.end > opening.start || opening.end > closing.start || !syntax_call_labels_verified(arena, node)) return false;
+	try {
+		var backing = arena.source(whole.source); if (!source_valid_span(shared_borrow(backing), receiver.end, opening.start)) return false;
+		var bytes = source_bytes(shared_borrow(backing), receiver.end, opening.start);
+		var buffer = source_buffer("<range-query-proof>", move bytes, false); var retained = shared_acquire(move buffer); var scanner = lexer(move retained);
+		var separator = scanner.next_token(); var name = scanner.next_token(); var eof = scanner.next_token();
+		return !scanner.failed && separator.kind() == TokenKind.DOT() && name.kind() == TokenKind.IDENTIFIER() && eof.kind() == TokenKind.EOF() && receiver.end + name.span.start == method.start && receiver.end + name.span.end == method.end && arena.token_is(token, name.spelling.text);
+	} catch (Error error) { return false; }
+}
+
+bool range_query_verified(CheckedIndex index, SyntaxNodeId node) {
+	int action = range_query_action(index, node); if (action == 0) return false;
+	var type = range_query_receiver(index, node); if (!range_type_verified(index.types, type)) return false;
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	if (checked_target(index, node, token).index != 0 || index.uses[node.index].type.index != 13 || index.uses[node.index].flags != 0 || index.uses[node.index].deferred != 0 || index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || !range_query_source(index.bindings.program.arena, node)) return false;
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.list_count(arguments) != action - 1) return false;
+	if (action == 2) {
+		var argument = index.bindings.program.arena.node_at(arguments, 0); var use = index.uses[argument.index];
+		if (use.type.index != index.types.argument(index.types, type, 0).type.index || use.flags != 0 || use.deferred != 0) return false;
+	}
+	return true;
+}

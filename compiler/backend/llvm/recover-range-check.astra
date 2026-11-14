@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Range queries use private scalar helpers. Their dynamic parameters prevent
+// constant folding from concealing the signedness or inclusive comparison.
+bool recover_range_query_helper(void* function, int kind, int action, string name) {
+	int count = 3; if (action == 2) count = 4;
+	if (!type_integer(kind) || action < 1 || action > 2 || function == null || LLVMIsAFunction(function) == null || !recover_llvm_helper_signature(function, count) || llvm13_named(function, name) != 1) return false;
+	var integer = LLVMTypeOf(LLVMGetParam(function, 0)); var boolean = LLVMTypeOf(LLVMGetParam(function, 2));
+	if (LLVMGetTypeKind(integer) != 8 || LLVMGetIntTypeWidth(integer) != type_width(kind) || LLVMTypeOf(LLVMGetParam(function, 1)) != integer || LLVMGetTypeKind(boolean) != 8 || LLVMGetIntTypeWidth(boolean) != 1 || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != boolean || action == 2 && LLVMTypeOf(LLVMGetParam(function, 3)) != integer) return false;
+	var blocks = recover_llvm_helper_blocks(function, 1); if (len(blocks) != 1) return false;
+	int instructions = 4; if (action == 2) instructions = 6;
+	var body = recover_llvm_body(blocks[0], instructions); if (len(body) != instructions) return false;
+	int at = 0;
+	while (at < instructions) {
+		if (LLVMHasMetadata(body[at]) != 0) return false;
+		if (LLVMGetInstructionOpcode(body[at]) == 42 && (LLVMGetNumOperands(body[at]) != 2 || LLVMGetICmpSameSign(body[at]) != 0)) return false;
+		at = at + 1;
+	}
+	var start = LLVMGetParam(function, 0); var end = LLVMGetParam(function, 1); var inclusive = LLVMGetParam(function, 2);
+	int greater = 34; int at_least = 35; int less = 36; int at_most = 37;
+	if (type_signed(kind)) {
+		greater = 38;
+		at_least = 39;
+		less = 40;
+		at_most = 41;
+	}
+	if (action == 1) {
+		if (!recover_llvm_compare(body[0], greater, start, end) || !recover_llvm_compare(body[1], at_least, start, end)) return false;
+		return LLVMGetInstructionOpcode(body[2]) == 46 && LLVMGetNumOperands(body[2]) == 3 && LLVMGetOperand(body[2], 0) == inclusive && LLVMGetOperand(body[2], 1) == body[0] && LLVMGetOperand(body[2], 2) == body[1] && recover_llvm_return(body[3], body[2]);
+	}
+	var item = LLVMGetParam(function, 3);
+	if (!recover_llvm_compare(body[0], at_least, item, start) || !recover_llvm_compare(body[1], at_most, item, end) || !recover_llvm_compare(body[2], less, item, end)) return false;
+	if (LLVMGetInstructionOpcode(body[3]) != 46 || LLVMGetNumOperands(body[3]) != 3 || LLVMGetOperand(body[3], 0) != inclusive || LLVMGetOperand(body[3], 1) != body[1] || LLVMGetOperand(body[3], 2) != body[2]) return false;
+	return LLVMGetInstructionOpcode(body[4]) == 23 && LLVMGetNumOperands(body[4]) == 2 && LLVMGetOperand(body[4], 0) == body[0] && LLVMGetOperand(body[4], 1) == body[3] && recover_llvm_return(body[5], body[4]);
+}
+
+int recover_range_query_call(RecoverSsa ssa, RecoverNode row, void* call, void* aggregate, void* item, void* module) throws Error {
+	var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); if (!range_type_verified(ssa.cfg.core.flow.checked.types, type) || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate)) || call == null || LLVMIsAInstruction(call) == null || LLVMGetInstructionOpcode(call) != 45) return 0;
+	int action = range_query_action(ssa.cfg.core.flow.checked, row.source); int count = action + 2;
+	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+	int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+	int index = (kind - 1) * 2 + action - 1; var name = llvm_name("astra.range.query.", index);
+	var function = LLVMGetCalledValue(call);
+	if (function == null || LLVMIsAFunction(function) == null || LLVMGetGlobalParent(function) != module || !recover_range_query_helper(function, kind, action, name.text) || !recover_llvm_call(call, function, count, 8) || !recover_llvm_native_attributes(call, count) || LLVMHasMetadata(call) != 0) return 0;
+	int instructions = 2; int field = 0;
+	while (field < 3) {
+		var argument = LLVMGetArgOperand(call, field);
+		if (!recover_llvm_extract(argument, aggregate, field)) return 0;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMGetInstructionParent(argument) != LLVMGetInstructionParent(call) || LLVMHasMetadata(argument) != 0) return 0;
+			instructions = instructions + 1;
+		}
+		field = field + 1;
+	}
+	if (action == 2 && LLVMGetArgOperand(call, 3) != item) return 0;
+	return instructions;
+}
