@@ -607,6 +607,45 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-foreach', TICKS+'''int main() {
+	reset_trace(); int total = 0;
+	foreach (var item in tick(2)..=tick(4)) { total = total+item; }
+	if (total != 9 || trace() != 24) return 1;
+	int selected = 0;
+	foreach (var item in 0..10) { if (item == 2) continue; if (item == 8) break; selected = selected+item; }
+	if (selected != 26) return 2;
+	int nested = 0; foreach (var left in 0..3) { foreach (var right in 0..2) { nested = nested+1; } }
+	if (nested != 6) return 3;
+	int empty = 0; foreach (var item in 80..20) { empty = empty+1; } foreach (var item in 20..20) { empty = empty+1; }
+	if (empty != 0) return 4;
+	i64 last = 9223372036854775807; int count = 0;
+	foreach (var item in last..=last) { if (item != last) return 5; count = count+1; }
+	u64 unsigned_last = 18446744073709551615;
+	foreach (var item in unsigned_last..=unsigned_last) { if (item != unsigned_last) return 6; count = count+1; }
+	foreach (var item in -2..=2) { count = count+1; }
+	if (count != 7) return 7;
+	return 42;
+}
+''', TICKS+'''int main() {
+	reset_trace(); int first = tick(2); int last = tick(4); int total = 0; int item = first;
+	while (item <= last) { total = total+item; if (item == last) break; item = item+1; }
+	if (total != 9 || trace() != 24) return 1;
+	int selected = 0; item = 0;
+	while (item < 10) { int value = item; item = item+1; if (value == 2) continue; if (value == 8) break; selected = selected+value; }
+	if (selected != 26) return 2;
+	int nested = 0; int left = 0; while (left < 3) { int right = 0; while (right < 2) { nested = nested+1; right = right+1; } left = left+1; }
+	if (nested != 6) return 3;
+	int empty = 0; item = 80; while (item < 20) { empty = empty+1; item = item+1; } item = 20; while (item < 20) { empty = empty+1; item = item+1; }
+	if (empty != 0) return 4;
+	i64 limit = 9223372036854775807; i64 current = limit; int count = 0;
+	while (current <= limit) { if (current != limit) return 5; count = count+1; if (current == limit) break; current = current+1; }
+	u64 unsigned_limit = 18446744073709551615; u64 unsigned_current = unsigned_limit;
+	while (unsigned_current <= unsigned_limit) { if (unsigned_current != unsigned_limit) return 6; count = count+1; if (unsigned_current == unsigned_limit) break; unsigned_current = unsigned_current+1; }
+	item = -2; while (item <= 2) { count = count+1; if (item == 2) break; item = item+1; }
+	if (count != 7) return 7;
+	return 42;
+}
+''', False),
 	('range-bounds', TICKS+'''Range<int> interval(int first, int last) { return first..=last; }
 int measure(Range<int> value) { return value.end-value.start; }
 int main() {
@@ -655,6 +694,8 @@ int main() {
 ''', False),
 ]
 RANGE_NEGATIVE = [
+	('range-foreach-write', 'int main() { foreach (var item in 0..3) { item = 2; } return 42; }'),
+	('range-foreach-escape', 'int main() { foreach (var item in 0..3) {} return item; }'),
 	('range-mixed', 'int main() { var value = 0..true; return 42; }'),
 	('range-float', 'int main() { var value = 0.0..1.0; return 42; }'),
 	('range-type-float', 'int main() { Range<float> value = 0..1; return 42; }'),

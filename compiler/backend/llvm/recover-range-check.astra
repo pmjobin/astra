@@ -34,8 +34,14 @@ bool recover_range_query_helper(void* function, int kind, int action, string nam
 }
 
 int recover_range_query_call(RecoverSsa ssa, RecoverNode row, void* call, void* aggregate, void* item, void* module) throws Error {
-	var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); if (!range_type_verified(ssa.cfg.core.flow.checked.types, type) || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate)) || call == null || LLVMIsAInstruction(call) == null || LLVMGetInstructionOpcode(call) != 45) return 0;
-	int action = range_query_action(ssa.cfg.core.flow.checked, row.source); int count = action + 2;
+	var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); int action = range_query_action(ssa.cfg.core.flow.checked, row.source);
+	return recover_range_call(ssa, type, action, call, aggregate, item, module);
+}
+
+int recover_range_call(RecoverSsa ssa, TypeId type, int action, void* call, void* aggregate, void* item, void* module) throws Error {
+	if (!range_type_verified(ssa.cfg.core.flow.checked.types, type) || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate)) || call == null || LLVMIsAInstruction(call) == null || LLVMGetInstructionOpcode(call) != 45) return 0;
+	if (action < 1 || action > 2) return 0;
+	int count = action + 2;
 	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 	int kind = checked_kind(ssa.cfg.core.flow.checked, element);
 	int index = (kind - 1) * 2 + action - 1; var name = llvm_name("astra.range.query.", index);
@@ -53,4 +59,46 @@ int recover_range_query_call(RecoverSsa ssa, RecoverNode row, void* call, void* 
 	}
 	if (action == 2 && LLVMGetArgOperand(call, 3) != item) return 0;
 	return instructions;
+}
+
+bool recover_range_counter_load(CheckedIndex checked, TypeId element, void* value, void* address, void* layout, void* block) {
+	return value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 27 && LLVMGetInstructionParent(value) == block && LLVMGetNumOperands(value) == 1 && LLVMGetOperand(value, 0) == address && recover_llvm_scalar_type(checked, element, LLVMTypeOf(value)) && LLVMGetAlignment(value) == LLVMABIAlignmentOfType(layout, LLVMTypeOf(value)) && LLVMGetVolatile(value) == 0 && LLVMGetOrdering(value) == 0 && LLVMHasMetadata(value) == 0;
+}
+
+bool recover_range_counter_store(void* operation, void* address, void* layout, void* block) {
+	if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 28 || LLVMGetNumOperands(operation) != 2 || LLVMGetInstructionParent(operation) != block || LLVMGetOperand(operation, 1) != address || LLVMGetVolatile(operation) != 0 || LLVMGetOrdering(operation) != 0 || LLVMHasMetadata(operation) != 0) return false;
+	return LLVMGetAlignment(operation) == LLVMABIAlignmentOfType(layout, LLVMTypeOf(LLVMGetOperand(operation, 0)));
+}
+
+int recover_range_loop_instruction(RecoverSsa ssa, RecoverBlock block, void* layout, void* physical, void* operation, void* aggregate, void* address, void* initial, void* module) throws Error {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value; if (row.kind != 89 || !range_foreach_binding(ssa.cfg.core.flow.checked, row.symbol)) return 0;
+	var type = ssa.cfg.core.nodes[row.a - 1].value.type;
+	if (aggregate == null || address == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate))) return 0;
+	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+	if (block.opcode == 89) {
+		if (!recover_range_counter_store(operation, address, layout, physical) || LLVMGetOperand(operation, 0) != initial || !recover_llvm_extract(initial, aggregate, 0)) return 0;
+		if (LLVMIsAInstruction(aggregate) == null) return 2;
+		if (LLVMGetInstructionParent(initial) != physical || LLVMHasMetadata(initial) != 0) return 0;
+		return 3;
+	}
+	var current = LLVMGetFirstInstruction(physical);
+	if (!recover_range_counter_load(ssa.cfg.core.flow.checked, element, current, address, layout, physical)) return 0;
+	if (block.opcode == 90) {
+		int introduced = recover_range_call(ssa, type, 2, operation, aggregate, current, module);
+		if (introduced == 0) return 0;
+		return introduced + 1;
+	}
+	if (block.opcode == 91) {
+		if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 42 || LLVMGetNumOperands(operation) != 2 || LLVMGetInstructionParent(operation) != physical || LLVMGetICmpSameSign(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
+		int predicate = 36; if (type_signed(checked_kind(ssa.cfg.core.flow.checked, element))) predicate = 40;
+		var end = LLVMGetOperand(operation, 1);
+		if (!recover_llvm_compare(operation, predicate, current, end) || !recover_llvm_extract(end, aggregate, 1)) return 0;
+		if (LLVMIsAInstruction(aggregate) == null) return 3;
+		if (LLVMGetInstructionParent(end) != physical || LLVMHasMetadata(end) != 0) return 0;
+		return 4;
+	}
+	if (block.opcode != 92 || !recover_range_counter_store(operation, address, layout, physical)) return 0;
+	var added = LLVMGetOperand(operation, 0);
+	if (LLVMIsAInstruction(added) == null || LLVMGetInstructionOpcode(added) != 8 || LLVMGetNumOperands(added) != 2 || LLVMGetInstructionParent(added) != physical || LLVMGetOperand(added, 0) != current || !recover_llvm_bits(LLVMGetOperand(added, 1), type_width(checked_kind(ssa.cfg.core.flow.checked, element)), 1) || LLVMGetNUW(added) != 0 || LLVMGetNSW(added) != 0 || LLVMHasMetadata(added) != 0) return 0;
+	return 4;
 }

@@ -65,7 +65,7 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	int code = checked_kind(checked, type);
 	var declaration = checked.bindings.symbol(symbol);
 	bool record = checked.semantic_flow && flowsem_record_shape(checked, type, 0);
-	if (type.index == 0 || (!record && ((row.owner && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type)) || (!row.owner && !type_numeric(code) && code != 13 && code != 15 && code != 16 && code != 20 && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type))))) {
+	if (type.index == 0 || (!record && ((row.owner && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type)) || (!row.owner && !type_numeric(code) && code != 13 && code != 15 && code != 16 && code != 20 && !range_type_verified(checked.types, type) && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type))))) {
 		graph.defer(declaration.node, 7);
 	}
 	if (row.owner && code == 31 && (class_origins[symbol.index] & 12) != 0) {
@@ -102,6 +102,10 @@ void flow_collect(borrowed FlowGraph graph, CheckedIndex checked, int[] class_or
 			i = i + 1;
 		}
 		return;
+	}
+	if (kind == SyntaxKind.ForeachStatementSyntax() && range_foreach_binding(checked, checked.node_symbols[node.index])) {
+		int child = graph.region(node, region); flow_slot(graph, checked, class_origins, checked.node_symbols[node.index], child, false);
+		flow_collect(graph, checked, class_origins, checked.bindings.program.arena.get_node_body(node), child, depth + 1); return;
 	}
 	if (kind == SyntaxKind.ForStatementSyntax()) {
 		int child = graph.region(node, region);
@@ -227,6 +231,10 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 		if (range_query_action(checked, node) == 2) head = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, 0), region, head, 0, depth + 1);
 		var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
 		if (receiver.index > 0) head = flow_expression(graph, checked, class_origins, receiver, region, head, 0, depth + 1);
+		else {
+			int slot = flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_receiver(node));
+			head = graph.add(flow_event(checked, node, 3, slot, region, head));
+		}
 		return head;
 	}
 	if (class_storage_construction(checked, node)) return flowsem_construction(graph, checked, class_origins, node, region, next, depth + 1);
@@ -383,6 +391,12 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		}
 	}
 
+	if (kind == SyntaxKind.FieldAccessExpressionSyntax() && range_field_verified(checked, node)) {
+		var aggregate = checked.bindings.program.arena.get_node_aggregate(node);
+		if (aggregate.index > 0) return flow_expression(graph, checked, class_origins, aggregate, region, next, 0, depth + 1);
+		int slot = flow_symbol_slot(graph, checked, class_origins, node, checked.bindings.program.arena.get_token_identifier(node));
+		return graph.add(flow_event(checked, node, 3, slot, region, next));
+	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) {
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_expression(node), region, next, call, depth + 1);
 	}
@@ -646,6 +660,18 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		branch.other = no;
 		int choice = graph.add(branch);
 		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_condition(node), region, choice, 0, depth + 1);
+	}
+	if (kind == SyntaxKind.ForeachStatementSyntax() && range_foreach_binding(checked, checked.node_symbols[node.index])) {
+		int child = graph.region_for(node); int slot = graph.slot_for(checked.node_symbols[node.index]);
+		int header = graph.add(flow_event(checked, node, 1, 0, region, 0));
+		var back = flow_event(checked, node, 11, 0, region, header); back.loop_head = header; int backedge = graph.add(back);
+		int leave = graph.add(flow_event(checked, node, 9, 0, child, backedge));
+		int body = flow_statement(graph, checked, class_origins, checked.bindings.program.arena.get_node_body(node), child, leave, next, backedge, region, depth + 1);
+		int publish = graph.add(flow_event(checked, node, 2, slot, child, body));
+		int enter = graph.add(flow_event(checked, node, 17, 0, child, publish));
+		var split = flow_event(checked, node, 10, 0, region, enter); split.other = next; int choice = graph.add(split);
+		var first = graph.events[header - 1]; first.next = choice; graph.events[header - 1] = first;
+		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_collection(node), region, header, 0, depth + 1);
 	}
 	if (kind == SyntaxKind.WhileStatementSyntax() || kind == SyntaxKind.ForStatementSyntax()) {
 		if (checked.semantic_flow && checked.bindings.symbol(graph.function).kind == 12) graph.defer(node, 6);

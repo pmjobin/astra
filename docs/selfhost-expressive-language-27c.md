@@ -472,3 +472,38 @@ and strict returning Valgrind reports zero live bytes, errors and suppressions
 (selfhost27c-range-oracles1 and selfhost27c-range-oracle-memory1). These reference
 results do not stand in for native new-syntax targets. The original ssa6 range
 consumer continues separately against its frozen addbbc4 source snapshot.
+
+The focused ssa6 component at addbbc4 passes actual C0 O0 compilation
+(1379.150 seconds), execution (42) and strict returning Valgrind (33.036 seconds,
+zero live bytes/errors/suppressions). Its product SHA-256 is
+`72c6197422a2052018b981b6edef2415ffc64a0992fcfa662de952498ac74155`.
+All 162 input/recipe hashes are independently bound to that commit. It executes
+real source-to-SSA range construction, bound projection, copy/reassignment and
+function transport, rejects changed bound/read metadata and restores controls,
+in addition to the earlier owning-match and fresh-argument checks. This remains
+SSA evidence; native range LLVM/ELF execution is not yet qualified.
+
+The foreach candidate retains the existing Foreach AST and exact lexical scope.
+Its copied integer binder is immutable in source. Independent consumers re-lex
+the foreach header/suffix and reconstruct the exact collection, binder and body.
+Source Flow constructs a fresh iteration scope and unwinds it on continue/break.
+Structured Flow/Core 89 retains one collection operand and one body; CFG 89--92
+separately initialize, test, guard advancement and increment. Continue reaches
+advancement without repeating collection evaluation. SSA reconstructs the
+counter's initialization and dominance. The private counter uses existing local
+storage; the range remains an allocation-free copied value. The final advance
+checks current < end before adding one, so inclusive MAX is visited without
+stepping past it. Independent physical checks cover its loads/stores, comparisons,
+inclusive containment call, increment flags, exact instruction counts and edges.
+
+Full current C0 source semantics passes for this connected iteration candidate
+(range-preflight5, 69.391 seconds); focused ssa8 semantic preflight passes in
+56.858 seconds and its native build is running. New native loop targets and
+independent corruption execution remain pending. The candidate currently iterates
+unstrided integer ranges only. Stride, slices, lazy callbacks/reductions, explicit
+materialization, interpolation and the authorized migration remain work to finish.
+The optimized C0 development build dev6 uses frozen 3640643, before this iteration
+candidate. Its actual C0 executable and mapped LLVM hashes were independently
+observed. Measured selected build-process RSS was 5,464,288 KiB with 45,952,016 KiB
+available; compilation processes each have one thread. This is bounded independent
+process work, not a claim that C0 compiles one program in parallel.

@@ -3,6 +3,12 @@
 // the independent retained-tree walk establish the nearest enclosing loop.
 RecoverNode recover_build_loop(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode initial, int depth) {
 	var row = initial; var source = row.source; var kind = checked.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.ForeachStatementSyntax()) {
+		row.kind = 89; row.type = type_id(14); row.symbol = checked.node_symbols[source.index];
+		row.token = checked.bindings.program.arena.get_token_keyword(source);
+		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_collection(source), row.function, row.handler, row.caught, depth + 1);
+		row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_body(source), row.function, row.handler, row.caught, depth + 1);
+	}
 	if (kind == SyntaxKind.WhileStatementSyntax()) {
 		row.kind = 28; row.type = type_id(14);
 		row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_condition(source), row.function, row.handler, row.caught, depth + 1);
@@ -38,7 +44,7 @@ void recover_loop_bind(RecoverFlowData flow, int id, int loop, int depth) {
 		return;
 	}
 	recover_loop_bind(flow, row.a, loop, depth + 1);
-	int nested = loop; if (row.kind == 28) nested = id;
+	int nested = loop; if (row.kind == 28 || row.kind == 89) nested = id;
 	recover_loop_bind(flow, row.b, nested, depth + 1);
 	if (row.kind == 21 || row.kind == 61 || row.kind == 76 || row.kind == 77) recover_loop_bind(flow, row.c, loop, depth + 1);
 	int i = 0; while (i < row.count) {
@@ -52,9 +58,9 @@ bool recover_loop_verify(RecoverFlowData flow, int id, int loop, int depth) {
 	if (depth > 192 || id < 1 || id > flow.node_count) return false;
 	var row = flow.nodes[id - 1];
 	if (row.kind == 82 || row.kind == 86) return true;
-	if (row.kind == 29 || row.kind == 41) return loop > 0 && row.c == loop && flow.nodes[loop - 1].kind == 28 && flow.nodes[loop - 1].function == row.function;
+	if (row.kind == 29 || row.kind == 41) return loop > 0 && row.c == loop && (flow.nodes[loop - 1].kind == 28 || flow.nodes[loop - 1].kind == 89) && flow.nodes[loop - 1].function == row.function;
 	if (!recover_loop_verify(flow, row.a, loop, depth + 1)) return false;
-	if (row.kind == 28) {
+	if (row.kind == 28 || row.kind == 89) {
 		if (!recover_loop_verify(flow, row.b, id, depth + 1)) return false;
 	}
 	else {
@@ -75,6 +81,10 @@ bool recover_loop_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 
 bool recover_loop_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
 	var kind = checked.bindings.program.arena.kind(row.source);
+	if (row.kind == 89) {
+		if (kind != SyntaxKind.ForeachStatementSyntax() || row.type.index != 14 || row.c != 0 || row.symbol.index != checked.node_symbols[row.source.index].index || row.token.index != checked.bindings.program.arena.get_token_keyword(row.source).index || !range_foreach_binding(checked, row.symbol)) return false;
+		return recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_collection(row.source), function, handler, caught, seen, edges, bindings, depth + 1) && range_type_verified(checked.types, flow.nodes[row.a - 1].type) && recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_body(row.source), function, handler, caught, seen, edges, bindings, depth + 1);
+	}
 	if (row.kind == 28) return kind == SyntaxKind.WhileStatementSyntax() && row.c == 0 && recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_condition(row.source), function, handler, caught, seen, edges, bindings, depth + 1) && flow.nodes[row.a - 1].type.index == 13 && recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_body(row.source), function, handler, caught, seen, edges, bindings, depth + 1);
 	if (row.kind == 29 || row.kind == 41) return row.a == 0 && row.b == 0 && row.c > 0 && row.c <= flow.node_count && (row.kind == 29 && kind == SyntaxKind.BreakStatementSyntax() || row.kind == 41 && kind == SyntaxKind.ContinueStatementSyntax());
 	if (row.kind != 42 && row.kind != 43 || kind != SyntaxKind.AssignmentStatementSyntax() || row.b != 0 || row.c != 0 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count) return false;

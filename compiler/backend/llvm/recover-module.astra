@@ -600,9 +600,13 @@ class RecoverLlvm {
 	}
 
 	void range_query_declare(CheckedIndex checked, SyntaxNodeId source) throws Error {
-		var type = range_query_receiver(checked, source);
+		var type = range_query_receiver(checked, source); int action = range_query_action(checked, source);
+		this.range_query_declare_type(checked, type, action);
+	}
+
+	void range_query_declare_type(CheckedIndex checked, TypeId type, int action) throws Error {
 		var element = checked.types.argument(checked.types, type, 0).type;
-		int kind = checked_kind(checked, element); int action = range_query_action(checked, source);
+		int kind = checked_kind(checked, element);
 		int index = (kind - 1) * 2 + action - 1; if (this.range_queries[index] != null) return;
 		var name = llvm_name("astra.range.query.", index);
 		var integer = this.scalar(checked, element); var parameters = new void*[action + 2];
@@ -642,6 +646,7 @@ class RecoverLlvm {
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
 			if (row.kind == 88) this.range_query_declare(ssa.cfg.core.flow.checked, row.source);
+			if (row.kind == 89) this.range_query_declare_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 2);
 			if (row.kind == 54) {
 				int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
 				int target = checked_kind(ssa.cfg.core.flow.checked, row.type);
@@ -1067,6 +1072,36 @@ class RecoverLlvm {
 			}
 			if (action == 2) arguments[3] = this.values[row.b];
 			value = this.call(this.range_queries[(kind - 1) * 2 + action - 1], arguments, true); operation = value;
+		}
+		if (op >= 89 && op <= 92) {
+			var type = ssa.cfg.core.nodes[row.a - 1].value.type; var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+			var integer = this.scalar(ssa.cfg.core.flow.checked, element); var aggregate = this.values[row.a]; var address = this.owner_addresses[row.symbol.index];
+			if (op == 89) {
+				var first = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty); this.locals[row.symbol.index] = first;
+				operation = LLVMBuildStore(this.builder, first, address); LLVMSetAlignment(operation, LLVMABIAlignmentOfType(this.layout, integer));
+			} else {
+				var current = this.load(integer, address);
+				if (op == 90) {
+					var arguments = new void*[4]; int field = 0;
+					while (field < 3) {
+						arguments[field] = LLVMBuildExtractValue(this.builder, aggregate, field, this.empty);
+						field = field + 1;
+					}
+					arguments[3] = current; int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+					operation = this.call(this.range_queries[(kind - 1) * 2 + 1], arguments, true);
+					var branch = LLVMBuildCondBr(this.builder, operation, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+				}
+				if (op == 91) {
+					var end = LLVMBuildExtractValue(this.builder, aggregate, 1, this.empty); int predicate = 36;
+					if (type_signed(checked_kind(ssa.cfg.core.flow.checked, element))) predicate = 40;
+					operation = LLVMBuildICmp(this.builder, predicate, current, end, this.empty);
+					var branch = LLVMBuildCondBr(this.builder, operation, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+				}
+				if (op == 92) {
+					var incremented = LLVMBuildAdd(this.builder, current, LLVMConstInt(integer, 1, 0), this.empty);
+					operation = LLVMBuildStore(this.builder, incremented, address); LLVMSetAlignment(operation, LLVMABIAlignmentOfType(this.layout, integer));
+				}
+			}
 		}
 		if (op == 79) {
 			var binary = row;
@@ -2173,6 +2208,12 @@ class RecoverLlvm {
 		if (len(this.range_queries) != 20) return false; var needed = new bool[20]; int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 89) {
+				var type = ssa.cfg.core.nodes[row.a - 1].value.type;
+				if (!range_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
+				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
+				int kind = checked_kind(ssa.cfg.core.flow.checked, element); needed[(kind - 1) * 2 + 1] = true;
+			}
 			if (row.kind == 88) {
 				var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
 				if (!range_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;

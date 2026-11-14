@@ -54,7 +54,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		}
 		var declaration = checked.bindings.symbol(slot.symbol);
 		if (checked.semantic_flow && slot.parameter && (slot.flags & 7) != flowsem_source_flags(checked, declaration.node)) return false;
-		if (slot.type.index != checked.symbol_types[slot.symbol.index].index || slot.flags != checked.symbol_flags[slot.symbol.index] || declaration.owner.index != graph.function.index || (declaration.kind != 7 && declaration.kind != 8)) {
+		if (slot.type.index != checked.symbol_types[slot.symbol.index].index || slot.flags != checked.symbol_flags[slot.symbol.index] || declaration.owner.index != graph.function.index || (declaration.kind != 7 && declaration.kind != 8 && !range_foreach_binding(checked, slot.symbol))) {
 			return false;
 		}
 		i = i + 1;
@@ -149,7 +149,9 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		if (event.operation == 3 || event.operation == 4 || event.operation == 13 || event.operation == 5 || event.operation == 6 || event.operation == 15 || event.operation == 2) {
 			SymbolId symbol = type_symbol(0);
 			if (event.operation == 3) {
-				if (kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax() && !(kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move(checked, event.node))) {
+				bool range_query = kind == SyntaxKind.CallExpressionSyntax() && range_query_verified(checked, event.node) && checked.bindings.program.arena.get_node_receiver_place(event.node).index == 0;
+				bool range_field = kind == SyntaxKind.FieldAccessExpressionSyntax() && range_field_verified(checked, event.node) && checked.bindings.program.arena.get_node_aggregate(event.node).index == 0;
+				if (!range_query && !range_field && kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax() && !(kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move(checked, event.node))) {
 					return false;
 				}
 				SyntaxTokenId token = {index = 0};
@@ -158,6 +160,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 				} else {
 					token = checked.bindings.program.arena.get_token_identifier(event.node);
 				}
+				if (range_query) token = checked.bindings.program.arena.get_token_receiver(event.node);
 				symbol = checked_target(checked, event.node, token);
 			}
 			if (event.operation == 4 || event.operation == 13) {

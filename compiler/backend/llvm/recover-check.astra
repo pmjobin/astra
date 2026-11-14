@@ -29,7 +29,7 @@ bool recover_llvm_index_build(RecoverLlvmIndex index, RecoverCoreNode[] nodes, i
 		var row = nodes[n].value;
 		if (row.function < 1 || row.function > len(index.node_heads)) return false;
 		index.node_next[n] = index.node_heads[row.function - 1]; index.node_heads[row.function - 1] = n + 1;
-		if (row.kind == 27 || row.kind == 86) {
+		if (row.kind == 27 || row.kind == 86 || row.kind == 89) {
 			if (row.symbol.index < 1 || row.symbol.index >= len(index.declarations) || index.declarations[row.symbol.index] != 0) return false;
 			index.declarations[row.symbol.index] = n + 1;
 		}
@@ -57,7 +57,7 @@ bool recover_llvm_index_verified(RecoverLlvmIndex index, RecoverCoreNode[] nodes
 		var row = nodes[n].value;
 		if (row.function < 1 || row.function > len(node_heads) || index.node_next[n] != node_heads[row.function - 1]) return false;
 		node_heads[row.function - 1] = n + 1;
-		if ((row.kind == 27 || row.kind == 86) && (row.symbol.index < 1 || row.symbol.index >= len(index.declarations) || index.declarations[row.symbol.index] != n + 1)) return false;
+		if ((row.kind == 27 || row.kind == 86 || row.kind == 89) && (row.symbol.index < 1 || row.symbol.index >= len(index.declarations) || index.declarations[row.symbol.index] != n + 1)) return false;
 	}
 	int place = slots;
 	while (place > 0) {
@@ -266,8 +266,11 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 				int publication = ssa.cfg.regions[candidate - 1].operation;
 				var witness = locals[slot.symbol.index];
 				if (publication < 1 || publication > len(blocks) || witness == null || LLVMIsAInstruction(witness) == null || LLVMGetInstructionOpcode(witness) != 27 || LLVMGetInstructionParent(witness) != blocks[publication - 1]) return false;
-			} else {
-				if (locals[slot.symbol.index] != values[local.a]) return false;
+			} else { if (local.kind == 89) {
+					if (!recover_llvm_extract(locals[slot.symbol.index], values[local.a], 0)) return false;
+				} else {
+					if (locals[slot.symbol.index] != values[local.a]) return false;
+				}
 			}
 		}
 		if (slot.owner) {
@@ -321,6 +324,10 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		} else {
 			if (op == 10 || values[block.origin] != locals[row.symbol.index]) return 0;
 		}
+	}
+	if (op >= 89 && op <= 92) {
+		instruction_count = recover_range_loop_instruction(ssa, block, layout, physical, operation, values[row.a], owner_addresses[row.symbol.index], locals[row.symbol.index], LLVMGetGlobalParent(functions[row.function - 1]));
+		if (instruction_count == 0) return 0;
 	}
 	if (op == 88) {
 		var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = locals[row.symbol.index]; int loaded = 0;
@@ -678,7 +685,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+	if (op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
 	else {
 		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
 	}
@@ -778,15 +785,16 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 		}
 		if (incoming == 0 || incoming != LLVMCountIncoming(phi)) return false;
 	}
-	if (op == 21 || op == 63 || op == 73 || op == 74 || op == 83 || op == 16 || op == 31 || op == 39 || op == 46) {
+	if (op == 90 || op == 91 || op == 21 || op == 63 || op == 73 || op == 74 || op == 83 || op == 16 || op == 31 || op == 39 || op == 46) {
 		if (LLVMGetNumSuccessors(term) != 2 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1] || LLVMGetSuccessor(term, 1) != blocks[block.other - 1]) return false;
 		if ((op == 21 || op == 63) && LLVMGetCondition(term) != values[block.a]) return false;
+		if ((op == 90 || op == 91) && LLVMGetCondition(term) != operation) return false;
 		if (op == 16) {
 			var condition = LLVMGetCondition(term);
 			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 33 || LLVMGetOperand(condition, 0) != values[block.a] || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0 || operation != term) return false;
 		}
 	}
-	if (op != 21 && op != 63 && op != 73 && op != 74 && op != 83 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && op != 46 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
+	if (op != 90 && op != 91 && op != 21 && op != 63 && op != 73 && op != 74 && op != 83 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && op != 46 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
 		if (LLVMGetInstructionOpcode(term) != 70 || LLVMGetNumSuccessors(term) != 1 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1]) return false;
 	}
 	return true;

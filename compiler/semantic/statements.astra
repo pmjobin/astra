@@ -164,6 +164,10 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 		}
 		return;
 	}
+	if (kind == SyntaxKind.ForeachStatementSyntax()) {
+		checked_range_foreach(index, node, result, depth);
+		return;
+	}
 	if (kind == SyntaxKind.ForStatementSyntax()) {
 		checked_statement(index, index.bindings.program.arena.get_node_initializer(node), result, depth + 1);
 		var condition = index.bindings.program.arena.get_node_condition(node);
@@ -244,6 +248,10 @@ void checked_statement(CheckedIndex index, SyntaxNodeId node, TypeId result, int
 		if (kind == SyntaxKind.AssignmentStatementSyntax()) {
 			var target = checked_target(index, node, index.bindings.program.arena.get_token_name(node));
 			if (target.index != 0) {
+				if (range_foreach_binding(index, target)) {
+					index.fail(index.bindings.program.arena.header(node).span, "foreach element binding is immutable");
+					return;
+				}
 				expected = index.symbol_types[target.index];
 				expected_flags = index.symbol_flags[target.index];
 				if (index.semantic_flow && !checked_flow_declared_nonnull(index, target)) expected_flags = expected_flags & ~1;

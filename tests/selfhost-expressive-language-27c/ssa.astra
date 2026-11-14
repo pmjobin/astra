@@ -133,6 +133,23 @@ void expressive_ranges() throws Error {
 	assert_that(bounds == 3 && ranges == 2 && queries == 2);
 }
 
+void expressive_range_iteration() throws Error {
+	var ssa = expressive_ssa("language astra27b; int iterate(int count) { int total = 0; foreach (var item in 0..count) { if (item == 2) continue; if (item == 8) break; total = total+item; } return total; } int edge() { i64 last = 9223372036854775807; foreach (var item in last..=last) { if (item != last) return 1; } return 42; } int unsigned_edge() { u64 last = 18446744073709551615; int count = 0; foreach (var item in last..=last) { count = count+1; } return count; } int main() { return iterate(10)+edge()-unsigned_edge()-25; }");
+	int loops = 0; int conditions = 0; int at = 0;
+	while (at < ssa.cfg.block_count) {
+		var original = ssa.cfg.blocks[at];
+		if (original.opcode == 89) loops = loops + 1;
+		if (original.opcode == 90 || original.opcode == 91) {
+			conditions = conditions + 1;
+			var changed = original; changed.next = original.other; ssa.cfg.blocks[at] = changed;
+			assert_that(!recover_cfg_verify(ssa.cfg)); ssa.cfg.blocks[at] = original;
+			assert_that(recover_ssa_verify(ssa));
+		}
+		at = at + 1;
+	}
+	assert_that(loops == 3 && conditions == 6);
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -165,6 +182,7 @@ int main(string[] args) {
 			if (valid) return 42; return 7;
 		}
 		expressive_ranges();
+		expressive_range_iteration();
 		var nested = expressive_ssa("language astra27b; class Item { int value; init(int value) { this.value = value; } } int marker(bool fail) throws Error { if (fail) { throw new Error(\"operand failure\"); } return 0; } owned Item forward(owned Item item, int marker) { return move item; } int eat(owned Item left, owned Item right, int marker) { return left.value+right.value+marker; } int attempt(bool fail) { try { return eat(right: new Item(22), left: forward(item: new Item(20), marker: marker(fail)), marker: 0); } catch (Error error) { return 42; } } int main() { return attempt(true); }");
 		expressive_abort_mutations(nested, 2);
 		var first = nested.cfg.core.owners.aborts[0]; var second = nested.cfg.core.owners.aborts[1];

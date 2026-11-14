@@ -431,7 +431,7 @@ void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int
 	int s = 1;
 	while (s <= checked.bindings.symbol_count && storage.status == 0) {
 		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
-		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, symbol)) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
+		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, symbol) || range_foreach_binding(checked, symbol)) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			int function = functions[declaration.owner.index];
 			if (function > 8192 || units[function] == 8192) {
 				storage.status = 2;
@@ -459,7 +459,7 @@ bool recover_storage_verify(RecoverStorage storage, CheckedIndex checked, int[] 
 	int expected = 0; int s = 1;
 	while (s <= checked.bindings.symbol_count) {
 		var declaration = checked.bindings.symbol(type_symbol(s));
-		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, type_symbol(s))) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
+		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, type_symbol(s)) || range_foreach_binding(checked, type_symbol(s))) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			if (expected >= storage.count || storage.symbols[s] != expected + 1) return false;
 			var row = storage.slots[expected]; if (row.symbol.index != s || row.type.index != checked.symbol_types[s].index || row.flags != checked.symbol_flags[s] || row.function != functions[declaration.owner.index] || row.scope != declaration.scope.index || row.parameter != (declaration.kind == 7) || row.owner != ((row.flags & 4) != 0) || !recover_storage_binding(checked, type_symbol(s))) return false;
 			if (row.function > 8192 || units[row.function] == 8192) return false;
