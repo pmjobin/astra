@@ -373,6 +373,7 @@ bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool 
 	}
 	if (kind == 15) return flags == 0;
 	if (kind == 30) return flags == 0 && recover_storage_record(checked, type);
+	if (kind == 36) return flags == 0 && range_type_verified(checked.types, type);
 	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
 	if (kind == 28) return (flags == 4 || !result && flags == 2) && recover_storage_weak(checked, type);
 	if (kind == 31) return (flags == 4 || !result && (flags == 0 || flags == 2)) && (recover_storage_class(checked, type) || recover_storage_error(checked, type));

@@ -2,6 +2,11 @@
 // Copyable record projections retain exact declaration identity. No field is
 // selected by an assumed offset or by a compiler-specific type spelling.
 int recover_record_field(CheckedIndex checked, TypeId type, SyntaxTokenId token) {
+	if (range_type_verified(checked.types, type)) {
+		if (checked.bindings.program.arena.token_is(token, "start")) return 0;
+		if (checked.bindings.program.arena.token_is(token, "end")) return 1;
+		return -1;
+	}
 	if (!recover_storage_record(checked, type)) return -1;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int i = 0;
 	while (i < checked.bindings.program.arena.list_count(fields)) {
@@ -13,7 +18,7 @@ int recover_record_field(CheckedIndex checked, TypeId type, SyntaxTokenId token)
 }
 
 bool recover_copy_channel(CheckedIndex checked, TypeId type, int flags, bool result) {
-	int kind = checked_kind(checked, type); return flags == 0 && (type_numeric(kind) || kind == 13 || !result && kind == 15 || recover_storage_pointer(checked, type) || result && kind == 14 || kind == 30 && recover_storage_record(checked, type) || kind == 32 && enum_value_type_verified(checked, type));
+	int kind = checked_kind(checked, type); return flags == 0 && (type_numeric(kind) || kind == 13 || !result && kind == 15 || recover_storage_pointer(checked, type) || result && kind == 14 || kind == 30 && recover_storage_record(checked, type) || kind == 32 && enum_value_type_verified(checked, type) || kind == 36 && range_type_verified(checked.types, type));
 }
 
 bool recover_record_source(CheckedIndex checked, SyntaxNodeId source, TypeId type) {
@@ -212,6 +217,7 @@ bool recover_record_shape_verify(RecoverRecordShape shape, CheckedIndex checked)
 // retained offsets. A negative count refuses unsupported or excessive trees.
 int recover_record_value_count(CheckedIndex checked, TypeId type, int depth) {
 	if (depth > 32 || !checked.types.valid_id(type)) return -1;
+	if (range_type_verified(checked.types, type)) return 3;
 	int kind = checked_kind(checked, type); if (type_numeric(kind) || kind == 13 || recover_storage_pointer(checked, type)) return 1;
 	if (kind != 30 || !class_storage_record_verified(checked, type) || checked_record_owned(checked, type, 0)) return -1;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int total = 0; int f = 0;
@@ -227,6 +233,11 @@ int recover_record_value_count(CheckedIndex checked, TypeId type, int depth) {
 
 TypeId recover_record_value_type(CheckedIndex checked, TypeId type, int ordinal, int depth) {
 	if (depth > 32 || ordinal < 0 || !checked.types.valid_id(type)) return no_type();
+	if (range_type_verified(checked.types, type)) {
+		if (ordinal < 2) return checked.types.argument(checked.types, type, 0).type;
+		if (ordinal == 2) return type_id(13);
+		return no_type();
+	}
 	int kind = checked_kind(checked, type);
 	if (type_numeric(kind) || kind == 13 || recover_storage_pointer(checked, type)) {
 		if (ordinal == 0) return type;
@@ -246,6 +257,10 @@ TypeId recover_record_value_type(CheckedIndex checked, TypeId type, int ordinal,
 }
 
 int recover_record_value_first(CheckedIndex checked, TypeId type, int ordinal) {
+	if (range_type_verified(checked.types, type)) {
+		if (ordinal >= 0 && ordinal < 3) return ordinal;
+		return -1;
+	}
 	if (checked_kind(checked, type) != 30 || ordinal < 0) return -1;
 	var declaration = checked.bindings.symbol(checked.types.row(type).nominal); var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
 	if (ordinal >= checked.bindings.program.arena.list_count(fields)) return -1;

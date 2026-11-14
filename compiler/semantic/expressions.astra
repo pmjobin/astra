@@ -207,6 +207,14 @@ TypeId checked_field(CheckedIndex index, SyntaxNodeId node, int depth) throws Er
 			receiver = checked_this_type(index, node, index.bindings.program.arena.get_token_identifier(node));
 		}
 	}
+	if (range_type_verified(index.types, receiver)) {
+		if (!checked_modern_source(index, node) || !index.bindings.program.arena.token_is(field, "start") && !index.bindings.program.arena.token_is(field, "end")) {
+			index.fail(index.bindings.program.arena.token_span(field), "integer range property must be start or end");
+			return no_type();
+		}
+		var use = index.uses[node.index]; use.flags = 0; use.deferred = 0; index.uses[node.index] = use;
+		return index.types.argument(index.types, receiver, 0).type;
+	}
 	if (index.class_storage && receiver.index == 15 && index.bindings.program.arena.token_is(field, "byte_length")) return type_id(1);
 	if (index.class_storage && checked_kind(index, receiver) == 23 && index.bindings.program.arena.token_is(field, "capacity")) return type_id(1);
 	var selected = checked_member(index, receiver, field);

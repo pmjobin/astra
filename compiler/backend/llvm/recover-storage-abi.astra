@@ -7,6 +7,7 @@
 int recover_abi_group_count(CheckedIndex checked, TypeId type, int flags) {
 	if (!recover_storage_channel(checked, type, flags, false)) return 0;
 	int kind = checked_kind(checked, type); if (kind == 22 || kind == 15) return 2;
+	if (kind == 36 && range_type_verified(checked.types, type)) return 3;
 	if (kind == 30) {
 		var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
 		var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int f = 0;
@@ -99,7 +100,7 @@ bool recover_abi_source(RecoverAbi plan, CheckedIndex checked) {
 		if (p == 0 && receiver >= 0 && (channel.flags != 2 || channel.type.index != source.enclosing.index)) return false;
 		int kind = checked_kind(checked, channel.type); int groups = 1;
 		if (kind == 22 || kind == 15) groups = 2;
-		if (kind == 30) {
+		if (kind == 30 || kind == 36) {
 			groups = recover_record_value_count(checked, channel.type, 0);
 			if (groups < 0) return false;
 		}
@@ -129,8 +130,8 @@ bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) 
 		return LLVMGetTypeKind(pointer) == 12 && LLVMGetPointerAddressSpace(pointer) == 0 && LLVMGetTypeKind(count) == 8 && LLVMGetIntTypeWidth(count) == 32 && capacity == count;
 	}
 	if (kind == 21 || kind == 22 || kind == 15) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
-	if (kind == 30) {
-		if (!recover_storage_record(checked, type) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
+	if (kind == 30 || kind == 36) {
+		if ((!recover_storage_record(checked, type) && !range_type_verified(checked.types, type)) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
 		int count = recover_record_value_count(checked, type, 0); if (count < 0 || LLVMCountStructElementTypes(actual) != count) return false; int f = 0;
 		while (f < count) {
 			var leaf = recover_record_value_type(checked, type, f, 0);
@@ -160,7 +161,7 @@ bool recover_storage_llvm_abi_local(RecoverAbi plan, CheckedIndex checked, void*
 		if (kind == 22 || kind == 15) {
 			if (LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, at))) != 12 || !recover_llvm_scalar_type(checked, type_id(1), LLVMTypeOf(LLVMGetParam(function, at + 1)))) return false;
 		}
-		else { if (kind == 30) {
+		else { if (kind == 30 || kind == 36) {
 				int count = recover_record_value_count(checked, channel.type, 0); if (count < 0) return false; int f = 0;
 				while (f < count) {
 					var leaf = recover_record_value_type(checked, channel.type, f, 0);

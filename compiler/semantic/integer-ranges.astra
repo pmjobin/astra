@@ -51,6 +51,47 @@ bool range_source_verified(SyntaxArena arena, SyntaxNodeId node) {
 	} catch (Error error) { return false; }
 }
 
+TypeId range_receiver_type(CheckedIndex index, SyntaxNodeId node) {
+	var aggregate = index.bindings.program.arena.get_node_aggregate(node);
+	if (aggregate.index > 0 && aggregate.index < len(index.uses)) return index.uses[aggregate.index].type;
+	var symbol = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+	if (symbol.index > 0 && symbol.index < len(index.symbol_types)) return index.symbol_types[symbol.index];
+	return no_type();
+}
+
+bool range_field_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.FieldAccessExpressionSyntax() || !checked_modern_source(index, node)) return false;
+	var type = range_receiver_type(index, node);
+	if (!range_type_verified(index.types, type)) return false;
+	var field = index.bindings.program.arena.get_token_field_name(node);
+	if (!index.bindings.program.arena.token_is(field, "start") && !index.bindings.program.arena.token_is(field, "end") || checked_target(index, node, field).index != 0) return false;
+	var use = index.uses[node.index];
+	if (use.flags != 0 || use.deferred != 0 || use.type.index != index.types.argument(index.types, type, 0).type.index) return false;
+	return range_field_source(index.bindings.program.arena, node);
+}
+
+bool range_field_source(SyntaxArena arena, SyntaxNodeId node) {
+	var field = arena.get_token_field_name(node);
+	var whole = arena.header(node).span;
+	var aggregate = arena.get_node_aggregate(node);
+	var receiver = arena.token_span(arena.get_token_identifier(node));
+	if (aggregate.index > 0) receiver = arena.header(aggregate).span;
+	var member = arena.token_span(field);
+	if (whole.source.index != receiver.source.index || whole.source.index != member.source.index || whole.start != receiver.start || whole.end != member.end || receiver.end > member.start) return false;
+	try {
+		var backing = arena.source(whole.source);
+		if (!source_valid_span(shared_borrow(backing), receiver.end, member.end)) return false;
+		var bytes = source_bytes(shared_borrow(backing), receiver.end, member.end);
+		var buffer = source_buffer("<range-member-proof>", move bytes, false);
+		var retained = shared_acquire(move buffer); var scanner = lexer(move retained);
+		var separator = scanner.next_token(); var identifier = scanner.next_token(); var eof = scanner.next_token();
+		if (scanner.failed || separator.kind() != TokenKind.DOT() || identifier.kind() != TokenKind.IDENTIFIER() || eof.kind() != TokenKind.EOF() || receiver.end + identifier.span.start != member.start || receiver.end + identifier.span.end != member.end) return false;
+		var text = source_bytes(shared_borrow(backing), member.start, member.end);
+		if (arena.token_is(field, "start")) return len(text) == 5 && text[0] == 115 && text[1] == 116 && text[2] == 97 && text[3] == 114 && text[4] == 116;
+		return len(text) == 3 && text[0] == 101 && text[1] == 110 && text[2] == 100;
+	} catch (Error error) { return false; }
+}
+
 bool range_value_facts_verified(CheckedIndex index) {
 	int at = 1;
 	while (at < len(index.uses)) {

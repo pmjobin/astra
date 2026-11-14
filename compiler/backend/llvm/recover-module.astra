@@ -265,6 +265,11 @@ class RecoverLlvm {
 			this.enum_carriers[type.index] = carrier;
 			return carrier;
 		}
+		if (kind == 36 && range_type_verified(checked.types, type)) {
+			var fields = new void*[3]; var element = this.scalar(checked, checked.types.argument(checked.types, type, 0).type);
+			fields[0] = element; fields[1] = element; fields[2] = this.boolean;
+			return this.structure(fields);
+		}
 		if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
 		if (kind == 23) {
 			var fields = new void*[3]; fields[0] = this.pointer; fields[1] = this.integer; fields[2] = this.integer;
@@ -682,7 +687,7 @@ class RecoverLlvm {
 			}
 			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;
 			while (p < len(plan.groups)) { var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, p + 1); int at = plan.groups[p]; var type = this.scalar(ssa.cfg.core.flow.checked, channel.type); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type);
-				if (kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 					int field = 0;
 					while (field < count) {
@@ -720,7 +725,7 @@ class RecoverLlvm {
 					value = this.load(carrier, value);
 					LLVMSetAlignment(value, LLVMABIAlignmentOfType(this.layout, carrier));
 				}
-				if (kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
 					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, slot.type));
 					int field = 0;
@@ -864,6 +869,13 @@ class RecoverLlvm {
 
 	void* binary(RecoverSsa ssa, RecoverNode row) throws Error {
 		var left = this.values[row.a]; var right = this.values[row.b]; var token = ssa.cfg.core.flow.checked.bindings.program.arena.token_message(row.token);
+		if (range_type_verified(ssa.cfg.core.flow.checked.types, row.type)) {
+			var value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type));
+			value = LLVMBuildInsertValue(this.builder, value, left, 0, this.empty);
+			value = LLVMBuildInsertValue(this.builder, value, right, 1, this.empty);
+			u64 inclusive = 0; if (token.text == "..=") inclusive = 1;
+			return LLVMBuildInsertValue(this.builder, value, LLVMConstInt(this.boolean, inclusive, 0), 2, this.empty);
+		}
 		if (ssa.cfg.core.nodes[row.a - 1].value.type.index == 15) {
 			var arguments = new void*[4]; arguments[0] = LLVMBuildExtractValue(this.builder, left, 0, this.empty); arguments[1] = LLVMBuildExtractValue(this.builder, left, 1, this.empty); arguments[2] = LLVMBuildExtractValue(this.builder, right, 0, this.empty); arguments[3] = LLVMBuildExtractValue(this.builder, right, 1, this.empty); var equal = this.call(this.equal_function, arguments, true);
 			if (token.text == "!=") return LLVMBuildICmp(this.builder, 32, equal, LLVMConstInt(this.boolean, 0, 0), this.empty); return equal;
@@ -1053,7 +1065,7 @@ class RecoverLlvm {
 				var type = ssa.cfg.core.nodes[child - 1].value.type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 				int at = plan.groups[i];
-				if (kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int fields = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 					int field = 0;
 					while (field < fields) {
@@ -1152,24 +1164,28 @@ class RecoverLlvm {
 				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, type), this.owner_addresses[row.symbol.index]);
 			}
 			int ordinal = recover_record_field(ssa.cfg.core.flow.checked, type, row.token);
-			var shape = recover_record_shape(ssa.cfg.core.flow.checked, type);
-			if (!recover_record_shape_verify(shape, ssa.cfg.core.flow.checked)) {
-				throw new Error("LLVM_INVALID_IR: record projection source shape");
-			}
-			int part = recover_record_shape_field(shape, ordinal);
-			if (part < 0) {
-				throw new Error("LLVM_INVALID_IR: record projection field");
-			}
-			int first = shape.parts[part].first;
-			if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
-				value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type)); int leaf = 0;
-				while (leaf < shape.parts[part].count) {
-					var field = LLVMBuildExtractValue(this.builder, aggregate, first + leaf, this.empty);
-					value = LLVMBuildInsertValue(this.builder, value, field, leaf, this.empty);
-					leaf = leaf + 1;
-				}
+			if (range_type_verified(ssa.cfg.core.flow.checked.types, type)) {
+				value = LLVMBuildExtractValue(this.builder, aggregate, ordinal, this.empty);
 			} else {
-				value = LLVMBuildExtractValue(this.builder, aggregate, first, this.empty);
+				var shape = recover_record_shape(ssa.cfg.core.flow.checked, type);
+				if (!recover_record_shape_verify(shape, ssa.cfg.core.flow.checked)) {
+					throw new Error("LLVM_INVALID_IR: record projection source shape");
+				}
+				int part = recover_record_shape_field(shape, ordinal);
+				if (part < 0) {
+					throw new Error("LLVM_INVALID_IR: record projection field");
+				}
+				int first = shape.parts[part].first;
+				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
+					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type)); int leaf = 0;
+					while (leaf < shape.parts[part].count) {
+						var field = LLVMBuildExtractValue(this.builder, aggregate, first + leaf, this.empty);
+						value = LLVMBuildInsertValue(this.builder, value, field, leaf, this.empty);
+						leaf = leaf + 1;
+					}
+				} else {
+					value = LLVMBuildExtractValue(this.builder, aggregate, first, this.empty);
+				}
 			}
 		}
 		// Retain the declaration's SSA identity. Owner reassignment publishes
@@ -1200,7 +1216,7 @@ class RecoverLlvm {
 			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); var arguments = new void*[plan.parameters]; arguments[plan.groups[0]] = value; int i = 0;
 			while (i < row.count) {
 				int child = ssa.cfg.core.flow.data.edges[row.first + i]; var type = ssa.cfg.core.nodes[child - 1].value.type; int kind = checked_kind(ssa.cfg.core.flow.checked, type); int at = plan.groups[i + 1];
-				if (kind == 22 || kind == 30 || kind == 15) {
+				if (kind == 36 || kind == 22 || kind == 30 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags); int field = 0;
 					while (field < count) {
 						arguments[at + field] = LLVMBuildExtractValue(this.builder, this.values[child], field, this.empty);

@@ -343,13 +343,20 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		if (LLVMGetNextInstruction(operation) != LLVMGetBasicBlockTerminator(physical)) return 0;
 	}
 	if (op == 3) {
-		var result = values[block.origin]; if (!recover_llvm_binary(ssa, row, result, values[row.a], values[row.b], equal_function, integer_functions)) return 0;
-		if (ssa.cfg.core.nodes[row.a - 1].value.type.index == 15) {
-			instruction_count = 2 + recover_llvm_extract_instructions(values[row.a]) + recover_llvm_extract_instructions(values[row.b]);
-			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "!=")) instruction_count = instruction_count + 1;
+		if (range_type_verified(ssa.cfg.core.flow.checked.types, row.type)) {
+			int introduced = recover_llvm_range(ssa, row, values[block.origin], values[row.a], values[row.b], physical);
+			if (introduced < 0) return 0;
+			instruction_count = 1 + introduced;
 		}
 		else {
-			if (LLVMIsAInstruction(result) != null) instruction_count = 2;
+			var result = values[block.origin]; if (!recover_llvm_binary(ssa, row, result, values[row.a], values[row.b], equal_function, integer_functions)) return 0;
+			if (ssa.cfg.core.nodes[row.a - 1].value.type.index == 15) {
+				instruction_count = 2 + recover_llvm_extract_instructions(values[row.a]) + recover_llvm_extract_instructions(values[row.b]);
+				if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "!=")) instruction_count = instruction_count + 1;
+			}
+			else {
+				if (LLVMIsAInstruction(result) != null) instruction_count = 2;
+			}
 		}
 	}
 	if (op == 15) {
@@ -369,7 +376,7 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 			int child = ssa.cfg.core.flow.data.edges[row.first + i];
 			var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1);
 			if (checked_kind(ssa.cfg.core.flow.checked, channel.type) == 32) instruction_count = instruction_count + 1;
-			if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 15) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
+			if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 15) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 			i = i + 1;
 		}
 		if (!recover_llvm_native_attributes(operation, LLVMGetNumArgOperands(operation))) return 0;
@@ -481,7 +488,7 @@ int recover_llvm_owner_instructions(RecoverSsa ssa, void* layout, void* payload,
 		var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; int i = 0;
 		while (i < row.count) {
 			int child = ssa.cfg.core.flow.data.edges[row.first + i]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type); int at = plan.groups[i + 1];
-			if (kind == 22 || kind == 30 || kind == 15) {
+			if (kind == 36 || kind == 22 || kind == 30 || kind == 15) {
 				int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags); int field = 0;
 				while (field < count) {
 					if (!recover_llvm_extract(LLVMGetArgOperand(operation, at + field), values[child], field)) return 0;
@@ -676,7 +683,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 			var type = ssa.cfg.core.nodes[child - 1].value.type;
 			int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 			int at = plan.groups[i];
-			if (kind == 30 || kind == 22 || kind == 15) {
+			if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 				var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 				int field = 0;
 				while (field < count) {

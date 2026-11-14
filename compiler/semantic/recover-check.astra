@@ -146,6 +146,12 @@ bool recover_child_scalars_with_bindings(RecoverFlowData flow, CheckedIndex chec
 	}
 	if (row.kind == 3) {
 		if (kind != SyntaxKind.BinaryExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_operator_token(source).index || row.a < 1 || row.b < 1) return false;
+		if (checked.bindings.program.arena.token_is(row.token, "..") || checked.bindings.program.arena.token_is(row.token, "..=")) {
+			if (!range_type_verified(checked.types, row.type) || !range_source_verified(checked.bindings.program.arena, source) || checked.uses[source.index].flags != 0 || checked.uses[source.index].deferred != 0) return false;
+			if (!recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_left(source), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_right(source), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
+			var element = checked.types.argument(checked.types, row.type, 0);
+			return flow.nodes[row.a - 1].type.index == element.type.index && flow.nodes[row.b - 1].type.index == element.type.index;
+		}
 		if (!checked.bindings.program.arena.token_is(row.token, "+") && !checked.bindings.program.arena.token_is(row.token, "-") && !checked.bindings.program.arena.token_is(row.token, "*") && !checked.bindings.program.arena.token_is(row.token, "/") && !checked.bindings.program.arena.token_is(row.token, "%") && !checked.bindings.program.arena.token_is(row.token, "&") && !checked.bindings.program.arena.token_is(row.token, "|") && !checked.bindings.program.arena.token_is(row.token, "^") && !checked.bindings.program.arena.token_is(row.token, "<<") && !checked.bindings.program.arena.token_is(row.token, ">>") && !checked.bindings.program.arena.token_is(row.token, "==") && !checked.bindings.program.arena.token_is(row.token, "!=") && !checked.bindings.program.arena.token_is(row.token, "<") && !checked.bindings.program.arena.token_is(row.token, ">") && !checked.bindings.program.arena.token_is(row.token, "<=") && !checked.bindings.program.arena.token_is(row.token, ">=")) return false;
 		if (!recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_left(source), function, handler, caught, seen, edges, bindings, depth + 1) || !recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_right(source), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
 		var left = flow.nodes[row.a - 1]; var right = flow.nodes[row.b - 1];
@@ -294,6 +300,7 @@ bool recover_child_records_with_bindings(RecoverFlowData flow, CheckedIndex chec
 			var declaration = checked.bindings.symbol(row.symbol); if ((declaration.kind != 7 && declaration.kind != 8) || declaration.owner.index != flow.functions[function - 1].symbol.index || checked.symbol_flags[row.symbol.index] != 0) return false;
 			receiver = checked.symbol_types[row.symbol.index];
 		}
+		if (range_type_verified(checked.types, receiver)) return range_field_verified(checked, source) && row.type.index == checked.types.argument(checked.types, receiver, 0).type.index;
 		int ordinal = recover_record_field(checked, receiver, row.token); if (ordinal < 0) return false; var record = checked.bindings.symbol(checked.types.row(receiver).nominal); var field = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_fields(record.node), ordinal); var symbol = checked.node_symbols[field.index]; return row.type.index == checked.symbol_types[symbol.index].index;
 	}
 	if (row.kind == 75) {

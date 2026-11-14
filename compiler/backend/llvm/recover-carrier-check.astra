@@ -5,10 +5,35 @@ bool recover_llvm_insert(void* value, void* previous, void* element, int ordinal
 	return LLVMGetOperand(value, 0) == previous && LLVMGetOperand(value, 1) == element;
 }
 
+// Inspect the actual bound inserts and inclusive bit, including LLVM's
+// constant-folded prefix. No producer-side field plan is retained.
+int recover_llvm_range(RecoverSsa ssa, RecoverNode row, void* value, void* left, void* right, void* block) {
+	if (!range_type_verified(ssa.cfg.core.flow.checked.types, row.type) || value == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return -1;
+	void* current = value; int instructions = 0; int field = 2; bool folded = false;
+	while (field >= 0) {
+		void* element = null;
+		if (LLVMIsAInstruction(current) != null) {
+			if (LLVMGetInstructionOpcode(current) != 54 || LLVMGetInstructionParent(current) != block || llvm13_index(current, 0, field) != 1 || LLVMHasMetadata(current) != 0) return -1;
+			element = LLVMGetOperand(current, 1); current = LLVMGetOperand(current, 0); instructions = instructions + 1;
+		} else {
+			element = LLVMGetAggregateElement(current, field); folded = true;
+		}
+		if (field == 0 && element != left || field == 1 && element != right) return -1;
+		if (field == 2) {
+			u64 inclusive = 0;
+			if (ssa.cfg.core.flow.checked.bindings.program.arena.token_is(row.token, "..=")) inclusive = 1;
+			if (!recover_llvm_bits(element, 1, inclusive)) return -1;
+		}
+		field = field - 1;
+	}
+	if (!folded && LLVMIsNull(current) == 0) return -1;
+	return instructions;
+}
+
 bool recover_llvm_group(CheckedIndex checked, TypeId type, void* value, void* function, int start) {
 	int kind = checked_kind(checked, type); int count = recover_abi_group_count(checked, type, 0); if (kind == 22) count = 2;
 	if (kind == 32) return enum_storage_type_verified(checked, type) && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 27 && LLVMGetOperand(value, 0) == LLVMGetParam(function, start) && LLVMGetAlignment(value) == recover_enum_type_alignment(checked, type, 0) && LLVMGetVolatile(value) == 0 && LLVMGetOrdering(value) == 0 && LLVMHasMetadata(value) == 0 && recover_llvm_scalar_type(checked, type, LLVMTypeOf(value));
-	if (kind != 30 && kind != 22 && kind != 15) return value == LLVMGetParam(function, start);
+	if (kind != 36 && kind != 30 && kind != 22 && kind != 15) return value == LLVMGetParam(function, start);
 	if (!recover_storage_llvm_type(checked, type, LLVMTypeOf(value))) return false;
 	int i = count - 1; void* current = value;
 	while (i >= 0) {
@@ -69,6 +94,12 @@ int recover_llvm_record(RecoverSsa ssa, RecoverNode row, void* value, void*[] va
 int recover_llvm_record_projection(RecoverSsa ssa, RecoverNode row, TypeId receiver, void* aggregate, void* value, void* block) {
 	if (value == null || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, receiver, LLVMTypeOf(aggregate))) return -1;
 	int ordinal = recover_record_field(ssa.cfg.core.flow.checked, receiver, row.token); int first = recover_record_value_first(ssa.cfg.core.flow.checked, receiver, ordinal);
+	if (range_type_verified(ssa.cfg.core.flow.checked.types, receiver)) {
+		if (ordinal < 0 || ordinal > 1 || !recover_llvm_extract(value, aggregate, ordinal)) return -1;
+		if (LLVMIsAInstruction(value) == null) return 0;
+		if (LLVMGetInstructionParent(value) != block || LLVMHasMetadata(value) != 0) return -1;
+		return 1;
+	}
 	if (first < 0) return -1;
 	if (checked_kind(ssa.cfg.core.flow.checked, row.type) != 30) {
 		if (!recover_llvm_extract(value, aggregate, first)) return -1;

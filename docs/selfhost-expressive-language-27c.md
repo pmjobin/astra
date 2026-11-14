@@ -420,3 +420,26 @@ passes with the corrected identity and modern-only soft `Range<T>` constructor
 (preflight 38, 64.953 seconds). Semantic6 is building the integrated range and
 explicit CheckedClosure shape/name controls. Legacy lookup and existing declared
 types named Range keep their prior resolution precedence.
+
+Semantic6 now passes actual native execution (42) and strict returning Valgrind
+with zero live bytes, errors and suppressions. It explicitly checks the original
+four-channel CheckedClosure shape/name and the corrected code-36 range facts.
+Product SHA-256 is
+`630f862c2ce7fff58423643009baae8231cc9cf3c75b3dbc61c66b3346bdaae1`.
+All 116 input/recipe hashes are independently bound to commit 6fa0326. The dev5
+host build uses that commit and the actual observed Astra-built dev3 producer
+and pinned LLVM image; this is a generation identity, not convergence or Stage3.
+
+The next range candidate connects bound construction, start/end reads, copying,
+reassignment and private function transport through existing copied-value
+operations. The private native carrier has two exact integer bounds and a bool;
+parameter groups flatten those three scalars. Existing type carriers and public
+ABI are unchanged. Independent source consumers reconstruct the actual operator
+and member gaps, and the physical consumer checks every insert/extract, bound
+operand and inclusive bit, including LLVM constant folding. This candidate has
+passed full C0 source semantics (range-preflight2, 67.031 seconds). Its focused
+SSA/native validation is pending and it has no native range acceptance credit.
+Preflight1 and focused ssa4/ssa5 refused authoring mistakes in temporary borrowed
+arena access and a nested borrowed test call; those failures remain recorded.
+Iteration, lazy transformations, slices, explicit materialization, interpolation
+and idiomatic migration are still required work.
