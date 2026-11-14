@@ -28,6 +28,19 @@ RecoverOwnerInstruction recover_llvm_owner_emit(RecoverSsa ssa, RecoverBlock blo
 		var slot = ssa.cfg.core.flow.storage.slots[block.b - 1];
 		operation = LLVMBuildStore(builder, LLVMConstInt(boolean, 0, 0), armed[slot.symbol.index]);
 	}
+	if (op == 84) {
+		var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+		void* data = values[block.a];
+		if (checked_kind(ssa.cfg.core.flow.checked, type) == 22) data = LLVMBuildExtractValue(builder, data, 0, empty);
+		llvm12_handle_set(handles, 0, data);
+		operation = LLVMBuildCall2(builder, LLVMGlobalGetValueType(free_function), free_function, llvm12_handle_offset(handles, 0), 1, empty);
+		bool native = recover_storage_error(ssa.cfg.core.flow.checked, type);
+		if (checked_kind(ssa.cfg.core.flow.checked, type) == 27 || checked_kind(ssa.cfg.core.flow.checked, type) == 28) native = true;
+		if (checked_kind(ssa.cfg.core.flow.checked, type) == 31 && recover_storage_class(ssa.cfg.core.flow.checked, type)) native = ssa.cfg.core.flow.fields.layout.types[type.index].fields > 0 || class_storage_intrinsic(ssa.cfg.core.flow.checked, type);
+		if (native) LLVMSetInstructionCallConv(operation, 8); else {
+			llvm12_nobuiltin(context, operation);
+		}
+	}
 	if (op == 38) {
 		var slot = ssa.cfg.core.flow.storage.slots[block.a - 1];
 		var contents = LLVMBuildLoad2(builder, storage, addresses[slot.symbol.index], empty);

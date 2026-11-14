@@ -1233,8 +1233,17 @@ class RecoverLlvm {
 				value = this.call(this.slot_functions[type.index * 6 + action], arguments, false); operation = value;
 			}
 		}
-		if (owner_read || owner_write || op == 68 || op == 9 || op == 10 || op == 13 || op == 14 || op == 36 || op == 38) {
-			var type = row.type; if (owner_write) type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index]; if (op == 38) type = ssa.cfg.core.flow.storage.slots[block.a - 1].type; var storage = this.scalar(ssa.cfg.core.flow.checked, type); void* element = null;
+		if (op == 84 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[block.a - 1].value.type) == 32) {
+			var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+			var stored = LLVMBuildStore(this.builder, this.values[block.a], this.slots[block.a - 1]);
+			LLVMSetAlignment(stored, recover_enum_type_alignment(ssa.cfg.core.flow.checked, type, 0));
+			var arguments = new void*[1]; arguments[0] = this.slots[block.a - 1];
+			operation = this.call(this.enum_drops[type.index], arguments, true);
+		}
+		if (owner_read || owner_write || op == 68 || op == 9 || op == 10 || op == 13 || op == 14 || op == 36 || op == 38 || op == 84 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[block.a - 1].value.type) != 32) {
+			var type = row.type; if (owner_write) type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index]; if (op == 38) type = ssa.cfg.core.flow.storage.slots[block.a - 1].type;
+			if (op == 84) type = ssa.cfg.core.nodes[block.a - 1].value.type;
+			var storage = this.scalar(ssa.cfg.core.flow.checked, type); void* element = null;
 			if (op == 9) {
 				var semantic = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				if (checked_kind(ssa.cfg.core.flow.checked, semantic) == 30) {
@@ -1244,9 +1253,9 @@ class RecoverLlvm {
 					element = this.scalar(ssa.cfg.core.flow.checked, semantic);
 				}
 			}
-			void* drop = this.free_function; if (op == 38 && recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = this.error_owner_function;
-			if (op == 38 && checked_kind(ssa.cfg.core.flow.checked, type) == 31 && this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
-			if (op == 38 && (checked_kind(ssa.cfg.core.flow.checked, type) == 27 || checked_kind(ssa.cfg.core.flow.checked, type) == 28)) drop = this.shared_drops[type.index];
+			void* drop = this.free_function; if ((op == 38 || op == 84) && recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = this.error_owner_function;
+			if ((op == 38 || op == 84) && checked_kind(ssa.cfg.core.flow.checked, type) == 31 && this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) drop = this.class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
+			if ((op == 38 || op == 84) && (checked_kind(ssa.cfg.core.flow.checked, type) == 27 || checked_kind(ssa.cfg.core.flow.checked, type) == 28)) drop = this.shared_drops[type.index];
 			var lowered = recover_llvm_owner_emit(ssa, block, this.builder, this.context, this.layout, this.handles, storage, element, this.buffer_function, this.allocate_function, drop, this.functions, this.values, this.owner_addresses, this.owner_armed); value = lowered.value; operation = lowered.operation;
 		}
 		if (op == 30) {

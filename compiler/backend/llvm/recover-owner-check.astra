@@ -29,3 +29,30 @@ bool recover_llvm_owner_drop(CheckedIndex checked, RecoverSlot slot, void* block
 bool recover_llvm_owner_write(void* block, void* address, void* armed, void* value, void* operation) {
 	var body = recover_llvm_body(block, 3); return len(body) == 3 && operation == body[0] && LLVMGetInstructionOpcode(body[0]) == 28 && LLVMGetOperand(body[0], 0) == value && LLVMGetOperand(body[0], 1) == address && LLVMGetVolatile(body[0]) == 0 && LLVMGetInstructionOpcode(body[1]) == 28 && recover_llvm_bits(LLVMGetOperand(body[1], 0), 1, 1) && LLVMGetOperand(body[1], 1) == armed && LLVMGetVolatile(body[1]) == 0;
 }
+
+bool recover_llvm_temporary_drop(CheckedIndex checked, TypeId type, void* block, void* value, void* address, void* drop, void* operation) throws Error {
+	int kind = checked_kind(checked, type);
+	int count = 2;
+	if (kind == 22 || kind == 32) count = 3;
+	var body = recover_llvm_body(block, count);
+	if (len(body) != count || value == null || !recover_storage_llvm_type(checked, type, LLVMTypeOf(value))) return false;
+	int at = 0; int convention = 0; void* data = value; void* selected_drop = drop;
+	if (kind == 22) {
+		if (!recover_llvm_extract(body[0], value, 0)) return false;
+		data = body[0]; at = 1;
+	}
+	if (kind == 32) {
+		if (!enum_storage_owned(checked, type, 0) || address == null || LLVMGetInstructionOpcode(body[0]) != 28 || LLVMGetOperand(body[0], 0) != value || LLVMGetOperand(body[0], 1) != address || LLVMGetAlignment(body[0]) != recover_enum_type_alignment(checked, type, 0) || LLVMGetVolatile(body[0]) != 0 || LLVMGetOrdering(body[0]) != 0) return false;
+		var name = llvm_name("astra.enum.drop.", type.index);
+		selected_drop = LLVMGetCalledValue(body[1]);
+		if (!recover_llvm_helper_signature(selected_drop, 1) || llvm13_named(selected_drop, name.text) != 1 || LLVMGetGlobalParent(selected_drop) != LLVMGetGlobalParent(LLVMGetBasicBlockParent(block)) || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(selected_drop))) != 0) return false;
+		data = address; at = 1; convention = 8;
+	} else {
+		if (recover_storage_error(checked, type) || kind == 27 || kind == 28) convention = 8;
+		if (kind == 31 && recover_storage_class(checked, type)) {
+			var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+			if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_fields(declaration.node)) > 0 || class_storage_intrinsic_verified(checked, type)) convention = 8;
+		}
+	}
+	return operation == body[at] && recover_llvm_call(operation, selected_drop, 1, convention) && LLVMGetArgOperand(operation, 0) == data;
+}

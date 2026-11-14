@@ -13,7 +13,14 @@ class RecoverOwnerBudget {
 		} this.remaining = this.remaining - 1; return true; }
 }
 
+// A reserved move retains its original slot on failure. A fresh value instead
+// retires on that edge. Both dispositions retain the actual written operand.
 struct RecoverAbort { int operation; int reservation; int call; }
+
+bool recover_owner_fresh_argument(CheckedIndex checked, RecoverNode row) {
+	if (!recover_owner_value(checked, row)) return false;
+	return row.kind == 9 || row.kind == 11 || row.kind == 4 || row.kind == 19 || row.kind == 71 || row.kind == 77 || row.kind == 80;
+}
 
 class RecoverOwners {
 	owned shared TypeOwner identity;
@@ -158,7 +165,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71) { int a = 1; bool reserved = false; while (a < parent.count && plan.status == 0) {
 				int preceding_input = recover_owner_written_input(flow, parent, a - 1);
 				int preceding = recover_owner_unwrap(flow.data, preceding_input);
-				if (preceding > 0 && flow.data.nodes[preceding - 1].kind == 10) reserved = true;
+				if (preceding > 0 && recover_owner_value(flow.checked, flow.data.nodes[preceding - 1])) reserved = true;
 				if (!reserved) {
 					a = a + 1;
 					continue;
@@ -172,7 +179,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 						int earlier = 0; while (earlier < a) {
 							int reserve_input = recover_owner_written_input(flow, parent, earlier);
 							int reserve = recover_owner_unwrap(flow.data, reserve_input);
-							if (reserve > 0 && flow.data.nodes[reserve - 1].kind == 10) {
+							if (reserve > 0 && recover_owner_value(flow.checked, flow.data.nodes[reserve - 1])) {
 								if (plan.abort_count == 8192) {
 									plan.status = 2;
 									break;
@@ -336,8 +343,8 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				var signature = flow.checked.signatures[flow.checked.symbol_signatures[candidate.symbol.index].index - 1];
 				int offset = 1; if (recover_constructor_kind(candidate.kind)) offset = 2;
 				var channel = flow.checked.types.argument(flow.checked.types, signature.callable, parent.argument + offset);
-				if ((channel.flags & 4) == 0 || row.kind != 10) return false;
-				call = consumer;
+				if ((channel.flags & 4) == 0 || row.kind != 10 && !recover_owner_fresh_argument(flow.checked, row)) return false;
+				if (row.kind == 10) call = consumer;
 			}
 		}
 		if (row.kind == 10) {
@@ -348,6 +355,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 		if (plan.consumers[n] != consumer || plan.reservations[n] != call || plan.slots[n] != slot) return false; n = n + 1;
 	}
 	int expected = 0; int call = 1;
+	var preceding_aborts = new int[count];
 	while (call <= count) {
 		var parent = flow.data.nodes[call - 1];
 		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71) {
@@ -357,7 +365,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				if (parent.kind != 71) preceding_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a - 1);
 				if (preceding_slot < 0 || preceding_slot >= parent.count) return false;
 				int preceding = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + preceding_slot]);
-				if (preceding > 0 && flow.data.nodes[preceding - 1].kind == 10) reserved = true;
+				if (preceding > 0 && recover_owner_value(flow.checked, flow.data.nodes[preceding - 1])) reserved = true;
 				if (!reserved) {
 					a = a + 1;
 					continue;
@@ -376,10 +384,19 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 							if (parent.kind != 71) reserve_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, earlier);
 							if (reserve_slot < 0 || reserve_slot >= parent.count) return false;
 							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + reserve_slot]);
-							if (reserve > 0 && flow.data.nodes[reserve - 1].kind == 10) {
+							if (reserve > 0 && recover_owner_value(flow.checked, flow.data.nodes[reserve - 1])) {
 								if (expected >= plan.abort_count) return false;
 								var abort = plan.aborts[expected];
 								if (abort.operation != child || abort.reservation != reserve || abort.call != call) return false;
+								// Plan order is acquisition order even across nested calls.
+								// Establish it from source ranges, not numeric node order.
+								int previous = preceding_aborts[child - 1];
+								if (previous > 0) {
+									var before = flow.checked.bindings.program.arena.header(flow.data.nodes[previous - 1].source).span;
+									var after = flow.checked.bindings.program.arena.header(flow.data.nodes[reserve - 1].source).span;
+									if (before.source.index != after.source.index || before.end > after.start) return false;
+								}
+								preceding_aborts[child - 1] = reserve;
 								expected = expected + 1;
 							}
 							earlier = earlier + 1;

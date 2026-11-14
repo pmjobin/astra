@@ -308,3 +308,29 @@ temporary must survive a later operand failure until it is committed or cleaned
 up. Do not enable owning storage or broaden ordinary call admission before that
 path is implemented and tested. Typed source facts and Core relations alone
 grant no owning-match, full-host, ABI or milestone PASS.
+
+The C0-built semantic3 component, frozen at `fb0a5ef`, now executes the owning
+pattern and constructor-preservation controls: native exit 42 and strict
+returning Valgrind pass, with zero live bytes, errors or suppressions. Product
+SHA-256 is `bf5dbe53240f81d8393cf9cb860982927d9c6dc03c2237c851fbe5071229b9a0`.
+This remains focused source-consumer evidence, with no target owning-sum credit.
+
+The next candidate extends the existing bounded abort plan to fresh owned
+operands. Its independent consumer reconstructs written argument order and
+checks acquisition order against disjoint source spans, including nested calls.
+CFG operation 84 retires fresh values in reverse order on the later operand's
+error edge; moves keep operation 37 and their original armed slots. Ordinary
+SSA temporaries must reach either their unique normal consumer or that exact
+retirement before a returning exit. Owned conditional/match phi outputs now
+retain the ordinary owner channel. Enum constructors also receive explicit
+payload commits, while owning-sum storage admission remains closed.
+
+The physical consumer checks the actual retired value, destructor, call
+convention and complete instruction sequence. Five separately expanded C0
+references return 42, including observed class destruction order, nested
+arguments, conditional/match references and buffer cleanup. The source/CFG/SSA
+mutation component and actual new-form native targets remain unqualified until
+their executions finish. The first source preflights rejected an immutable
+parameter assignment in the physical checker and an unsupported projected
+mutation in the authored test; both were repaired without changing C0. Full
+production-source C0 semantics then passed (preflight 30, 65.047 seconds).

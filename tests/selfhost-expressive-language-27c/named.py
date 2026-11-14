@@ -66,6 +66,30 @@ int main() {
 	return 1;
 }
 '''
+FRESH = ITEM+'''extern(C) int drop_order();
+extern(C) void reset_drops();
+int mark(bool fail) throws Error {
+	if (fail) { throw new Error("fresh operand failure"); }
+	return 0;
+}
+int eat(owned Item left, owned Item right, int marker) {
+	return left.value+right.value+marker;
+}
+owned Item forward(owned Item item, int marker) { return move item; }
+int attempt(bool fail) {
+	try { @CALL@ }
+	catch (Error error) { return 42; }
+}
+int main() {
+	reset_drops();
+	if (attempt(false) != 42 || drops() != 2 || drop_sum() != 42 || drop_order() != 2220) return 1;
+	reset_drops();
+	if (attempt(true) != 42 || drops() != 2 || drop_sum() != 42 || drop_order() != 2022) return 2;
+	return 42;
+}
+'''
+FRESH_EXPANDED = '''var right = new Item(22); var left = new Item(20);
+	int marker = mark(fail); return eat(move left, move right, marker);'''
 CASES = [
 	('scalar-order', TICKS+CHOOSE+'''int main() {
 	reset_trace();
@@ -145,6 +169,20 @@ int main() {
 ''', False),
 	('owned-call-abort', OWNER.replace('@CALL@', 'return eat(right: move right, left: move left, marker: mark(fail));'), OWNER.replace('@CALL@', 'int marker = mark(fail); return eat(move left, move right, marker);'), True),
 	('owner-reservation-written-order', OWNER.replace('int eat(owned Item left, owned Item right, int marker)', 'int eat(int marker, owned Item left, owned Item right)').replace('@CALL@', 'return eat(right: move right, marker: mark(fail), left: move left);'), OWNER.replace('int eat(owned Item left, owned Item right, int marker)', 'int eat(int marker, owned Item left, owned Item right)').replace('@CALL@', 'int marker = mark(fail); return eat(marker, move left, move right);'), True),
+	('fresh-owner-abort', FRESH.replace('@CALL@', 'return eat(right: new Item(22), left: new Item(20), marker: mark(fail));'), FRESH.replace('@CALL@', FRESH_EXPANDED), True),
+	('fresh-nested-abort', FRESH.replace('@CALL@', 'return eat(right: new Item(22), left: forward(item: new Item(20), marker: mark(fail)), marker: 0);'), FRESH.replace('@CALL@', '''var right = new Item(22); var item = new Item(20);
+	int marker = mark(fail); var left = forward(move item, marker); return eat(move left, move right, 0);'''), True),
+	('fresh-conditional-abort', FRESH.replace('@CALL@', 'return eat(right: fail ? new Item(22) : new Item(22), left: new Item(20), marker: mark(fail));'), FRESH.replace('@CALL@', FRESH_EXPANDED), True),
+	('fresh-match-abort', 'enum Choice { First, Last }\n'+FRESH.replace('@CALL@', 'return eat(right: match (Choice.Last()) { case Choice.First() => new Item(1); case Choice.Last() => new Item(22); }, left: new Item(20), marker: mark(fail));'), FRESH.replace('@CALL@', FRESH_EXPANDED), True),
+	('fresh-buffer-abort', '''int mark(bool fail) throws Error { if (fail) { throw new Error("buffer operand failure"); } return 29; }
+int eat(owned int[] values, int marker) { return len(values)+marker; }
+int attempt(bool fail) { try { return eat(values: new int[13], marker: mark(fail)); } catch (Error error) { return 42; } }
+int main() { if (attempt(false) != 42) return 1; return attempt(true); }
+''', '''int mark(bool fail) throws Error { if (fail) { throw new Error("buffer operand failure"); } return 29; }
+int eat(owned int[] values, int marker) { return len(values)+marker; }
+int attempt(bool fail) { try { owned int[] values = new int[13]; int marker = mark(fail); return eat(move values, marker); } catch (Error error) { return 42; } }
+int main() { if (attempt(false) != 42) return 1; return attempt(true); }
+''', True),
 	('caller-expression-label', '''bool observe(int first, int last, [CallerArgumentExpression("first")] string expression) {
 	return first == 20 && last == 22 && expression == "10 * 2";
 }
@@ -590,7 +628,7 @@ def main():
 		log = (runtime/name/'stderr').read_bytes()
 		assert all(m in log for m in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
 	bridge = runtime/'observe.c'
-	bridge.write_text('static int seen, retired, sum;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint c_sum(int first, int last) { return first+last; }\n')
+	bridge.write_text('static int seen, retired, sum;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\n')
 	inputs[str(bridge)] = sha(bridge); bridge_object = build/'observe.o'
 	run('C-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', bridge, '-o', bridge_object])
 	objects = [*providers, str(bridge_object)]

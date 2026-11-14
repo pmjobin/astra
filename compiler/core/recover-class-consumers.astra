@@ -43,7 +43,8 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerP
 					at = at + 1;
 				}
 			}
-			if (kind != 27 && !selected_owner && !(recover_error_new_kind(row.kind) && kind == 23)) return false;
+			bool argument = !recover_error_new_kind(row.kind) && (kind == 4 || recover_constructor_kind(kind));
+			if (kind != 27 && !selected_owner && !argument && !(recover_error_new_kind(row.kind) && kind == 23)) return false;
 		}
 		n = n + 1;
 	}

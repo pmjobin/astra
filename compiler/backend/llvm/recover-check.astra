@@ -552,6 +552,17 @@ int recover_llvm_owner_instructions(RecoverSsa ssa, void* layout, void* payload,
 		if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 27 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 28) drop = shared_drops[slot.type.index];
 		if (!recover_llvm_owner_drop(ssa.cfg.core.flow.checked, slot, physical, owner_addresses[slot.symbol.index], owner_armed[slot.symbol.index], drop, operation)) return 0;
 	}
+	if (op == 84) {
+		var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+		int kind = checked_kind(ssa.cfg.core.flow.checked, type);
+		instruction_count = 2;
+		if (kind == 22 || kind == 32) instruction_count = 3;
+		void* drop = free_function;
+		if (recover_storage_error(ssa.cfg.core.flow.checked, type)) drop = error_owner_function;
+		if (kind == 31 && class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index] != null) drop = class_destroyers[ssa.cfg.core.flow.checked.types.row(type).nominal.index];
+		if (kind == 27 || kind == 28) drop = shared_drops[type.index];
+		if (!recover_llvm_temporary_drop(ssa.cfg.core.flow.checked, type, physical, values[block.a], slots[block.a - 1], drop, operation)) return 0;
+	}
 	if (op == 39) {
 		instruction_count = 2;
 		if (!recover_llvm_raise_move(physical, values[block.a], values[block.owner], operation, blocks[block.next - 1], blocks[block.other - 1])) return 0;

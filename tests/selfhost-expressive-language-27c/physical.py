@@ -27,6 +27,15 @@ def main():
 	prior.CONDITIONAL = selected['match-three-way']
 	prior.RECORD = selected['match-nested-payload']
 	prior.PARAMETER = selected['match-payload-alignment']
+	prior.INTRINSIC = '''[ExceptionRoot] class Error {
+	readonly string text;
+	init(string message) { this.text = message; }
+	virtual property string message { get { return this.text; } }
+}
+int marker(bool fail) throws Error { if (fail) { throw new Error("operand failure"); } return 29; }
+int eat(owned int[] values, int marker) { return len(values)+marker; }
+int main() { try { return eat(values: new int[13], marker: marker(true)); } catch (Error error) { return 42; } }
+'''
 	prior.CASES = {
 		'named-ABI-slots': ('compound', 'main', 'named-slots'),
 		'match-arm-result': ('conditional', '@native', 'match-phi'),
@@ -34,6 +43,7 @@ def main():
 		'enum-payload-value': ('record', 'main', 'enum-payload'),
 		'enum-constructor-tag': ('record', 'main', 'enum-tag'),
 		'enum-carrier-alignment': ('parameter', 'main', 'enum-alignment'),
+		'fresh-temporary-retirement': ('intrinsic', 'main', 'temporary-drop'),
 	}
 	mutations = '''  elif action=='named-slots':
    candidates=[]
@@ -47,6 +57,12 @@ def main():
    assert len(candidates)==1,candidates
    target=candidates[0];left=operand(target,0);right=operand(target,1);before=[integer(left),integer(right)]
    set_operand(target,0,right);set_operand(target,1,left);after=[integer(operand(target,n)) for n in (0,1)];assert after==[2,20]
+  elif action=='temporary-drop':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='free']
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,0);assert pointer('LLVMIsAInstruction',old) and opcode(old)==53
+   before=dict(argument=old,argument_opcode=opcode(old))
+   changed=pointer('LLVMConstNull',pointer('LLVMTypeOf',old));set_operand(target,0,changed);after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']==1
   elif action=='match-phi':
    candidates=[value for block in body for value in instructions(block) if opcode(value)==44 and number('(unsigned)LLVMCountIncoming((void*)%d)'%value)==3]
    assert len(candidates)==1,candidates
@@ -98,7 +114,7 @@ def main():
 	runtime = Path(arguments[arguments.index('--runtime')+1])
 	result = json.loads((runtime/'result.json').read_text())
 	result['extension_inputs'] = identity
-	result['scope'] = 'Selected 27-C actual named ABI operands, match phi values, nested tag tests and enum stores/layout. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
+	result['scope'] = 'Selected 27-C actual named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
 	write(runtime/'result.json', result)
 
 

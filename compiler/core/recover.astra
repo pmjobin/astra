@@ -40,7 +40,7 @@ bool recover_core_verify(RecoverCore core) {
 		int role = 0; if (recover_value_kind(source.kind) && source.type.index != 14) role = 1;
 		if (recover_error_new_kind(source.kind)) role = 2;
 		if (source.kind == 6 || source.kind == 66 || source.kind == 53 || source.kind == 56) role = 3;
-		if (source.kind == 68 || source.kind == 9 || source.kind == 10 || source.kind == 11 || (source.kind == 4 || source.kind == 19 || source.kind == 69 || source.kind == 77 || source.kind == 80) && (core.flow.checked.uses[source.source.index].flags & 4) != 0) role = 4;
+		if (source.kind == 68 || source.kind == 9 || source.kind == 10 || source.kind == 11 || (source.kind == 4 || source.kind == 19 || source.kind == 69 || source.kind == 71 || source.kind == 77 || source.kind == 80) && (core.flow.checked.uses[source.source.index].flags & 4) != 0) role = 4;
 		if (source.kind == 19 && core.flow.checked.uses[source.source.index].flags == 2) role = 3;
 		if (source.kind == 55 && recover_storage_slots(core.flow.checked, core.flow.data.nodes[source.a - 1].type, 0)) role = 3;
 		int place = 0; if (source.kind == 58 || source.kind == 2 || source.kind == 10 || source.kind == 12 || source.kind == 27 || source.kind == 42 || source.kind == 43 || source.kind == 75) place = core.flow.storage.symbols[source.symbol.index];
@@ -93,7 +93,7 @@ owned RecoverCore recover_core_lower(owned RecoverFlow flow) {
 	while (i < core.count) {
 		var value = core.flow.data.nodes[i]; int role = 0; if (recover_value_kind(value.kind) && value.type.index != 14) role = 1;
 		if (recover_error_new_kind(value.kind)) role = 2; if (value.kind == 6 || value.kind == 66 || value.kind == 53 || value.kind == 56) role = 3;
-		if (value.kind == 68 || value.kind == 9 || value.kind == 10 || value.kind == 11 || (value.kind == 4 || value.kind == 19 || value.kind == 69 || value.kind == 77 || value.kind == 80) && (core.flow.checked.uses[value.source.index].flags & 4) != 0) role = 4;
+		if (value.kind == 68 || value.kind == 9 || value.kind == 10 || value.kind == 11 || (value.kind == 4 || value.kind == 19 || value.kind == 69 || value.kind == 71 || value.kind == 77 || value.kind == 80) && (core.flow.checked.uses[value.source.index].flags & 4) != 0) role = 4;
 		if (value.kind == 19 && core.flow.checked.uses[value.source.index].flags == 2) role = 3;
 		if (value.kind == 55 && recover_storage_slots(core.flow.checked, core.flow.data.nodes[value.a - 1].type, 0)) role = 3;
 		int place = 0; if (value.kind == 58 || value.kind == 2 || value.kind == 10 || value.kind == 12 || value.kind == 27 || value.kind == 42 || value.kind == 43 || value.kind == 75) place = core.flow.storage.symbols[value.symbol.index];

@@ -38,21 +38,38 @@ bool recover_cfg_check_scope_exit(RecoverCfg cfg, int head, int origin, int scop
 // Abort is explicit and does not disarm the original owner. Commit is a
 // separate operation immediately before callee entry or local/return transfer.
 int recover_cfg_abort(RecoverCfg cfg, int origin, int carry, int next) {
-	int tail = next; int reserve = 1; while (reserve <= cfg.core.count) {
-		int a = 0;
-		while (a < cfg.core.owners.abort_count) {
-			var row = cfg.core.owners.aborts[a];
-			if (row.operation == origin && row.reservation == reserve) tail = cfg.block(cfg.core.nodes[origin - 1].value.function, origin, 37, reserve, cfg.core.owners.slots[reserve - 1], tail, 0, 0, carry, row.call);
-			a = a + 1;
+	int tail = next; int a = 0;
+	while (a < cfg.core.owners.abort_count) {
+		var row = cfg.core.owners.aborts[a];
+		if (row.operation == origin) {
+			int reserve = row.reservation;
+			int opcode = 84; int slot = 0;
+			if (cfg.core.nodes[reserve - 1].value.kind == 10) {
+				opcode = 37; slot = cfg.core.owners.slots[reserve - 1];
+			}
+			tail = cfg.block(cfg.core.nodes[origin - 1].value.function, origin, opcode, reserve, slot, tail, 0, 0, carry, row.call);
 		}
-		reserve = reserve + 1;
+		a = a + 1;
 	} return tail;
 }
 
 bool recover_cfg_check_abort(RecoverCfg cfg, int head, int origin, int carry, int next, bool[] seen) {
-	int block = head; int reserve = cfg.core.count; while (reserve > 0) { int a = cfg.core.owners.abort_count - 1; while (a >= 0) { var row = cfg.core.owners.aborts[a]; if (row.operation == origin && row.reservation == reserve) {
-				if (block < 1 || block > cfg.block_count) return false; int tail = cfg.blocks[block - 1].next; if (!recover_cfg_expect(cfg, block, recover_cfg_expected(cfg.core.nodes[origin - 1].value.function, origin, 37, reserve, cfg.core.owners.slots[reserve - 1], tail, 0, 0, carry, row.call), seen)) return false; block = tail;
-			} a = a - 1; } reserve = reserve - 1; } return block == next;
+	int block = head; int a = cfg.core.owners.abort_count - 1;
+	while (a >= 0) {
+		var row = cfg.core.owners.aborts[a];
+		if (row.operation == origin) {
+			int reserve = row.reservation;
+			int opcode = 84; int slot = 0;
+			if (cfg.core.nodes[reserve - 1].value.kind == 10) {
+				opcode = 37; slot = cfg.core.owners.slots[reserve - 1];
+			}
+			if (block < 1 || block > cfg.block_count) return false;
+			int tail = cfg.blocks[block - 1].next;
+			if (!recover_cfg_expect(cfg, block, recover_cfg_expected(cfg.core.nodes[origin - 1].value.function, origin, opcode, reserve, slot, tail, 0, 0, carry, row.call), seen)) return false;
+			block = tail;
+		}
+		a = a - 1;
+	} return block == next;
 }
 
 int recover_cfg_commit(RecoverCfg cfg, int origin, int next) {

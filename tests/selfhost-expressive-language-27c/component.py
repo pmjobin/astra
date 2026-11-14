@@ -23,7 +23,7 @@ def main():
 	p.add_argument('--compiler-sha256', required=True)
 	p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), action='append', required=True)
-	p.add_argument('--layer', choices=('syntax', 'semantic'), default='syntax')
+	p.add_argument('--layer', choices=('syntax', 'semantic', 'ssa'), default='syntax')
 	p.add_argument('--producer-kind', choices=('astra', 'c0'), default='astra')
 	p.add_argument('--consumer', type=Path)
 	a = p.parse_args()
@@ -36,7 +36,8 @@ def main():
 	model = ast.parse((ROOT/'tests/selfhost-typecore/build.py').read_text())
 	constants = {t.id:ast.literal_eval(n.value) for n in model.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name) and t.id == 'LIBRARIES'}
 	folders = ['source', 'syntax']
-	if a.layer == 'semantic': folders.append('semantic')
+	if a.layer in ('semantic', 'ssa'): folders.append('semantic')
+	if a.layer == 'ssa': folders.extend(('core', 'cfg', 'ssa'))
 	inputs = [*[path for folder in folders for path in sorted((ROOT/'compiler'/folder).glob('*.astra'))], a.consumer, *[ROOT/('lib/astra/'+n+'.astra') for n in constants['LIBRARIES']]]
 	providers = {n:h for n,h in json.loads(a.link.read_text())['objects'].items() if Path(n).name not in ('llvm-capi.o', 'arguments.o')}
 	assert len(providers) == 5 and all(sha(n) == h for n,h in providers.items())

@@ -159,7 +159,7 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 								if (row.type.index != 14) tail = cfg.block(row.function, id, 30, 0, 0, next, 0, 0, 0, 0);
 							}
 							int owner = 0; if (recover_error_new_kind(row.kind)) owner = id;
-							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69) head = recover_cfg_commit(cfg, id, operation);
+							operation = cfg.block(row.function, id, row.kind, row.a, row.b, tail, error, owner, 0, 0); head = operation; if (row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69 || row.kind == 71) head = recover_cfg_commit(cfg, id, operation);
 							int i = row.count - 1;
 							while (i >= 0 && cfg.status == 0) {
 								// Check the evaluated receiver before explicit arguments.
