@@ -30,6 +30,10 @@ an explicitly identified diagnostic capture: ten little-endian signed 32-bit
 RecoverBlock fields per block, followed by a separate entry-ID file. It reports
 the production dominator work cost under the unchanged 8M ceiling. This graph
 replay establishes neither source acceptance nor complete SSA/owner safety.
+The default kernel also compares packed owner states against the preserved
+scalar checker, with current reservation metadata, generated graphs and word
+boundary controls. Its reported 256-slot work count supports focused before/
+after cost comparisons under the same 8M ceiling.
 
 `named.py` exercises actual targets through `--feature named`, `match`, `range`,
 `format` or `collection`. It requires the same explicit producer/C0 identities,

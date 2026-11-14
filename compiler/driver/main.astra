@@ -115,8 +115,12 @@ int astrac_compile(Vector<Utf8Message> paths, Utf8Message output, int mode, int 
 		throw new Error("astrac: CFG verification failed");
 	}
 	var ssa = recover_ssa_lower(move cfg, 8000000);
-	if (ssa.data.status != 0 || !recover_ssa_verify(ssa)) {
-		throw new Error("astrac: SSA verification failed");
+	var detail = new int[4]; detail[0] = ssa.data.failure_phase; detail[1] = ssa.data.failure_item; detail[2] = ssa.data.failure_remaining; detail[3] = ssa.data.failure_exhausted;
+	if (ssa.data.status != 0 || !recover_ssa_verify_details(ssa, detail)) {
+		var diagnostic = new Utf8ByteBuilder(); source_append_text(diagnostic, "astrac: SSA verification failed status="); append_int(diagnostic, ssa.data.status);
+		source_append_text(diagnostic, " phase="); append_int(diagnostic, detail[0]); source_append_text(diagnostic, " item="); append_int(diagnostic, detail[1]);
+		source_append_text(diagnostic, " remaining="); append_int(diagnostic, detail[2]); source_append_text(diagnostic, " exhausted="); append_int(diagnostic, detail[3]);
+		var message = diagnostic.snapshot(); throw new Error(message.text);
 	}
 	if (mode == 0) return 0;
 	var module = new RecoverLlvm(ssa);

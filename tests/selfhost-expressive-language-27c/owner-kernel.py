@@ -32,6 +32,7 @@ kernel+=take(ssa,'int recover_ssa_dominance_order(','int recover_ssa_definition(
 kernel+=take(ssa,'int recover_ssa_definition(','RecoverValue recover_ssa_expected(')
 kernel+=take(ssa,'void recover_ssa_value_shortcut(','// Explore each owner version')
 kernel+=take(ssa,'bool recover_ssa_owner(','// Reconstruct declaration sites')
+kernel+=take(ssa,'owned int[] recover_ssa_local_definitions(','// Read-only proof diagnostics')
 kernel+=take(owners,'class RecoverSsaOwnerIndex {','bool recover_ssa_slots(')
 kernel+=take(owners,'bool recover_ssa_temporary(')
 kernel+=take('compiler/ssa/recover-owner-packs.astra','class RecoverSsaOwnerPacks {')
@@ -50,6 +51,13 @@ view=leaf/'production-kernel.astra';view.write_bytes(kernel);view.chmod(0o444)
 model=ROOT/'tests/selfhost-compiler-complete/ssa-owner-packs-model.astra';driver=ROOT/'tests/selfhost-expressive-language-27c/owner-kernel.astra'
 if a.llvm_cursor:driver=ROOT/'tests/selfhost-expressive-language-27c/cursor-kernel.astra'
 inputs=[view]
+reference_identity=None
+if not a.llvm_cursor:
+	revision='7676e12e40f4583f6834275e6ba089779faf41f9';name='compiler/ssa/recover-owners.astra'
+	original=subprocess.check_output(['git','-C',ROOT,'show',revision+':'+name]);first=original.index(b'bool recover_ssa_slot(');last=original.index(b'bool recover_ssa_slots(',first)
+	data=original[first:last].replace(b'recover_ssa_slot(',b'reference_slot(')
+	reference=leaf/'scalar-reference.astra';reference.write_bytes(data);reference.chmod(0o444);inputs.append(reference)
+	reference_identity=dict(revision=revision,path=name,git_blob=subprocess.check_output(['git','-C',ROOT,'rev-parse',revision+':'+name],text=True).strip(),original_sha256=hashlib.sha256(original).hexdigest(),start=first,end=last,selected_sha256=hashlib.sha256(original[first:last]).hexdigest(),rename='recover_ssa_slot to reference_slot only')
 for p in ((driver,) if a.llvm_cursor else (model,driver)):
 	q=leaf/p.name;q.write_bytes(p.read_bytes());q.chmod(0o444);inputs.append(q);origins[str(p)]=sha(p)
 libmodel=ast.parse((ROOT/'tests/selfhost-typecore/build.py').read_text());libs=next(ast.literal_eval(n.value) for n in libmodel.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='LIBRARIES' for t in n.targets))
@@ -67,10 +75,11 @@ def run(name,argv,expected=0):
 recipe=ROOT/'tests/selfhost-compiler-complete/run-recipe.py';tree=ast.parse(recipe.read_text());fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='declarations');ns={'hashlib':hashlib};exec(compile(ast.Module(body=[fn],type_ignores=[]),str(recipe),'exec'),ns);declarations=ns['declarations']
 full=[]
 for n,p in enumerate(origins):
-	if not p.startswith(str(ROOT/'compiler')) and p!=str(ROOT/'tests/selfhost-compiler-complete/ssa-dominance.astra'):continue
+	if not p.startswith(str(ROOT/'compiler')) and p not in (str(ROOT/'tests/selfhost-compiler-complete/ssa-dominance.astra'),str(ROOT/'tests/selfhost-compiler-complete/ssa-owner-packs.astra')):continue
 	source=leaf/('source-'+str(n)+'.astra');source.write_bytes(Path(p).read_bytes());source.chmod(0o444);full.extend(declarations(run('syntax-'+str(n),[c0,'--dump-syntax',source])))
 actual=declarations(run('syntax-kernel',[c0,'--dump-syntax',view]));assert actual and all(full.count(row)==1 for row in actual)
 identity=dict(c0_sha256=sha(c0),recipe_sha256=sha(__file__),tools=tools,recipe_inputs={str(recipe):sha(recipe),str(a.link):sha(a.link)},origins=origins,selected=selected,normalized_declarations=actual,actual_inputs={str(p):sha(p) for p in inputs},providers=provider,limitation='Exact helper kernels with existing minimal containers; no full source, native feature, compiler or ABI qualification. The enum predicate is a declared test stub; selected-sum paths are outside this kernel scope.')
+if reference_identity:identity['scalar_reference']=reference_identity
 if a.llvm_cursor:identity['limitation']='Exact production aggregate cursor and primitive checks on actual LLVM arguments/constants/corruptions only; no complete compiler, formatting-site or milestone qualification.'
 write(leaf/'identity.json',identity)
 run('semantic-preflight',[c0,'--dump-semantics',*inputs])

@@ -1262,3 +1262,48 @@ The first leaf remains a passing focused execution with less complete retained
 ELF inspection output; the second retains each explicit inspection command and
 the allocator-boundary refusals. These results retain dev11's exact source and
 product identity; full current generation and final qualification remain pending.
+
+The dev12 first-refusal diagnostic completes in 1372.334 seconds. It identifies
+phase 7, item 0, zero remaining work and exhausted=true: the final owner-slot
+phase exhausts the existing global SSA budget after preceding phases pass. It
+captures the actual 533856-block, 2973-function physical graph with exact hashes.
+The existing focused dominator kernel accepts that same graph in 0.102 seconds,
+using 5253895 work units (selfhost27c-dev12-cfg-replay1). This graph replay is
+only dominance evidence; it neither replays the other SSA phases nor accepts
+the failed compiler generation.
+
+The candidate preserves all three per-slot dead/live/reserved possibility bits
+and exact reservation-path proofs, but uses unsigned 64-bit words for 21 slots
+instead of 32-bit words for ten. Shift positions stop at 62; the complete word
+mask uses 63 bits. No state is merged or removed, and the work ceiling, charge
+sites, owner identities and returning-exit checks remain unchanged. The wider
+word reduces repeated owner-group graph traversals rather than relaxing proof.
+
+The focused kernel retains the exact scalar slot checker from Git revision
+7676e12e40f4583f6834275e6ba089779faf41f9, with only its function name changed.
+Both the original narrow baseline (owner-kernel7) and wider candidate
+(owner-kernel8) pass comparisons on 8192 generated graphs with up to 64 slots,
+positive and independently corrupted 1/10/11/20/21/22/31/42/43/64-slot controls,
+96-move reservation controls and the existing dominance/physical controls.
+Reservation path validity is a common unchanged precondition; the scalar
+reference independently checks each slot's exact states. Both O0/O2 native and
+strict returning memory pass with zero live bytes, errors and suppressions.
+The 256-slot control's owner-pack work falls from 28443 to 15118 units (about
+47 percent), without changing its graph or work accounting. Full compiler-source
+headroom still requires the next actual generation run.
+
+Owner-kernel5 retains an incompatible historical model fixture: it omits source
+kind/region metadata required by the current independent reservation index.
+Those historical bytes remain unchanged. Current fixtures explicitly supply
+that metadata; owner-kernel6 then retains a missing checked text-output error
+declaration in the new observer. Correcting that declaration precedes the passing
+narrow baseline and candidate above. No failed leaf is relabelled PASS.
+
+SSA lowering now retains refusal-only phase/item/remaining/exhaustion diagnostics
+in its private data, and the production driver reports those existing details
+on failure. Fresh independent consumers still recompute the proof and never read
+those diagnostic fields as acceptance authority. This avoids another full
+debugger replay merely to identify a future failing phase. Current complete
+source acceptance of this final diagnostic addition and the next optimized
+development host remain pending; no migration or generation credit follows from
+the focused packing results.

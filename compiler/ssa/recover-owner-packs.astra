@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// A word contains the possible dead/live/reserved states of ten owner slots.
+// One unsigned 64-bit word retains all three possible states of 21 owner slots.
 // Every reservation first receives its own exact path proof up to the matching
 // commit or abort. That short proof retains reservation identity; the complete
 // packed walk checks liveness before and after it, including all returning
@@ -9,7 +9,7 @@ class RecoverSsaOwnerPacks {
 	owned int[] links;
 	owned int[] groups;
 	owned int[] shifts;
-	owned int[] masks;
+	owned u64[] masks;
 	owned int[] places;
 
 	init(RecoverCfg cfg) {
@@ -18,7 +18,7 @@ class RecoverSsaOwnerPacks {
 		this.links = new int[slots];
 		this.groups = new int[slots];
 		this.shifts = new int[slots];
-		this.masks = new int[slots];
+		this.masks = new u64[slots];
 		this.places = new int[len(cfg.core.flow.storage.symbols)];
 	}
 }
@@ -57,9 +57,9 @@ bool recover_ssa_reservation_paths(RecoverSsa ssa, RecoverSsaOwnerIndex index, i
 	return !work.exhausted;
 }
 
-bool recover_ssa_owner_pack(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverSsaOwnerPacks packs, int function, int group, int initial, int dead, int full, RecoverWork work) {
+bool recover_ssa_owner_pack(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverSsaOwnerPacks packs, int function, int group, u64 initial, u64 dead, u64 full, RecoverWork work) {
 	int first = index.starts[function - 1]; int blocks = index.starts[function] - first;
-	var states = new int[blocks]; var queued = new bool[blocks]; var pending = new int[blocks];
+	var states = new u64[blocks]; var queued = new bool[blocks]; var pending = new int[blocks];
 	int entry = index.shortcuts[ssa.cfg.entries[function - 1]]; int count = 0;
 	if (entry > 0) {
 		int position = index.positions[entry - 1];
@@ -69,36 +69,36 @@ bool recover_ssa_owner_pack(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverS
 		if (!work.take()) return false;
 		count = count - 1; int position = pending[count]; queued[position] = false;
 		int block = index.blocks[first + position]; var row = ssa.cfg.blocks[block - 1];
-		int before = states[position]; int after = before; int place = 0;
+		u64 before = states[position]; u64 after = before; int place = 0;
 		if (row.origin > 0) {
 			int symbol = ssa.cfg.core.nodes[row.origin - 1].value.symbol.index;
 			if (symbol > 0 && symbol < len(packs.places)) place = packs.places[symbol];
 		}
 		if (place > 0 && packs.groups[place - 1] == group) {
-			int shift = packs.shifts[place - 1]; int mask = packs.masks[place - 1];
-			int possible = (before & mask) >> shift;
+			int shift = packs.shifts[place - 1]; u64 mask = packs.masks[place - 1];
+			u64 possible = (before & mask) >> shift;
 			if (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46) {
 				if ((possible & 1) != 0) return false;
 				if (row.opcode == 10) {
 					if (possible != 2 || ssa.cfg.core.owners.slots[row.origin - 1] != place || index.reservations[row.origin - 1] < 2) return false;
-					after = (after & (full ^ mask)) | (4 << shift);
+					after = (after & (full ^ mask)) | ((4 as u64) << shift);
 				}
 			}
 			if (row.opcode == 27 || row.opcode == 86) {
 				if (possible != 1) return false;
-				after = (after & (full ^ mask)) | (1 << (shift + 1));
+				after = (after & (full ^ mask)) | ((1 as u64) << (shift + 1));
 			}
 		}
 		if ((row.opcode == 36 || row.opcode == 37) && row.b > 0 && row.b <= len(packs.groups) && packs.groups[row.b - 1] == group) {
-			int shift = packs.shifts[row.b - 1]; int mask = packs.masks[row.b - 1];
-			if (row.a < 1 || row.a > len(index.reservations) || ssa.cfg.core.owners.slots[row.a - 1] != row.b || index.reservations[row.a - 1] < 2 || (before & mask) != (4 << shift)) return false;
+			int shift = packs.shifts[row.b - 1]; u64 mask = packs.masks[row.b - 1];
+			if (row.a < 1 || row.a > len(index.reservations) || ssa.cfg.core.owners.slots[row.a - 1] != row.b || index.reservations[row.a - 1] < 2 || (before & mask) != ((4 as u64) << shift)) return false;
 			int state = 0; if (row.opcode == 37) state = 1;
-			after = (after & (full ^ mask)) | (1 << (shift + state));
+			after = (after & (full ^ mask)) | ((1 as u64) << (shift + state));
 		}
 		if (row.opcode == 38 && row.a > 0 && row.a <= len(packs.groups) && packs.groups[row.a - 1] == group) {
-			int shift = packs.shifts[row.a - 1]; int mask = packs.masks[row.a - 1];
-			if ((before & mask & (full ^ (3 << shift))) != 0) return false;
-			after = (after & (full ^ mask)) | (1 << shift);
+			int shift = packs.shifts[row.a - 1]; u64 mask = packs.masks[row.a - 1];
+			if ((before & mask & (full ^ ((3 as u64) << shift))) != 0) return false;
+			after = (after & (full ^ mask)) | ((1 as u64) << shift);
 		}
 		if ((row.opcode == 22 || row.opcode == 23) && (after & dead) != after) return false;
 		int polarity = 0;
@@ -107,7 +107,7 @@ bool recover_ssa_owner_pack(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverS
 			target = index.shortcuts[target];
 			if (target > 0) {
 				if (ssa.cfg.blocks[target - 1].function != function) return false;
-				int next = index.positions[target - 1]; int combined = states[next] | after;
+				int next = index.positions[target - 1]; u64 combined = states[next] | after;
 				if (combined != states[next]) {
 					states[next] = combined;
 					if (!queued[next]) {
@@ -144,15 +144,15 @@ bool recover_ssa_packed_slots(RecoverSsa ssa, RecoverSsaOwnerIndex index, Recove
 	while (function <= len(packs.heads)) {
 		place = packs.heads[function - 1];
 		while (place > 0) {
-			group = group + 1; int bits = 0; int initial = 0; int dead = 0;
-			while (place > 0 && bits <= 27) {
+			group = group + 1; int bits = 0; u64 initial = 0; u64 dead = 0;
+			while (place > 0 && bits <= 60) {
 				if (!work.take()) return false;
-				packs.groups[place - 1] = group; packs.shifts[place - 1] = bits; packs.masks[place - 1] = 7 << bits;
+				packs.groups[place - 1] = group; packs.shifts[place - 1] = bits; packs.masks[place - 1] = (7 as u64) << bits;
 				int state = 0; if (ssa.cfg.core.flow.storage.slots[place - 1].parameter) state = 1;
-				initial = initial | (1 << (bits + state)); dead = dead | (1 << bits);
+				initial = initial | ((1 as u64) << (bits + state)); dead = dead | ((1 as u64) << bits);
 				bits = bits + 3; place = packs.links[place - 1];
 			}
-			if (!recover_ssa_owner_pack(ssa, index, packs, function, group, initial, dead, (1 << bits) - 1, work)) return false;
+			if (!recover_ssa_owner_pack(ssa, index, packs, function, group, initial, dead, ((1 as u64) << bits) - 1, work)) return false;
 		}
 		function = function + 1;
 	}

@@ -35,8 +35,17 @@ class RecoverSsaData {
 	owned bool[] reachable;
 	int status;
 	int work_limit;
+	// Failure diagnostics only. Fresh independent consumers never accept
+	// these fields as proof or use them to skip verification.
+	int failure_phase;
+	int failure_item;
+	int failure_remaining;
+	int failure_exhausted;
 
-	init(int values, int blocks, int work_limit) { this.values = new RecoverValue[values]; this.reachable = new bool[blocks]; this.status = 0; this.work_limit = work_limit; }
+	init(int values, int blocks, int work_limit) {
+		this.values = new RecoverValue[values]; this.reachable = new bool[blocks]; this.status = 0; this.work_limit = work_limit;
+		this.failure_phase = 0; this.failure_item = 0; this.failure_remaining = 0; this.failure_exhausted = 0;
+	}
 
 	void fail(int status) { this.status = status; }
 }
@@ -688,6 +697,12 @@ owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
 		return move ssa;
 	}
 	var work = new RecoverWork(work_limit); recover_ssa_define(ssa.data, ssa.cfg, work);
-	if (ssa.data.status == 0 && !recover_ssa_verify(ssa)) ssa.data.fail(1);
+	if (ssa.data.status == 0) {
+		var detail = new int[4];
+		if (!recover_ssa_verify_details(ssa, detail)) {
+			ssa.data.failure_phase = detail[0]; ssa.data.failure_item = detail[1]; ssa.data.failure_remaining = detail[2]; ssa.data.failure_exhausted = detail[3];
+			ssa.data.fail(1);
+		}
+	}
 	return move ssa;
 }
