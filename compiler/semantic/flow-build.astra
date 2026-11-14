@@ -233,6 +233,14 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	}
 	var target = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
 	if (getter) target = checked.generic_calls[node.index];
+	if (target.index > 0 && checked.bindings.symbol(target).kind == 13 && enum_constructor_verified(checked, node, target, checked.uses[node.index].type)) {
+		int head = next; int at = checked.bindings.program.arena.list_count(arguments) - 1;
+		while (at >= 0 && !graph.exhausted) {
+			head = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, at), region, head, 0, depth + 1);
+			at = at - 1;
+		}
+		return head;
+	}
 	if (target.index == 0 || checked.symbol_signatures[target.index].index == 0) {
 		graph.defer(node, 6);
 		return graph.add(flow_event(checked, node, 14, 0, region, next));
@@ -385,6 +393,8 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		} else {
 			token = checked.bindings.program.arena.get_token_identifier(node);
 		}
+		var binding = checked_target(checked, node, token);
+		if (kind == SyntaxKind.NameExpressionSyntax() && enum_leaf_binding(checked, binding)) return next;
 		int slot = flow_symbol_slot(graph, checked, class_origins, node, token);
 		if (slot == 0) {
 			if (checked.semantic_flow && kind == SyntaxKind.NameExpressionSyntax() && checked_this_type(checked, node, token).index != 0) {

@@ -668,7 +668,7 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 	}
 	if (index.flow_adapters && checked_shared_action(index, node) != 0) return checked_shared_call(index, node, depth);
 	if (index.field_effects) {
-		var type = checked_enum_call(index, node);
+		var type = checked_enum_call(index, node, depth);
 		if (type.index != 0 || index.failed()) return type;
 	}
 	if (checked_slice_intrinsic(index, node)) return checked_slice_type(index, node, depth);

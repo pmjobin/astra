@@ -91,6 +91,7 @@ class RecoverLlvm {
 	owned void*[] class_destroyers;
 	owned void*[] class_payload_drops;
 	owned RecoverRecordStorage[] record_storage;
+	owned void*[] enum_carriers;
 	owned void*[] slot_functions;
 	owned RecoverSharedRuntime shared_runtime;
 	owned RecoverSharedRuntime intrinsic_shared;
@@ -143,6 +144,7 @@ class RecoverLlvm {
 		this.class_payloads = new void*[symbols]; this.class_destroyers = new void*[symbols];
 		this.class_payload_drops = new void*[len(this.class_destroyers)];
 		this.record_storage = new RecoverRecordStorage[ssa.cfg.core.flow.checked.types.count + 1];
+		this.enum_carriers = new void*[ssa.cfg.core.flow.checked.types.count + 1];
 		this.slot_functions = new void*[(ssa.cfg.core.flow.checked.types.count + 1) * 6];
 	}
 
@@ -245,7 +247,23 @@ class RecoverLlvm {
 	}
 
 	void* scalar(CheckedIndex checked, TypeId type) {
-		int kind = checked_kind(checked, type); if (kind == 32 && enum_value_type_verified(checked, type)) return this.integer; if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
+		int kind = checked_kind(checked, type);
+		if (kind == 32 && enum_value_type_verified(checked, type)) {
+			if (checked_payload_free_enum(checked, type)) return this.integer;
+			if (type.index < 1 || type.index >= len(this.enum_carriers)) return null;
+			if (this.enum_carriers[type.index] != null) return this.enum_carriers[type.index];
+			int bytes = recover_enum_payload_shape(checked, type, 0, 0);
+			int alignment = recover_enum_payload_shape(checked, type, 1, 0);
+			if (bytes < 0 || alignment < 1 || alignment > 8 || bytes > 2147483647 - alignment + 1) return null;
+			var unit = LLVMIntTypeInContext(this.context, alignment * 8);
+			var fields = new void*[2]; fields[0] = this.integer;
+			fields[1] = LLVMArrayType2(unit, ((bytes + alignment - 1) / alignment) as u64);
+			var carrier = this.structure(fields);
+			if (!recover_enum_llvm_type(checked, type, carrier) || LLVMABISizeOfType(this.layout, carrier) != recover_enum_type_bytes(checked, type, 0) as u64 || LLVMABIAlignmentOfType(this.layout, carrier) != recover_enum_type_alignment(checked, type, 0)) return null;
+			this.enum_carriers[type.index] = carrier;
+			return carrier;
+		}
+		if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
 		if (kind == 23) {
 			var fields = new void*[3]; fields[0] = this.pointer; fields[1] = this.integer; fields[2] = this.integer;
 			return this.structure(fields);
@@ -276,6 +294,98 @@ class RecoverLlvm {
 			return this.structure(fields);
 		}
 		return llvm_checked_abi_scalar(this.context, kind);
+	}
+
+	void* enum_constructor(RecoverSsa ssa, RecoverNode row, int origin) {
+		var type = this.scalar(ssa.cfg.core.flow.checked, row.type);
+		var address = this.slots[origin - 1];
+		int tag = enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol);
+		var zero = LLVMBuildStore(this.builder, LLVMConstNull(type), address);
+		LLVMSetAlignment(zero, LLVMABIAlignmentOfType(this.layout, type));
+		var tag_address = this.field(type, address, 0);
+		var tag_store = LLVMBuildStore(this.builder, this.int32(tag), tag_address);
+		LLVMSetAlignment(tag_store, 4);
+		var payload_address = this.field(type, address, 1);
+		var variant = ssa.cfg.core.flow.checked.bindings.symbol(row.symbol);
+		var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(variant.node);
+		var members = new void*[row.count]; int at = 0;
+		while (at < row.count) {
+			var field = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, at);
+			members[at] = this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.checked.node_symbols[field.index].index]);
+			at = at + 1;
+		}
+		var variant_type = this.structure(members); at = 0;
+		while (at < row.count) {
+			int child = ssa.cfg.core.flow.data.edges[row.first + at];
+			var field_address = this.field(variant_type, payload_address, at);
+			var store = LLVMBuildStore(this.builder, this.values[child], field_address);
+			LLVMSetAlignment(store, LLVMABIAlignmentOfType(this.layout, members[at]));
+			at = at + 1;
+		}
+		var value = this.load(type, address);
+		LLVMSetAlignment(value, LLVMABIAlignmentOfType(this.layout, type));
+		return value;
+	}
+
+	void* enum_variant(CheckedIndex checked, SymbolId symbol) {
+		var declaration = checked.bindings.symbol(symbol);
+		var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+		int count = checked.bindings.program.arena.list_count(fields);
+		var members = new void*[count]; int at = 0;
+		while (at < count) {
+			var field = checked.bindings.program.arena.node_at(fields, at);
+			members[at] = this.scalar(checked, checked.symbol_types[checked.node_symbols[field.index].index]);
+			at = at + 1;
+		}
+		return this.structure(members);
+	}
+
+	void* enum_projection(CheckedIndex checked, SyntaxNodeId pattern, TypeId type, void* address, SyntaxNodeId target, int depth) {
+		if (depth > 32) return null;
+		if (pattern.index == target.index) return address;
+		var variant = checked_target(checked, pattern, checked.bindings.program.arena.get_token_variant(pattern));
+		var bindings = checked.bindings.program.arena.get_list_bindings(pattern);
+		var declaration = checked.bindings.symbol(variant);
+		var fields = checked.bindings.program.arena.get_list_fields(declaration.node); int at = 0;
+		while (at < checked.bindings.program.arena.list_count(bindings)) {
+			var binding = checked.bindings.program.arena.node_at(bindings, at);
+			var nested = checked.bindings.program.arena.get_node_nested_pattern(binding);
+			if (binding.index == target.index || nested.index != 0 && enum_pattern_contains(checked, nested, target, 0)) {
+				int slot = enum_binding_slot(checked, pattern, variant, at);
+				if (slot < 0 || slot >= checked.bindings.program.arena.list_count(fields)) return null;
+				var payload_address = this.field(this.scalar(checked, type), address, 1);
+				var field_address = this.field(this.enum_variant(checked, variant), payload_address, slot);
+				if (binding.index == target.index) return field_address;
+				var field = checked.bindings.program.arena.node_at(fields, slot);
+				var field_type = checked.symbol_types[checked.node_symbols[field.index].index];
+				return this.enum_projection(checked, nested, field_type, field_address, target, depth + 1);
+			}
+			at = at + 1;
+		}
+		return null;
+	}
+
+	void* enum_read(RecoverSsa ssa, RecoverBlock block) {
+		var root = ssa.cfg.core.nodes[block.a - 1].value;
+		var arm = ssa.cfg.core.nodes[block.origin - 1].value;
+		SyntaxNodeId target = {index = block.rank};
+		if (block.opcode == 82) {
+			var declaration = ssa.cfg.core.flow.checked.bindings.symbol(arm.symbol);
+			target = declaration.node;
+			arm = ssa.cfg.core.nodes[arm.c - 1].value;
+		}
+		var address = this.slots[block.a - 1];
+		var copied = LLVMBuildStore(this.builder, this.values[block.a], address);
+		LLVMSetAlignment(copied, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0));
+		var selected = this.enum_projection(ssa.cfg.core.flow.checked, arm.source, root.type, address, target, 0);
+		var type = ssa.cfg.core.flow.checked.uses[target.index].type;
+		if (block.opcode == 83) {
+			if (!checked_payload_free_enum(ssa.cfg.core.flow.checked, type)) selected = this.field(this.scalar(ssa.cfg.core.flow.checked, type), selected, 0);
+			var value = this.load(this.integer, selected); LLVMSetAlignment(value, 4); return value;
+		}
+		var value = this.load(this.scalar(ssa.cfg.core.flow.checked, type), selected);
+		LLVMSetAlignment(value, LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(value)));
+		return value;
 	}
 
 	void* error_descriptor(CheckedIndex checked, SymbolId symbol, int depth) throws Error {
@@ -505,8 +615,9 @@ class RecoverLlvm {
 				} var plan = new RecoverAbi(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[slot.function - 1].symbol); int at = plan.groups[source]; var function = this.functions[slot.function - 1]; void* value = LLVMGetParam(function, at); int kind = checked_kind(ssa.cfg.core.flow.checked, slot.type);
 				if (kind == 32) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
-					value = this.load(this.integer, value);
-					LLVMSetAlignment(value, 4);
+					var carrier = this.scalar(ssa.cfg.core.flow.checked, slot.type);
+					value = this.load(carrier, value);
+					LLVMSetAlignment(value, LLVMABIAlignmentOfType(this.layout, carrier));
 				}
 				if (kind == 30 || kind == 22 || kind == 15) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
@@ -557,7 +668,7 @@ class RecoverLlvm {
 			if (ssa.cfg.core.nodes[n].conditional && row.type.index != 14 || recover_value_kind(row.kind) && checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) {
 				LLVMPositionBuilderAtEnd(this.builder, this.entries[row.function - 1]);
 				var slot = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, row.type), this.empty);
-				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) LLVMSetAlignment(slot, 4);
+				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) LLVMSetAlignment(slot, LLVMABIAlignmentOfType(this.layout, LLVMGetAllocatedType(slot)));
 				this.slots[n] = slot;
 			}
 			if (row.kind == 57) {
@@ -715,6 +826,10 @@ class RecoverLlvm {
 		this.emitted[id - 1] = true; var block = ssa.cfg.blocks[id - 1]; LLVMPositionBuilderAtEnd(this.builder, this.blocks[id - 1]);
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
+		if (op == 82) {
+			value = this.enum_read(ssa, block);
+			operation = value;
+		}
 		if (op == 1) value = this.literal(ssa, row);
 		if (op == 51) value = this.caller_literal(ssa.cfg.core.flow.checked, row);
 		if (op == 52) {
@@ -797,7 +912,13 @@ class RecoverLlvm {
 				value = LLVMBuildXor(this.builder, value, LLVMConstInt(LLVMTypeOf(value), mask, 0), this.empty);
 			}
 		}
-		if (op == 71) value = this.int32(enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol));
+		if (op == 71) {
+			if (checked_payload_free_enum(ssa.cfg.core.flow.checked, row.type)) value = this.int32(enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol));
+			else {
+				value = this.enum_constructor(ssa, row, block.origin);
+				operation = value;
+			}
+		}
 		if (op == 7) value = this.values[row.a];
 		if (op == 4) {
 			int callee = ssa.cfg.core.flow.data.symbols[row.symbol.index]; var function = ssa.cfg.core.flow.data.functions[callee - 1]; var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol); var arguments = new void*[plan.parameters]; if (plan.success >= 0) arguments[plan.success] = this.slots[block.origin - 1]; int i = 0;
@@ -816,7 +937,7 @@ class RecoverLlvm {
 				} else {
 					if (kind == 32) {
 						var copied = LLVMBuildStore(this.builder, this.values[child], this.slots[child - 1]);
-						LLVMSetAlignment(copied, 4);
+						LLVMSetAlignment(copied, recover_enum_type_alignment(ssa.cfg.core.flow.checked, type, 0));
 						arguments[at] = this.slots[child - 1];
 					} else {
 						arguments[at] = this.values[child];
@@ -834,8 +955,8 @@ class RecoverLlvm {
 			else {
 				value = operation;
 				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) {
-					value = this.load(this.integer, this.slots[block.origin - 1]);
-					LLVMSetAlignment(value, 4);
+					value = this.load(this.scalar(ssa.cfg.core.flow.checked, row.type), this.slots[block.origin - 1]);
+					LLVMSetAlignment(value, recover_enum_type_alignment(ssa.cfg.core.flow.checked, row.type, 0));
 				}
 			}
 		}
@@ -962,7 +1083,7 @@ class RecoverLlvm {
 				} else {
 					if (kind == 32) {
 						var copied = LLVMBuildStore(this.builder, this.values[child], this.slots[child - 1]);
-						LLVMSetAlignment(copied, 4);
+						LLVMSetAlignment(copied, recover_enum_type_alignment(ssa.cfg.core.flow.checked, type, 0));
 						arguments[at] = this.slots[child - 1];
 					} else {
 						arguments[at] = this.values[child];
@@ -1036,7 +1157,18 @@ class RecoverLlvm {
 		if (value != null && row.type.index != 14) this.values[block.origin] = value;
 		if (op == 73 || op == 74) {
 			int predicate = 32; if (op == 74) predicate = 36;
-			var condition = LLVMBuildICmp(this.builder, predicate, this.values[block.a], this.int32(block.rank), this.empty);
+			var input = this.values[block.a];
+			if (!checked_payload_free_enum(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[block.a - 1].value.type)) input = LLVMBuildExtractValue(this.builder, input, 0, this.empty);
+			var condition = LLVMBuildICmp(this.builder, predicate, input, this.int32(block.rank), this.empty);
+			operation = LLVMBuildCondBr(this.builder, condition, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
+		if (op == 83) {
+			var tag = this.enum_read(ssa, block);
+			SyntaxNodeId pattern = {index = block.rank};
+			var variant = checked_target(ssa.cfg.core.flow.checked, pattern, ssa.cfg.core.flow.checked.bindings.program.arena.get_token_variant(pattern));
+			var type = ssa.cfg.core.flow.checked.uses[pattern.index].type;
+			int ordinal = enum_value_ordinal(ssa.cfg.core.flow.checked, type, variant);
+			var condition = LLVMBuildICmp(this.builder, 32, tag, this.int32(ordinal), this.empty);
 			operation = LLVMBuildCondBr(this.builder, condition, this.blocks[block.next - 1], this.blocks[block.other - 1]);
 		}
 		if (op == 21 || op == 63) operation = LLVMBuildCondBr(this.builder, this.values[block.a], this.blocks[block.next - 1], this.blocks[block.other - 1]);
@@ -1083,7 +1215,7 @@ class RecoverLlvm {
 				if (function.result.index != 14) {
 					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
 					operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], plan.success));
-					if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) LLVMSetAlignment(operation, 4);
+					if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) LLVMSetAlignment(operation, recover_enum_type_alignment(ssa.cfg.core.flow.checked, function.result, 0));
 				}
 				var end = LLVMBuildRet(this.builder, LLVMConstNull(this.pointer));
 				if (operation == null) operation = end;
@@ -1092,7 +1224,7 @@ class RecoverLlvm {
 				if (checked_kind(ssa.cfg.core.flow.checked, function.result) == 32) {
 					var plan = new RecoverAbi(ssa.cfg.core.flow.checked, function.symbol);
 					operation = LLVMBuildStore(this.builder, this.values[block.a], LLVMGetParam(this.functions[block.function - 1], plan.success));
-					LLVMSetAlignment(operation, 4);
+					LLVMSetAlignment(operation, recover_enum_type_alignment(ssa.cfg.core.flow.checked, function.result, 0));
 					var end = LLVMBuildRetVoid(this.builder);
 				} else { if (function.result.index == 14) operation = LLVMBuildRetVoid(this.builder); else {
 						operation = LLVMBuildRet(this.builder, this.values[block.a]);

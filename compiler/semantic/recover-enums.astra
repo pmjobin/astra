@@ -10,6 +10,20 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 			row.kind = 71;
 			row.symbol = variant;
 			row.token = checked.bindings.program.arena.get_token_identifier(row.source);
+			var arguments = checked.bindings.program.arena.get_list_arguments(row.source);
+			int count = checked.bindings.program.arena.list_count(arguments);
+			if (count > 0) {
+				var children = new int[count]; int at = 0;
+				while (at < count && flow.status == 0) {
+					children[at] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, at), row.function, row.handler, row.caught, depth + 1);
+					at = at + 1;
+				}
+				row.first = flow.edge_count; row.count = count; at = 0;
+				while (at < count && flow.status == 0) {
+					int edge = flow.edge(children[at]);
+					at = at + 1;
+				}
+			}
 		}
 	}
 	bool expression = kind == SyntaxKind.MatchExpressionSyntax();
@@ -24,6 +38,7 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 		row.type = type_id(14);
 	}
 	row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, depth + 1);
+	flow.nodes[id - 1] = row;
 	var arms = checked.bindings.program.arena.get_list_arms(row.source);
 	int count = checked.bindings.program.arena.list_count(arms);
 	var children = new int[count]; int at = 0;
@@ -36,9 +51,13 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 		if (arm.token.index != 0) arm.symbol = checked_target(checked, source, arm.token);
 		int child = flow.add(arm);
 		if (child == 0) return row;
+		flow.nodes[child - 1] = arm;
 		var value = checked.bindings.program.arena.get_node_body(source);
 		if (expression) value = checked.bindings.program.arena.get_node_expression(source);
+		int previous_arm = flow.pattern_arm;
+		if (expression) flow.pattern_arm = child;
 		arm.a = recover_build_node(flow, checked, types, value, row.function, row.handler, row.caught, depth + 1);
+		flow.pattern_arm = previous_arm;
 		flow.nodes[child - 1] = arm;
 		children[at] = child;
 		at = at + 1;
@@ -57,8 +76,26 @@ bool recover_enum_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 }
 
 bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int id, bool[] seen, bool[] edges, u8[] bindings, int depth) {
+	if (row.kind == 82) {
+		if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.NameExpressionSyntax() || row.b != 0 || row.count != 0 || row.first != 0 || row.token.index != 0 || row.c < 1 || row.c > flow.node_count || !enum_leaf_binding(checked, row.symbol) || checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source)).index != row.symbol.index || row.type.index != checked.symbol_types[row.symbol.index].index) return false;
+		var arm = flow.nodes[row.c - 1];
+		if (arm.kind != 81 || arm.function != row.function || arm.handler != row.handler || arm.caught != row.caught || arm.c < 1 || arm.c > flow.node_count || !enum_pattern_contains(checked, arm.source, checked.bindings.symbol(row.symbol).node, 0)) return false;
+		var parent = flow.nodes[arm.c - 1];
+		return parent.kind == 80 && row.a == parent.a && row.a > 0 && row.a <= flow.node_count && enum_pattern_verified(checked, arm.source, flow.nodes[row.a - 1].type, 0);
+	}
 	if (row.kind == 71) {
-		return row.a == 0 && row.b == 0 && row.c == 0 && row.token.index == checked.bindings.program.arena.get_token_identifier(row.source).index && enum_constructor_verified(checked, row.source, row.symbol, row.type);
+		if (row.a != 0 || row.b != 0 || row.c != 0 || row.token.index != checked.bindings.program.arena.get_token_identifier(row.source).index || !enum_constructor_verified(checked, row.source, row.symbol, row.type)) return false;
+		var arguments = checked.bindings.program.arena.get_list_arguments(row.source);
+		if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
+		int at = 0;
+		while (at < row.count) {
+			int edge = row.first + at;
+			if (edges[edge]) return false;
+			edges[edge] = true;
+			if (!recover_child_with_bindings(flow, checked, types, flow.edges[edge], checked.bindings.program.arena.node_at(arguments, at), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+			at = at + 1;
+		}
+		return true;
 	}
 	if (row.kind == 72 || row.kind == 80) {
 		bool expression = row.kind == 80;

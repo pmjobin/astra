@@ -51,6 +51,7 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	nodes[id - 1] = true;
 	var core = cfg.core.nodes[id - 1]; var row = core.value; var region = cfg.regions[id - 1]; int op = region.operation;
 	if (region.next != next || region.entry < 1 || region.entry > cfg.block_count) return false;
+	if (row.kind == 82) return region.entry == op && recover_cfg_expect(cfg, op, recover_cfg_expected(row.function, id, 82, row.a, 0, next, 0, 0, 0, 0), seen);
 	if (row.kind == 28 || row.kind == 29 || row.kind == 41 || row.kind == 42 || row.kind == 75) return recover_cfg_check_loop(cfg, id, next, seen, nodes, depth);
 	if (row.kind == 72 || row.kind == 80) return recover_cfg_enum_verified(cfg, id, next, seen, nodes, depth);
 	if (row.kind == 61 || row.kind == 76) return recover_cfg_array_store(cfg, id, next, seen, nodes, depth);

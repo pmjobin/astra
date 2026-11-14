@@ -31,6 +31,7 @@ void recover_loop_bind(RecoverFlowData flow, int id, int loop, int depth) {
 		return;
 	}
 	var row = flow.nodes[id - 1];
+	if (row.kind == 82) return;
 	if (row.kind == 29 || row.kind == 41) {
 		row.c = loop;
 		flow.nodes[id - 1] = row;
@@ -50,6 +51,7 @@ bool recover_loop_verify(RecoverFlowData flow, int id, int loop, int depth) {
 	if (id == 0) return true;
 	if (depth > 192 || id < 1 || id > flow.node_count) return false;
 	var row = flow.nodes[id - 1];
+	if (row.kind == 82) return true;
 	if (row.kind == 29 || row.kind == 41) return loop > 0 && row.c == loop && flow.nodes[loop - 1].kind == 28 && flow.nodes[loop - 1].function == row.function;
 	if (!recover_loop_verify(flow, row.a, loop, depth + 1)) return false;
 	if (row.kind == 28) {

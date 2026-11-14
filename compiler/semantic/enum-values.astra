@@ -9,7 +9,7 @@ TypeId checked_enum_qualifier(CheckedIndex index, SyntaxNodeId node, SyntaxToken
 	if (selected.state_code != 1 || selected.target.index < 1 || selected.target.index > index.generic_symbols) return no_type();
 	var declaration = index.bindings.symbol(selected.target);
 	var type = index.symbol_types[selected.target.index];
-	if (declaration.kind != 5 || checked_kind(index, type) != 32 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0 || !checked_payload_free_enum(index, type)) return no_type();
+	if (declaration.kind != 5 || !enum_value_type_verified(index, type)) return no_type();
 	return type;
 }
 
@@ -26,7 +26,7 @@ SymbolId checked_enum_variant(CheckedIndex index, TypeId type, SyntaxTokenId tok
 	return type_symbol(0);
 }
 
-TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node) throws Error {
+TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
 	if (!index.field_effects || index.bindings.program.arena.get_node_receiver_place(node).index != 0) return no_type();
 	var type = checked_enum_qualifier(index, node, index.bindings.program.arena.get_token_receiver(node));
 	if (type.index == 0) return type;
@@ -36,9 +36,25 @@ TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node) throws Error {
 		index.fail(index.bindings.program.arena.token_span(token), "unknown variant in enum construction");
 		return no_type();
 	}
-	if (index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0) {
-		index.fail(index.bindings.program.arena.header(node).span, "payload-free enum construction requires no arguments or type arguments");
+	var variant_declaration = index.bindings.symbol(variant);
+	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(arguments) != index.bindings.program.arena.list_count(fields) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "enum construction requires exact declared payload fields and no type arguments");
 		return no_type();
+	}
+	int at = 0;
+	while (at < index.bindings.program.arena.list_count(fields) && !index.failed()) {
+		var field = index.bindings.program.arena.node_at(fields, at);
+		var expected = index.symbol_types[index.node_symbols[field.index].index];
+		var input = index.bindings.program.arena.node_at(arguments, at);
+		var actual = checked_expression(index, input, expected, depth + 1);
+		checked_mismatch(index, index.bindings.program.arena.header(input).span, expected, actual, "enum payload");
+		if (index.uses[input.index].flags != 0) {
+			index.fail(index.bindings.program.arena.header(input).span, "copyable enum payload cannot consume an owner");
+			return no_type();
+		}
+		at = at + 1;
 	}
 	checked_complete_member(index, node, token, variant);
 	var use = index.uses[node.index];
@@ -101,6 +117,60 @@ bool checked_enum_match(CheckedIndex index, SyntaxNodeId node, TypeId result, in
 	return true;
 }
 
+bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type, int depth) throws Error {
+	if (depth > 32 || !enum_value_type_verified(index, type)) return false;
+	var data = index.bindings.program.arena.enum_arm(pattern);
+	var actual = checked_enum_qualifier(index, pattern, data.f_qualifier);
+	var variant = checked_enum_variant(index, type, data.f_variant);
+	if (actual.index != type.index || variant.index == 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0) {
+		index.fail(index.bindings.program.arena.header(pattern).span, "pattern requires an exact concrete enum constructor");
+		return false;
+	}
+	var variant_declaration = index.bindings.symbol(variant);
+	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+	int count = index.bindings.program.arena.list_count(fields);
+	if (index.bindings.program.arena.list_count(data.f_bindings) != count) {
+		index.fail(index.bindings.program.arena.header(pattern).span, "pattern must bind or explicitly discard every declared payload field");
+		return false;
+	}
+	checked_complete_member(index, pattern, data.f_variant, variant);
+	var recorded = index.record(pattern, type, 0);
+	var seen = new bool[count]; int at = 0;
+	while (at < count && !index.failed()) {
+		int slot = enum_binding_slot(index, pattern, variant, at);
+		if (slot < 0 || slot >= count || seen[slot]) {
+			index.fail(index.bindings.program.arena.header(pattern).span, "duplicate or unknown pattern payload field");
+			return false;
+		}
+		seen[slot] = true;
+		var binding = index.bindings.program.arena.node_at(data.f_bindings, at);
+		var field = index.bindings.program.arena.node_at(fields, slot);
+		var field_symbol = index.node_symbols[field.index];
+		var expected = index.symbol_types[field_symbol.index];
+		var field_name = index.bindings.program.arena.get_token_field(binding);
+		if (field_name.index != 0) checked_complete_member(index, binding, field_name, field_symbol);
+		var binding_use = index.record(binding, expected, 0);
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		if (nested.index != 0) {
+			if (!checked_enum_pattern(index, nested, expected, depth + 1)) {
+				if (!index.failed()) index.fail(index.bindings.program.arena.header(binding).span, "nested pattern requires a concrete enum payload");
+				return false;
+			}
+		} else {
+			var token = index.bindings.program.arena.get_token_binding(binding);
+			if (token.index == 0) return false;
+			var symbol = index.node_symbols[binding.index];
+			if (!index.bindings.program.arena.token_is(token, "_")) {
+				if (symbol.index < 1) return false;
+				index.symbol_types[symbol.index] = expected;
+				index.symbol_flags[symbol.index] = 0;
+			}
+		}
+		at = at + 1;
+	}
+	return !index.failed();
+}
+
 TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var span = index.bindings.program.arena.header(node).span;
 	if (!checked_modern_source(index, node)) {
@@ -110,11 +180,14 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
 	var type = checked_expression(index, scrutinee, no_type(), depth + 1);
 	if (type.index == 0) return index.defer(node, 17);
-	if (checked_kind(index, type) != 32 || !checked_payload_free_enum(index, type)) return index.defer(node, 17);
-	var declaration = index.bindings.symbol(index.types.row(type).nominal);
-	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
-	int count = index.bindings.program.arena.list_count(variants);
+	if (checked_kind(index, type) != 32 || !enum_value_type_verified(index, type)) return index.defer(node, 17);
+	int count = enum_case_count(index, type, 0);
+	if (count < 1) {
+		index.fail(span, "finite nested pattern coverage exceeds 8192 cases or depth 32");
+		return no_type();
+	}
 	var seen = new bool[count];
+	int covered = 0;
 	var arms = index.bindings.program.arena.get_list_arms(node);
 	var result = expected;
 	if (result.index == 0) {
@@ -131,21 +204,25 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 	while (at < index.bindings.program.arena.list_count(arms) && !index.failed()) {
 		var arm = index.bindings.program.arena.node_at(arms, at);
 		var data = index.bindings.program.arena.enum_arm(arm);
-		var actual_enum = checked_enum_qualifier(index, arm, data.f_qualifier);
-		var variant = checked_enum_variant(index, type, data.f_variant);
-		if (data.f_body.index != 0 || data.f_expression.index == 0 || data.f_match_arrow.index == 0 || data.f_semicolon.index == 0 || actual_enum.index != type.index || variant.index == 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_bindings) != 0) {
+		if (data.f_body.index != 0 || data.f_expression.index == 0 || data.f_match_arrow.index == 0 || data.f_semicolon.index == 0 || !checked_enum_pattern(index, arm, type, 0)) {
 			index.fail(index.bindings.program.arena.header(arm).span, "expression case requires an exact enum variant and one result expression");
 			return no_type();
 		}
-		int ordinal = 0;
-		while (ordinal < count && index.node_symbols[index.bindings.program.arena.node_at(variants, ordinal).index].index != variant.index) ordinal = ordinal + 1;
-		if (ordinal == count || seen[ordinal]) {
-			index.fail(index.bindings.program.arena.header(arm).span, "unreachable duplicate enum case");
+		int choice = 0; bool reaches = false;
+		while (choice < count) {
+			if (enum_pattern_case(index, arm, type, choice, 0)) {
+				if (seen[choice]) {
+					index.fail(index.bindings.program.arena.header(arm).span, "overlapping or unreachable enum pattern");
+					return no_type();
+				}
+				seen[choice] = true; covered = covered + 1; reaches = true;
+			}
+			choice = choice + 1;
+		}
+		if (!reaches) {
+			index.fail(index.bindings.program.arena.header(arm).span, "unreachable enum pattern");
 			return no_type();
 		}
-		seen[ordinal] = true;
-		checked_complete_member(index, arm, data.f_variant, variant);
-		var recorded = index.record(arm, type, 0);
 		var value = checked_expression(index, data.f_expression, result, depth + 1);
 		if (value.index == 0) return index.defer(node, 17);
 		if (result.index == 0) result = value;
@@ -158,7 +235,7 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 		at = at + 1;
 	}
 	if (index.failed()) return no_type();
-	if (at != count) {
+	if (covered != count) {
 		index.fail(span, "nonexhaustive enum match expression");
 		return no_type();
 	}

@@ -1,6 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // A range guard rejects invalid tags before the source-ordered case chain.
 // The scrutinee is evaluated once. Every arm keeps its lexical body cleanup.
+int recover_cfg_pattern(RecoverCfg cfg, int arm_id, SyntaxNodeId pattern, int input, int yes, int no, int depth) {
+	if (depth > 32 || cfg.status != 0) {
+		cfg.status = 2;
+		return 0;
+	}
+	var arm = cfg.core.nodes[arm_id - 1].value;
+	var bindings = cfg.core.flow.checked.bindings.program.arena.get_list_bindings(pattern);
+	int head = yes; int at = cfg.core.flow.checked.bindings.program.arena.list_count(bindings) - 1;
+	while (at >= 0 && cfg.status == 0) {
+		var binding = cfg.core.flow.checked.bindings.program.arena.node_at(bindings, at);
+		var nested = cfg.core.flow.checked.bindings.program.arena.get_node_nested_pattern(binding);
+		if (nested.index != 0) head = recover_cfg_pattern(cfg, arm_id, nested, input, head, no, depth + 1);
+		at = at - 1;
+	}
+	return cfg.block(arm.function, arm_id, 83, input, 0, head, no, 0, 0, pattern.index);
+}
+
+int recover_cfg_pattern_chain(RecoverCfg cfg, int entry, int arm_id, SyntaxNodeId pattern, int input, int failure, bool[] seen, int depth) {
+	if (depth > 32 || entry < 1 || entry > cfg.block_count) return 0;
+	var arm = cfg.core.nodes[arm_id - 1].value;
+	int tail = cfg.blocks[entry - 1].next;
+	if (!recover_cfg_expect(cfg, entry, recover_cfg_expected(arm.function, arm_id, 83, input, 0, tail, failure, 0, 0, pattern.index), seen)) return 0;
+	var bindings = cfg.core.flow.checked.bindings.program.arena.get_list_bindings(pattern);
+	int at = 0;
+	while (at < cfg.core.flow.checked.bindings.program.arena.list_count(bindings)) {
+		var binding = cfg.core.flow.checked.bindings.program.arena.node_at(bindings, at);
+		var nested = cfg.core.flow.checked.bindings.program.arena.get_node_nested_pattern(binding);
+		if (nested.index != 0) {
+			tail = recover_cfg_pattern_chain(cfg, tail, arm_id, nested, input, failure, seen, depth + 1);
+			if (tail == 0) return 0;
+		}
+		at = at + 1;
+	}
+	return tail;
+}
+
 int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
 	var row = cfg.core.nodes[id - 1].value;
 	var type = cfg.core.nodes[row.a - 1].value.type;
@@ -22,8 +58,11 @@ int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
 		int body = recover_cfg_tree(cfg, arm.a, tail, depth + 1);
 		int operation = 0;
 		if (arm.symbol.index != 0) {
-			int tag = enum_value_ordinal(cfg.core.flow.checked, type, arm.symbol);
-			operation = cfg.block(row.function, child, 73, row.a, 0, body, dispatch, 0, 0, tag);
+			if (row.kind == 80 && !checked_payload_free_enum(cfg.core.flow.checked, type)) operation = recover_cfg_pattern(cfg, child, arm.source, row.a, body, dispatch, 0);
+			else {
+				int tag = enum_value_ordinal(cfg.core.flow.checked, type, arm.symbol);
+				operation = cfg.block(row.function, child, 73, row.a, 0, body, dispatch, 0, 0, tag);
+			}
 			dispatch = operation;
 		} else {
 			dispatch = body;
@@ -88,7 +127,11 @@ bool recover_cfg_enum_verified(RecoverCfg cfg, int id, int next, bool[] seen, bo
 			int tag = enum_value_ordinal(cfg.core.flow.checked, type, arm.symbol);
 			if (tag < 0 || tag >= count) return false;
 			int following = cfg.blocks[dispatch - 1].other;
-			if (!recover_cfg_expect(cfg, dispatch, recover_cfg_expected(row.function, child, 73, row.a, 0, anchor.entry, following, 0, 0, tag), seen)) return false;
+			if (row.kind == 80 && !checked_payload_free_enum(cfg.core.flow.checked, type)) {
+				if (recover_cfg_pattern_chain(cfg, dispatch, child, arm.source, row.a, following, seen, 0) != anchor.entry) return false;
+			} else {
+				if (!recover_cfg_expect(cfg, dispatch, recover_cfg_expected(row.function, child, 73, row.a, 0, anchor.entry, following, 0, 0, tag), seen)) return false;
+			}
 			dispatch = following;
 		}
 		at = at + 1;

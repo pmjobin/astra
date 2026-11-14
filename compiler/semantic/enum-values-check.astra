@@ -2,6 +2,11 @@
 // Reconstruct enum nominal, tag order and source selection independently of
 // constructor typing and match construction. No native layout is inferred.
 bool enum_value_type_verified(CheckedIndex index, TypeId type) {
+	return enum_value_type_depth(index, type, 0);
+}
+
+bool enum_value_type_depth(CheckedIndex index, TypeId type, int depth) {
+	if (depth > 32) return false;
 	if (!index.field_effects || !index.types.valid_id(type)) return false;
 	var row = index.types.row(type);
 	if (row.kind != 32 || row.count != 0 || row.extent != 0 || row.nominal.index < 1 || row.nominal.index > index.generic_symbols || index.symbol_types[row.nominal.index].index != type.index) return false;
@@ -12,19 +17,38 @@ bool enum_value_type_verified(CheckedIndex index, TypeId type) {
 	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
 	int count = index.bindings.program.arena.list_count(variants);
 	if (count < 1 || count > index.generic_symbols) return false;
+	bool has_payload = false;
 	int at = 0;
 	while (at < count) {
 		var node = index.bindings.program.arena.node_at(variants, at);
-		if (index.bindings.program.arena.kind(node) != SyntaxKind.EnumVariantSyntax() || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node)) != 0) return false;
+		if (index.bindings.program.arena.kind(node) != SyntaxKind.EnumVariantSyntax()) return false;
 		var symbol = index.node_symbols[node.index];
 		if (symbol.index < 1 || symbol.index > index.generic_symbols) return false;
 		var member = index.bindings.symbol(symbol);
 		if (member.kind != 13 || member.owner.index != row.nominal.index || member.node.index != node.index || member.token.index != index.bindings.program.arena.get_token_name(node).index) return false;
 		var source = index.bindings.program.arena.header(node);
 		if (source.foreign_member.index != 0 || index.bindings.program.arena.list_count(source.foreign_channels) != 0 || source.span.source.index != header.span.source.index || source.span.start < header.span.start || source.span.end > header.span.end) return false;
+		var fields = index.bindings.program.arena.get_list_fields(node);
+		if (index.bindings.program.arena.list_count(fields) > 0) has_payload = true;
+		int f = 0;
+		while (f < index.bindings.program.arena.list_count(fields)) {
+			var field = index.bindings.program.arena.node_at(fields, f);
+			var field_symbol = index.node_symbols[field.index];
+			if (field_symbol.index < 1 || field_symbol.index > index.generic_symbols) return false;
+			var binding = index.bindings.symbol(field_symbol);
+			if (binding.kind != 17 || binding.owner.index != symbol.index || binding.node.index != field.index || binding.token.index != index.bindings.program.arena.get_token_name(field).index || index.symbol_flags[field_symbol.index] != 0) return false;
+			var field_type = index.symbol_types[field_symbol.index];
+			var type_node = index.bindings.program.arena.get_node_type_name(field);
+			if (type_node.index < 1 || index.uses[type_node.index].type.index != field_type.index) return false;
+			int code = checked_kind(index, field_type);
+			if (!type_numeric(code) && code != 13 && !(code == 32 && enum_value_type_depth(index, field_type, depth + 1))) return false;
+			var field_span = index.bindings.program.arena.header(field).span;
+			if (!recover_span_contains(source.span, field_span)) return false;
+			f = f + 1;
+		}
 		at = at + 1;
 	}
-	return true;
+	return !has_payload || recover_enum_type_bytes(index, type, 0) >= 0;
 }
 
 int enum_value_ordinal(CheckedIndex index, TypeId type, SymbolId variant) {
@@ -56,7 +80,17 @@ bool enum_constructor_verified(CheckedIndex index, SyntaxNodeId node, SymbolId v
 	var header = index.bindings.program.arena.header(node);
 	if (header.foreign_member.index != 0 || index.bindings.program.arena.list_count(header.foreign_channels) != 0) return false;
 	var data = index.bindings.program.arena.call_expression(node);
-	if (data.f_receiver_place.index != 0 || data.f_signal_emission || index.bindings.program.arena.list_count(data.f_qualifier_arguments) != 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_arguments) != 0) return false;
+	if (data.f_receiver_place.index != 0 || data.f_signal_emission || index.bindings.program.arena.list_count(data.f_qualifier_arguments) != 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_argument_names) != 0 || !syntax_call_labels_verified(index.bindings.program.arena, node)) return false;
+	var variant_declaration = index.bindings.symbol(variant);
+	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+	if (index.bindings.program.arena.list_count(data.f_arguments) != index.bindings.program.arena.list_count(fields)) return false;
+	int at = 0;
+	while (at < index.bindings.program.arena.list_count(fields)) {
+		var field = index.bindings.program.arena.node_at(fields, at);
+		var input = index.bindings.program.arena.node_at(data.f_arguments, at);
+		if (input.index < 1 || input.index >= len(index.uses) || index.uses[input.index].flags != 0 || index.uses[input.index].type.index != index.symbol_types[index.node_symbols[field.index].index].index) return false;
+		at = at + 1;
+	}
 	if (data.f_member_operator.index != 0 && !index.bindings.program.arena.token_is(data.f_member_operator, ".")) return false;
 	var use = index.uses[node.index];
 	var member = index.bindings.symbol(variant);
@@ -68,7 +102,7 @@ bool enum_pattern_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolI
 	var header = index.bindings.program.arena.header(arm);
 	if (header.foreign_member.index != 0 || index.bindings.program.arena.list_count(header.foreign_channels) != 0) return false;
 	var data = index.bindings.program.arena.enum_arm(arm);
-	if (index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_bindings) != 0) return false;
+	if (index.bindings.program.arena.list_count(data.f_type_arguments) != 0) return false;
 	var use = index.uses[arm.index];
 	return use.type.index == type.index && use.flags == 0 && use.deferred == 0 && generic_token_equal(index, data.f_variant, index.bindings.symbol(variant).token) && checked_target(index, arm, data.f_variant).index == variant.index && index.bindings.accessible(variant, index.bindings.scope_for_node(arm)) && enum_qualifier_verified(index, arm, data.f_qualifier, type);
 }
@@ -76,7 +110,209 @@ bool enum_pattern_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolI
 bool enum_arm_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId variant, TypeId type) {
 	if (!enum_pattern_variant_verified(index, arm, variant, type)) return false;
 	var data = index.bindings.program.arena.enum_arm(arm);
-	return data.f_expression.index == 0 && data.f_match_arrow.index == 0 && data.f_semicolon.index == 0;
+	return data.f_expression.index == 0 && data.f_match_arrow.index == 0 && data.f_semicolon.index == 0 && index.bindings.program.arena.list_count(data.f_bindings) == 0;
+}
+
+// The finite coverage universe contains tag choices, never scalar values.
+// A leaf binder covers every value of its exact field type. Nested enum
+// constructors refine only that field's tag choices, with a fixed work bound.
+int enum_case_count(CheckedIndex index, TypeId type, int depth) {
+	if (depth > 32) return 0;
+	if (checked_kind(index, type) != 32) return 1;
+	var enum_declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(enum_declaration.node);
+	int total = 0; int at = 0;
+	while (at < index.bindings.program.arena.list_count(variants)) {
+		var fields = index.bindings.program.arena.get_list_fields(index.bindings.program.arena.node_at(variants, at));
+		int product = 1; int f = 0;
+		while (f < index.bindings.program.arena.list_count(fields)) {
+			var field = index.bindings.program.arena.node_at(fields, f);
+			int count = enum_case_count(index, index.symbol_types[index.node_symbols[field.index].index], depth + 1);
+			if (count < 1 || product > 8192 / count) return 0;
+			product = product * count;
+			f = f + 1;
+		}
+		if (total > 8192 - product) return 0;
+		total = total + product; at = at + 1;
+	}
+	return total;
+}
+
+int enum_binding_slot(CheckedIndex index, SyntaxNodeId pattern, SymbolId variant, int ordinal) {
+	var variant_declaration = index.bindings.symbol(variant);
+	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	if (ordinal < 0 || ordinal >= index.bindings.program.arena.list_count(bindings)) return -1;
+	var binding = index.bindings.program.arena.node_at(bindings, ordinal);
+	var name = index.bindings.program.arena.get_token_field(binding);
+	if (name.index == 0) return ordinal;
+	int at = 0; int found = -1;
+	while (at < index.bindings.program.arena.list_count(fields)) {
+		var field = index.bindings.program.arena.node_at(fields, at);
+		if (index.bindings.program.arena.token_text_equal(name, index.bindings.program.arena.get_token_name(field))) {
+			if (found >= 0) return -1;
+			found = at;
+		}
+		at = at + 1;
+	}
+	return found;
+}
+
+bool enum_pattern_contains(CheckedIndex index, SyntaxNodeId pattern, SyntaxNodeId target, int depth) {
+	if (depth > 32 || pattern.index < 1 || target.index < 1) return false;
+	if (pattern.index == target.index) return true;
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	int at = 0;
+	while (at < index.bindings.program.arena.list_count(bindings)) {
+		var binding = index.bindings.program.arena.node_at(bindings, at);
+		if (binding.index == target.index) return true;
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		if (nested.index != 0 && enum_pattern_contains(index, nested, target, depth + 1)) return true;
+		at = at + 1;
+	}
+	return false;
+}
+
+bool enum_leaf_binding(CheckedIndex index, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index >= len(index.symbol_types)) return false;
+	var declaration = index.bindings.symbol(symbol);
+	return declaration.kind == 15 && index.bindings.program.arena.kind(declaration.node) == SyntaxKind.EnumBindingSyntax() && index.bindings.program.arena.get_node_nested_pattern(declaration.node).index == 0 && index.bindings.program.arena.get_token_binding(declaration.node).index == declaration.token.index && index.symbol_flags[symbol.index] == 0;
+}
+
+int enum_projection_depth(CheckedIndex index, SyntaxNodeId pattern, SyntaxNodeId target, int depth) {
+	if (depth > 32 || pattern.index < 1 || target.index < 1) return -1;
+	if (pattern.index == target.index) return 0;
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern); int at = 0;
+	while (at < index.bindings.program.arena.list_count(bindings)) {
+		var binding = index.bindings.program.arena.node_at(bindings, at);
+		if (binding.index == target.index) return 1;
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		if (nested.index != 0) {
+			int count = enum_projection_depth(index, nested, target, depth + 1);
+			if (count >= 0) return count + 1;
+		}
+		at = at + 1;
+	}
+	return -1;
+}
+
+bool enum_pattern_verified(CheckedIndex index, SyntaxNodeId pattern, TypeId type, int depth) {
+	if (depth > 32 || pattern.index < 1 || pattern.index >= len(index.uses) || index.bindings.program.arena.kind(pattern) != SyntaxKind.EnumArmSyntax() || !enum_value_type_verified(index, type)) return false;
+	var variant = checked_target(index, pattern, index.bindings.program.arena.get_token_variant(pattern));
+	if (!enum_pattern_variant_verified(index, pattern, variant, type)) return false;
+	var variant_declaration = index.bindings.symbol(variant);
+	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	int count = index.bindings.program.arena.list_count(fields);
+	if (count != index.bindings.program.arena.list_count(bindings)) return false;
+	int previous = index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_variant(pattern)).end;
+	var seen = new bool[count]; int at = 0;
+	while (at < count) {
+		int slot = enum_binding_slot(index, pattern, variant, at);
+		if (slot < 0 || slot >= count || seen[slot]) return false;
+		seen[slot] = true;
+		var binding = index.bindings.program.arena.node_at(bindings, at);
+		var span = index.bindings.program.arena.header(binding).span;
+		if (span.start < previous || span.end <= span.start) return false;
+		previous = span.end;
+		var field = index.bindings.program.arena.node_at(fields, slot);
+		var field_symbol = index.node_symbols[field.index];
+		var expected = index.symbol_types[field_symbol.index];
+		if (binding.index < 1 || binding.index >= len(index.uses) || index.uses[binding.index].type.index != expected.index || index.uses[binding.index].flags != 0 || index.uses[binding.index].deferred != 0 || !recover_span_contains(index.bindings.program.arena.header(pattern).span, index.bindings.program.arena.header(binding).span)) return false;
+		var name = index.bindings.program.arena.get_token_field(binding);
+		if (name.index != 0 && checked_target(index, binding, name).index != field_symbol.index) return false;
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		var token = index.bindings.program.arena.get_token_binding(binding);
+		if (nested.index != 0) {
+			var data = index.bindings.program.arena.enum_arm(nested);
+			if (token.index != 0 || data.f_body.index != 0 || data.f_expression.index != 0 || data.f_match_arrow.index != 0 || data.f_semicolon.index != 0 || !enum_pattern_verified(index, nested, expected, depth + 1)) return false;
+		} else {
+			if (token.index == 0) return false;
+			var symbol = index.node_symbols[binding.index];
+			if (index.bindings.program.arena.token_is(token, "_")) {
+				if (symbol.index != 0) return false;
+			}
+			else {
+				if (symbol.index < 1 || symbol.index >= len(index.symbol_types) || index.symbol_types[symbol.index].index != expected.index || index.symbol_flags[symbol.index] != 0) return false;
+				var declaration = index.bindings.symbol(symbol);
+				if (declaration.kind != 15 || declaration.node.index != binding.index || declaration.token.index != token.index || declaration.scope.index != index.bindings.scope_for_node(pattern).index) return false;
+			}
+		}
+		at = at + 1;
+	}
+	return true;
+}
+
+bool enum_binding_selected_verified(CheckedIndex index, SyntaxNodeId binding, SymbolId field) {
+	if (binding.index < 1 || binding.index >= len(index.uses) || field.index < 1 || field.index > index.generic_symbols) return false;
+	var member = index.bindings.symbol(field);
+	if (member.kind != 17 || !index.bindings.program.arena.token_text_equal(member.token, index.bindings.program.arena.get_token_field(binding))) return false;
+	int found = 0; int n = 1;
+	while (n < len(index.uses)) {
+		SyntaxNodeId node = {index = n};
+		if (index.bindings.program.arena.kind(node) == SyntaxKind.EnumArmSyntax()) {
+			var list = index.bindings.program.arena.get_list_bindings(node);
+			int at = 0;
+			while (at < index.bindings.program.arena.list_count(list)) {
+				if (index.bindings.program.arena.node_at(list, at).index == binding.index) {
+					var variant = checked_target(index, node, index.bindings.program.arena.get_token_variant(node));
+					if (variant.index != member.owner.index || !enum_pattern_verified(index, node, index.uses[node.index].type, 0)) return false;
+					int slot = enum_binding_slot(index, node, variant, at);
+					var variant_declaration = index.bindings.symbol(variant);
+					var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
+					if (slot < 0 || slot >= index.bindings.program.arena.list_count(fields) || index.node_symbols[index.bindings.program.arena.node_at(fields, slot).index].index != field.index) return false;
+					found = found + 1;
+				}
+				at = at + 1;
+			}
+		}
+		n = n + 1;
+	}
+	return found == 1;
+}
+
+bool enum_pattern_case(CheckedIndex index, SyntaxNodeId pattern, TypeId type, int choice, int depth) {
+	if (depth > 32 || choice < 0 || checked_kind(index, type) != 32) return false;
+	var enum_declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(enum_declaration.node);
+	int at = 0; int start = 0;
+	while (at < index.bindings.program.arena.list_count(variants)) {
+		var variant = index.bindings.program.arena.node_at(variants, at);
+		var fields = index.bindings.program.arena.get_list_fields(variant);
+		int product = 1; int f = 0;
+		while (f < index.bindings.program.arena.list_count(fields)) {
+			var field = index.bindings.program.arena.node_at(fields, f);
+			int count = enum_case_count(index, index.symbol_types[index.node_symbols[field.index].index], depth + 1);
+			if (count < 1 || product > 8192 / count) return false;
+			product = product * count; f = f + 1;
+		}
+		if (choice < start + product) {
+			var selected = checked_target(index, pattern, index.bindings.program.arena.get_token_variant(pattern));
+			if (selected.index != index.node_symbols[variant.index].index) return false;
+			int remaining = choice - start;
+			var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+			f = 0;
+			while (f < index.bindings.program.arena.list_count(fields)) {
+				var field = index.bindings.program.arena.node_at(fields, f);
+				var expected = index.symbol_types[index.node_symbols[field.index].index];
+				int count = enum_case_count(index, expected, depth + 1);
+				int b = 0; bool found = false;
+				while (b < index.bindings.program.arena.list_count(bindings)) {
+					if (enum_binding_slot(index, pattern, selected, b) == f) {
+						var nested = index.bindings.program.arena.get_node_nested_pattern(index.bindings.program.arena.node_at(bindings, b));
+						if (nested.index != 0 && !enum_pattern_case(index, nested, expected, remaining % count, depth + 1)) return false;
+						found = true;
+					}
+					b = b + 1;
+				}
+				if (!found) return false;
+				remaining = remaining / count; f = f + 1;
+			}
+			return true;
+		}
+		start = start + product; at = at + 1;
+	}
+	return false;
 }
 
 bool enum_match_verified(CheckedIndex index, SyntaxNodeId node) {
@@ -147,29 +383,35 @@ bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
 	if (scrutinee.index < 1 || scrutinee.index >= len(index.uses)) return false;
 	var type = index.uses[scrutinee.index].type;
 	if (!enum_value_type_verified(index, type)) return false;
-	var declaration = index.bindings.symbol(index.types.row(type).nominal);
-	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
-	int count = index.bindings.program.arena.list_count(variants);
+	int count = enum_case_count(index, type, 0);
+	if (count < 1) return false;
 	var arms = index.bindings.program.arena.get_list_arms(node);
-	if (index.bindings.program.arena.list_count(arms) != count) return false;
+	int arm_count = index.bindings.program.arena.list_count(arms);
+	if (arm_count < 1 || arm_count > count) return false;
 	var seen = new bool[count];
+	int covered = 0;
 	var enclosing = index.bindings.program.arena.header(node).span;
 	var input = index.bindings.program.arena.header(scrutinee).span;
 	if (input.source.index != enclosing.source.index || input.start < enclosing.start || input.end > enclosing.end) return false;
 	int previous = input.end;
 	bool producer = false;
 	int at = 0;
-	while (at < count) {
+	while (at < arm_count) {
 		var arm = index.bindings.program.arena.node_at(arms, at);
 		if (arm.index < 1 || arm.index >= len(index.uses)) return false;
 		var data = index.bindings.program.arena.enum_arm(arm);
 		if (data.f_body.index != 0 || data.f_expression.index < 1 || data.f_expression.index >= len(index.uses) || data.f_match_arrow.index < 1 || data.f_match_arrow.index > index.bindings.program.arena.token_count || data.f_semicolon.index < 1 || data.f_semicolon.index > index.bindings.program.arena.token_count) return false;
 		if (index.bindings.program.arena.token_kind(data.f_match_arrow) != TokenKind.FAT_ARROW() || !index.bindings.program.arena.token_is(data.f_match_arrow, "=>") || index.bindings.program.arena.token_kind(data.f_semicolon) != TokenKind.SEMICOLON() || !index.bindings.program.arena.token_is(data.f_semicolon, ";")) return false;
-		var variant = checked_target(index, arm, data.f_variant);
-		if (!enum_pattern_variant_verified(index, arm, variant, type)) return false;
-		int ordinal = enum_value_ordinal(index, type, variant);
-		if (ordinal < 0 || ordinal >= count || seen[ordinal]) return false;
-		seen[ordinal] = true;
+		if (!enum_pattern_verified(index, arm, type, 0)) return false;
+		int choice = 0; bool reaches = false;
+		while (choice < count) {
+			if (enum_pattern_case(index, arm, type, choice, 0)) {
+				if (seen[choice]) return false;
+				seen[choice] = true; covered = covered + 1; reaches = true;
+			}
+			choice = choice + 1;
+		}
+		if (!reaches) return false;
 		var span = index.bindings.program.arena.header(arm).span;
 		var expression = index.bindings.program.arena.header(data.f_expression).span;
 		var arrow = index.bindings.program.arena.token_span(data.f_match_arrow);
@@ -188,6 +430,72 @@ bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
 		previous = span.end;
 		at = at + 1;
 	}
+	if (covered != count) return false;
 	if (use.flags == 4) return producer && recover_storage_channel(index, use.type, 4, true);
 	return use.type.index != 14 && use.type.index != 15 && recover_copy_channel(index, use.type, 0, false);
 }
+
+// Copyable payloads currently contain concrete numeric/bool/enum fields. Their
+// native x86-64 carrier is C0's tag followed by maximum aligned active storage.
+// No cache is shared with another LLVM module or used as verifier authority.
+int recover_enum_round(int bytes, int alignment) {
+	if (bytes < 0 || alignment < 1 || alignment > 8 || bytes > 2147483647 - alignment + 1) return -1;
+	return ((bytes + alignment - 1) / alignment) * alignment;
+}
+
+int recover_enum_type_alignment(CheckedIndex checked, TypeId type, int depth) {
+	if (depth > 32) return 0;
+	int kind = checked_kind(checked, type);
+	if (kind == 13) return 1;
+	if (type_numeric(kind)) return type_width(kind) / 8;
+	if (kind != 32) return 0;
+	int alignment = recover_enum_payload_shape(checked, type, 1, depth);
+	if (alignment < 4) alignment = 4;
+	return alignment;
+}
+
+int recover_enum_type_bytes(CheckedIndex checked, TypeId type, int depth) {
+	if (depth > 32) return -1;
+	int kind = checked_kind(checked, type);
+	if (kind == 13) return 1;
+	if (type_numeric(kind)) return type_width(kind) / 8;
+	if (kind != 32) return -1;
+	if (checked_payload_free_enum(checked, type)) return 4;
+	int bytes = recover_enum_payload_shape(checked, type, 0, depth);
+	int alignment = recover_enum_payload_shape(checked, type, 1, depth);
+	int offset = recover_enum_round(4, alignment);
+	if (bytes < 0 || offset < 0 || bytes > 2147483647 - offset) return -1;
+	int carrier_alignment = alignment;
+	if (carrier_alignment < 4) carrier_alignment = 4;
+	return recover_enum_round(offset + bytes, carrier_alignment);
+}
+
+int recover_enum_payload_shape(CheckedIndex checked, TypeId type, int mode, int depth) {
+	if (depth > 32 || checked_kind(checked, type) != 32) return -1;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+	var variants = checked.bindings.program.arena.get_list_variants(declaration.node);
+	int maximum = 0; int active_alignment = 1; int at = 0;
+	while (at < checked.bindings.program.arena.list_count(variants)) {
+		var fields = checked.bindings.program.arena.get_list_fields(checked.bindings.program.arena.node_at(variants, at));
+		int bytes = 0; int alignment = 1; int f = 0;
+		while (f < checked.bindings.program.arena.list_count(fields)) {
+			var field = checked.bindings.program.arena.node_at(fields, f);
+			var field_type = checked.symbol_types[checked.node_symbols[field.index].index];
+			int field_alignment = recover_enum_type_alignment(checked, field_type, depth + 1);
+			int field_bytes = recover_enum_type_bytes(checked, field_type, depth + 1);
+			bytes = recover_enum_round(bytes, field_alignment);
+			if (bytes < 0 || field_bytes < 0 || field_bytes > 2147483647 - bytes) return -1;
+			bytes = bytes + field_bytes;
+			if (field_alignment > alignment) alignment = field_alignment;
+			f = f + 1;
+		}
+		bytes = recover_enum_round(bytes, alignment);
+		if (bytes < 0) return -1;
+		if (bytes > maximum) maximum = bytes;
+		if (alignment > active_alignment) active_alignment = alignment;
+		at = at + 1;
+	}
+	if (mode == 1) return active_alignment;
+	return maximum;
+}
+

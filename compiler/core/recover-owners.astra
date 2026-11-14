@@ -96,6 +96,7 @@ bool recover_owner_uses(RecoverFlow flow, int[] consumers, RecoverOwnerBudget wo
 
 bool recover_owner_contains(RecoverFlowData flow, int root, int target, RecoverOwnerBudget work, int depth) {
 	if (root == target) return true; if (root == 0 || depth > 192 || !work.take()) return false; var row = flow.nodes[root - 1];
+	if (row.kind == 82) return false;
 	if (row.a != 0 && recover_owner_contains(flow, row.a, target, work, depth + 1) || row.b != 0 && recover_owner_contains(flow, row.b, target, work, depth + 1)) return true;
 	if (row.kind == 77 && recover_owner_contains(flow, row.c, target, work, depth + 1)) return true;
 	int i = 0; while (i < row.count) {

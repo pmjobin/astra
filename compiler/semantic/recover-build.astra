@@ -28,6 +28,19 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.NameExpressionSyntax()) {
 		row.kind = 2; row.symbol = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
 		if (recover_error_borrow_binding(checked, row.symbol)) row.kind = 66;
+		if (enum_leaf_binding(checked, row.symbol)) {
+			row.kind = 82; row.c = flow.pattern_arm;
+			if (row.c < 1 || row.c > flow.node_count || flow.nodes[row.c - 1].kind != 81) {
+				flow.defer(source);
+				return id;
+			}
+			int parent = flow.nodes[row.c - 1].c;
+			if (parent < 1 || parent > flow.node_count || flow.nodes[parent - 1].kind != 80) {
+				flow.defer(source);
+				return id;
+			}
+			row.a = flow.nodes[parent - 1].a;
+		}
 	}
 	if (kind == SyntaxKind.BinaryExpressionSyntax()) {
 		row.kind = 3; row.token = checked.bindings.program.arena.get_token_operator_token(source);

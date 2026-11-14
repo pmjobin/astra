@@ -139,3 +139,37 @@ passed full C0 source semantics before the final Core role additions. Its three
 separate expanded C0 match oracles returned 42. Native execution of the new
 match lowering is still pending. Nested payload matching, typed interpolation,
 ranges/lazy collections, migration and final qualification remain open work.
+
+The following copyable-payload batch extends concrete enum source authority to
+numeric, bool and nested enum fields. Patterns bind exact declared fields,
+including reordered field selections. Coverage enumerates finite tag choices
+with depth 32 and 8192-case bounds; primitive payload values are covered by typed
+leaf bindings. Missing and overlapping tag products reject. Owning and borrowed
+payload fields remain outside this copyable admission.
+
+Recovered enum construction retains each actual payload operand. Match dispatch
+retains each selected nested pattern, and binding reads retain their actual
+enclosing arm and once-evaluated scrutinee. The CFG verifier independently checks
+the complete nested test chain. The physical consumer checks original carrier
+shape, full zero publication, exact tag/field stores, projection paths, selected
+loads and instruction order. Carrier handles are cached only in their owning
+LLVM module. The tag-only path keeps its previous representation and avoids
+payload planning and child-array construction.
+
+Actual C0 LLVM for the separate nested-match expansion has `Problem` carrier
+`{ i32, [1 x i32] }` (8 bytes) and `Result` carrier
+`{ i32, [2 x i32] }` (12 bytes), both aligned to four bytes, with pointer-based
+parameters. Two further C0 expansions returned 42 for mixed bool/u8/i64/f64
+payloads with a copied enum result channel, and all four combinations of two
+nested tag fields. These are independent reference executions, not new-language
+native qualification.
+
+Full C0 semantic admission passed for this connected source batch in preflight
+19. The Astra-built development host still freezes commit
+`5f2057d5338af284840b18249d5d43514a1b93d5`, before the payload batch and two
+additional expression-match reference/physical guard fixes. Its independently
+observed live process used producer SHA-256
+`acf2341ef69ac2bd5a3068568a65334661a4d42a889c5f78fb21bd8272b54743` and the exact
+preserved LLVM library. Its eventual results must retain that source identity.
+No complete match, current-host, ABI, memory or milestone acceptance is granted
+by source admission or by these build observations.

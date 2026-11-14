@@ -458,7 +458,8 @@ bool generic_deferred_reference_verified(CheckedIndex index, GenericInstance pla
 	if (original.state_code != 5 || (original.reason != 1 && original.reason != 3 && original.reason != 4) || original.domain != 4 || original.target.index != 0 || actual.state_code != 1 || actual.reason != 0 || actual.target.index < 1 || actual.target.index > index.bindings.symbol_count || actual.node.index < 1 || actual.node.index >= len(index.uses)) return false;
 	var member = index.bindings.symbol(actual.target); var kind = index.bindings.program.arena.kind(actual.node);
 	if (member.kind == 13 && original.reason == 1 && kind == SyntaxKind.CallExpressionSyntax()) return actual.token.index == index.bindings.program.arena.get_token_identifier(actual.node).index && enum_constructor_verified(index, actual.node, actual.target, index.uses[actual.node.index].type);
-	if (member.kind == 13 && original.reason == 4 && kind == SyntaxKind.EnumArmSyntax()) return actual.token.index == index.bindings.program.arena.get_token_variant(actual.node).index && enum_arm_variant_verified(index, actual.node, actual.target, index.uses[actual.node.index].type);
+	if (member.kind == 13 && original.reason == 4 && kind == SyntaxKind.EnumArmSyntax()) return actual.token.index == index.bindings.program.arena.get_token_variant(actual.node).index && enum_pattern_verified(index, actual.node, index.uses[actual.node.index].type, 0);
+	if (member.kind == 17 && original.reason == 4 && kind == SyntaxKind.EnumBindingSyntax()) return actual.token.index == index.bindings.program.arena.get_token_field(actual.node).index && enum_binding_selected_verified(index, actual.node, actual.target);
 	if (original.reason == 4) return false;
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var candidate = original; candidate.target = actual.target;

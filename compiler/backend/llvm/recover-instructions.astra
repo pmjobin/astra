@@ -13,7 +13,7 @@ int recover_llvm_instruction_count(void* block) {
 bool recover_llvm_scalar_type(CheckedIndex checked, TypeId semantic, void* actual) {
 	int kind = checked_kind(checked, semantic);
 	if (recover_storage_pointer(checked, semantic)) return recover_shared_pointer(actual);
-	if (kind == 32) return enum_value_type_verified(checked, semantic) && LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == 32;
+	if (kind == 32) return recover_enum_llvm_type(checked, semantic, actual);
 	if (kind == 14) return LLVMGetTypeKind(actual) == 0;
 	if (kind == 11) return LLVMGetTypeKind(actual) == 2;
 	if (kind == 12) return LLVMGetTypeKind(actual) == 3;

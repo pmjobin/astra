@@ -1,12 +1,161 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Payload-free enum values have one I32 tag. Native function channels retain
 // C0's pointer parameters and leading caller-provided result storage.
+bool recover_enum_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
+	if (!enum_value_type_verified(checked, type) || actual == null) return false;
+	if (checked_payload_free_enum(checked, type)) return LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == 32;
+	if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2) return false;
+	var tag = LLVMStructGetTypeAtIndex(actual, 0);
+	var payload = LLVMStructGetTypeAtIndex(actual, 1);
+	if (LLVMGetTypeKind(tag) != 8 || LLVMGetIntTypeWidth(tag) != 32 || LLVMGetTypeKind(payload) != 11) return false;
+	int bytes = recover_enum_payload_shape(checked, type, 0, 0);
+	int alignment = recover_enum_payload_shape(checked, type, 1, 0);
+	if (bytes < 0 || alignment < 1 || alignment > 8 || bytes > 2147483647 - alignment + 1) return false;
+	var unit = LLVMGetElementType(payload);
+	return LLVMGetTypeKind(unit) == 8 && LLVMGetIntTypeWidth(unit) == alignment * 8 && LLVMGetArrayLength2(payload) == ((bytes + alignment - 1) / alignment) as u64;
+}
+
+bool recover_enum_variant_type(CheckedIndex checked, SymbolId variant, void* actual) {
+	if (actual == null || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
+	var declaration = checked.bindings.symbol(variant);
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	int count = checked.bindings.program.arena.list_count(fields);
+	if (LLVMCountStructElementTypes(actual) != count) return false;
+	int at = 0;
+	while (at < count) {
+		var field = checked.bindings.program.arena.node_at(fields, at);
+		var type = checked.symbol_types[checked.node_symbols[field.index].index];
+		if (!recover_llvm_scalar_type(checked, type, LLVMStructGetTypeAtIndex(actual, at))) return false;
+		at = at + 1;
+	}
+	return true;
+}
+
+bool recover_enum_store_verified(void* instruction, void* value, void* address, int alignment) {
+	return instruction != null && LLVMIsAInstruction(instruction) != null && LLVMGetInstructionOpcode(instruction) == 28 && LLVMGetOperand(instruction, 0) == value && LLVMGetOperand(instruction, 1) == address && LLVMGetAlignment(instruction) == alignment && LLVMGetVolatile(instruction) == 0 && LLVMGetOrdering(instruction) == 0 && LLVMHasMetadata(instruction) == 0;
+}
+
+void* recover_enum_projection_root(CheckedIndex checked, SyntaxNodeId pattern, TypeId type, SyntaxNodeId target, void* address, void* physical, int depth) {
+	if (depth > 32 || address == null) return null;
+	if (pattern.index == target.index) return address;
+	var variant = checked_target(checked, pattern, checked.bindings.program.arena.get_token_variant(pattern));
+	var declaration = checked.bindings.symbol(variant);
+	var fields = checked.bindings.program.arena.get_list_fields(declaration.node);
+	var bindings = checked.bindings.program.arena.get_list_bindings(pattern); int at = 0;
+	while (at < checked.bindings.program.arena.list_count(bindings)) {
+		var binding = checked.bindings.program.arena.node_at(bindings, at);
+		var nested = checked.bindings.program.arena.get_node_nested_pattern(binding);
+		if (binding.index == target.index || nested.index != 0 && enum_pattern_contains(checked, nested, target, 0)) {
+			int slot = enum_binding_slot(checked, pattern, variant, at);
+			if (slot < 0 || slot >= checked.bindings.program.arena.list_count(fields)) return null;
+			void* selected = address;
+			if (binding.index != target.index) {
+				var field = checked.bindings.program.arena.node_at(fields, slot);
+				var field_type = checked.symbol_types[checked.node_symbols[field.index].index];
+				selected = recover_enum_projection_root(checked, nested, field_type, target, address, physical, depth + 1);
+			}
+			if (selected == null || LLVMIsAInstruction(selected) == null || LLVMGetInstructionOpcode(selected) != 29 || LLVMGetInstructionParent(selected) != physical) return null;
+			var variant_type = LLVMGetGEPSourceElementType(selected);
+			var payload_address = LLVMGetOperand(selected, 0);
+			if (!recover_enum_variant_type(checked, variant, variant_type) || !recover_llvm_field(selected, variant_type, payload_address, slot) || LLVMIsAInstruction(payload_address) == null || LLVMGetInstructionOpcode(payload_address) != 29 || LLVMGetInstructionParent(payload_address) != physical || LLVMGetNextInstruction(payload_address) != selected) return null;
+			var carrier = LLVMGetGEPSourceElementType(payload_address);
+			var root = LLVMGetOperand(payload_address, 0);
+			if (!recover_enum_llvm_type(checked, type, carrier) || !recover_llvm_field(payload_address, carrier, root, 1)) return null;
+			if (LLVMIsAInstruction(root) != null && LLVMGetInstructionParent(root) == physical && LLVMGetNextInstruction(root) != payload_address) return null;
+			return root;
+		}
+		at = at + 1;
+	}
+	return null;
+}
+
+int recover_enum_read_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* layout, void* value, void*[] slots, void*[] values) {
+	if (block.opcode != 82 && block.opcode != 83 || block.a < 1 || block.a > ssa.cfg.core.count || value == null || LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 27 || LLVMGetInstructionParent(value) != physical || LLVMGetVolatile(value) != 0 || LLVMGetOrdering(value) != 0 || LLVMHasMetadata(value) != 0) return 0;
+	var root = ssa.cfg.core.nodes[block.a - 1].value;
+	var arm = ssa.cfg.core.nodes[block.origin - 1].value;
+	SyntaxNodeId target = {index = block.rank};
+	if (block.opcode == 82) {
+		if (arm.kind != 82 || arm.c < 1 || arm.c > ssa.cfg.core.count) return 0;
+		var declaration = ssa.cfg.core.flow.checked.bindings.symbol(arm.symbol);
+		target = declaration.node; arm = ssa.cfg.core.nodes[arm.c - 1].value;
+	}
+	if (arm.kind != 81 || target.index < 1 || target.index >= len(ssa.cfg.core.flow.checked.uses) || !enum_pattern_contains(ssa.cfg.core.flow.checked, arm.source, target, 0)) return 0;
+	int levels = enum_projection_depth(ssa.cfg.core.flow.checked, arm.source, target, 0);
+	if (levels < 0) return 0;
+	var type = ssa.cfg.core.flow.checked.uses[target.index].type;
+	var address = LLVMGetOperand(value, 0); int extra = 0;
+	void* after_projection = value;
+	if (block.opcode == 83) {
+		if (LLVMGetTypeKind(LLVMTypeOf(value)) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(value)) != 32 || LLVMGetAlignment(value) != 4) return 0;
+		if (!checked_payload_free_enum(ssa.cfg.core.flow.checked, type)) {
+			if (LLVMIsAInstruction(address) == null || LLVMGetInstructionParent(address) != physical || LLVMGetInstructionOpcode(address) != 29 || LLVMGetNextInstruction(address) != value) return 0;
+			var carrier = LLVMGetGEPSourceElementType(address);
+			var selected = LLVMGetOperand(address, 0);
+			if (!recover_enum_llvm_type(ssa.cfg.core.flow.checked, type, carrier) || !recover_llvm_field(address, carrier, selected, 0)) return 0;
+			after_projection = address; address = selected; extra = 1;
+		}
+	} else {
+		if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(value)) || LLVMGetAlignment(value) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(value))) return 0;
+	}
+	var captured = recover_enum_projection_root(ssa.cfg.core.flow.checked, arm.source, root.type, target, address, physical, 0);
+	if (captured == null || captured != slots[block.a - 1]) return 0;
+	var first = LLVMGetFirstInstruction(physical);
+	if (!recover_enum_store_verified(first, values[block.a], captured, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0))) return 0;
+	void* first_projection = after_projection;
+	void* current = address; int level = 0;
+	while (level < levels) {
+		first_projection = LLVMGetOperand(current, 0);
+		current = LLVMGetOperand(first_projection, 0);
+		level = level + 1;
+	}
+	if (current != captured || LLVMGetNextInstruction(first) != first_projection || levels > 0 && LLVMGetNextInstruction(address) != after_projection) return 0;
+	return 3 + levels * 2 + extra;
+}
+
+int recover_enum_constructor_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* layout, void* value, void* operation, void* address, void*[] values) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	if (row.kind != 71 || value == null || value != operation || address == null || LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 27 || LLVMGetOperand(value, 0) != address || !recover_enum_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value)) || LLVMGetAllocatedType(address) != LLVMTypeOf(value)) return 0;
+	var carrier = LLVMTypeOf(value);
+	int alignment = recover_enum_type_alignment(ssa.cfg.core.flow.checked, row.type, 0);
+	if (LLVMGetAlignment(value) != alignment || LLVMGetVolatile(value) != 0 || LLVMGetOrdering(value) != 0 || LLVMHasMetadata(value) != 0) return 0;
+	var cursor = LLVMGetFirstInstruction(physical);
+	if (cursor == null || LLVMGetInstructionOpcode(cursor) != 28) return 0;
+	var zero = LLVMGetOperand(cursor, 0);
+	if (LLVMIsNull(zero) == 0 || LLVMTypeOf(zero) != carrier || !recover_enum_store_verified(cursor, zero, address, alignment)) return 0;
+	cursor = LLVMGetNextInstruction(cursor);
+	var tag_address = cursor;
+	if (!recover_llvm_field(tag_address, carrier, address, 0)) return 0;
+	cursor = LLVMGetNextInstruction(cursor);
+	if (cursor == null || LLVMGetInstructionOpcode(cursor) != 28) return 0;
+	var tag = LLVMGetOperand(cursor, 0);
+	int ordinal = enum_value_ordinal(ssa.cfg.core.flow.checked, row.type, row.symbol);
+	if (ordinal < 0 || !recover_llvm_bits(tag, 32, ordinal as u64) || !recover_enum_store_verified(cursor, tag, tag_address, 4)) return 0;
+	cursor = LLVMGetNextInstruction(cursor);
+	var payload_address = cursor;
+	if (!recover_llvm_field(payload_address, carrier, address, 1)) return 0;
+	cursor = LLVMGetNextInstruction(cursor);
+	int at = 0;
+	while (at < row.count) {
+		var field_address = cursor;
+		if (field_address == null || LLVMGetInstructionOpcode(field_address) != 29) return 0;
+		var variant_type = LLVMGetGEPSourceElementType(field_address);
+		if (!recover_enum_variant_type(ssa.cfg.core.flow.checked, row.symbol, variant_type) || !recover_llvm_field(field_address, variant_type, payload_address, at)) return 0;
+		cursor = LLVMGetNextInstruction(cursor);
+		int child = ssa.cfg.core.flow.data.edges[row.first + at];
+		var input = values[child];
+		if (input == null || LLVMTypeOf(input) != LLVMStructGetTypeAtIndex(variant_type, at) || !recover_enum_store_verified(cursor, input, field_address, LLVMABIAlignmentOfType(layout, LLVMTypeOf(input)))) return 0;
+		cursor = LLVMGetNextInstruction(cursor); at = at + 1;
+	}
+	if (cursor != value || LLVMGetNextInstruction(value) != LLVMGetBasicBlockTerminator(physical)) return 0;
+	return 6 + row.count * 2;
+}
+
 bool recover_enum_argument_verified(RecoverSsa ssa, int child, void* address, void* value, void* call, void* block, int parameter) {
 	if (child < 1 || child > ssa.cfg.core.count || address == null || value == null || !enum_value_type_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) || LLVMGetArgOperand(call, parameter) != address) return false;
 	int stores = 0; int remaining = 8192; var instruction = LLVMGetFirstInstruction(block);
 	while (instruction != null && instruction != call && remaining > 0) {
 		if (LLVMGetInstructionOpcode(instruction) == 28 && LLVMGetOperand(instruction, 1) == address) {
-			if (LLVMGetOperand(instruction, 0) != value || LLVMGetAlignment(instruction) != 4 || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0 || LLVMHasMetadata(instruction) != 0) return false;
+			if (LLVMGetOperand(instruction, 0) != value || LLVMGetAlignment(instruction) != recover_enum_type_alignment(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type, 0) || LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0 || LLVMHasMetadata(instruction) != 0) return false;
 			stores = stores + 1;
 		}
 		instruction = LLVMGetNextInstruction(instruction); remaining = remaining - 1;
@@ -21,22 +170,31 @@ bool recover_enum_guard_verified(RecoverSsa ssa, RecoverBlock block, void* condi
 	var source = ssa.cfg.core.nodes[block.origin - 1].value;
 	int expected = -1; int predicate = 32;
 	if (block.opcode == 73) {
-		if (source.kind != 73) return false;
+		if (source.kind != 73 && source.kind != 81) return false;
 		expected = enum_value_ordinal(ssa.cfg.core.flow.checked, type, source.symbol);
 	} else {
-		if (source.kind != 72) return false;
+		if (source.kind != 72 && source.kind != 80) return false;
 		var declaration = ssa.cfg.core.flow.checked.bindings.symbol(ssa.cfg.core.flow.checked.types.row(type).nominal);
 		expected = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(ssa.cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
 		predicate = 36;
 	}
 	if (expected < 0 || block.rank != expected) return false;
+	void* input = value;
+	if (!checked_payload_free_enum(ssa.cfg.core.flow.checked, type)) {
+		if (LLVMIsAInstruction(condition) != null) input = LLVMGetOperand(condition, 0);
+		else {
+			if (LLVMIsAInstruction(value) != null) return false;
+			input = LLVMGetAggregateElement(value, 0);
+		}
+		if (!recover_llvm_extract(input, value, 0)) return false;
+	}
 	if (LLVMIsAConstantInt(condition) != null) {
-		if (LLVMIsAConstantInt(value) == null) return false;
-		u64 tag = LLVMConstIntGetZExtValue(value); bool accepted = tag == expected as u64;
+		if (LLVMIsAConstantInt(input) == null) return false;
+		u64 tag = LLVMConstIntGetZExtValue(input); bool accepted = tag == expected as u64;
 		if (block.opcode == 74) accepted = tag < expected as u64;
 		u64 bit = 0; if (accepted) bit = 1;
 		return recover_llvm_bits(condition, 1, bit);
 	}
-	if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != predicate || LLVMGetICmpSameSign(condition) != 0 || LLVMHasMetadata(condition) != 0 || LLVMGetOperand(condition, 0) != value) return false;
+	if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != predicate || LLVMGetICmpSameSign(condition) != 0 || LLVMHasMetadata(condition) != 0 || LLVMGetOperand(condition, 0) != input) return false;
 	return recover_llvm_bits(LLVMGetOperand(condition, 1), 32, expected as u64);
 }

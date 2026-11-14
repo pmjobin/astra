@@ -173,7 +173,82 @@ NEGATIVE = [
 ]
 
 MATCH_TAG = 'enum Mode { First, Middle, Last }\n'
+NESTED_TAG = 'enum Problem { NotFound, Decode(int code) }\nenum Result { Success(int value), Failure(Problem problem) }\n'
 MATCH_CASES = [
+	('match-payload-alignment', '''enum Payload { Data(bool enabled, u8 small, i64 wide, f64 real), Empty }
+int inspect(Payload value) => match (value) {
+	case Payload.Data(enabled, small, wide, real) => enabled && small == 2 && wide == 9223372036854775807 && real == 40.0d ? 42 : 1;
+	case Payload.Empty() => 0;
+};
+Payload relay(Payload value) { return value; }
+int main() { return inspect(relay(Payload.Data(true, 2, 9223372036854775807, 40.0d))); }
+''', '''enum Payload { Data(bool enabled, u8 small, i64 wide, f64 real), Empty }
+int inspect(Payload value) {
+	match (value) {
+		case Payload.Data(enabled, small, wide, real): {
+			if (enabled && small == 2 && wide == 9223372036854775807 && real == 40.0d) return 42;
+			return 1;
+		}
+		case Payload.Empty(): { return 0; }
+	}
+}
+Payload relay(Payload value) { return value; }
+int main() { return inspect(relay(Payload.Data(true, 2, 9223372036854775807, 40.0d))); }
+''', False),
+	('match-enum-product', '''enum Bit { Off, On }
+enum Both { Pair(Bit left, Bit right) }
+int inspect(Both value) => match (value) {
+	case Both.Pair(right=Bit.On(), left=Bit.Off()) => 1;
+	case Both.Pair(Bit.Off(), Bit.Off()) => 0;
+	case Both.Pair(Bit.On(), Bit.Off()) => 2;
+	case Both.Pair(Bit.On(), Bit.On()) => 3;
+};
+int main() {
+	if (inspect(Both.Pair(Bit.Off(), Bit.On())) != 1 || inspect(Both.Pair(Bit.Off(), Bit.Off())) != 0 || inspect(Both.Pair(Bit.On(), Bit.Off())) != 2 || inspect(Both.Pair(Bit.On(), Bit.On())) != 3) return 4;
+	return 42;
+}
+''', '''enum Bit { Off, On }
+enum Both { Pair(Bit left, Bit right) }
+int inspect(Both value) {
+	match (value) {
+		case Both.Pair(left, right): {
+			match (left) {
+				case Bit.Off(): { match (right) { case Bit.Off(): { return 0; } case Bit.On(): { return 1; } } }
+				case Bit.On(): { match (right) { case Bit.Off(): { return 2; } case Bit.On(): { return 3; } } }
+			}
+		}
+	}
+}
+int main() {
+	if (inspect(Both.Pair(Bit.Off(), Bit.On())) != 1 || inspect(Both.Pair(Bit.Off(), Bit.Off())) != 0 || inspect(Both.Pair(Bit.On(), Bit.Off())) != 2 || inspect(Both.Pair(Bit.On(), Bit.On())) != 3) return 4;
+	return 42;
+}
+''', False),
+	('match-nested-payload', NESTED_TAG+'''int status(Result value) => match (value) {
+	case Result.Success(result) => result;
+	case Result.Failure(Problem.NotFound()) => 1;
+	case Result.Failure(Problem.Decode(code)) => code+2;
+};
+int main() {
+	if (status(Result.Success(20)) != 20 || status(Result.Failure(Problem.NotFound())) != 1) return 3;
+	return status(Result.Failure(Problem.Decode(40)));
+}
+''', NESTED_TAG+'''int status(Result value) {
+	match (value) {
+		case Result.Success(result): { return result; }
+		case Result.Failure(problem): {
+			match (problem) {
+				case Problem.NotFound(): { return 1; }
+				case Problem.Decode(code): { return code+2; }
+			}
+		}
+	}
+}
+int main() {
+	if (status(Result.Success(20)) != 20 || status(Result.Failure(Problem.NotFound())) != 1) return 3;
+	return status(Result.Failure(Problem.Decode(40)));
+}
+''', False),
 	('match-three-way', MATCH_TAG+'''int status(Mode value) => match (value) {
 	case Mode.Last() => 42;
 	case Mode.First() => 20;
@@ -234,6 +309,10 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	('match-nested-missing', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(Problem.NotFound()) => 1; }; }'),
+	('match-nested-overlap', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(problem) => 1; case Result.Failure(Problem.Decode(code)) => code; }; }'),
+	('match-nested-wrong-payload', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(Problem.NotFound()) => 1; case Result.Failure(problem) => 2; }; }'),
+	('match-payload-scope', NESTED_TAG+'int main() { int answer = match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(problem) => 2; }; return value; }'),
 	('match-nonexhaustive', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.Last() => 3; }; }'),
 	('match-overlap', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.First() => 3; case Mode.Last() => 4; }; }'),
 	('match-result-type', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.Middle() => true; case Mode.Last() => 3; }; }'),
