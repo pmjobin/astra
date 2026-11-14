@@ -85,6 +85,17 @@ owned SyntaxProgram astrac_load(Vector<Utf8Message> paths, Utf8Message output) t
 
 int astrac_compile(Vector<Utf8Message> paths, Utf8Message output, int mode, int level) throws Error {
 	var program = astrac_load(paths, output);
+	if (mode == 3 || mode == 4) {
+		if (program.failed()) {
+			var message = program.arena.text_message(program.error_message); println_stderr(message.text); return 1;
+		}
+		if (mode == 3) {
+			var dump = syntax_program_dump(program);
+			print(dump.text);
+			return 0;
+		}
+		var formatted = syntax_source_format(program); print(formatted.text); return 0;
+	}
 	var bindings = binding_index(move program, 0);
 	var checked = checked_build_effects_profile(move bindings, 0);
 	if (checked.failed()) {
@@ -170,19 +181,27 @@ int astrac_run() {
 				if (count != 2) {
 					throw new Error("astrac: --version must be used alone");
 				}
-				println("astrac 27-A initial bootstrap (GNU/Linux x86-64, E25-A-v1, LLVM 23)");
+				println("astrac 27-C expressive development (GNU/Linux x86-64, E25-A-v1, LLVM 23)");
 				return 0;
 			}
 			if (!handled && !positional && argument.text == "--help") {
 				if (count != 2) {
 					throw new Error("astrac: --help must be used alone");
 				}
-				println("Usage: astrac [--emit-llvm|-c|--check] [-O0|-O2] -o OUTPUT [--] FILE...\nExplicit sources form one program. --check needs no output. Link emitted objects with approved C providers and libraries. Unsupported options are errors. Diagnostics use UTF-8 byte offsets.");
+				println("Usage: astrac [--emit-llvm|-c|--check|--dump-syntax|--format] [-O0|-O2] [-o OUTPUT] [--] FILE...\nExplicit sources form one program. --check and syntax modes need no output; --format accepts one source and uses formatter version 2. Link emitted objects with approved C providers and libraries. Unsupported options are errors. Diagnostics use UTF-8 byte offsets.");
 				return 0;
 			}
 			if (!handled && !positional && argument.text == "--check") {
 				handled = true;
 				mode = 0;
+			}
+			if (!handled && !positional && argument.text == "--dump-syntax") {
+				handled = true;
+				mode = 3;
+			}
+			if (!handled && !positional && argument.text == "--format") {
+				handled = true;
+				mode = 4;
 			}
 			if (!handled && !positional && argument.text == "--emit-llvm") {
 				handled = true;
@@ -227,11 +246,11 @@ int astrac_run() {
 		if (paths.count() == 0) {
 			throw new Error("astrac: source input required; use --help");
 		}
-		if (mode != 0 && output.text.byte_length == 0) {
+		if ((mode == 1 || mode == 2) && output.text.byte_length == 0) {
 			throw new Error("astrac: output path required; use -o");
 		}
-		if (mode == 0 && output.text.byte_length != 0) {
-			throw new Error("astrac: --check does not publish output");
+		if ((mode == 0 || mode == 3 || mode == 4) && output.text.byte_length != 0) {
+			throw new Error("astrac: check and syntax modes do not publish output");
 		}
 		return astrac_compile(paths, output, mode, level);
 	} catch (Error error) {

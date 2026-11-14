@@ -43,6 +43,16 @@ class Guards(unittest.TestCase):
 			with self.assertRaises(ValueError):
 				guard('astra', before, mutant, 'unit.astra', tools)
 
+	def test_qualified_modern_astra_spelling(self):
+		tools, identities = qualified_tools({'astra'})
+		if identities['astrac'].get('syntax_profile') != 'astra27b':
+			self.skipTest('select the separately qualified native formatter for modern syntax')
+		before = b'language astra27b; int main() { var text = format_text($"value {\n    42\n}!"); return 42; }\n'
+		after = stable_format('astra', before, 'modern.astra', ROOT, tools)
+		self.assertIn(b'$"value {\n    42\n}!"', after)
+		with self.assertRaises(ValueError):
+			guard('astra', before, after.replace(b'42\n}', b'43\n}'), 'modern.astra', tools)
+
 	def test_clause_comments_and_literals(self):
 		before = b'void f() { try {} // remain\ncatch (Error e) { string s = "} finally"; } /* stay */\nfinally {} }'
 		self.assertEqual(attach_clauses(before), before)

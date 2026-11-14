@@ -1,0 +1,378 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Native counterpart of the existing version-2 source formatter. Only the
+// actual parser selects structural edits. Fresh lex/parse passes check output.
+struct SyntaxFormatMark { int kind; int start; int end; }
+
+struct SyntaxFormatEdit { int start; int end; int replacement; }
+
+class SyntaxFormatScan {
+	owned SyntaxFormatMark[] tokens;
+	owned SyntaxFormatMark[] comments;
+	int count;
+	int comment_count;
+
+	init() {
+		this.tokens = new SyntaxFormatMark[0]; this.comments = new SyntaxFormatMark[0];
+		this.count = 0; this.comment_count = 0;
+	}
+
+	void append(SyntaxFormatMark token) {
+		if (this.count == len(this.tokens)) {
+			var grown = new SyntaxFormatMark[syntax_grown_capacity(this.count, this.count+1)]; int at = 0;
+			while (at < this.count) {
+				grown[at] = this.tokens[at];
+				at = at+1;
+			}
+			swap(this.tokens, grown);
+		}
+		this.tokens[this.count] = token; this.count = this.count+1;
+	}
+}
+
+owned SyntaxFormatScan syntax_format_scan(owned shared SourceBuffer source) throws Error {
+	var scanner = lexer(move source); var result = new SyntaxFormatScan(); int remaining = 8000000;
+	while (remaining > 0) {
+		remaining = remaining-1; var token = scanner.next_token();
+		if (scanner.failed) {
+			throw new Error("formatter: invalid source token");
+		}
+		if (token.kind() == TokenKind.EOF()) {
+			result.comment_count = scanner.comment_count; result.comments = new SyntaxFormatMark[result.comment_count]; int at = 0;
+			while (at < result.comment_count) {
+				var span = scanner.comment(at); SyntaxFormatMark mark = {kind = -1, start = span.start, end = span.end}; result.comments[at] = mark; at = at+1;
+			}
+			return move result;
+		}
+		SyntaxFormatMark mark = {kind = token_kind_code(token.kind()), start = token.span.start, end = token.span.end}; result.append(mark);
+	}
+	throw new Error("formatter: token work limit exceeded");
+}
+
+bool syntax_format_white(int byte) { return byte == 32 || byte == 9 || byte == 10 || byte == 13; }
+
+bool syntax_format_line(borrowed SourceBuffer source, int start, int end) throws Error {
+	int at = start;
+	while (at < end) {
+		int byte = source.byte_at(at);
+		if (byte == 10 || byte == 13) return false;
+		at = at+1;
+	}
+	return true;
+}
+
+void syntax_format_copy(borrowed SourceBuffer source, int start, int end, Utf8ByteBuilder output) throws Error {
+	int at = start;
+	while (at < end) {
+		syntax_append_byte(output, source.byte_at(at));
+		at = at+1;
+	}
+}
+
+bool syntax_format_bytes(borrowed SourceBuffer left, SyntaxFormatMark first, borrowed SourceBuffer right, SyntaxFormatMark second) throws Error {
+	if (first.kind != second.kind || first.end-first.start != second.end-second.start) return false;
+	int at = 0;
+	while (at < first.end-first.start) {
+		if (left.byte_at(first.start+at) != right.byte_at(second.start+at)) return false;
+		at = at+1;
+	}
+	return true;
+}
+
+owned SyntaxProgram syntax_format_parse(string text) throws Error {
+	var bytes = new u8[text.byte_length]; int at = 0;
+	while (at < len(bytes)) {
+		bytes[at] = astra_host_text_byte(text, at) as u8;
+		at = at+1;
+	}
+	var buffer = source_buffer("format-candidate", move bytes, false); var retained = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1); var entry = new SourceEntry(move retained); assert_that(entries.append(move entry));
+	var sources = source_set(move entries); var result = syntax_program(move sources);
+	if (result.failed()) {
+		throw new Error("formatter: candidate does not parse");
+	}
+	return move result;
+}
+
+class SyntaxFormatPlan {
+	owned SyntaxFormatEdit[] edits;
+	owned bool[] removed;
+	int count;
+	int remaining;
+
+	init(int length) { this.edits = new SyntaxFormatEdit[0]; this.removed = new bool[length+1]; this.count = 0; this.remaining = 8000000; }
+
+	void take() throws Error { if (this.remaining == 0) {
+			throw new Error("formatter: structural work limit exceeded");
+		} this.remaining = this.remaining-1; }
+
+	void edit(int start, int end, int replacement) throws Error {
+		this.take(); if (start < 0 || end < start || end >= len(this.removed)) {
+			throw new Error("formatter: invalid edit extent");
+		}
+		if (this.count == len(this.edits)) {
+			var grown = new SyntaxFormatEdit[syntax_grown_capacity(this.count, this.count+1)]; int at = 0;
+			while (at < this.count) {
+				grown[at] = this.edits[at];
+				at = at+1;
+			}
+			swap(this.edits, grown);
+		}
+		SyntaxFormatEdit value = {start = start, end = end, replacement = replacement}; this.edits[this.count] = value; this.count = this.count+1;
+	}
+
+	bool comment(SyntaxFormatScan scan, int start, int end) throws Error {
+		int at = 0;
+		while (at < scan.comment_count) {
+			this.take();
+			if (scan.comments[at].start < end && scan.comments[at].end > start) return true;
+			at = at+1;
+		}
+		return false;
+	}
+
+	void expand(SyntaxArena arena, borrowed SourceBuffer source, SyntaxNodeId body, SyntaxFormatScan scan) throws Error {
+		var span = arena.header(body).span; var open = arena.token_span(arena.get_token_open_brace(body)); var statements = arena.get_list_statements(body);
+		if (span.source.index != 1 || open.start == open.end || arena.list_count(statements) == 0 || !syntax_format_line(source, span.start, span.end) || this.comment(scan, span.start, span.end)) return;
+		int start = open.end; int at = 0;
+		while (at < arena.list_count(statements)) {
+			var statement = arena.header(arena.node_at(statements, at)).span; this.edit(start, statement.start, 1); start = statement.end; at = at+1;
+		}
+		this.edit(start, arena.token_span(arena.get_token_close_brace(body)).start, 1);
+	}
+
+	void compact(SyntaxArena arena, borrowed SourceBuffer source, SyntaxNodeId control, SyntaxNodeId body, SyntaxFormatScan scan) throws Error {
+		var span = arena.header(body).span; var open = arena.token_span(arena.get_token_open_brace(body)); var statements = arena.get_list_statements(body);
+		if (span.source.index != 1 || open.start == open.end) return;
+		bool simple = false;
+		if (arena.list_count(statements) == 1) {
+			var kind = arena.kind(arena.node_at(statements, 0));
+			simple = kind == SyntaxKind.ReturnStatementSyntax() || kind == SyntaxKind.BreakStatementSyntax() || kind == SyntaxKind.ContinueStatementSyntax() || kind == SyntaxKind.AssignmentStatementSyntax() || kind == SyntaxKind.FieldAssignmentStatementSyntax() || kind == SyntaxKind.IndexedAssignmentSyntax() || kind == SyntaxKind.DereferenceAssignmentSyntax() || kind == SyntaxKind.CallStatementSyntax();
+		}
+		var whole = arena.header(control).span;
+		if (!simple || !syntax_format_line(source, whole.start, span.end)) {
+			this.expand(arena, source, body, scan);
+			return;
+		}
+		if (this.comment(scan, whole.start, span.end)) return;
+		var statement = arena.header(arena.node_at(statements, 0)).span; var close = arena.token_span(arena.get_token_close_brace(body)); int gap = 3;
+		if (open.start > 0 && (source.byte_at(open.start-1) == 32 || source.byte_at(open.start-1) == 9)) gap = 4;
+		this.edit(open.start, statement.start, gap); this.edit(statement.end, close.end, 4); this.removed[open.start] = true; this.removed[close.start] = true;
+	}
+
+	void separate(SyntaxArena arena, borrowed SourceBuffer source, SyntaxNodeId previous, SyntaxNodeId next) throws Error {
+		var first = arena.header(previous).span; var last = arena.header(next).span;
+		if (first.source.index != 1 || last.source.index != 1 || first.end > last.start) return;
+		int start = first.end; int end = start;
+		while (end < last.start && syntax_format_white(source.byte_at(end))) {
+			this.take();
+			end = end+1;
+		}
+		if (end+1 < last.start && source.byte_at(end) == 47 && source.byte_at(end+1) == 47 && syntax_format_line(source, start, end)) {
+			while (end < last.start && source.byte_at(end) != 10) {
+				this.take();
+				end = end+1;
+			}
+			if (end == last.start) return;
+			start = end; end = end+1;
+			while (end < last.start && syntax_format_white(source.byte_at(end))) {
+				this.take();
+				end = end+1;
+			}
+		}
+		this.edit(start, end, 2);
+	}
+
+	owned Utf8Message apply(borrowed SourceBuffer source) throws Error {
+		int at = 1;
+		while (at < this.count) {
+			var selected = this.edits[at]; int position = at;
+			while (position > 0 && this.edits[position-1].start > selected.start) {
+				this.take();
+				this.edits[position] = this.edits[position-1];
+				position = position-1;
+			}
+			this.edits[position] = selected; at = at+1;
+		}
+		var output = new Utf8ByteBuilder(); int offset = 0; at = 0;
+		while (at < this.count) {
+			var edit = this.edits[at]; if (edit.start < offset) {
+				throw new Error("formatter: overlapping parser-selected edits");
+			}
+			syntax_format_copy(source, offset, edit.start, output);
+			if (edit.replacement == 1 || edit.replacement == 2) source_append_text(output, "\n");
+			if (edit.replacement == 2) source_append_text(output, "\n");
+			if (edit.replacement == 3) source_append_text(output, " ");
+			offset = edit.end; at = at+1;
+		}
+		syntax_format_copy(source, offset, source.length, output); var result = output.snapshot(); return move result;
+	}
+}
+
+bool syntax_format_authored(SyntaxArena arena, SyntaxNodeId node) throws Error {
+	if (!syntax_kind_accepts(arena.kind(node), SyntaxKind.FunctionDeclarationSyntax())) return true;
+	var token = arena.get_token_name(node); var span = arena.token_span(token);
+	if (span.source.index == 1) {
+		var raw = arena.source_span(span);
+		var bytes = raw.bytes();
+		var text = utf8_message(bytes);
+		var spelling = arena.token_message(token);
+		if (text.text == spelling.text) return true;
+	}
+	var body = arena.get_node_body(node); if (body.index == 0) return false;
+	var open = arena.token_span(arena.get_token_open_brace(body)); var close = arena.token_span(arena.get_token_close_brace(body));
+	return open.source.index == 1 && close.source.index == 1 && open.end == open.start+1 && close.end == close.start+1;
+}
+
+void syntax_format_structure(SyntaxProgram program, borrowed SourceBuffer source, SyntaxFormatScan scan, SyntaxFormatPlan plan) throws Error {
+	var arena_source = program.arena.node_at(program.units, 0); int at = 1;
+	while (at <= program.arena.node_count) {
+		plan.take(); SyntaxNodeId node = {index = at}; var kind = program.arena.kind(node);
+		if (kind == SyntaxKind.IfStatementSyntax()) {
+			var otherwise = program.arena.get_node_else_body(node);
+			if (otherwise.index == 0) plan.compact(program.arena, source, node, program.arena.get_node_then_body(node), scan);
+			else {
+				plan.expand(program.arena, source, program.arena.get_node_then_body(node), scan);
+				plan.expand(program.arena, source, otherwise, scan);
+			}
+		}
+		if (kind == SyntaxKind.WhileStatementSyntax() || kind == SyntaxKind.ForStatementSyntax()) plan.compact(program.arena, source, node, program.arena.get_node_body(node), scan);
+		at = at+1;
+	}
+	var declarations = new int[program.arena.node_count+1]; int count = 0; int group = 0;
+	while (group < 6) {
+		var items = program.arena.get_list_constants(arena_source);
+		if (group == 1) items = program.arena.get_list_enums(arena_source);
+		if (group == 2) items = program.arena.get_list_functions(arena_source);
+		if (group == 3) items = program.arena.get_list_structs(arena_source);
+		if (group == 4) items = program.arena.get_list_classes(arena_source);
+		if (group == 5) items = program.arena.get_list_com_interfaces(arena_source);
+		at = 0;
+		while (at < program.arena.list_count(items)) {
+			var node = program.arena.node_at(items, at);
+			if (syntax_format_authored(program.arena, node)) {
+				declarations[count] = node.index;
+				count = count+1;
+			}
+			at = at+1;
+		}
+		group = group+1;
+	}
+	at = 1;
+	while (at < count) {
+		int selected = declarations[at]; SyntaxNodeId node = {index = selected}; int start = program.arena.header(node).span.start; int position = at;
+		while (position > 0) {
+			plan.take(); SyntaxNodeId earlier = {index = declarations[position-1]}; if (program.arena.header(earlier).span.start <= start) break;
+			declarations[position] = declarations[position-1]; position = position-1;
+		}
+		declarations[position] = selected; at = at+1;
+	}
+	at = 1;
+	while (at < count) {
+		SyntaxNodeId previous = {index = declarations[at-1]}; SyntaxNodeId next = {index = declarations[at]};
+		if (program.arena.kind(previous) != SyntaxKind.ConstantDeclarationSyntax()) plan.separate(program.arena, source, previous, next);
+		at = at+1;
+	}
+	var instances = program.native_instances(true); at = 0;
+	while (at < program.arena.list_count(instances)) {
+		var members = program.arena.get_list_members(program.arena.node_at(instances, at)); var previous = syntax_no_node(); int member = 0;
+		while (member < program.arena.list_count(members)) {
+			var node = program.arena.node_at(members, member); member = member+1; if (!syntax_format_authored(program.arena, node)) continue;
+			var kind = program.arena.kind(node);
+			if (previous.index > 0) {
+				var before = program.arena.kind(previous);
+				if (syntax_kind_accepts(kind, SyntaxKind.FunctionDeclarationSyntax()) || kind == SyntaxKind.PropertyDeclarationSyntax() || syntax_kind_accepts(before, SyntaxKind.FunctionDeclarationSyntax()) || before == SyntaxKind.PropertyDeclarationSyntax()) plan.separate(program.arena, source, previous, node);
+			}
+			previous = node;
+		}
+		at = at+1;
+	}
+}
+
+bool syntax_format_preserved(borrowed SourceBuffer before, SyntaxFormatScan original, borrowed SourceBuffer after, SyntaxFormatScan candidate, bool[] removed) throws Error {
+	if (original.comment_count != candidate.comment_count) return false;
+	int at = 0; int target = 0;
+	while (at < original.count) {
+		var token = original.tokens[at]; at = at+1;
+		if (token.start < len(removed) && removed[token.start]) {
+			if (token.kind != token_kind_code(TokenKind.OPEN_BRACE()) && token.kind != token_kind_code(TokenKind.CLOSE_BRACE())) return false;
+			continue;
+		}
+		if (target >= candidate.count || !syntax_format_bytes(before, token, after, candidate.tokens[target])) return false;
+		target = target+1;
+	}
+	if (target != candidate.count) return false;
+	at = 0;
+	while (at < original.comment_count) {
+		if (!syntax_format_bytes(before, original.comments[at], after, candidate.comments[at])) return false;
+		at = at+1;
+	}
+	return true;
+}
+
+owned Utf8Message syntax_format_indent(borrowed SourceBuffer source, SyntaxFormatScan scan) throws Error {
+	var output = new Utf8ByteBuilder(); int start = 0; int token = 0; int comment = 0; int braces = 0; int parens = 0; int brackets = 0; int interpolation = 0;
+	while (start < source.length) {
+		int end = start; while (end < source.length && source.byte_at(end) != 10 && source.byte_at(end) != 13) end = end+1;
+		int next = end;
+		if (next < source.length) {
+			int byte = source.byte_at(next);
+			next = next+1;
+			if (byte == 13 && next < source.length && source.byte_at(next) == 10) next = next+1;
+		}
+		int content = start; while (content < end && (source.byte_at(content) == 32 || source.byte_at(content) == 9)) content = content+1;
+		while (comment < scan.comment_count && scan.comments[comment].end <= start) comment = comment+1;
+		// The external guard retains a string's complete authored spelling,
+		// including whitespace inside an interpolation hole on later lines.
+		bool preserve = interpolation > 0 || token > 0 && scan.tokens[token-1].end > start || comment < scan.comment_count && scan.comments[comment].start < start;
+		if (preserve) syntax_format_copy(source, start, end, output);
+		else {
+			if (content < end) {
+				int indentation = braces; int first = -1; if (token < scan.count && scan.tokens[token].start == content) first = scan.tokens[token].kind;
+				if (first == token_kind_code(TokenKind.CLOSE_BRACE())) indentation = indentation-1;
+				if ((parens > 0 || brackets > 0) && first != token_kind_code(TokenKind.CLOSE_PAREN()) && first != token_kind_code(TokenKind.CLOSE_BRACKET())) indentation = indentation+1;
+				int at = 0; while (at < indentation) {
+					syntax_append_byte(output, 9);
+					at = at+1;
+				}
+				syntax_format_copy(source, content, end, output);
+			}
+		}
+		if (next == end) {
+			source_append_text(output, "\n");
+		} else {
+			syntax_format_copy(source, end, next, output);
+		}
+		while (token < scan.count && scan.tokens[token].start < end) {
+			int kind = scan.tokens[token].kind; token = token+1;
+			if (kind == token_kind_code(TokenKind.INTERPOLATION_START())) interpolation = interpolation+1;
+			if (kind == token_kind_code(TokenKind.INTERPOLATION_END())) interpolation = interpolation-1;
+			if (kind == token_kind_code(TokenKind.OPEN_BRACE())) braces = braces+1;
+			if (kind == token_kind_code(TokenKind.CLOSE_BRACE())) braces = braces-1;
+			if (kind == token_kind_code(TokenKind.OPEN_PAREN())) parens = parens+1;
+			if (kind == token_kind_code(TokenKind.CLOSE_PAREN())) parens = parens-1;
+			if (kind == token_kind_code(TokenKind.OPEN_BRACKET())) brackets = brackets+1;
+			if (kind == token_kind_code(TokenKind.CLOSE_BRACKET())) brackets = brackets-1;
+		}
+		start = next;
+	}
+	var result = output.snapshot(); return move result;
+}
+
+owned Utf8Message syntax_source_format(SyntaxProgram program) throws Error {
+	if (program.failed() || program.arena.source_count != 1 || program.arena.list_count(program.units) != 1) {
+		throw new Error("formatter: exactly one valid source is required");
+	}
+	SyntaxSourceId id = {index = 1}; var source = program.arena.source(id); var scan_source = shared_clone(source); var original = syntax_format_scan(move scan_source);
+	var plan = new SyntaxFormatPlan(syntax_length(shared_borrow(source))); syntax_format_structure(program, shared_borrow(source), original, plan);
+	var text = plan.apply(shared_borrow(source)); var structured = syntax_format_parse(text.text); var backing = structured.arena.source(id); var scanner_source = shared_clone(backing); var candidate = syntax_format_scan(move scanner_source);
+	var original_dump = syntax_program_dump(program); var candidate_dump = syntax_program_dump(structured);
+	if (original_dump.text != candidate_dump.text || !syntax_format_preserved(shared_borrow(source), original, shared_borrow(backing), candidate, plan.removed)) {
+		throw new Error("formatter: structural edit changed AST or unapproved tokens/comments");
+	}
+	var indented = syntax_format_indent(shared_borrow(backing), candidate); var final = syntax_format_parse(indented.text); var final_source = final.arena.source(id); var final_scanner = shared_clone(final_source); var final_tokens = syntax_format_scan(move final_scanner); var none = new bool[0];
+	var final_dump = syntax_program_dump(final);
+	if (candidate_dump.text != final_dump.text || !syntax_format_preserved(shared_borrow(backing), candidate, shared_borrow(final_source), final_tokens, none)) {
+		throw new Error("formatter: indentation changed AST or tokens/comments");
+	}
+	return move indented;
+}

@@ -145,13 +145,19 @@ def qualified_tools(lanes, astrac=None, uncrustify=None):
 		if not path or not Path(path).is_file():
 			raise ValueError('FORMATTER_REQUIRED: ' + pin['command'] + '; see CODING_STYLE.md')
 		path = Path(path).resolve()
-		if sha(path.read_bytes()) != pin['sha256']:
+		# A separately piloted native formatter can understand a later source
+		# profile while the historical bootstrap tool keeps its original pin.
+		choices = [{name: value for name, value in pin.items() if name != 'qualified_alternatives'}, *pin.get('qualified_alternatives', [])]
+		actual_sha = sha(path.read_bytes())
+		matching = [choice for choice in choices if choice['sha256'] == actual_sha]
+		if len(matching) != 1:
 			raise ValueError('unqualified tool identity: ' + key + '; repilot before updating format/toolchain.json')
+		selected_pin = matching[0]
 		version = subprocess.run([str(path), '--version'], capture_output=True, text=True, timeout=10)
-		if version.returncode or version.stdout.strip() != pin['version']:
+		if version.returncode or version.stdout.strip() != selected_pin['version']:
 			raise ValueError('unqualified tool version: ' + key + '; repilot before updating format/toolchain.json')
 		tools[key] = str(path)
-		identities[key] = {**pin, 'actual_path': str(path)}
+		identities[key] = {**selected_pin, 'actual_path': str(path)}
 	return tools, identities
 
 
@@ -161,7 +167,7 @@ def main():
 	mode.add_argument('--check', action='store_true')
 	mode.add_argument('--apply', action='store_true')
 	parser.add_argument('--receipt', type=Path)
-	parser.add_argument('--astrac', help='explicit qualified baseline compiler path')
+	parser.add_argument('--astrac', help='explicit qualified Astra formatter path')
 	parser.add_argument('--uncrustify', help='explicit qualified release formatter path')
 	parser.add_argument('paths', nargs='*', help='tracked files or directory prefixes')
 	args = parser.parse_args()

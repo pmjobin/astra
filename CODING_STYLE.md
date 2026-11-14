@@ -39,6 +39,11 @@ qualified release executable and `ASTRA_FORMAT_ASTRAC` (or `--astrac`) to the
 qualified compiler. Other tools resolve through PATH. Missing tools or a changed
 binary fail with an actionable error: repeat the representative/adversarial
 pilots and record the new identity before accepting a different binary.
+The separately qualified 27-C native syntax formatter is an explicit alternative
+under the Astra tool entry. Select its exact executable with `--astrac` or
+`ASTRA_FORMAT_ASTRAC` for modern source. The original bootstrap SHA/version remain
+recorded; selecting an alternative records that alternative's actual identity
+and applies the same token/comment, parser-dump and stability guards.
 There is no dependency on an ENVIC checkout. Do not use the Fedora debug
 Uncrustify 0.82 build: it refuses source beyond 10,000 lines.
 

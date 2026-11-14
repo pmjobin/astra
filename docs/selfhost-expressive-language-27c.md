@@ -1045,3 +1045,64 @@ Boolean pipeline elements before filtering and collection, retaining the
 required owned Boolean result and one-byte final element storage without
 expanding the pre-existing fixed-array source subset. No LLVM or native-site
 acceptance follows from these frontend/SSA receipts.
+
+Candidate 49d6ea1c627123b0afa1c0c812fe4fdd62c5151a (tree
+1bab4f1a514cc394a9d0c991c3f6851a37d716da) is the frozen input to the
+C0-built optimized dev11 compiler. Its C0 semantic and Core preflights pass in
+74.751 and 94.752 seconds. The separate read-only live-process receipt confirms
+the actual producer SHA 19d744c828551b2184f06552740db1beb5b6eeb326b8e98ba56d2dfa5bca31b6
+and mapped LLVM SHA 3149b73c3118dee2d2829a210b422ca89a4aa0064b57e77936ede12bdcfe750d
+(selfhost27c-dev11/live-process1.json). The build is still in progress; these
+observations do not establish a successful product or generation acceptance.
+
+A native version-2 formatter counterpart now uses the existing recovered
+parser to select declaration separation and restricted control-body edits,
+then freshly lexes/parses structured and indented candidates. Exact token and
+comment bytes and normalized ASTs must agree. It retains the existing external
+guard and bounded structural work; no compiler delegation or alternate grammar
+was introduced. The production driver candidate exposes --format and
+--dump-syntax and identifies itself as 27-C expressive development. That driver
+change awaits a genuine full native host; earlier 27-A/27-B executables and
+their actual version observations remain unchanged.
+
+Formatter1/2 retain C0 refusals for unsupported parameter mutation and an
+incorrect assumption that SourceSpan.bytes returns text. Formatter3 passes its
+focused C0 build and strict returning memory. The independent parser corpus
+then exposes missing constructor separation: LifecycleDeclarationSyntax belongs
+to the function family, rather than sharing its exact kind. Formatter4 corrects
+that family query. All 55 selected expressive specimens pass the external
+guards, but an added multiline interpolation case exposes changes to whitespace
+inside the string's complete authored spelling. Formatter5 preserves those
+interior lines explicitly and adds a focused regression.
+
+Formatter5's semantic preflight, focused build, native suite and strict memory
+pass in 13.026, 150.067, 0.014 and 1.246 seconds. Its executable SHA-256 is
+3492a8da1193446d98ef4166371f21e668d9a89ce22c658f0c36f59374d500d7.
+The existing independent parser corpus supplies 2,040 positive formatting
+pilots (selfhost27c-formatter-pilot4). Of those, 2,039 outputs exactly match
+unchanged C0 version 2. The existing synthetic UTF8 factory specimen aborts in
+C0 formatting at its source-byte bounds assertion. Its C0 before/after syntax
+dumps still agree; native formatting preserves its source and passes the
+external guard. This is an explicitly unavailable C0 formatting reference,
+without a format-equivalence or C0-process memory claim for that specimen.
+No C0 binary/source was altered.
+
+All 56 modern specimens, including multiline interpolation, pass actual native
+formatting, the existing external token/comment/AST guard and stability
+(selfhost27c-formatter-modern2). The existing corpus's 879 negative specimens
+are independently refused with no formatted stdout. Five representative CLI
+paths, including a factory, modern formatting, multiline interpolation and
+rejected invalid encoding, pass strict returning memory with zero live bytes,
+errors and suppressions (selfhost27c-formatter-negative1).
+
+The exact formatter5 SHA/version is now a separately qualified alternative in
+format/toolchain.json. The original C0 formatter SHA/version remains the primary
+record. An explicit --astrac/ASTRA_FORMAT_ASTRAC selection must match exactly
+one qualified identity and its actual version; receipts record that selected
+identity. No unqualified fallback or guard bypass is added. The guarded entry
+point validates the five changed source/test/tool files unchanged, and its
+scope/mutation, modern spelling and zero-exit mutation tests pass. The full
+current-source C0 semantic preflight24 passes in 78.717 seconds before the
+small multiline-preservation addition; the focused formatter5 preflight covers
+that addition. Full current generation, native feature and ABI qualification
+remain required before migration or final acceptance.
