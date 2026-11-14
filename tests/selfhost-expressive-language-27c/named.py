@@ -1309,6 +1309,7 @@ def main():
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
+	p.add_argument('--freestanding-only', action='store_true', help='Range/fixed targets linked with a syscall entry only, without libc or allocator')
 	p.add_argument('--feature', choices=('named', 'match', 'range', 'format', 'collection'), default='named')
 	a = p.parse_args()
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
@@ -1329,6 +1330,54 @@ def main():
 		run(name, ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv], expected)
 		log = (runtime/name/'stderr').read_bytes()
 		assert all(m in log for m in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+	if a.freestanding_only:
+		assert a.feature == 'range' and not a.oracle_only and not a.case
+		tools.update(tool_identity([shutil.which(n) for n in ('ld', 'nm')]))
+		startup = runtime/'entry.S'; startup.write_text('.text\n.globl _start\n_start:\n xor %ebp,%ebp\n and $-16,%rsp\n call main\n mov %eax,%edi\n mov $60,%eax\n syscall\n.section .note.GNU-stack,"",@progbits\n')
+		inputs[str(startup)] = sha(startup); entry = build/'entry.o'
+		run('entry-assemble', ['cc', '-c', '-x', 'assembler', startup, '-o', entry]); products[str(entry)] = sha(entry)
+		cases = [
+			('range-unused', 'int main() { var interval = (20..=80).step_by(5); return 42; }', 'int main() { return 42; }'),
+			('range-loop', 'int main() { int total = 0; int count = 0; foreach (var item in (20..=80).step_by(5)) { total = total+item; count = count+1; } if (count != 13 || total != 650) return 1; return 42; }', 'int main() { int total = 0; int count = 0; int item = 20; while (item <= 80) { total = total+item; count = count+1; item = item+5; } if (count != 13 || total != 650) return 1; return 42; }'),
+			('range-fixed', 'int main() { int[13] values = (20..=80).step_by(5).collect_fixed(); int at = 0; int total = 0; while (at < 13) { if (values[at] != 20+at*5) return 1; total = total+values[at]; at = at+1; } if (total != 650) return 2; return 42; }', 'int main() { int[13] values = {20,25,30,35,40,45,50,55,60,65,70,75,80}; int at = 0; int total = 0; while (at < 13) { if (values[at] != 20+at*5) return 1; total = total+values[at]; at = at+1; } if (total != 650) return 2; return 42; }'),
+		]
+		for name, modern, expanded in cases:
+			source = runtime/(name+'.astra'); source.write_text('language astra27b;\n'+modern+'\n')
+			oracle = runtime/(name+'-expanded.astra'); oracle.write_text(expanded+'\n')
+			inputs.update({str(n):sha(n) for n in (source, oracle)}); write(runtime/'inputs.json', inputs)
+			for producer, compiler, src, modes in [('C0', a.c0, oracle, ('O0',)), ('Astra', a.compiler, source, ('O0','O2'))]:
+				for mode in modes:
+					label = name+'-'+producer+'-'+mode; obj = build/(label+'.o'); target = build/label
+					arguments = ['--entry-object'] if producer == 'C0' else []
+					if producer == 'Astra': arguments = ['-'+mode, '-o', obj, src]
+					else: arguments = [*arguments, '-'+mode, src, '-o', obj]
+					run(label+'-compile', [compiler, '-c', *arguments])
+					run(label+'-object-imports', ['nm','-u',obj])
+					assert not (runtime/(label+'-object-imports')/'stdout').read_bytes().strip(), 'freestanding object imports a runtime/allocator'
+					run(label+'-link', ['ld', '-static', '-nostdlib', '-e', '_start', entry, obj, '-o', target])
+					run(label+'-target-imports', ['nm','-u',target]); assert not (runtime/(label+'-target-imports')/'stdout').read_bytes().strip()
+					run(label+'-ELF-header', ['readelf','-h',target]); header = (runtime/(label+'-ELF-header')/'stdout').read_text()
+					assert 'ELF64' in header and 'Advanced Micro Devices X86-64' in header
+					run(label+'-ELF-segments', ['readelf','-l',target]); segments = (runtime/(label+'-ELF-segments')/'stdout').read_text()
+					run(label+'-ELF-dynamic', ['readelf','-d',target]); dynamic = (runtime/(label+'-ELF-dynamic')/'stdout').read_text()
+					assert 'INTERP' not in segments and 'NEEDED' not in dynamic and 'There is no dynamic section' in dynamic
+					run(label+'-native', [target], 42); memory(label+'-memory', [target], 42)
+					products.update({str(n):sha(n) for n in (obj, target)})
+			ir = build/(name+'.ll'); memory(name+'-compiler-memory', [a.compiler, '--emit-llvm', '-o', ir, source], 0)
+			run(name+'-LLVM-verify', ['opt','-passes=verify','-disable-output',ir]); products[str(ir)] = sha(ir)
+		allocating = runtime/'owning-collect.astra'; allocating.write_text('language astra27b;\nint main() { var values = (20..=80).step_by(5).collect_array(); return values[0]+values[12]-58; }\n')
+		inputs[str(allocating)] = sha(allocating); write(runtime/'inputs.json', inputs)
+		for mode in ('O0','O2'):
+			label = 'owning-collect-'+mode; obj = build/(label+'.o'); target = build/label
+			run(label+'-compile', [a.compiler,'-c','-'+mode,'-o',obj,allocating]); products[str(obj)] = sha(obj)
+			run(label+'-object-imports', ['nm','-u',obj]); imports = (runtime/(label+'-object-imports')/'stdout').read_bytes()
+			assert b'calloc' in imports and b'free' in imports
+			run(label+'-no-allocator-reject', ['ld','-static','-nostdlib','-e','_start',entry,obj,'-o',target], 1)
+			assert not target.exists() and b'calloc' in (runtime/(label+'-no-allocator-reject')/'stderr').read_bytes()
+		assert all(sha(n) == h for n,h in {**inputs, **tools, **products}.items())
+		write(runtime/'identity.json', dict(inputs=inputs, tools=tools, products=products, linked_providers=[], entry='x86-64 syscall exit only; no libc, allocator, dynamic interpreter or undefined object symbols'))
+		write(runtime/'result.json', dict(status='SELECTED_FREESTANDING_RANGE_FIXED_NATIVE_AND_MEMORY_PASS', compiler_sha256=a.compiler_sha256, cases=[r[0] for r in cases], target_modes=['O0','O2'], no_allocator_owning_collect_refusals=2, identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), limitation='Selected range/fixed no-runtime targets only; raw LLVM may contain unused private helpers. Owning collect requires its actual allocator and is not executed without one. No complete source, generation or milestone credit.'))
+		return
 	bridge = runtime/'observe.c'
 	bridge.write_text('#include <stdint.h>\n#include <string.h>\nstatic int seen, retired, sum, visited;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\nint visit(int value) { ++visited; return value; }\nint visits(void) { return visited; }\nfloat format_f32(int selector) { uint32_t bits = selector == 1 ? UINT32_C(3217031168) : UINT32_C(2143289344); float value; memcpy(&value, &bits, sizeof value); return value; }\ndouble format_f64(int selector) { uint64_t bits = selector == 1 ? UINT64_C(4607182418800017408) : UINT64_C(9218868437227405312); double value; memcpy(&value, &bits, sizeof value); return value; }\n')
 	inputs[str(bridge)] = sha(bridge); bridge_object = build/'observe.o'

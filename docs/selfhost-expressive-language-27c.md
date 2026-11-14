@@ -1221,3 +1221,44 @@ memory, with all nineteen match negatives refused and sentinels intact
 (selfhost27c-match-join-dev11-1). Compiler enum-code migration will use that
 qualified numeric result subset instead of broadening borrowed joins implicitly.
 Idiomatic migration, stable final qualification and publication remain pending.
+
+The dev12 full-source attempt fails SSA verification after 1326.314 seconds,
+before object emission. The actual time receipt reports 1314.59 user CPU seconds,
+3.27 system seconds and 563624 KiB peak RSS. Its earlier semantic preflight,
+source snapshot and independent producer/LLVM identities remain genuine, while
+the failed build receives no generation or compiler acceptance credit. A bounded
+read-only first-refusal diagnostic replays that exact source/producer with only
+its output path changed (selfhost27c-dev12-diagnostic1). The 8M SSA ceiling and
+all current-source safety requirements remain unchanged. This is an internal
+repair task, not a historical-loss or authorization stop.
+
+The existing owner kernel can now replay an explicitly captured physical CFG
+and report exact production dominance work independently of frontend execution.
+Owner-kernel4's C0 O0/O2 builds, existing exhaustive/generated dominance oracle,
+owner/physical controls and strict returning memory pass, with zero live bytes,
+errors and suppressions. The added binary input lane independently accepts a
+valid two-function graph, refuses cross-function/out-of-range/truncated graphs,
+and passes strict returning memory in both modes
+(selfhost27c-owner-kernel4-inputs1). This diagnostic input lane grants no complete
+source, SSA, owner or target acceptance. An optional five-second userspace perf
+sample is unavailable under the host performance-monitoring policy; that failed
+sample remains recorded, no host policy was changed, and the debugger diagnostic
+continues independently.
+
+The previously pending actual freestanding range obligation now passes on
+dev11 (selfhost27c-freestanding-dev11-2). Unused ranges, a thirteen-item scalar
+range loop and exact int[13] fixed collection each compile to actual O0/O2
+objects, link with only a syscall exit entry, and return 42. Expanded C0 objects
+provide independent equivalent executions. Retained nm output proves no
+undefined object or ELF symbols; ELF header/segment/dynamic output proves x86-64
+static executables without a dynamic interpreter or needed library. All nine
+returning target memory runs and all three actual Astra compiler-memory/LLVM
+checks pass with zero live bytes, errors and suppressions. The raw LLVM may
+still contain unused private helpers: the no-runtime claim belongs to actual
+post-output objects and ELFs, after physical correspondence checks. Both O0/O2
+owning collect controls retain their real calloc/free imports and independently
+fail the same no-allocator link. They are not executed without an allocator.
+The first leaf remains a passing focused execution with less complete retained
+ELF inspection output; the second retains each explicit inspection command and
+the allocator-boundary refusals. These results retain dev11's exact source and
+product identity; full current generation and final qualification remain pending.

@@ -25,6 +25,11 @@ primitive checks with real LLVM arguments, constants and rejected corruptions.
 It requires the explicit C0 identity and production link manifest, runs both
 optimization modes and strict returning memory, and grants only cursor evidence.
 Without that option the existing owner/dominator kernel selection remains active.
+Its resulting executable also accepts `--graph BLOCKS.i32le ENTRIES.i32le` for
+an explicitly identified diagnostic capture: ten little-endian signed 32-bit
+RecoverBlock fields per block, followed by a separate entry-ID file. It reports
+the production dominator work cost under the unchanged 8M ceiling. This graph
+replay establishes neither source acceptance nor complete SSA/owner safety.
 
 `named.py` exercises actual targets through `--feature named`, `match`, `range`,
 `format` or `collection`. It requires the same explicit producer/C0 identities,
@@ -34,6 +39,10 @@ expanded C0 reference, actual O0/O2 ELF targets, returning target and compiler
 Valgrind, and LLVM verification. Allocator observers check designated storage
 contracts. `--oracle-only` establishes expanded-reference evidence only and
 never qualifies new syntax or semantics.
+`--feature range --freestanding-only` selects unused ranges, scalar range loops
+and exact fixed collection. It retains import/ELF inspections, links a syscall
+entry without libc or allocator, runs O0/O2 and strict returning memory, and
+checks that owning array collection fails that link without its allocator.
 
 `physical.py` reuses the existing 27-B process-local LLVM mutation driver.
 Select `--feature existing`, `range`, `lazy`, `collection`, `format` or `enum`,

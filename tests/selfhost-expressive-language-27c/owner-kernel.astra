@@ -103,7 +103,45 @@ bool kernel_physical_binders() {
 	slots[0].parameter = true; return !recover_llvm_index_verified(index, nodes, 1, slots, 1, 1, 2);
 }
 
-int main() {
+int kernel_graph_word(FileBytes bytes, int offset) throws FileError {
+	u32 bits = bytes.byte_at(offset) as u32;
+	bits = bits | ((bytes.byte_at(offset + 1) as u32) << 8);
+	bits = bits | ((bytes.byte_at(offset + 2) as u32) << 16);
+	bits = bits | ((bytes.byte_at(offset + 3) as u32) << 24);
+	return bits as int;
+}
+
+// Replay only the independently captured physical CFG's exact graph. This
+// reports the real dominator work cost, without frontend or owner acceptance.
+bool kernel_captured_graph(string block_path, string entry_path) throws Error {
+	var block_bytes = read_file(block_path); var entry_bytes = read_file(entry_path);
+	if (block_bytes.byte_count() < 40 || block_bytes.byte_count()%40 != 0 || block_bytes.byte_count()/40 > 8000000 || entry_bytes.byte_count() < 4 || entry_bytes.byte_count()%4 != 0) return false;
+	int count = block_bytes.byte_count()/40; int functions = entry_bytes.byte_count()/4;
+	if (functions > count) return false;
+	var blocks = new RecoverBlock[count]; var entries = new int[functions]; int at = 0;
+	while (at < count) {
+		int offset = at*40;
+		RecoverBlock row = {function = kernel_graph_word(block_bytes, offset), origin = kernel_graph_word(block_bytes, offset + 4), opcode = kernel_graph_word(block_bytes, offset + 8), a = kernel_graph_word(block_bytes, offset + 12), b = kernel_graph_word(block_bytes, offset + 16), next = kernel_graph_word(block_bytes, offset + 20), other = kernel_graph_word(block_bytes, offset + 24), owner = kernel_graph_word(block_bytes, offset + 28), carry = kernel_graph_word(block_bytes, offset + 32), rank = kernel_graph_word(block_bytes, offset + 36)};
+		blocks[at] = row; at = at + 1;
+	}
+	at = 0;
+	while (at < functions) {
+		entries[at] = kernel_graph_word(entry_bytes, at*4); at = at + 1;
+	}
+	var work = new RecoverWork(8000000);
+	bool accepted = recover_ssa_build_dominance(blocks, count, entries, work);
+	var output = new Utf8ByteBuilder(); append_text(output, "CAPTURED_CFG_DOMINANCE accepted="); append_bool(output, accepted); append_text(output, " blocks="); append_int(output, count); append_text(output, " functions="); append_int(output, functions); append_text(output, " work="); append_int(output, 8000000 - work.remaining); var message = output.snapshot(); println(message.text);
+	return accepted && !work.exhausted;
+}
+
+int main(string[] args) {
+	if (len(args) > 1) {
+		if (len(args) != 4 || args[1] != "--graph") return 2;
+		try {
+			if (kernel_captured_graph(args[2], args[3])) return 42;
+			return 1;
+		} catch (Error error) { println_stderr(error.message); return 3; }
+	}
 	if (!kernel_slot_controls()) return 1;
 	if (!kernel_owner_walk(true, true, 2048) || !kernel_owner_walk(true, false, 2048)) return 2;
 	if (!kernel_owner_walk(false, true, 2048) || !kernel_owner_walk(false, false, 2048)) return 3;
