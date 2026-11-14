@@ -1588,6 +1588,11 @@ class SyntaxObservation {
 	}
 
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.LambdaExpressionSyntax()) {
+			var data = arena.lambda_expression(arg_expression); var body = this.format_expression(arena, data.f_expression);
+			var output = new Utf8ByteBuilder(); source_append_text(output, "(lambda "); arena.write_token(data.f_binding, output); source_append_text(output, " => "); source_append_text(output, body.text); source_append_text(output, ")");
+			var result = output.snapshot(); return move result;
+		}
 		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.MatchExpressionSyntax()) {
 			var data = arena.match_expression(arg_expression);
 			var scrutinee = this.format_expression(arena, data.f_scrutinee);

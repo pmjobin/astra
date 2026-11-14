@@ -683,3 +683,20 @@ source-to-SSA specimen. Missing method/open/close tokens now return false before
 token-span lookup. No failed native consumer is granted stride/slice/collection
 credit. The dev7 build was already frozen before this correction; it can qualify
 owning match and direct range loops but cannot qualify compound range methods.
+
+Lambda syntax candidate uses appended SyntaxKind 98, preserving every previous
+kind code. Modern `item => expression` retains binding/arrow/body nodes and its
+own lexical binder scope. Arena storage, projection, observation, generic copying
+and independent copied-source checking include those exact fields. Deferred and
+effect walking distinguish body syntax from executing that body. The parser-only
+syntax8 consumer passes C0 O0 compilation (143.045 seconds), native 42 and strict
+returning Valgrind (0.891 seconds), zero live bytes/errors/suppressions, including
+two chained map/filter lambda nodes, exact source extents, malformed body and
+legacy refusals. This does not qualify callable typing, captures or pipeline
+execution; those remain implementation work.
+
+The five separately authored foreach/stride/slice/owned-collect/fixed C0 oracles
+also pass strict returning zero-byte, zero-error, zero-suppression Valgrind
+(selfhost27c-range-oracle-memory2). They remain reference evidence. Dev7's actual
+C0 argv/executable and mapped LLVM23.1.4 bytes are independently authenticated
+while running (independent-live.json); observed RSS was 2,509,300 KiB, one thread.

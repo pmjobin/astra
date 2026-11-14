@@ -606,6 +606,9 @@ void checked_deferred_children(CheckedIndex index, SyntaxNodeId node, int reason
 			checked_deferred_node(index, index.bindings.program.arena.get_node_target(node), reason, depth + 1);
 			checked_deferred_node(index, index.bindings.program.arena.get_node_expression(node), reason, depth + 1);
 		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_expression(node), reason, depth + 1);
+		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			checked_deferred_node(index, index.bindings.program.arena.get_node_scrutinee(node), reason, depth + 1);
 			var list_arms = index.bindings.program.arena.get_list_arms(node);

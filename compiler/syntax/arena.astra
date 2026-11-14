@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Concrete typed payload arrays keep node ownership independent of child edges.
 class SyntaxArena {
+	private owned LambdaExpressionSyntaxData[] lambda_expression_data;
+	private int lambda_expression_used;
 	private owned MatchExpressionSyntaxData[] match_expression_data;
 	private int match_expression_used;
 	private owned RecordExpressionSyntaxData[] record_expression_data;
@@ -321,6 +323,8 @@ class SyntaxArena {
 		this.lifecycle_declaration_used = 0;
 		this.local_declaration_data = new LocalDeclarationSyntaxData[0];
 		this.local_declaration_used = 0;
+		this.lambda_expression_data = new LambdaExpressionSyntaxData[0];
+		this.lambda_expression_used = 0;
 		this.match_expression_data = new MatchExpressionSyntaxData[0];
 		this.match_expression_used = 0;
 		this.match_statement_data = new MatchStatementSyntaxData[0];
@@ -2669,6 +2673,43 @@ class SyntaxArena {
 		this.local_declaration_data[header.slot] = data;
 	}
 
+	void validate_lambda_expression(LambdaExpressionSyntaxData data) {
+		this.check_token(data.f_binding);
+		this.check_token(data.f_arrow);
+		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
+	}
+
+	SyntaxNodeId add_lambda_expression(LambdaExpressionSyntaxData data, SyntaxSpan span, int depth) {
+		this.validate_lambda_expression(data);
+		assert_that(this.lambda_expression_used < 2147483647);
+		if (this.lambda_expression_used == len(this.lambda_expression_data)) {
+			var replacement = new LambdaExpressionSyntaxData[syntax_grown_capacity(len(this.lambda_expression_data), this.lambda_expression_used + 1)];
+			int i = 0;
+			while (i < this.lambda_expression_used) {
+				replacement[i] = this.lambda_expression_data[i];
+				i = i + 1;
+			}
+			swap(this.lambda_expression_data, replacement);
+		}
+		var result = this.add_header(SyntaxKind.LambdaExpressionSyntax(), this.lambda_expression_used, span, depth);
+		this.lambda_expression_data[this.lambda_expression_used] = data;
+		this.lambda_expression_used = this.lambda_expression_used + 1;
+		return result;
+	}
+
+	LambdaExpressionSyntaxData lambda_expression(SyntaxNodeId id) {
+		var header = this.header(id);
+		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LambdaExpressionSyntax()));
+		return this.lambda_expression_data[header.slot];
+	}
+
+	void replace_lambda_expression(SyntaxNodeId id, LambdaExpressionSyntaxData data) {
+		this.validate_lambda_expression(data);
+		var header = this.header(id);
+		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LambdaExpressionSyntax()));
+		this.lambda_expression_data[header.slot] = data;
+	}
+
 	void validate_match_expression(MatchExpressionSyntaxData data) {
 		this.check_node(data.f_scrutinee, SyntaxKind.ExpressionSyntax());
 		this.check_list(data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()));
@@ -4617,6 +4658,10 @@ class SyntaxArena {
 
 	SyntaxTokenId get_token_binding(SyntaxNodeId id) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.LambdaExpressionSyntax()) {
+			var data = this.lambda_expression(id);
+			return data.f_binding;
+		}
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
 			var data = this.catch_clause(id);
 			return data.f_binding;
@@ -4636,6 +4681,12 @@ class SyntaxArena {
 
 	void set_token_binding(SyntaxNodeId id, SyntaxTokenId value) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.LambdaExpressionSyntax()) {
+			var data = this.lambda_expression(id);
+			data.f_binding = value;
+			this.replace_lambda_expression(id, data);
+			return;
+		}
 		if (kind == SyntaxKind.CatchClauseSyntax()) {
 			var data = this.catch_clause(id);
 			data.f_binding = value;
@@ -6187,6 +6238,10 @@ class SyntaxArena {
 
 	SyntaxNodeId get_node_expression(SyntaxNodeId id) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.LambdaExpressionSyntax()) {
+			var data = this.lambda_expression(id);
+			return data.f_expression;
+		}
 		if (kind == SyntaxKind.CompoundAssignmentSyntax()) {
 			var data = this.compound_assignment(id);
 			return data.f_expression;
@@ -6238,6 +6293,12 @@ class SyntaxArena {
 
 	void set_node_expression(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.LambdaExpressionSyntax()) {
+			var data = this.lambda_expression(id);
+			data.f_expression = value;
+			this.replace_lambda_expression(id, data);
+			return;
+		}
 		if (kind == SyntaxKind.CompoundAssignmentSyntax()) {
 			var data = this.compound_assignment(id);
 			data.f_expression = value;

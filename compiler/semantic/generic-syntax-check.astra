@@ -337,6 +337,11 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_scrutinee, second_data.f_scrutinee)) return false;
 			if (!generic_check_list(index, plan, first_data.f_arms, second_data.f_arms)) return false;
 		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.lambda_expression(original);
+			var second_data = index.bindings.program.arena.lambda_expression(concrete);
+			if (first_data.f_binding.index != second_data.f_binding.index || first_data.f_arrow.index != second_data.f_arrow.index || !generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.match_expression(original);
 			var second_data = index.bindings.program.arena.match_expression(concrete);

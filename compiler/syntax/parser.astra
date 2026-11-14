@@ -6984,6 +6984,13 @@ class SyntaxParser {
 	}
 
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.FAT_ARROW())) {
+			var binding = this.current; if (!this.advance(arena)) return syntax_no_node();
+			var arrow = this.current; if (!this.advance(arena)) return syntax_no_node();
+			var body = this.parse_expression(arena, 0, arg_recursion_depth + 1); if (body.index == 0) return body;
+			LambdaExpressionSyntaxData data = {f_binding = binding, f_arrow = arrow, f_expression = body};
+			return this.bounded(arena, arena.add_lambda_expression(data, syntax_cover(arena.token_span(binding), arena.header(body).span), arena.header(body).depth + 1), arena.token_span(binding));
+		}
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.MATCH()) return this.parse_match_expression(arena, arg_recursion_depth);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.OPEN_BRACE())) return this.parse_record_expression(arena);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.MOVE()) {

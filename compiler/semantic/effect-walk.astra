@@ -461,6 +461,10 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_target(node), depth);
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_expression(node), depth);
 		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+			// Construction does not execute the body. Finite callable admission
+			// and each consuming traversal must independently consume its effects.
+		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_scrutinee(node), depth);
 			var list_arms = index.bindings.program.arena.get_list_arms(node);
