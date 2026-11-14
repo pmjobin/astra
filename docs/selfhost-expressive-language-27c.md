@@ -230,3 +230,40 @@ owner consumer restores independent semantic construction; Core still builds
 and verifies the distinct owner-use plan. Native execution of the new focused
 consumer is pending. The component recipe freezes its actual inputs and keeps
 source/producer identities separate from feature and host qualification.
+
+The semantic component subsequently executed its ownership-shape and pattern
+corruptions successfully and passed strict returning Valgrind. Its O0 product
+SHA-256 is `1f2ba8d0c946c2dcb780f1120b13a9f63925f33f828edf0f71bfe452cb2838f3`,
+from frozen commit `928f428f73c8304d51ea6c802507aecb88ecbdec` under the disclosed
+replacement C0. Its 988.651-second native build is separate from production-host
+construction and from new source-feature target execution.
+
+The Astra-built development product from `1ce4bdd` completed with SHA-256
+`6be9c796c388244f6cf674c741d11f0b2e3059cb62e19ca08fa5ac37b9821727`.
+Actual O0/O2 ELF execution, compiler/target strict memory and independent LLVM
+verification pass for mixed bool/u8/i64/f64 payloads and copied enum returns,
+nested `Result`/`Problem` payloads, three-way result joins and once-only
+scrutinee evaluation. The fourteen source negatives refuse, but the owning-sum
+ones still encounter the unsupported owning domain and receive no specific
+ownership-proof credit. Five independently LLVM-valid physical mutations reject
+with three returning controls. A further nested-tag run proves its selected tag
+is read through an inner payload projection rather than the outer carrier.
+
+The four-way enum product initially refuses before recovered Flow construction.
+Positional twins pass; both declared-order and reversed field labels refuse,
+including a simpler scalar-payload specimen. The member-completion path omitted
+enum payload symbols. The current repair records the exact field token, variant
+owner and lexical accessibility, while the independent pattern consumer still
+reconstructs selection, scope, types and complete coverage. New unknown and
+duplicate field-label negatives accompany it. Its actual native qualification
+remains pending.
+
+The next source batch prepares module-owned owning-sum carrier and retirement
+helpers. Their separate consumer checks exact active tags, reverse declared
+field order, nested helper identity, buffer retirement, closed instruction/block
+inventories, alignment and metadata; cached LLVM types and functions must belong
+to the current context/module. The storage/transfer path still refuses owning
+sums, so these helpers do not grant owning-match implementation or native credit.
+Full current C0 semantic admission passes in preflight 25 (64.344 seconds), after
+splitting a temporary field borrow from helper creation. The failed preflight
+24 remains preserved.

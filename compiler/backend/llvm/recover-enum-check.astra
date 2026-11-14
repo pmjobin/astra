@@ -2,7 +2,7 @@
 // Payload-free enum values have one I32 tag. Native function channels retain
 // C0's pointer parameters and leading caller-provided result storage.
 bool recover_enum_llvm_type(CheckedIndex checked, TypeId type, void* actual) {
-	if (!enum_value_type_verified(checked, type) || actual == null) return false;
+	if (!enum_storage_type_verified(checked, type) || actual == null) return false;
 	if (checked_payload_free_enum(checked, type)) return LLVMGetTypeKind(actual) == 8 && LLVMGetIntTypeWidth(actual) == 32;
 	if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0 || LLVMCountStructElementTypes(actual) != 2) return false;
 	var tag = LLVMStructGetTypeAtIndex(actual, 0);
@@ -151,7 +151,7 @@ int recover_enum_constructor_verified(RecoverSsa ssa, RecoverBlock block, void* 
 }
 
 bool recover_enum_argument_verified(RecoverSsa ssa, int child, void* address, void* value, void* call, void* block, int parameter) {
-	if (child < 1 || child > ssa.cfg.core.count || address == null || value == null || !enum_value_type_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) || LLVMGetArgOperand(call, parameter) != address) return false;
+	if (child < 1 || child > ssa.cfg.core.count || address == null || value == null || !enum_storage_type_verified(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) || LLVMGetArgOperand(call, parameter) != address) return false;
 	int stores = 0; int remaining = 8192; var instruction = LLVMGetFirstInstruction(block);
 	while (instruction != null && instruction != call && remaining > 0) {
 		if (LLVMGetInstructionOpcode(instruction) == 28 && LLVMGetOperand(instruction, 1) == address) {
@@ -166,7 +166,7 @@ bool recover_enum_argument_verified(RecoverSsa ssa, int child, void* address, vo
 bool recover_enum_guard_verified(RecoverSsa ssa, RecoverBlock block, void* condition, void* value) {
 	if (block.opcode != 73 && block.opcode != 74 || block.a < 1 || block.a > ssa.cfg.core.count || value == null || condition == null) return false;
 	var type = ssa.cfg.core.nodes[block.a - 1].value.type;
-	if (!enum_value_type_verified(ssa.cfg.core.flow.checked, type) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(value))) return false;
+	if (!enum_storage_type_verified(ssa.cfg.core.flow.checked, type) || !recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(value))) return false;
 	var source = ssa.cfg.core.nodes[block.origin - 1].value;
 	int expected = -1; int predicate = 32;
 	if (block.opcode == 73) {

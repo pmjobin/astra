@@ -489,6 +489,8 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	('match-payload-label', 'enum Pair { Data(int first, int second) } int main() { return match (Pair.Data(20,22)) { case Pair.Data(first=a, missing=b) => a+b; }; }'),
+	('match-payload-duplicate-label', 'enum Pair { Data(int first, int second) } int main() { return match (Pair.Data(20,22)) { case Pair.Data(first=a, first=b) => a+b; }; }'),
 	('match-inspection-move', OWNING_TAG+'owned int[] take(Packet value) { return match (value) { case Packet.Empty() => new int[0]; case Packet.Data(data, count) => move data; }; } int main() { return 42; }'),
 	('match-consumed-use', OWNING_TAG+'int main() { var state = Packet.Data(new int[13], 13); int result = match (move state) { case Packet.Empty() => 0; case Packet.Data(data, count) => len(data); }; return match (state) { case Packet.Empty() => 0; case Packet.Data(data, count) => result+count; }; }'),
 	('match-payload-double-move', OWNING_TAG+'int eat(owned int[] first, owned int[] second) { return len(first)+len(second); } int main() { var state = Packet.Data(new int[13], 13); return match (move state) { case Packet.Empty() => 0; case Packet.Data(data, count) => eat(move data, move data); }; }'),

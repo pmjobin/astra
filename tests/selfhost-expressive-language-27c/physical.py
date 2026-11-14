@@ -56,9 +56,15 @@ def main():
    candidates=[]
    for block in body:
     for value in instructions(block):
-     if opcode(value)==42 and number('(int)LLVMGetICmpPredicate((void*)%d)'%value)==32 and pointer('LLVMIsAConstantInt',operand(value,1)) and integer(operand(value,1))==1:candidates.append(value)
-   assert candidates
-   target=candidates[0];old=operand(target,1);before=integer(old);set_operand(target,1,replacement(old,0));after=integer(operand(target,1));assert after==0
+     if opcode(value)!=42 or number('(int)LLVMGetICmpPredicate((void*)%d)'%value)!=32 or not pointer('LLVMIsAConstantInt',operand(value,1)) or integer(operand(value,1))!=1:continue
+     tag=operand(value,0)
+     if not pointer('LLVMIsAInstruction',tag) or opcode(tag)!=27:continue
+     address=operand(tag,0)
+     if not pointer('LLVMIsAInstruction',address) or opcode(address)!=29:continue
+     selected=operand(address,0)
+     if pointer('LLVMIsAInstruction',selected) and opcode(selected)==29:candidates.append(value)
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,1);before=dict(tag=integer(old),nested_projection=True);set_operand(target,1,replacement(old,0));after=dict(tag=integer(operand(target,1)),nested_projection=True);assert after['tag']==0
   elif action in ('enum-payload','enum-tag'):
    candidates=[]
    for block in body:

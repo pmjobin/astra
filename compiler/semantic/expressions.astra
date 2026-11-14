@@ -159,8 +159,8 @@ void checked_complete_member(CheckedIndex index, SyntaxNodeId node, SyntaxTokenI
 	int i = index.node_references[node.index];
 	while (i != 0) {
 		var edge = index.bindings.reference(i);
-		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3 || edge.reason == 4 && symbol.kind == 13)) {
-			if (symbol.kind == 13) assert_that(index.bindings.complete_enum_reference(i, member, symbol.owner));
+		if (edge.node.index == node.index && edge.token.index == token.index && edge.state_code == 5 && (edge.reason == 1 || edge.reason == 3 || edge.reason == 4 && (symbol.kind == 13 || symbol.kind == 17))) {
+			if (symbol.kind == 13 || symbol.kind == 17) assert_that(index.bindings.complete_enum_reference(i, member, symbol.owner));
 			else {
 				assert_that(index.bindings.complete_reference(i, member, symbol.owner));
 			}

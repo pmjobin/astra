@@ -194,11 +194,13 @@ class BindingIndex {
 		if (number <= 0 || number > this.reference_count || target.index <= 0 || target.index > this.symbol_count || receiver.index <= 0 || receiver.index > this.symbol_count) return false;
 		var edge = this.reference(number);
 		var symbol = this.symbol(target);
-		if (edge.state_code != 5 || edge.target.index != 0 || edge.domain != 4 || symbol.kind != 13 || symbol.owner.index != receiver.index || this.symbol(receiver).kind != 5 || !this.program.arena.token_text_equal(edge.token, symbol.token) || !this.accessible(target, edge.scope)) return false;
+		if (edge.state_code != 5 || edge.target.index != 0 || edge.domain != 4 || symbol.owner.index != receiver.index || !this.program.arena.token_text_equal(edge.token, symbol.token) || !this.accessible(target, edge.scope)) return false;
 		var kind = this.program.arena.kind(edge.node);
-		bool construction = edge.reason == 1 && kind == SyntaxKind.CallExpressionSyntax() && this.program.arena.get_token_identifier(edge.node).index == edge.token.index;
-		bool arm = edge.reason == 4 && kind == SyntaxKind.EnumArmSyntax() && this.program.arena.get_token_variant(edge.node).index == edge.token.index;
-		if (!construction && !arm) return false;
+		bool variant = symbol.kind == 13 && this.symbol(receiver).kind == 5;
+		bool construction = variant && edge.reason == 1 && kind == SyntaxKind.CallExpressionSyntax() && this.program.arena.get_token_identifier(edge.node).index == edge.token.index;
+		bool arm = variant && edge.reason == 4 && kind == SyntaxKind.EnumArmSyntax() && this.program.arena.get_token_variant(edge.node).index == edge.token.index;
+		bool payload = symbol.kind == 17 && this.symbol(receiver).kind == 13 && this.program.arena.kind(symbol.node) == SyntaxKind.EnumPayloadSyntax() && edge.reason == 4 && kind == SyntaxKind.EnumBindingSyntax() && this.program.arena.get_token_field(edge.node).index == edge.token.index;
+		if (!construction && !arm && !payload) return false;
 		edge.state_code = 1; edge.reason = 0; edge.target = target;
 		edge.next_reference = symbol.first_reference;
 		symbol.first_reference = number;

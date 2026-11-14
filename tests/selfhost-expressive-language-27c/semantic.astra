@@ -63,7 +63,7 @@ void expressive_enum_storage() throws Error {
 }
 
 void expressive_pattern_context() throws Error {
-	var checked = expressive_checked("language astra27b; enum Bit { Off, On } enum Pair { Both(Bit first, Bit second) } int value(Pair pair) => match (pair) { case Pair.Both(Bit.Off(), Bit.Off()) => 0; case Pair.Both(Bit.Off(), Bit.On()) => 1; case Pair.Both(Bit.On(), Bit.Off()) => 2; case Pair.Both(Bit.On(), Bit.On()) => 3; }; int other(Pair pair) => match (pair) { case Pair.Both(first, second) => 4; }; int main() { return 42; }");
+	var checked = expressive_checked("language astra27b; enum Bit { Off, On } enum Pair { Both(Bit first, Bit second) } int value(Pair pair) => match (pair) { case Pair.Both(second=Bit.Off(), first=Bit.Off()) => 0; case Pair.Both(Bit.Off(), Bit.On()) => 1; case Pair.Both(Bit.On(), Bit.Off()) => 2; case Pair.Both(Bit.On(), Bit.On()) => 3; }; int other(Pair pair) => match (pair) { case Pair.Both(first, second) => 4; }; int main() { return 42; }");
 	SyntaxNodeId first = {index = 0}; SyntaxNodeId other = {index = 0}; SyntaxNodeId nested = {index = 0};
 	int at = 1;
 	while (at < len(checked.uses)) {
@@ -110,8 +110,30 @@ void expressive_pattern_context() throws Error {
 	assert_that(enum_match_expression_verified(checked, first) && enum_value_facts_verified(checked) && generic_verify(checked));
 }
 
-int main() {
+int main(string[] args) {
 	try {
+		if (len(args) > 1) {
+			if (len(args) < 3 || args[1] != "--source" && args[1] != "--flow") return 2;
+			var program = binding_load_program(args, 2);
+			var bindings = binding_index(move program, 0);
+			var checked = checked_build_effects_profile(move bindings, 0);
+			if (checked.failed()) {
+				var observation = checked_observation(checked); print(observation.text); return 1;
+			}
+			if (!checked.validate() || !generic_verify(checked) || !enum_value_facts_verified(checked)) return 3;
+			var effect = checked_effect_source_verify(checked);
+			if (effect.status != 0) return 4;
+			if (args[1] == "--flow") {
+				var flow = recover_flow_lower(move checked, 8192);
+				if (flow.data.status != 0 || !recover_flow_verify(flow)) {
+					var output = new Utf8ByteBuilder(); source_append_text(output, "FLOW_REFUSAL status="); append_int(output, flow.data.status); source_append_text(output, " boundary="); append_int(output, flow.data.boundary.index); var text = output.snapshot(); println(text.text); return 5;
+				}
+				println("SELECTED_RECOVERED_FLOW_SOURCE_ONLY");
+			} else {
+				println("SELECTED_TYPED_SOURCE_ONLY");
+			}
+			return 42;
+		}
 		expressive_enum_storage();
 		expressive_pattern_context();
 		return 42;

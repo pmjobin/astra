@@ -92,6 +92,7 @@ class RecoverLlvm {
 	owned void*[] class_payload_drops;
 	owned RecoverRecordStorage[] record_storage;
 	owned void*[] enum_carriers;
+	owned void*[] enum_drops;
 	owned void*[] slot_functions;
 	owned RecoverSharedRuntime shared_runtime;
 	owned RecoverSharedRuntime intrinsic_shared;
@@ -145,6 +146,7 @@ class RecoverLlvm {
 		this.class_payload_drops = new void*[len(this.class_destroyers)];
 		this.record_storage = new RecoverRecordStorage[ssa.cfg.core.flow.checked.types.count + 1];
 		this.enum_carriers = new void*[ssa.cfg.core.flow.checked.types.count + 1];
+		this.enum_drops = new void*[ssa.cfg.core.flow.checked.types.count + 1];
 		this.slot_functions = new void*[(ssa.cfg.core.flow.checked.types.count + 1) * 6];
 	}
 
@@ -248,7 +250,7 @@ class RecoverLlvm {
 
 	void* scalar(CheckedIndex checked, TypeId type) {
 		int kind = checked_kind(checked, type);
-		if (kind == 32 && enum_value_type_verified(checked, type)) {
+		if (kind == 32 && enum_storage_type_verified(checked, type)) {
 			if (checked_payload_free_enum(checked, type)) return this.integer;
 			if (type.index < 1 || type.index >= len(this.enum_carriers)) return null;
 			if (this.enum_carriers[type.index] != null) return this.enum_carriers[type.index];
@@ -294,6 +296,103 @@ class RecoverLlvm {
 			return this.structure(fields);
 		}
 		return llvm_checked_abi_scalar(this.context, kind);
+	}
+
+	void enum_drop_declare(CheckedIndex checked, TypeId type, int depth) throws Error {
+		if (depth > 32 || !enum_storage_owned(checked, type, 0) || this.enum_drops[type.index] != null) return;
+		var carrier = this.scalar(checked, type);
+		assert_that(carrier != null);
+		var name = llvm_name("astra.enum.drop.", type.index);
+		var parameters = new void*[1]; parameters[0] = this.pointer;
+		var function = this.function(name.text, LLVMVoidTypeInContext(this.context), parameters, true);
+		this.enum_drops[type.index] = function;
+		var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+		var variants = checked.bindings.program.arena.get_list_variants(declaration.node); int at = 0;
+		while (at < checked.bindings.program.arena.list_count(variants)) {
+			var fields = checked.bindings.program.arena.get_list_fields(checked.bindings.program.arena.node_at(variants, at)); int f = 0;
+			while (f < checked.bindings.program.arena.list_count(fields)) {
+				var field = checked.bindings.program.arena.node_at(fields, f);
+				var child = checked.symbol_types[checked.node_symbols[field.index].index];
+				if (checked_kind(checked, child) == 32) this.enum_drop_declare(checked, child, depth + 1);
+				f = f + 1;
+			}
+			at = at + 1;
+		}
+	}
+
+	void enum_helpers(RecoverSsa ssa) throws Error {
+		int t = 1;
+		while (t < len(this.enum_carriers)) {
+			if (this.enum_carriers[t] != null) this.enum_drop_declare(ssa.cfg.core.flow.checked, type_id(t), 0);
+			t = t + 1;
+		}
+		t = 1;
+		while (t < len(this.enum_drops)) {
+			var function = this.enum_drops[t];
+			if (function != null) {
+				var type = type_id(t);
+				var declaration = ssa.cfg.core.flow.checked.bindings.symbol(ssa.cfg.core.flow.checked.types.row(type).nominal);
+				var variants = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node);
+				int count = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(variants);
+				var entry = llvm12_block(this.context, function, "entry");
+				var tagged = llvm12_block(this.context, function, "tagged");
+				var fatal = llvm12_block(this.context, function, "invalid");
+				var done = llvm12_block(this.context, function, "done");
+				var tests = new void*[count]; var cases = new void*[count]; int at = 0;
+				while (at < count) {
+					tests[at] = llvm12_block(this.context, function, "test");
+					cases[at] = llvm12_block(this.context, function, "case"); at = at + 1;
+				}
+				LLVMPositionBuilderAtEnd(this.builder, entry);
+				var address = LLVMGetParam(function, 0);
+				var present = LLVMBuildICmp(this.builder, 33, address, LLVMConstNull(this.pointer), this.empty);
+				var branch = LLVMBuildCondBr(this.builder, present, tagged, done);
+				LLVMPositionBuilderAtEnd(this.builder, tagged);
+				var tag_address = this.field(this.enum_carriers[t], address, 0);
+				var tag = this.load(this.integer, tag_address);
+				LLVMSetAlignment(tag, 4);
+				var jump = LLVMBuildBr(this.builder, tests[0]);
+				LLVMPositionBuilderAtEnd(this.builder, fatal);
+				var none = new void*[0]; var trap = this.call(this.trap_function, none, false);
+				var unreachable = LLVMBuildUnreachable(this.builder);
+				LLVMPositionBuilderAtEnd(this.builder, done); var end = LLVMBuildRetVoid(this.builder);
+				at = 0;
+				while (at < count) {
+					LLVMPositionBuilderAtEnd(this.builder, tests[at]);
+					var selected = LLVMBuildICmp(this.builder, 32, tag, this.int32(at), this.empty);
+					void* next = fatal; if (at + 1 < count) next = tests[at + 1];
+					branch = LLVMBuildCondBr(this.builder, selected, cases[at], next);
+					LLVMPositionBuilderAtEnd(this.builder, cases[at]);
+					var variant = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(variants, at);
+					var fields = ssa.cfg.core.flow.checked.bindings.program.arena.get_list_fields(variant);
+					var physical = this.enum_variant(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.node_symbols[variant.index]);
+					int f = ssa.cfg.core.flow.checked.bindings.program.arena.list_count(fields) - 1;
+					while (f >= 0) {
+						var field = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(fields, f);
+						var symbol = ssa.cfg.core.flow.checked.node_symbols[field.index];
+						var child = ssa.cfg.core.flow.checked.symbol_types[symbol.index];
+						bool nested = enum_storage_owned(ssa.cfg.core.flow.checked, child, 0);
+						if (nested || ssa.cfg.core.flow.checked.symbol_flags[symbol.index] == 4) {
+							var payload = this.field(this.enum_carriers[t], address, 1);
+							var selected_field = this.field(physical, payload, f);
+							void* drop = this.enum_drops[child.index]; void* input = selected_field;
+							if (!nested) {
+								var contents = this.load(this.text, selected_field);
+								LLVMSetAlignment(contents, 8);
+								input = LLVMBuildExtractValue(this.builder, contents, 0, this.empty);
+								drop = this.free_function;
+							}
+							var arguments = new void*[1]; arguments[0] = input;
+							var called = this.call(drop, arguments, nested);
+							if (!nested) llvm12_nobuiltin(this.context, called);
+						}
+						f = f - 1;
+					}
+					jump = LLVMBuildBr(this.builder, done); at = at + 1;
+				}
+			}
+			t = t + 1;
+		}
 	}
 
 	void* enum_constructor(RecoverSsa ssa, RecoverNode row, int origin) {
@@ -1781,6 +1880,7 @@ class RecoverLlvm {
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
+		this.enum_helpers(ssa);
 		this.class_finalizers(ssa);
 		this.retain_library_functions(ssa);
 		var order = new int[ssa.cfg.block_count];
@@ -2051,13 +2151,32 @@ class RecoverLlvm {
 		return true;
 	}
 
+	bool enum_helpers_verified(RecoverSsa ssa) throws Error {
+		if (len(this.enum_carriers) != ssa.cfg.core.flow.checked.types.count + 1 || len(this.enum_drops) != len(this.enum_carriers) || this.enum_carriers[0] != null || this.enum_drops[0] != null) return false;
+		int t = 1;
+		while (t < len(this.enum_carriers)) {
+			var carrier = this.enum_carriers[t]; var drop = this.enum_drops[t];
+			if (carrier != null) {
+				var type = type_id(t);
+				if (LLVMGetTypeContext(carrier) != this.context || !recover_enum_llvm_type(ssa.cfg.core.flow.checked, type, carrier)) return false;
+				bool owning = enum_storage_owned(ssa.cfg.core.flow.checked, type, 0);
+				if (owning != (drop != null)) return false;
+				if (owning && (LLVMGetGlobalParent(drop) != this.module || !recover_enum_drop_verified(ssa.cfg.core.flow.checked, type, drop, this.enum_drops, this.free_function, this.trap_function))) return false;
+			} else {
+				if (drop != null) return false;
+			}
+			t = t + 1;
+		}
+		return true;
+	}
+
 	bool check(RecoverSsa ssa) throws Error {
 		if (!recover_llvm_external_verified(this.calloc_function, 0) || !recover_llvm_external_verified(this.free_function, 1) || !recover_llvm_external_verified(this.memcpy_function, 2) || !recover_llvm_external_verified(this.memcmp_function, 3) || !recover_llvm_external_verified(this.trap_function, 4)) return false;
 		if (!recover_llvm_allocate_verified(this.allocate_function, this.calloc_function, this.trap_function) || !recover_error_constructor_verified(this.construct_function, this.payload, this.allocate_function, this.snapshot_allocate_function, this.memcpy_function) || !recover_llvm_message_verified(this.message_function, this.payload) || !recover_llvm_destroy_verified(this.destroy_function, this.payload, this.descriptor, this.free_function) || !recover_llvm_subtype_verified(this.subtype_function, this.payload, this.descriptor) || !recover_llvm_equal_verified(this.equal_function, this.memcmp_function)) return false;
 		if (!recover_error_snapshot_verified(this.snapshot_allocate_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_buffer_helper_verified(this.buffer_function, this.allocate_function, this.trap_function)) return false;
 		if (!recover_error_owner_helper_verified(this.error_owner_function, this.destroy_function)) return false;
-		if (!recover_class_helpers_verified(ssa, this.layout, this.functions, this.class_payloads, this.class_destroyers, this.class_payload_drops, this.intrinsic_shared, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.intrinsic_helpers_verified(ssa) || !this.slot_helpers_verified(ssa)) return false;
+		if (!recover_class_helpers_verified(ssa, this.layout, this.functions, this.class_payloads, this.class_destroyers, this.class_payload_drops, this.intrinsic_shared, this.shared_drops, this.slot_functions, this.class_snapshot, this.allocate_function, this.free_function, this.memcpy_function) || !this.shared_helpers_verified(ssa) || !this.intrinsic_helpers_verified(ssa) || !this.slot_helpers_verified(ssa) || !this.enum_helpers_verified(ssa)) return false;
 		if (!recover_record_storage_verified(ssa, this.module, this.layout, this.class_payloads, this.record_storage, this.trap_function)) return false;
 		if (len(this.foreign_functions) != ssa.cfg.core.flow.checked.bindings.symbol_count + 1 || this.foreign_functions[0] != null) return false;
 		int foreign_count = 0;
@@ -2198,7 +2317,8 @@ class RecoverLlvm {
 		}
 		int payload_drop_start = len(this.destroyers) + len(this.class_destroyers) + len(this.shared_drops) + len(this.slot_functions);
 		int record_start = payload_drop_start + len(this.class_payload_drops);
-		var destroyers = new void*[record_start + len(this.record_storage) * 3]; int d = 0;
+		int enum_start = record_start + len(this.record_storage) * 3;
+		var destroyers = new void*[enum_start + len(this.enum_drops)]; int d = 0;
 		while (d < len(this.destroyers)) {
 			destroyers[d] = this.destroyers[d];
 			d = d + 1;
@@ -2228,6 +2348,10 @@ class RecoverLlvm {
 			destroyers[record_start + d * 3 + 1] = this.record_storage[d].store_function;
 			destroyers[record_start + d * 3 + 2] = this.record_storage[d].index_function;
 			d = d + 1;
+		}
+		d = 0;
+		while (d < len(this.enum_drops)) {
+			destroyers[enum_start + d] = this.enum_drops[d]; d = d + 1;
 		}
 		if (!recover_llvm_function_inventory(this.module, this.functions, destroyers, helpers)) return false;
 		int n = 0; while (n < ssa.cfg.core.count) {

@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct each active variant's reverse field retirement from its source.
+// Module-local helper handles are candidates, not proof of their bodies.
+bool recover_enum_drop_verified(CheckedIndex checked, TypeId type, void* function, void*[] drops, void* free_function, void* trap_function) throws Error {
+	if (!enum_storage_owned(checked, type, 0) || !recover_llvm_helper_signature(function, 1) || LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, 0))) != 12 || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0) return false;
+	var name = llvm_name("astra.enum.drop.", type.index);
+	if (llvm13_named(function, name.text) != 1) return false;
+	var declaration = checked.bindings.symbol(checked.types.row(type).nominal);
+	var variants = checked.bindings.program.arena.get_list_variants(declaration.node);
+	int count = checked.bindings.program.arena.list_count(variants);
+	var blocks = recover_llvm_helper_blocks(function, 4 + count * 2);
+	if (len(blocks) != 4 + count * 2) return false;
+	var entry = recover_llvm_body(blocks[0], 2);
+	var tagged = recover_llvm_body(blocks[1], 3);
+	var fatal = recover_llvm_body(blocks[2], 2);
+	var done = recover_llvm_body(blocks[3], 1);
+	if (len(entry) != 2 || len(tagged) != 3 || len(fatal) != 2 || len(done) != 1) return false;
+	var address = LLVMGetParam(function, 0);
+	if (LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetICmpPredicate(entry[0]) != 33 || LLVMGetOperand(entry[0], 0) != address || LLVMIsNull(LLVMGetOperand(entry[0], 1)) == 0 || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[3])) return false;
+	if (LLVMGetInstructionOpcode(tagged[0]) != 29) return false;
+	var carrier = LLVMGetGEPSourceElementType(tagged[0]);
+	if (!recover_enum_llvm_type(checked, type, carrier) || !recover_llvm_field(tagged[0], carrier, address, 0) || !recover_llvm_load_field(tagged[1], carrier, address, 0) || LLVMGetOperand(tagged[1], 0) != tagged[0] || LLVMGetAlignment(tagged[1]) != 4 || !recover_llvm_scalar_type(checked, type_id(1), LLVMTypeOf(tagged[1])) || !recover_llvm_jump(tagged[2], blocks[4])) return false;
+	if (!recover_llvm_call(fatal[0], trap_function, 0, 0) || LLVMGetInstructionOpcode(fatal[1]) != 7 || !recover_llvm_void_return(done[0])) return false;
+	int v = 0;
+	while (v < count) {
+		var test = recover_llvm_body(blocks[4 + v * 2], 2);
+		void* next = blocks[2]; if (v + 1 < count) next = blocks[4 + (v + 1) * 2];
+		if (len(test) != 2 || LLVMGetInstructionOpcode(test[0]) != 42 || LLVMGetICmpPredicate(test[0]) != 32 || LLVMGetOperand(test[0], 0) != tagged[1] || !recover_llvm_bits(LLVMGetOperand(test[0], 1), 32, v as u64) || !recover_llvm_split(test[1], test[0], blocks[5 + v * 2], next)) return false;
+		var variant = checked.bindings.program.arena.node_at(variants, v);
+		var fields = checked.bindings.program.arena.get_list_fields(variant);
+		int f = 0; int instructions = 1;
+		while (f < checked.bindings.program.arena.list_count(fields)) {
+			var field = checked.bindings.program.arena.node_at(fields, f);
+			var symbol = checked.node_symbols[field.index];
+			if (enum_storage_owned(checked, checked.symbol_types[symbol.index], 0)) instructions = instructions + 3;
+			else {
+				if (checked.symbol_flags[symbol.index] == 4) instructions = instructions + 5;
+			}
+			f = f + 1;
+		}
+		var body = recover_llvm_body(blocks[5 + v * 2], instructions);
+		if (len(body) != instructions) return false;
+		int at = 0; f = checked.bindings.program.arena.list_count(fields) - 1;
+		while (f >= 0) {
+			var field = checked.bindings.program.arena.node_at(fields, f);
+			var symbol = checked.node_symbols[field.index];
+			var child = checked.symbol_types[symbol.index];
+			bool nested = enum_storage_owned(checked, child, 0);
+			if (nested || checked.symbol_flags[symbol.index] == 4) {
+				if (!recover_llvm_field(body[at], carrier, address, 1) || LLVMGetInstructionOpcode(body[at + 1]) != 29) return false;
+				var physical = LLVMGetGEPSourceElementType(body[at + 1]);
+				if (!recover_enum_variant_type(checked, checked.node_symbols[variant.index], physical) || !recover_llvm_field(body[at + 1], physical, body[at], f)) return false;
+				if (nested) {
+					if (child.index < 1 || child.index >= len(drops) || drops[child.index] == null || !recover_llvm_call(body[at + 2], drops[child.index], 1, 8) || LLVMGetArgOperand(body[at + 2], 0) != body[at + 1]) return false;
+					at = at + 3;
+				} else {
+					if (checked_kind(checked, child) != 22 || LLVMGetInstructionOpcode(body[at + 2]) != 27 || LLVMGetOperand(body[at + 2], 0) != body[at + 1] || LLVMGetAlignment(body[at + 2]) != 8 || !recover_storage_llvm_type(checked, child, LLVMTypeOf(body[at + 2])) || !recover_llvm_extract(body[at + 3], body[at + 2], 0) || !recover_llvm_call(body[at + 4], free_function, 1, 0) || LLVMGetArgOperand(body[at + 4], 0) != body[at + 3]) return false;
+					at = at + 5;
+				}
+			}
+			f = f - 1;
+		}
+		if (at != instructions - 1 || !recover_llvm_jump(body[at], blocks[3])) return false;
+		v = v + 1;
+	}
+	int b = 0;
+	while (b < len(blocks)) {
+		var instruction = LLVMGetFirstInstruction(blocks[b]);
+		while (instruction != null) {
+			if (LLVMHasMetadata(instruction) != 0) return false;
+			if (LLVMGetInstructionOpcode(instruction) == 27 && (LLVMGetVolatile(instruction) != 0 || LLVMGetOrdering(instruction) != 0)) return false;
+			instruction = LLVMGetNextInstruction(instruction);
+		}
+		b = b + 1;
+	}
+	return true;
+}
