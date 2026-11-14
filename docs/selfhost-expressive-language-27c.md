@@ -1316,3 +1316,61 @@ temporary receiver borrow used by its existing fail method. This preserves the
 original loan rule and does not change proof acceptance. The failed source and
 receipt remain attributed to f2f0421; complete corrected-source preflight and
 optimized construction remain required.
+
+Dev14 completes from dd31bc34aa19794da4ad9c9c4636ab6a3144e2b5 (tree
+88d8ce34da5c9d5953639ada71c28b11c50fb091), freezing 220 compiler sources and
+ten libraries. Current C0 semantic/Core preflights pass in 75.571/94.546 seconds;
+optimized construction takes 3957.330 seconds, IR verification 1.176, object
+generation 7.915 and linking 0.345. The construction receipt records 3932.34
+user CPU seconds, 1.40 system seconds and 2779164 KiB peak RSS. Actual executable
+SHA-256 is 3aa938d1b053475be81385be96aa0242b5034b43956c5359d9b4e5018c22171d;
+retained optimized C0 IR is
+fef9f01d02df5e1edf3b26fb4c4d700d9693df2f47290a7ccfd533ddab31135e.
+Its actual version identifies 27-C expressive development, GNU/Linux x86-64,
+E25-A-v1 and LLVM 23. This is a genuine C0-built product; its build receipt alone
+still grants no complete compiler or milestone qualification.
+
+All seven actual interpolation sites now pass dev14 O0/O2 ELF execution, expanded
+C0 comparisons, independent LLVM verification, strict returning compiler/target
+memory and seven semantic negatives (selfhost27c-format-dev14-1). They cover
+scalar sink costs, source order and borrowed messages, throwing operands, owned
+text, finite-number policy, invalid UTF-8 and fresh-owner abort. All memory
+streams have zero live bytes, errors and suppressions. The six prepared actual
+LLVM corruptions and two controls also pass their independent checks
+(selfhost27c-format-physical-dev14-1): LLVM accepts structure, while the physical
+consumer refuses wrong fragment length, finite mask, failure edge, owned output,
+retirement and error channel with the sentinel intact. Corrupted targets are
+not executed and receive no memory credit.
+
+The first named-enum native leaf retains a test using payload statement match,
+which the existing bounded statement-match domain defers. Read-only diagnostics
+locate its Flow status 3/boundary 48 before child verification; the named payload
+construction and foreign argument calls have already been built. The modern
+specimens now use the qualified expression-match form, retaining identical
+evaluation/allocation assertions and unchanged expanded C0 statement references.
+All five cases pass actual O0/O2, LLVM, expanded C0 and strict returning memory,
+with all fourteen named-call negatives refused
+(selfhost27c-named-enum-dev14-2). They prove reversed lexical order, mixed scalar
+widths, fresh abort, restored reservations and owning success. Two actual
+LLVM-valid payload-slot/retirement mutations are independently refused after
+two unchanged controls (selfhost27c-enum-physical-dev14-1). The earlier failed
+leaf is not relabelled as accepted execution.
+
+The actual production driver's formatting/dump CLI passes the existing external
+token/comment/AST and stability guards on all 61 current modern specimens
+(selfhost27c-formatter-modern-dev14). It independently refuses 879 parser-negative
+specimens with no formatted stdout, and five representative CLI paths pass
+strict returning memory, including multiline interpolation, a factory and
+invalid encoding (selfhost27c-formatter-negative-dev14). The existing C0 and
+separately qualified formatter5 pins remain unchanged; these production CLI
+pilots do not silently select or repin a formatter.
+
+Dev15 is the genuine Astra rebuild of that same committed compiler/library
+source graph using the exact dev14 executable. Its C0 semantic oracle passes
+in 77.604 seconds. A separately dated read-only /proc receipt authenticates the
+active Astra producer, exact 230-input argv/bytes, disabled preload/cache/
+suppressions, absence of imported process-launch functions and mapped LLVM SHA
+3149b73c3118dee2d2829a210b422ca89a4aa0064b57e77936ede12bdcfe750d.
+This active build earns no successful generation credit before it finishes.
+Idiomatic migration, full stable qualification, installed publication and a
+separate newly dated post-delivery G7 remain outstanding.

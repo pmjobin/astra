@@ -148,7 +148,7 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	prior.GDB = prior.GDB.replace(needle, mutations+needle)
 	extra = []
 	if options.feature == 'enum':
-		prior.COMPOUND = 'enum Pair { Data(int first,int last) } int main() { var pair = Pair.Data(last: 22,first: 20); match (pair) { case Pair.Data(first,last): { return first+last; } } }\n'
+		prior.COMPOUND = 'enum Pair { Data(int first,int last) } int main() { var pair = Pair.Data(last: 22,first: 20); return match (pair) { case Pair.Data(first,last) => first+last; }; }\n'
 		prior.INTRINSIC = '''[ExceptionRoot] class Error {
 	readonly string text;
 	init(string message) { this.text = message; }

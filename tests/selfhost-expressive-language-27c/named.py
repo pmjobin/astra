@@ -1118,13 +1118,13 @@ ENUM_MARKER = TICKS+'''int mark(bool fail) throws Error { int observed = tick(9)
 CASES.extend([
 	('named-enum-order', TICKS+'''extern(C) int allocation_calls();
 enum Pair { Data(int first, int last) }
-int main() { reset_trace(); var pair = Pair.Data(last: tick(2), first: tick(4)); if (trace() != 24 || allocation_calls() != 0) return 1; match (pair) { case Pair.Data(first,last): { return first*10+last; } } }
+int main() { reset_trace(); var pair = Pair.Data(last: tick(2), first: tick(4)); if (trace() != 24 || allocation_calls() != 0) return 1; return match (pair) { case Pair.Data(first,last) => first*10+last; }; }
 ''', TICKS+'''extern(C) int allocation_calls();
 enum Pair { Data(int first, int last) }
 int main() { reset_trace(); int last = tick(2); int first = tick(4); var pair = Pair.Data(first,last); if (trace() != 24 || allocation_calls() != 0) return 1; match (pair) { case Pair.Data(left,right): { return left*10+right; } } }
 ''', False),
 	('named-enum-mixed-tail', '''enum Mixed { Data(int first, bool enabled, f64 real) }
-int main() { var value = Mixed.Data(20, real: 22.0d, enabled: true); match (value) { case Mixed.Data(first,enabled,real): { if (enabled && first == 20 && real == 22.0d) return 42; return 1; } } }
+int main() { var value = Mixed.Data(20, real: 22.0d, enabled: true); return match (value) { case Mixed.Data(first,enabled,real) => enabled && first == 20 && real == 22.0d ? 42 : 1; }; }
 ''', '''enum Mixed { Data(int first, bool enabled, f64 real) }
 int main() { var value = Mixed.Data(20,true,22.0d); match (value) { case Mixed.Data(first,enabled,real): { if (enabled && first == 20 && real == 22.0d) return 42; return 1; } } }
 ''', False),
