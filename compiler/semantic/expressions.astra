@@ -611,6 +611,12 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 	int error_kind = checked_kind(index, signature.error);
 	if ((error_kind != 31 && error_kind != 34) || !index.types.valid_id(signature.callable)) return no_type();
 	var callable = index.types.row(signature.callable);
+	var written_arguments = checked_call_written_arguments(index, node);
+	int written_count = index.bindings.program.arena.list_count(written_arguments);
+	if (!checked_named_arguments_verified(index, node, target, written_count)) {
+		index.fail(index.bindings.program.arena.header(node).span, "invalid named argument mapping");
+		return no_type();
+	}
 	var arguments = checked_call_arguments(index, node);
 	if (callable.kind != 25 || callable.count < 1 || index.bindings.program.arena.list_count(arguments) != callable.count - 1) return no_type();
 	var result = index.types.argument(index.types, signature.callable, 0);
@@ -620,8 +626,10 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 	// needs a Flow proof, but reject a known mismatched argument immediately.
 	int argument = 0;
 	while (argument < callable.count - 1 && !index.failed()) {
-		var child = index.bindings.program.arena.node_at(arguments, argument);
-		var parameter = index.types.argument(index.types, signature.callable, argument + 1);
+		int parameter_slot = checked_named_argument_slot(index, node, target, callable.count - 1, argument);
+		if (parameter_slot < 0 || parameter_slot >= callable.count - 1) return no_type();
+		var child = index.bindings.program.arena.node_at(arguments, parameter_slot);
+		var parameter = index.types.argument(index.types, signature.callable, parameter_slot + 1);
 		var actual = checked_expression(index, child, parameter.type, depth + 1);
 		checked_mismatch(index, index.bindings.program.arena.header(child).span, parameter.type, actual, "argument");
 		argument = argument + 1;
@@ -653,6 +661,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 && (checked_shared_action(index, node) != 0 || checked_slice_intrinsic(index, node) || class_storage_slot_action(index, node) > 0 || checked_flow_intrinsic(index, node))) {
+		index.fail(index.bindings.program.arena.header(node).span, "intrinsic call has no declared parameter labels");
+		return no_type();
+	}
 	if (index.flow_adapters && checked_shared_action(index, node) != 0) return checked_shared_call(index, node, depth);
 	if (index.field_effects) {
 		var type = checked_enum_call(index, node);
@@ -702,6 +714,12 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 		return no_type();
 	}
 	var signature = index.types.descriptor(index.types, type);
+	var written_arguments = checked_call_written_arguments(index, node);
+	int written_count = index.bindings.program.arena.list_count(written_arguments);
+	if (!checked_named_arguments_verified(index, node, target, written_count)) {
+		index.fail(index.bindings.program.arena.header(node).span, "named arguments require unique declared parameter labels and every required argument");
+		return no_type();
+	}
 	var arguments = checked_call_arguments(index, node);
 	int count = index.bindings.program.arena.list_count(arguments);
 	int required = signature.count - 1;
@@ -725,8 +743,10 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 	int deferred_reason = 15;
 	i = 0;
 	while (i < count && !index.failed()) {
-		var child = index.bindings.program.arena.node_at(arguments, i);
-		var parameter = index.types.argument(index.types, type, i + 1);
+		int parameter_slot = checked_named_argument_slot(index, node, target, count, i);
+		if (parameter_slot < 0 || parameter_slot >= count) return no_type();
+		var child = index.bindings.program.arena.node_at(arguments, parameter_slot);
+		var parameter = index.types.argument(index.types, type, parameter_slot + 1);
 		var actual = checked_expression(index, child, parameter.type, depth + 1);
 		deferred = deferred || actual.index == 0;
 		int contract = checked_contract(index, child, parameter.flags);

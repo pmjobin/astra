@@ -302,8 +302,13 @@ int flowsem_construction(borrowed FlowGraph graph, CheckedIndex checked, int[] o
 	int head = graph.add(marker);
 	int i = checked.bindings.program.arena.list_count(arguments) - 1;
 	while (i >= 0) {
-		var argument = checked.bindings.program.arena.node_at(arguments, i);
-		var parameter = checked.types.argument(checked.types, signature.callable, i + offset);
+		int parameter_slot = checked_named_argument_slot(checked, node, constructor, checked.bindings.program.arena.list_count(arguments), i);
+		if (parameter_slot < 0) {
+			graph.defer(node, 6);
+			return head;
+		}
+		var argument = checked.bindings.program.arena.node_at(arguments, parameter_slot);
+		var parameter = checked.types.argument(checked.types, signature.callable, parameter_slot + offset);
 		head = flowsem_demand(graph, checked, argument, parameter.flags, region, head);
 		if ((parameter.flags & 4) != 0) {
 			if (!flowsem_owner_producer(checked, argument)) graph.fail(5, checked.bindings.program.arena.header(argument).span);

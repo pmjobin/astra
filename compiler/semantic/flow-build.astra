@@ -266,11 +266,16 @@ int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origin
 	}
 	int i = checked.bindings.program.arena.list_count(arguments) - 1;
 	while (i >= 0 && !graph.exhausted) {
-		var argument = checked.bindings.program.arena.node_at(arguments, i);
-		var parameter = checked.types.argument(checked.types, signature.callable, i + 1);
+		int parameter_slot = checked_named_argument_slot(checked, node, target, checked.bindings.program.arena.list_count(arguments), i);
+		if (parameter_slot < 0) {
+			graph.defer(node, 6);
+			return head;
+		}
+		var argument = checked.bindings.program.arena.node_at(arguments, parameter_slot);
+		var parameter = checked.types.argument(checked.types, signature.callable, parameter_slot + 1);
 		if ((parameter.flags & 4) != 0 && checked_kind(checked, parameter.type) == 31) {
 			var params = checked.bindings.program.arena.get_list_parameters(symbol.node);
-			var param_node = checked.bindings.program.arena.node_at(params, i);
+			var param_node = checked.bindings.program.arena.node_at(params, parameter_slot);
 			var param_symbol = checked.node_symbols[param_node.index];
 			int origin = class_origins[param_symbol.index];
 			if (origin == 0 || (origin & 12) != 0) {

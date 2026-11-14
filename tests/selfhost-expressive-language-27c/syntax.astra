@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+owned SyntaxProgram expressive_program(string text) throws Error {
+	var bytes = new u8[text.byte_length];
+	int i = 0;
+	while (i < len(bytes)) {
+		bytes[i] = astra_host_text_byte(text, i) as u8;
+		i = i + 1;
+	}
+	var buffer = source_buffer("expressive-input", move bytes, false);
+	var retained = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1);
+	var entry = new SourceEntry(move retained);
+	assert_that(entries.append(move entry));
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	return move program;
+}
+
+void expressive_argument_labels() throws Error {
+	var program = expressive_program("language astra27b; int pick(int first, int last) { return first; } int main() { return pick(last: 22, first: 20); }");
+	assert_that(!program.failed() && syntax_program_languages_verified(program));
+	int calls = 0;
+	int i = 1;
+	while (i <= program.arena.node_count) {
+		SyntaxNodeId node = {index = i};
+		if (program.arena.kind(node) == SyntaxKind.CallExpressionSyntax()) {
+			assert_that(syntax_call_labels_verified(program.arena, node));
+			var names = program.arena.get_list_argument_names(node);
+			var colons = program.arena.get_list_argument_colons(node);
+			var arguments = program.arena.get_list_arguments(node);
+			assert_that(program.arena.list_count(names) == 2 && program.arena.list_count(colons) == 2 && program.arena.list_count(arguments) == 2);
+			assert_that(program.arena.token_is(program.arena.token_at(names, 0), "last"));
+			assert_that(program.arena.token_is(program.arena.token_at(names, 1), "first"));
+			assert_that(program.arena.token_is(program.arena.token_at(colons, 0), ":"));
+			assert_that(program.arena.token_is(program.arena.get_token_literal(program.arena.node_at(arguments, 0)), "22"));
+			assert_that(program.arena.token_is(program.arena.get_token_literal(program.arena.node_at(arguments, 1)), "20"));
+			SyntaxListId absent = {index = 0};
+			program.arena.set_argument_labels(node, absent, absent);
+			assert_that(!syntax_call_labels_verified(program.arena, node));
+			program.arena.set_argument_labels(node, names, colons);
+			assert_that(syntax_call_labels_verified(program.arena, node));
+			var reversed = program.arena.new_list(-1);
+			program.arena.append_token(reversed, program.arena.token_at(names, 1));
+			program.arena.append_token(reversed, program.arena.token_at(names, 0));
+			program.arena.set_argument_labels(node, reversed, colons);
+			assert_that(!syntax_call_labels_verified(program.arena, node));
+			program.arena.set_argument_labels(node, names, colons);
+			assert_that(syntax_call_labels_verified(program.arena, node));
+			calls = calls + 1;
+		}
+		i = i + 1;
+	}
+	assert_that(calls == 1);
+	var construction = expressive_program("language astra27b; class Item { init(int first, int last) {} } int main() { var value = new Item(last: 22, first: 20); return 42; }");
+	assert_that(!construction.failed());
+	int heaps = 0;
+	i = 1;
+	while (i <= construction.arena.node_count) {
+		SyntaxNodeId node = {index = i};
+		if (construction.arena.kind(node) == SyntaxKind.HeapObjectConstructionSyntax()) {
+			assert_that(construction.arena.list_count(construction.arena.get_list_argument_names(node)) == 2);
+			assert_that(syntax_call_labels_verified(construction.arena, node));
+			heaps = heaps + 1;
+		}
+		i = i + 1;
+	}
+	assert_that(heaps == 1);
+	var mixed = expressive_program("language astra27b; int main() { return choose(1, last: 2, middle: 3,); }");
+	assert_that(!mixed.failed());
+	var generic = expressive_program("language astra27b; int main() { return identity<int>(value: 42); }");
+	assert_that(!generic.failed());
+	var duplicate = expressive_program("language astra27b; int main() { return choose(first: 1, first: 2); }");
+	assert_that(duplicate.failed());
+	var positional = expressive_program("language astra27b; int main() { return choose(first: 1, 2); }");
+	assert_that(positional.failed());
+	var missing = expressive_program("language astra27b; int main() { return choose(first:); }");
+	assert_that(missing.failed());
+	var legacy = expressive_program("language legacy27a; int main() { return choose(first: 42); }");
+	assert_that(legacy.failed());
+}
+
+int main() {
+	try {
+		expressive_argument_labels();
+		return 42;
+	} catch (Error error) {
+		return 1;
+	}
+}

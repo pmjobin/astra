@@ -675,7 +675,12 @@ SymbolId generic_select_call(CheckedIndex index, SyntaxNodeId node, SymbolId tar
 		while (i < index.bindings.program.arena.list_count(arguments)) {
 			var actual = checked_expression(index, index.bindings.program.arena.node_at(arguments, i), no_type(), depth + 1);
 			if (actual.index == 0) return type_symbol(0);
-			if (!generic_unify(index, target, enclosing, index.types.argument(index.types, callable, i + 1).type, actual, args, 0)) {
+			int parameter_slot = checked_named_argument_slot(index, node, target, index.bindings.program.arena.list_count(arguments), i);
+			if (parameter_slot < 0 || parameter_slot >= index.bindings.program.arena.list_count(arguments)) {
+				index.fail(index.uses[node.index].span, "generic named argument does not identify a declared parameter");
+				return type_symbol(0);
+			}
+			if (!generic_unify(index, target, enclosing, index.types.argument(index.types, callable, parameter_slot + 1).type, actual, args, 0)) {
 				index.fail(index.uses[node.index].span, "conflicting or unavailable generic argument inference");
 				return type_symbol(0);
 			}

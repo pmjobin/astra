@@ -178,14 +178,20 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 	}
 	i = 0;
 	while (i < row.count && core.status == 0) {
-		var source = checked.bindings.program.arena.node_at(list, i);
+		int slot = i;
+		if (row.kind == 9) slot = checked_named_argument_slot(checked, row.source, row.symbol, row.count, i);
+		if (slot < 0 || slot >= row.count) {
+			core.status = 4;
+			break;
+		}
+		var source = checked.bindings.program.arena.node_at(list, slot);
 		CoreEdge edge = {child = 0, label = {index = 0}, mode = 0};
 		int child_call = 0;
 		if (row.kind == 9) {
-			var parameter_node = checked.bindings.program.arena.node_at(params, i);
+			var parameter_node = checked.bindings.program.arena.node_at(params, slot);
 			edge.label = checked.node_symbols[parameter_node.index];
 			var signature = checked.signatures[row.signature.index - 1];
-			var parameter = checked.types.argument(checked.types, signature.callable, i + 1);
+			var parameter = checked.types.argument(checked.types, signature.callable, slot + 1);
 			edge.mode = parameter.flags;
 			child_call = id;
 		}
@@ -197,7 +203,7 @@ CoreNode core_lower_list(CoreData core, CheckedIndex checked, borrowed FlowGraph
 			source = initializer;
 		}
 		edge.child = core_lower_tree(core, checked, graph, source, function, loop, child_call, depth + 1);
-		core.edges[row.first + i] = edge;
+		core.edges[row.first + slot] = edge;
 		i = i + 1;
 	}
 	return row;

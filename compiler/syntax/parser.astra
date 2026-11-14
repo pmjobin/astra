@@ -6346,10 +6346,36 @@ class SyntaxParser {
 		}
 		var v_arguments_12 = arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 		var v_commas_13 = arena.new_list(-1);
+		var argument_names = arena.new_list(-1);
+		var argument_colons = arena.new_list(-1);
 		if ((this.token_kind(arena, this.current) != TokenKind.CLOSE_PAREN())) {
 			while (true) {
 				if (!(true)) {
 					break;
+				}
+				bool labelled = this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.COLON());
+				if (labelled) {
+					var name = this.current;
+					int label = 0;
+					while (label < arena.list_count(argument_names)) {
+						var previous = arena.token_message(arena.token_at(argument_names, label));
+						var current_name = arena.token_message(name);
+						if (previous.text == current_name.text) {
+							this.fail(arena, this.token_span(arena, name), "duplicate named argument");
+							return syntax_no_node();
+						}
+						label = label + 1;
+					}
+					if (!this.advance(arena)) return syntax_no_node();
+					var colon = this.expect(arena, TokenKind.COLON(), "expected ':' after argument label");
+					if (colon.index == 0) return syntax_no_node();
+					arena.append_token(argument_names, name);
+					arena.append_token(argument_colons, colon);
+				} else {
+					if (arena.list_count(argument_names) != 0) {
+						this.fail(arena, this.token_span(arena, this.current), "positional argument follows named argument");
+						return syntax_no_node();
+					}
 				}
 				SyntaxNodeId tmp_14 = {index = 0};
 				if ((this.token_kind(arena, this.current) == TokenKind.MOVE())) {
@@ -6390,9 +6416,12 @@ class SyntaxParser {
 			return tmp_21;
 		}
 		if (arg_construction) {
-			return arena.try_kind(this.bounded(arena, syntax_make_ConstructorInitializerSyntax(arena, param_identifier, v_open_10, v_arguments_12, v_commas_13, v_close_20, param_receiver, param_member_operator), this.token_span(arena, param_identifier)), SyntaxKind.CallExpressionSyntax());
+			var initializer = syntax_make_ConstructorInitializerSyntax(arena, param_identifier, v_open_10, v_arguments_12, v_commas_13, v_close_20, param_receiver, param_member_operator);
+			arena.set_argument_labels(initializer, argument_names, argument_colons);
+			return arena.try_kind(this.bounded(arena, initializer, this.token_span(arena, param_identifier)), SyntaxKind.CallExpressionSyntax());
 		}
 		var v_call_22 = syntax_make_CallExpressionSyntax(arena, param_identifier, v_open_10, v_arguments_12, v_commas_13, v_close_20, param_receiver, param_member_operator, param_receiver_place);
+		arena.set_argument_labels(v_call_22, argument_names, argument_colons);
 		arena.set_list_type_arguments(v_call_22, v_type_arguments_8);
 		return arena.try_kind(this.bounded(arena, v_call_22, this.token_span(arena, param_identifier)), SyntaxKind.CallExpressionSyntax());
 	}
@@ -6957,6 +6986,7 @@ class SyntaxParser {
 				if ((v_call_26.index == 0)) {
 				} else {
 					tmp_27 = this.bounded(arena, syntax_make_HeapObjectConstructionSyntax(arena, v_token_1, v_element_21, arena.get_list_arguments(v_call_26), arena.get_token_close_paren(v_call_26), v_allocation_context_17), this.token_span(arena, v_token_1));
+					if (tmp_27.index != 0) arena.set_argument_labels(tmp_27, arena.get_list_argument_names(v_call_26), arena.get_list_argument_colons(v_call_26));
 				}
 				return tmp_27;
 			}

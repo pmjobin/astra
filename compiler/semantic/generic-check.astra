@@ -357,7 +357,9 @@ bool generic_calls_verified(CheckedIndex index) {
 				var source_arguments = index.bindings.program.arena.get_list_arguments(node);
 				int a = 0;
 				while (a < index.bindings.program.arena.list_count(source_arguments)) {
-					if (index.bindings.program.arena.node_at(source_arguments, a).index != index.bindings.program.arena.node_at(normalized, a + 1).index) return false;
+					int parameter_slot = checked_named_argument_slot(index, node, target, index.bindings.program.arena.list_count(normalized), a + 1);
+					if (parameter_slot < 0 || parameter_slot >= index.bindings.program.arena.list_count(normalized)) return false;
+					if (index.bindings.program.arena.node_at(source_arguments, a).index != index.bindings.program.arena.node_at(normalized, parameter_slot).index) return false;
 					a = a + 1;
 				}
 				var hidden = index.bindings.program.arena.node_at(normalized, 0);
@@ -376,7 +378,9 @@ bool generic_calls_verified(CheckedIndex index) {
 			int i = 0;
 			while (i < index.bindings.program.arena.list_count(arguments)) {
 				var argument = index.bindings.program.arena.node_at(arguments, i);
-				if (!source_type_matches(index, plan, index.types.argument(index.types, signature, i + 1).type, index.uses[argument.index].type, 0)) return false;
+				int parameter_slot = checked_named_argument_slot(index, node, plan.origin, index.bindings.program.arena.list_count(arguments), i);
+				if (parameter_slot < 0 || parameter_slot >= index.bindings.program.arena.list_count(arguments)) return false;
+				if (!source_type_matches(index, plan, index.types.argument(index.types, signature, parameter_slot + 1).type, index.uses[argument.index].type, 0)) return false;
 				i = i + 1;
 			}
 			var explicit = index.bindings.program.arena.get_list_type_arguments(node);

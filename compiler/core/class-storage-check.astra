@@ -43,9 +43,10 @@ bool core_verify_class(CoreData core, CheckedIndex checked, int[] proofs, CoreNo
 		}
 		return core_source_place(core, checked, function, receiver, 0) == row.place;
 	}
-	var arguments = checked.bindings.program.arena.get_list_arguments(source);
+	var arguments = checked_call_arguments(checked, source);
 	SyntaxListId parameters = {index = 0};
 	if (row.kind == 13) {
+		if (!syntax_call_labels_verified(checked.bindings.program.arena, source) || !checked_named_arguments_verified(checked, source, row.symbol, row.count)) return false;
 		if (!class_storage_source_verified(checked, row.type, false, 0) || row.flags != 4 || row.symbol.index < 1 || row.symbol.index > checked.bindings.symbol_count || !class_storage_constructor_verified(checked, row.symbol)) return false;
 		var plan = checked_source_plan(checked, row.symbol);
 		if (plan.concrete.index != row.symbol.index || plan.enclosing.index != row.type.index) return false;

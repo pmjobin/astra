@@ -155,7 +155,7 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 		if (constructor.index < 1 || plan.concrete.index != constructor.index || plan.enclosing.index != type.index || !class_storage_initializing(checked, constructor)) return false;
 		int ordinal = checked.symbol_signatures[constructor.index].index;
 		if (ordinal < 1 || ordinal > checked.signature_count) return false;
-		var signature = checked.signatures[ordinal - 1]; var arguments = checked.bindings.program.arena.get_list_arguments(node);
+		var signature = checked.signatures[ordinal - 1]; var arguments = checked_call_arguments(checked, node);
 		if (signature.declaration.index != constructor.index || signature.callable.index != checked.symbol_types[constructor.index].index || signature.dispatch != 0 || signature.flags != 0 || signature.error.index != 0 || checked.types.row(signature.callable).count != checked.bindings.program.arena.list_count(arguments) + 2) return false;
 		var result = checked.types.argument(checked.types, signature.callable, 0); var receiver = checked.types.argument(checked.types, signature.callable, 1);
 		if (result.type.index != 14 || result.flags != 0 || receiver.type.index != type.index || receiver.flags != 2) return false;
@@ -179,7 +179,7 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 		if (place.index < 1 || checked.bindings.program.arena.kind(place) != SyntaxKind.FieldAccessExpressionSyntax() || checked.bindings.program.arena.get_node_aggregate(place).index != 0 || !checked.bindings.program.arena.token_is(checked.bindings.program.arena.get_token_identifier(place), "this")) return false;
 		var field = checked_target(checked, place, checked.bindings.program.arena.get_token_field_name(place));
 		if (field.index < 1 || field.index >= len(initialized) || !initialized[field.index] || checked.bindings.symbol(field).kind != 6 || checked.bindings.symbol(field).owner.index != checked.types.row(aggregate).nominal.index || !recover_storage_slots(checked, checked.symbol_types[field.index], 0) || recover_field_receiver(checked, place, function).index != class_storage_receiver(checked, function)) return false;
-		var arguments = checked.bindings.program.arena.get_list_arguments(node);
+		var arguments = checked_call_arguments(checked, node);
 		if (checked.bindings.program.arena.list_count(arguments) != 1) return false;
 		var capacity = checked.bindings.program.arena.node_at(arguments, 0);
 		return checked.uses[capacity.index].type.index == 1 && recover_constructor_value_at(checked, capacity, function, aggregate, initialized, handled, depth + 1);

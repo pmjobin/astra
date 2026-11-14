@@ -162,7 +162,13 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 									int fatal = cfg.block(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0);
 									head = cfg.block(row.function, id, 16, cfg.core.flow.data.edges[row.first], 0, head, fatal, 0, 0, 0);
 								}
-								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + i], head, depth + 1);
+								int slot = i;
+								if (row.kind == 4 || row.kind == 50 || recover_constructor_kind(row.kind)) slot = checked_named_argument_slot(cfg.core.flow.checked, row.source, row.symbol, row.count, i);
+								if (slot < 0 || slot >= row.count) {
+									cfg.status = 4;
+									break;
+								}
+								head = recover_cfg_tree(cfg, cfg.core.flow.data.edges[row.first + slot], head, depth + 1);
 								i = i - 1;
 							}
 							if (row.kind == 17 || row.kind == 18) head = recover_cfg_field_guard(cfg, id, head);

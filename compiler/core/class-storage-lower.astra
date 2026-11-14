@@ -57,7 +57,7 @@ CoreNode core_lower_class(CoreData core, CheckedIndex checked, borrowed FlowGrap
 		if (row.place == 0) core.status = 3;
 		return row;
 	}
-	var arguments = checked.bindings.program.arena.get_list_arguments(source);
+	var arguments = checked_call_arguments(checked, source);
 	SyntaxListId parameters = {index = 0};
 	if (class_storage_slot_call_present(checked, source)) {
 		row.kind = 16; row.target = class_storage_slot_action(checked, source);
@@ -91,18 +91,24 @@ CoreNode core_lower_class(CoreData core, CheckedIndex checked, borrowed FlowGrap
 	}
 	i = 0;
 	while (i < row.count && core.status == 0) {
+		int slot = i;
+		if (row.kind == 13) slot = checked_named_argument_slot(checked, row.source, row.symbol, row.count, i);
+		if (slot < 0 || slot >= row.count) {
+			core.status = 4;
+			break;
+		}
 		CoreEdge edge = {child = 0, label = {index = 0}, mode = 0};
 		if (row.kind == 13) {
-			var parameter = checked.bindings.program.arena.node_at(parameters, i + 1); edge.label = checked.node_symbols[parameter.index];
-			var signature = checked.signatures[row.signature.index - 1]; edge.mode = checked.types.argument(checked.types, signature.callable, i + 2).flags;
+			var parameter = checked.bindings.program.arena.node_at(parameters, slot + 1); edge.label = checked.node_symbols[parameter.index];
+			var signature = checked.signatures[row.signature.index - 1]; edge.mode = checked.types.argument(checked.types, signature.callable, slot + 2).flags;
 		} else {
 			if (row.target == 2 || row.target == 4 && i == 1) {
 				var element = checked.types.argument(checked.types, core.places[row.place - 1].type, 0);
 				if (checked_kind(checked, element.type) != 30) edge.mode = 4;
 			}
 		}
-		edge.child = core_lower_tree(core, checked, graph, checked.bindings.program.arena.node_at(arguments, i), function, loop, id, depth + 1);
-		core.edges[row.first + i] = edge; i = i + 1;
+		edge.child = core_lower_tree(core, checked, graph, checked.bindings.program.arena.node_at(arguments, slot), function, loop, id, depth + 1);
+		core.edges[row.first + slot] = edge; i = i + 1;
 	}
 	return row;
 }

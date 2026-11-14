@@ -17,8 +17,9 @@ bool recover_owner_source_with_bindings(RecoverFlowData flow, CheckedIndex check
 		var declaration = checked.bindings.symbol(row.symbol); return (declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index == flow.functions[function - 1].symbol.index && checked.symbol_flags[row.symbol.index] == 4 && row.type.index == checked.symbol_types[row.symbol.index].index && recover_storage_channel(checked, row.type, 4, false);
 	}
 	if (recover_constructor_kind(row.kind)) {
+		if (!syntax_call_labels_verified(checked.bindings.program.arena, source) || !checked_named_arguments_verified(checked, source, row.symbol, row.count)) return false;
 		if (kind != SyntaxKind.HeapObjectConstructionSyntax() || row.a != 0 || row.kind == 11 && !recover_storage_class(checked, row.type) || row.kind == 67 && !error_storage_class(checked, row.type) || checked.bindings.program.arena.get_node_allocation_context(source).index != 0 || checked.bindings.program.arena.get_bool_fallible(source) || row.symbol.index < 1 || row.symbol.index != checked_constructor(checked, row.type).index || !recover_field_constructor_source(checked, row.symbol)) return false;
-		var arguments = checked.bindings.program.arena.get_list_arguments(source); if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
+		var arguments = checked_call_arguments(checked, source); if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
 		var signature = checked.signatures[checked.symbol_signatures[row.symbol.index].index - 1]; if (checked.types.row(signature.callable).count != row.count + 2) return false;
 		int i = 0;
 		while (i < row.count) {
@@ -48,7 +49,7 @@ bool recover_slot_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 	SyntaxNodeId receiver = {index = 0}; SyntaxListId arguments = {index = 0}; int action = 0;
 	if (row.kind == 69) {
 		if (!class_storage_slot_call_present(checked, source) || row.token.index != checked.bindings.program.arena.get_token_identifier(source).index || checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_type_arguments(source)) != 0) return false;
-		action = class_storage_slot_action(checked, source); receiver = checked.bindings.program.arena.get_node_receiver_place(source); arguments = checked.bindings.program.arena.get_list_arguments(source);
+		action = class_storage_slot_action(checked, source); receiver = checked.bindings.program.arena.get_node_receiver_place(source); arguments = checked_call_arguments(checked, source);
 		int count = 2; if (action == 4) count = 3;
 		if (row.count != count || checked.bindings.program.arena.list_count(arguments) != count - 1) return false;
 	} else {

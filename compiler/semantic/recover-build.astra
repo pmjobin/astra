@@ -66,7 +66,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		var arguments = checked_call_arguments(checked, source);
 		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 			row.kind = 5; row.symbol = checked_effect_class(checked, checked.bindings.program.arena.get_node_class_name(source));
-			arguments = checked.bindings.program.arena.get_list_arguments(source);
+			arguments = checked_call_arguments(checked, source);
 			if (recover_error_shape(checked, row.symbol, 0)) {
 				var initializer = recover_error_initializer(checked, row.symbol);
 				if (checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_parameters(initializer)) == 0 && checked.bindings.program.arena.list_count(arguments) == 0) arguments = checked.bindings.program.arena.get_list_base_arguments(initializer);
@@ -82,7 +82,15 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		var children = new int[count];
 		int i = 0;
 		while (i < count && flow.status == 0) {
-			if (i < written) children[i] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, i), function, handler, caught, depth + 1);
+			if (i < written) {
+				var target = checked_named_call_target(checked, source);
+				int slot = checked_named_argument_slot(checked, source, target, written, i);
+				if (slot < 0 || slot >= written) {
+					flow.status = 4;
+					break;
+				}
+				children[slot] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, slot), function, handler, caught, depth + 1);
+			}
 			else {
 				var declaration = checked.bindings.symbol(row.symbol);
 				var parameters = checked.bindings.program.arena.get_list_parameters(declaration.node);

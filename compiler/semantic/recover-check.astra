@@ -220,7 +220,7 @@ bool recover_child_calls_with_bindings(RecoverFlowData flow, CheckedIndex checke
 	}
 	if (row.kind == 50) {
 		if (row.a != 0 || row.symbol.index < 1 || !recover_foreign_call(checked, source, row.symbol, row.type)) return false;
-		var arguments = checked.bindings.program.arena.get_list_arguments(source);
+		var arguments = checked_call_arguments(checked, source);
 		if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
 		int p = 0;
 		while (p < row.count) {

@@ -12,17 +12,21 @@ bool recover_foreign_counted(CheckedIndex checked, TypeId type) { return type.in
 
 bool recover_foreign_call(CheckedIndex checked, SyntaxNodeId source, SymbolId symbol, TypeId result) {
 	if (checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax() || !recover_foreign_source(checked, symbol)) return false;
+	if (!syntax_call_labels_verified(checked.bindings.program.arena, source)) return false;
+	var written_arguments = checked_call_written_arguments(checked, source);
+	if (!checked_named_arguments_verified(checked, source, symbol, checked.bindings.program.arena.list_count(written_arguments))) return false;
 	var syntax = checked.bindings.program.arena.call_expression(source);
 	if (syntax.f_signal_emission || syntax.f_receiver_place.index != 0 || syntax.f_receiver.index != 0 || checked.bindings.program.arena.list_count(syntax.f_qualifier_arguments) != 0 || checked.bindings.program.arena.list_count(syntax.f_type_arguments) != 0 || checked_target(checked, source, syntax.f_identifier).index != symbol.index) return false;
 	var signature = checked.signatures[checked.symbol_signatures[symbol.index].index - 1];
 	var channel = checked.types.argument(checked.types, signature.callable, 0);
 	var use = checked.uses[source.index];
 	if (channel.type.index != result.index || use.type.index != result.index || use.flags != 0 || use.deferred != 0 && use.deferred != 17 && use.deferred != 19) return false;
-	int count = checked.bindings.program.arena.list_count(syntax.f_arguments);
+	var arguments = checked_call_arguments(checked, source);
+	int count = checked.bindings.program.arena.list_count(arguments);
 	if (checked.types.row(signature.callable).count != count + 1) return false;
 	int p = 0;
 	while (p < count) {
-		var argument = checked.bindings.program.arena.node_at(syntax.f_arguments, p);
+		var argument = checked.bindings.program.arena.node_at(arguments, p);
 		var input = checked.types.argument(checked.types, signature.callable, p + 1);
 		var value = checked.uses[argument.index];
 		if (value.type.index != input.type.index || value.deferred != 0 && value.deferred != 17 && value.deferred != 19 || (value.flags & 4) != 0) return false;

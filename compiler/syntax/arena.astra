@@ -1165,6 +1165,10 @@ class SyntaxArena {
 		this.check_list(data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
+		this.check_list(data.f_argument_names, -1);
+		this.check_list(data.f_argument_colons, -1);
+		assert_that(this.list_count(data.f_argument_names) == this.list_count(data.f_argument_colons));
+		assert_that(this.list_count(data.f_argument_names) <= this.list_count(data.f_arguments));
 	}
 
 	SyntaxNodeId add_call_expression(CallExpressionSyntaxData data, SyntaxSpan span, int depth) {
@@ -1566,6 +1570,10 @@ class SyntaxArena {
 		this.check_list(data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
 		this.check_list(data.f_commas, -1);
 		this.check_token(data.f_close_paren);
+		this.check_list(data.f_argument_names, -1);
+		this.check_list(data.f_argument_colons, -1);
+		assert_that(this.list_count(data.f_argument_names) == this.list_count(data.f_argument_colons));
+		assert_that(this.list_count(data.f_argument_names) <= this.list_count(data.f_arguments));
 	}
 
 	SyntaxNodeId add_constructor_initializer(ConstructorInitializerSyntaxData data, SyntaxSpan span, int depth) {
@@ -2329,6 +2337,10 @@ class SyntaxArena {
 		this.check_node(data.f_allocation_context, SyntaxKind.ExpressionSyntax());
 		this.check_node(data.f_class_name, SyntaxKind.TypeNameSyntax());
 		this.check_list(data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()));
+		this.check_list(data.f_argument_names, -1);
+		this.check_list(data.f_argument_colons, -1);
+		assert_that(this.list_count(data.f_argument_names) == this.list_count(data.f_argument_colons));
+		assert_that(this.list_count(data.f_argument_names) <= this.list_count(data.f_arguments));
 	}
 
 	SyntaxNodeId add_heap_object_construction(HeapObjectConstructionSyntaxData data, SyntaxSpan span, int depth) {
@@ -4338,6 +4350,68 @@ class SyntaxArena {
 			var data = this.address_of_expression(id);
 			data.f_ampersand = value;
 			this.replace_address_of_expression(id, data);
+			return;
+		}
+		assert_that(false);
+	}
+
+	SyntaxListId get_list_argument_names(SyntaxNodeId id) {
+		var kind = this.kind(id);
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
+			var data = this.call_expression(id);
+			return data.f_argument_names;
+		}
+		if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			var data = this.constructor_initializer(id);
+			return data.f_argument_names;
+		}
+		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+			var data = this.heap_object_construction(id);
+			return data.f_argument_names;
+		}
+		SyntaxListId absent = {index = 0};
+		return absent;
+	}
+
+	SyntaxListId get_list_argument_colons(SyntaxNodeId id) {
+		var kind = this.kind(id);
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
+			var data = this.call_expression(id);
+			return data.f_argument_colons;
+		}
+		if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			var data = this.constructor_initializer(id);
+			return data.f_argument_colons;
+		}
+		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+			var data = this.heap_object_construction(id);
+			return data.f_argument_colons;
+		}
+		SyntaxListId absent = {index = 0};
+		return absent;
+	}
+
+	void set_argument_labels(SyntaxNodeId id, SyntaxListId names, SyntaxListId colons) {
+		var kind = this.kind(id);
+		if (kind == SyntaxKind.CallExpressionSyntax()) {
+			var data = this.call_expression(id);
+			data.f_argument_names = names;
+			data.f_argument_colons = colons;
+			this.replace_call_expression(id, data);
+			return;
+		}
+		if (kind == SyntaxKind.ConstructorInitializerSyntax()) {
+			var data = this.constructor_initializer(id);
+			data.f_argument_names = names;
+			data.f_argument_colons = colons;
+			this.replace_constructor_initializer(id, data);
+			return;
+		}
+		if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
+			var data = this.heap_object_construction(id);
+			data.f_argument_names = names;
+			data.f_argument_colons = colons;
+			this.replace_heap_object_construction(id, data);
 			return;
 		}
 		assert_that(false);

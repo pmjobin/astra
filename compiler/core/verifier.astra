@@ -190,6 +190,7 @@ bool core_verify_tree(CoreData core, CheckedIndex checked, int[] proofs, int id,
 		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0) return false;
 		var callee = checked_target(checked, source, checked.bindings.program.arena.get_token_identifier(source));
 		if (callee.index <= 0 || row.symbol.index != callee.index || row.signature.index != checked.symbol_signatures[callee.index].index || row.target < 1 || row.target > core.function_count || core.functions[row.target - 1].symbol.index != callee.index || !admit_signature_authority(checked, callee)) return false;
+		if (!syntax_call_labels_verified(checked.bindings.program.arena, source) || !checked_named_arguments_verified(checked, source, callee, row.count)) return false;
 		var sig = checked.signatures[row.signature.index - 1];
 		var args = checked_call_arguments(checked, source);
 		var callee_declaration = checked.bindings.symbol(callee);

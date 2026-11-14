@@ -334,6 +334,10 @@ class SyntaxProjection {
 			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
 			this.tokens(arena, "commas", data.f_commas, false);
 			this.token(arena, "close_paren", data.f_close_paren);
+			if (arena.list_count(data.f_argument_names) != 0) {
+				this.tokens(arena, "argument_names", data.f_argument_names, false);
+				this.tokens(arena, "argument_colons", data.f_argument_colons, false);
+			}
 			return;
 		}
 		if (kind == SyntaxKind.CallStatementSyntax()) {
@@ -474,6 +478,10 @@ class SyntaxProjection {
 			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
 			this.tokens(arena, "commas", data.f_commas, false);
 			this.token(arena, "close_paren", data.f_close_paren);
+			if (arena.list_count(data.f_argument_names) != 0) {
+				this.tokens(arena, "argument_names", data.f_argument_names, false);
+				this.tokens(arena, "argument_colons", data.f_argument_colons, false);
+			}
 			return;
 		}
 		if (kind == SyntaxKind.ContinueStatementSyntax()) {
@@ -700,6 +708,10 @@ class SyntaxProjection {
 			this.boolean("fallible", data.f_fallible);
 			this.edge("class_name", "TypeNameSyntax", data.f_class_name);
 			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false);
+			if (arena.list_count(data.f_argument_names) != 0) {
+				this.tokens(arena, "argument_names", data.f_argument_names, false);
+				this.tokens(arena, "argument_colons", data.f_argument_colons, false);
+			}
 			return;
 		}
 		if (kind == SyntaxKind.IfStatementSyntax()) {

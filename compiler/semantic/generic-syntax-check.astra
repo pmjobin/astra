@@ -240,6 +240,8 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_list(index, plan, first_data.f_arguments, second_data.f_arguments)) return false;
 			if (first_data.f_commas.index != second_data.f_commas.index) return false;
 			if (first_data.f_close_paren.index != second_data.f_close_paren.index) return false;
+			if (first_data.f_argument_names.index != second_data.f_argument_names.index) return false;
+			if (first_data.f_argument_colons.index != second_data.f_argument_colons.index) return false;
 		}
 		case SyntaxKind.NameExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.name_expression(original);
@@ -453,6 +455,8 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (first_data.f_fallible != second_data.f_fallible) return false;
 			if (!generic_check_child(index, plan, first_data.f_class_name, second_data.f_class_name)) return false;
 			if (!generic_check_list(index, plan, first_data.f_arguments, second_data.f_arguments)) return false;
+			if (first_data.f_argument_names.index != second_data.f_argument_names.index) return false;
+			if (first_data.f_argument_colons.index != second_data.f_argument_colons.index) return false;
 		}
 		case SyntaxKind.ClassDeclarationSyntax(): {
 			var first_data = index.bindings.program.arena.class_declaration(original);

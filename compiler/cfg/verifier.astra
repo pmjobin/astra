@@ -237,9 +237,17 @@ class CfgCheck {
 		}
 		int i = 0;
 		while (i < n.count) {
-			int child = core.edges[n.first + i].child;
+			int slot = i;
+			if (n.kind == 9 || n.kind == 13) slot = checked_named_argument_slot(checked, n.source, n.symbol, n.count, i);
+			if (slot < 0 || slot >= n.count) return false;
+			int child = core.edges[n.first + slot].child;
 			int target = r.operation;
-			if (i + 1 < n.count) target = this.entry(d, core.edges[n.first + i + 1].child, target);
+			if (i + 1 < n.count) {
+				int following = i + 1;
+				if (n.kind == 9 || n.kind == 13) following = checked_named_argument_slot(checked, n.source, n.symbol, n.count, i + 1);
+				if (following < 0 || following >= n.count) return false;
+				target = this.entry(d, core.edges[n.first + following].child, target);
+			}
 			if (current != this.entry(d, child, target) || !this.node(d, core, checked, child, target, break_to, continue_to, depth + 1)) return false;
 			current = target; i = i + 1;
 		}

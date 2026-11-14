@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Re-lex only the gaps around original argument expressions. This consumer
+// does not call the parser or trust its label list, including an erased list.
+bool syntax_call_gap_verified(SyntaxArena arena, SyntaxSourceId source, int start, int end, bool opening, bool comma, SyntaxTokenId name, SyntaxTokenId colon, bool trailing) {
+	try {
+		var backing = arena.source(source);
+		if (!source_valid_span(shared_borrow(backing), start, end)) return false;
+		var bytes = source_bytes(shared_borrow(backing), start, end);
+		var buffer = source_buffer("<argument-prefix-proof>", move bytes, false);
+		var retained = shared_acquire(move buffer);
+		var scanner = lexer(move retained);
+		if (opening) {
+			var token = scanner.next_token();
+			if (token.kind() != TokenKind.OPEN_PAREN()) return false;
+		}
+		if (comma) {
+			var token = scanner.next_token();
+			if (token.kind() != TokenKind.COMMA()) return false;
+		}
+		if (name.index != 0) {
+			var token = scanner.next_token();
+			var span = arena.token_span(name);
+			if (token.kind() != TokenKind.IDENTIFIER() || arena.token_kind(name) != TokenKind.IDENTIFIER() || span.source.index != source.index || span.start != token.span.start + start || span.end != token.span.end + start || !arena.token_is(name, token.spelling.text)) return false;
+			var punctuation = scanner.next_token();
+			span = arena.token_span(colon);
+			if (punctuation.kind() != TokenKind.COLON() || arena.token_kind(colon) != TokenKind.COLON() || span.source.index != source.index || span.start != punctuation.span.start + start || span.end != punctuation.span.end + start || !arena.token_is(colon, ":")) return false;
+		} else {
+			if (colon.index != 0) return false;
+		}
+		var token = scanner.next_token();
+		if (trailing && token.kind() == TokenKind.COMMA()) {
+			var eof = scanner.next_token();
+			return !scanner.failed && eof.kind() == TokenKind.EOF();
+		}
+		return !scanner.failed && token.kind() == TokenKind.EOF();
+	} catch (Error error) {
+		return false;
+	}
+}
+
+bool syntax_call_labels_verified(SyntaxArena arena, SyntaxNodeId call) {
+	var kind = arena.kind(call);
+	bool heap = kind == SyntaxKind.HeapObjectConstructionSyntax();
+	if (!heap && kind != SyntaxKind.CallExpressionSyntax() && kind != SyntaxKind.ConstructorInitializerSyntax()) return false;
+	var arguments = arena.get_list_arguments(call);
+	var names = arena.get_list_argument_names(call);
+	var colons = arena.get_list_argument_colons(call);
+	int count = arena.list_count(arguments);
+	int labelled = arena.list_count(names);
+	if (labelled != arena.list_count(colons) || labelled > count) return false;
+	var span = arena.header(call).span;
+	if (labelled > 0 && syntax_source_language_profile(arena, span.source) != 1) return false;
+	int begin = 0;
+	int end = 0;
+	if (heap) {
+		begin = arena.header(arena.get_node_class_name(call)).span.end;
+		end = span.end - 1;
+		try {
+			var backing = arena.source(span.source);
+			if (!source_valid_span(shared_borrow(backing), begin, span.end) || syntax_byte(shared_borrow(backing), end) != 41) return false;
+		} catch (Error error) {
+			return false;
+		}
+	} else {
+		var opening = arena.token_span(arena.get_token_open_paren(call));
+		var closing = arena.token_span(arena.get_token_close_paren(call));
+		if (opening.source.index != span.source.index || closing.source.index != span.source.index || !arena.token_is(arena.get_token_open_paren(call), "(") || !arena.token_is(arena.get_token_close_paren(call), ")")) return false;
+		begin = opening.end;
+		end = closing.start;
+	}
+	int i = 0;
+	while (i < count) {
+		var expression = arena.header(arena.node_at(arguments, i)).span;
+		SyntaxTokenId name = {index = 0};
+		SyntaxTokenId colon = {index = 0};
+		if (i >= count - labelled) {
+			name = arena.token_at(names, i - (count - labelled));
+			colon = arena.token_at(colons, i - (count - labelled));
+			int previous = 0;
+			while (previous < i - (count - labelled)) {
+				if (arena.token_text_equal(name, arena.token_at(names, previous))) return false;
+				previous = previous + 1;
+			}
+		}
+		if (expression.source.index != span.source.index || expression.end > end || !syntax_call_gap_verified(arena, span.source, begin, expression.start, heap && i == 0, i > 0, name, colon, false)) return false;
+		begin = expression.end;
+		i = i + 1;
+	}
+	SyntaxTokenId absent = {index = 0};
+	return syntax_call_gap_verified(arena, span.source, begin, end, heap && count == 0, false, absent, absent, count > 0);
+}

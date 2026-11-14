@@ -132,7 +132,13 @@ int cfg_lower_node(CfgData data, CoreData core, CheckedIndex checked, int id, in
 					head = operation;
 					int i = row.count - 1;
 					while (i >= 0 && data.status == 0) {
-						head = cfg_lower_node(data, core, checked, core.edges[row.first + i].child, head, break_to, continue_to, depth + 1);
+						int slot = i;
+						if (row.kind == 9 || row.kind == 13) slot = checked_named_argument_slot(checked, row.source, row.symbol, row.count, i);
+						if (slot < 0 || slot >= row.count) {
+							data.status = 4;
+							break;
+						}
+						head = cfg_lower_node(data, core, checked, core.edges[row.first + slot].child, head, break_to, continue_to, depth + 1);
 						i = i - 1;
 					}
 					if (row.b != 0) head = cfg_lower_node(data, core, checked, row.b, head, break_to, continue_to, depth + 1);

@@ -103,6 +103,13 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 	}
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) {
 		var type = checked_resolve(index, index.bindings.program.arena.get_node_class_name(node), 0, 0);
+		var named_target = checked_named_call_target(index, node);
+		var written_arguments = checked_call_written_arguments(index, node);
+		int written_count = index.bindings.program.arena.list_count(written_arguments);
+		if (!checked_named_arguments_verified(index, node, named_target, written_count)) {
+			index.fail(index.bindings.program.arena.header(node).span, "constructor named argument does not identify a unique declared parameter");
+			return no_type();
+		}
 		var arguments = checked_call_arguments(index, node);
 		var constructor = type_symbol(0);
 		if (index.semantic_flow && checked_kind(index, type) == 31 && checked_flow_receiver_shape(index, type)) constructor = checked_constructor(index, type);
