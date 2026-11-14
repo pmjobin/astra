@@ -45,7 +45,7 @@ bool recover_storage_binding(CheckedIndex checked, SymbolId symbol) {
 	if (declaration.kind == 8 && recover_storage_fixed(checked, type)) {
 		if (flags != 0 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.LocalDeclarationSyntax()) return false;
 		var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);
-		return checked.bindings.program.arena.kind(initializer) == SyntaxKind.ArrayInitializerSyntax() && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == 0;
+		return (checked.bindings.program.arena.kind(initializer) == SyntaxKind.ArrayInitializerSyntax() || range_fixed_verified(checked, initializer)) && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == 0;
 	}
 	if (!recover_storage_channel(checked, type, flags, false)) return false;
 	if (enum_scoped_binding(checked, symbol) || range_foreach_binding(checked, symbol)) return true;

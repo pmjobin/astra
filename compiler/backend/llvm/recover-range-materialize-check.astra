@@ -117,3 +117,31 @@ int recover_range_collection_instruction(RecoverSsa ssa, RecoverNode row, void* 
 	if (LLVMHasMetadata(count) != 0 || LLVMHasMetadata(allocation) != 0 || LLVMHasMetadata(operation) != 0 || LLVMHasMetadata(initial) != 0 || LLVMHasMetadata(value) != 0) return 0;
 	return instructions;
 }
+
+int recover_range_fixed_instruction(RecoverSsa ssa, RecoverNode row, void* physical, void* operation, void* value, void* aggregate, void* backing, void* module, void* layout) throws Error {
+	if (row.kind != 95 || !range_fixed_verified(ssa.cfg.core.flow.checked, row.source) || operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 45 || LLVMGetInstructionParent(operation) != physical || LLVMGetNumArgOperands(operation) != 4) return 0;
+	var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+	if (aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, receiver, LLVMTypeOf(aggregate))) return 0;
+	int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, receiver, 0).type); var fill = LLVMGetCalledValue(operation);
+	if (!recover_range_fill_verified(fill, kind, module, layout) || !recover_llvm_call(operation, fill, 4, 8) || LLVMGetArgOperand(operation, 0) != backing || !recover_llvm_bits(LLVMGetArgOperand(operation, 1), 32, ssa.cfg.core.flow.checked.types.row(row.type).extent as u64)) return 0;
+	var start = LLVMGetArgOperand(operation, 2); var step = LLVMGetArgOperand(operation, 3); if (!recover_llvm_extract(start, aggregate, 0)) return 0;
+	int instructions = 4;
+	if (LLVMIsAInstruction(aggregate) != null) {
+		if (LLVMIsAInstruction(start) == null || LLVMGetInstructionParent(start) != physical || LLVMHasMetadata(start) != 0) return 0;
+		instructions = instructions + 1;
+	}
+	if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, receiver)) {
+		if (!recover_llvm_extract(step, aggregate, 3)) return 0;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMIsAInstruction(step) == null || LLVMGetInstructionParent(step) != physical || LLVMHasMetadata(step) != 0 || LLVMGetNextInstruction(start) != step || LLVMGetNextInstruction(step) != operation) return 0;
+			instructions = instructions + 1;
+		}
+	} else {
+		if (!recover_llvm_bits(step, type_width(kind), 1) || LLVMIsAInstruction(aggregate) != null && LLVMGetNextInstruction(start) != operation) return 0;
+	}
+	if (value == null || LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 54 || LLVMGetInstructionParent(value) != physical || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value))) return 0;
+	var initial = LLVMGetOperand(value, 0);
+	if (initial == null || LLVMIsAInstruction(initial) == null || LLVMGetInstructionOpcode(initial) != 54 || LLVMGetInstructionParent(initial) != physical || !recover_llvm_insert(value, initial, LLVMGetArgOperand(operation, 1), 1) || !recover_llvm_insert(initial, LLVMGetOperand(initial, 0), backing, 0) || LLVMIsNull(LLVMGetOperand(initial, 0)) == 0 || LLVMGetNextInstruction(operation) != initial || LLVMGetNextInstruction(initial) != value || LLVMGetNextInstruction(value) != LLVMGetBasicBlockTerminator(physical)) return 0;
+	if (LLVMHasMetadata(operation) != 0 || LLVMHasMetadata(initial) != 0 || LLVMHasMetadata(value) != 0) return 0;
+	return instructions;
+}

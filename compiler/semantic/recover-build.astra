@@ -69,8 +69,8 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
 		row.kind = 15; row.token = checked.bindings.program.arena.get_token_operator_token(source); row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_operand(source), function, handler, caught, depth + 1);
 	}
-	if (range_query_verified(checked, source) || range_step_verified(checked, source) || range_collect_verified(checked, source)) {
-		row.kind = 88; if (range_step_verified(checked, source)) row.kind = 93; if (range_collect_verified(checked, source)) row.kind = 94; row.token = checked.bindings.program.arena.get_token_identifier(source);
+	if (range_query_verified(checked, source) || range_step_verified(checked, source) || range_collect_verified(checked, source) || range_fixed_verified(checked, source)) {
+		row.kind = 88; if (range_step_verified(checked, source)) row.kind = 93; if (range_collect_verified(checked, source)) row.kind = 94; if (range_fixed_verified(checked, source)) row.kind = 95; row.token = checked.bindings.program.arena.get_token_identifier(source);
 		var receiver = checked.bindings.program.arena.get_node_receiver_place(source);
 		if (receiver.index > 0) row.a = recover_build_node(flow, checked, types, receiver, function, handler, caught, depth + 1);
 		else {
@@ -78,7 +78,7 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 		}
 		if (row.kind == 93 || range_query_action(checked, source) == 2) row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(source), 0), function, handler, caught, depth + 1);
 	}
-	if (kind == SyntaxKind.CallExpressionSyntax() && row.kind != 94 && row.kind != 93 && row.kind != 88 && row.kind != 71 && !checked_slice_intrinsic(checked, source) && !class_storage_slot_call_present(checked, source) || kind == SyntaxKind.HeapObjectConstructionSyntax() || getter) {
+	if (kind == SyntaxKind.CallExpressionSyntax() && row.kind != 95 && row.kind != 94 && row.kind != 93 && row.kind != 88 && row.kind != 71 && !checked_slice_intrinsic(checked, source) && !class_storage_slot_call_present(checked, source) || kind == SyntaxKind.HeapObjectConstructionSyntax() || getter) {
 		row.kind = 4;
 		if (getter) row.symbol = checked.generic_calls[source.index];
 		if (kind == SyntaxKind.CallExpressionSyntax()) {

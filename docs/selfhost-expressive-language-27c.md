@@ -638,3 +638,35 @@ Full current C0 preflight8 found a temporary owned-field borrow overlapping an
 inner receiver query in the new verifier; that expression is split in the source
 candidate. Preflight8's refusal and bytes are retained. A new complete build and
 focused source/SSA/native/physical/memory qualification remain pending.
+
+The fixed collection candidate adds source/Core operation 95 for an explicit
+fixed numeric local destination, such as `int[13] values =
+(20..=80).step_by(5).collect_fixed();`. Only pure integer literal bounds/stride,
+parentheses and integer casts form the bounded static proof. Named variables,
+missing destinations and mismatched counts fail closed. Signed constants,
+conversion sign extension, inclusive maxima and quotient overflow are evaluated
+in their exact integer domain. The independent source consumer recomputes the
+count; no cached producer count grants authority. The native candidate fills a
+separately verified entry stack allocation, with its exact extent/alignment and
+no call to the count or allocation helper. Module inventory requires only the
+needed fill helpers. Current C0 source semantics passes (preflight9, 71.898
+seconds); new-form SSA, native, physical and memory results remain pending.
+
+The expanded fixed oracle returns 42 for thirteen values, signed zero crossing,
+odd stride and a wider signed conversion. A real calloc wrapper observes zero
+allocations (selfhost27c-range-oracles5). This remains C0-reference evidence.
+The full focused ssa11 consumer was frozen before correcting its newly authored
+unbraced `throw` specimen; that specimen violates the existing explicit-block
+rule. The new specimen uses braces. Its eventual default result must be read
+with that preserved fixture version; no acceptance is inferred from compilation.
+
+O0 object output now runs LLVM's existing globaldce pass after source/physical
+correspondence and before the returning LLVM verifier. It removes unreachable
+private allocation helpers while preserving live functions and explicit library
+roots. This candidate needs actual no-libc/no-allocator object/link execution;
+raw O0 `--emit-llvm` still exposes the complete verified pre-output module.
+The host clang-format has advanced to 23.1.5; exact Fedora 23.1.4 formatter and
+library packages were isolated in selfhost27c-format1. Extracted formatter SHA
+`246ec58a8816ba81299a6694dd1239903ee761b25d98f36130c1b9e0c3ba0fcb`
+matches the existing qualification. The guarded C entry point passes with those
+explicit PATH/library routes; no system installation or tool pin is changed.

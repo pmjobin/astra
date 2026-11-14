@@ -607,6 +607,29 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-fixed', '''extern(C) int allocation_calls();
+int main() {
+	int[13] values = (20..=80).step_by(5).collect_fixed(); int total = 0; int at = 0;
+	while (at < len(values)) { if (values[at] != 20+at*5) return 1; total = total+values[at]; at = at+1; }
+	int[5] crossed = (-10..=10).step_by(5).collect_fixed();
+	if (crossed[0] != -10 || crossed[2] != 0 || crossed[4] != 10) return 2;
+	int[2] odd = (50..=80).step_by(16).collect_fixed(); if (odd[0] != 50 || odd[1] != 66) return 3;
+	i64[3] wide = ((-2 as i64)..=(2 as i64)).step_by(2 as i64).collect_fixed();
+	if (wide[0] != -2 || wide[1] != 0 || wide[2] != 2 || total != 650 || allocation_calls() != 0) return 4;
+	return 42;
+}
+''', '''extern(C) int allocation_calls();
+int main() {
+	int[13] values = {20,25,30,35,40,45,50,55,60,65,70,75,80}; int total = 0; int at = 0;
+	while (at < len(values)) { if (values[at] != 20+at*5) return 1; total = total+values[at]; at = at+1; }
+	int[5] crossed = {-10,-5,0,5,10};
+	if (crossed[0] != -10 || crossed[2] != 0 || crossed[4] != 10) return 2;
+	int[2] odd = {50,66}; if (odd[0] != 50 || odd[1] != 66) return 3;
+	i64[3] wide = {-2,0,2};
+	if (wide[0] != -2 || wide[1] != 0 || wide[2] != 2 || total != 650 || allocation_calls() != 0) return 4;
+	return 42;
+}
+''', False),
 	('range-collect', TICKS+'''extern(C) int allocation_calls();
 extern(C) int allocation_bytes();
 owned int[] values() { return (tick(1)+19..=tick(2)+78).step_by(tick(3)+2).collect_array(); }
@@ -795,6 +818,11 @@ int main() {
 ''', False),
 ]
 RANGE_NEGATIVE = [
+	('range-fixed-dynamic', 'int main() { int end = 80; int[13] values = (20..=end).step_by(5).collect_fixed(); return 42; }'),
+	('range-fixed-count', 'int main() { int[12] values = (20..=80).step_by(5).collect_fixed(); return 42; }'),
+	('range-fixed-implicit', 'int main() { var values = (20..=80).step_by(5).collect_fixed(); return 42; }'),
+	('range-fixed-argument', 'int main() { int[13] values = (20..=80).step_by(5).collect_fixed(1); return 42; }'),
+	('range-fixed-huge', 'int main() { int[1] values = (0..=18446744073709551615 as u64).collect_fixed(); return 42; }'),
 	('range-collect-argument', 'int main() { var values = (20..80).collect_array(1); return 42; }'),
 	('range-collect-borrow-escape', 'borrowed int[] values() { return (20..80).collect_array(); } int main() { return 42; }'),
 	('range-collect-copy-owner', 'int main() { var values = (20..80).collect_array(); var copied = values; return 42; }'),
@@ -876,7 +904,7 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name == 'range-collect'; allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-fixed'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])

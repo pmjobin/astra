@@ -840,10 +840,11 @@ class RecoverLlvm {
 				if (checked_kind(ssa.cfg.core.flow.checked, row.type) == 32) LLVMSetAlignment(slot, LLVMABIAlignmentOfType(this.layout, LLVMGetAllocatedType(slot)));
 				this.slots[n] = slot;
 			}
-			if (row.kind == 57) {
+			if (row.kind == 57 || row.kind == 95) {
 				LLVMPositionBuilderAtEnd(this.builder, this.entries[row.function - 1]);
 				var element = this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type);
-				var backing = LLVMBuildArrayAlloca(this.builder, element, this.int32(row.count), this.empty);
+				int count = row.count; if (row.kind == 95) count = ssa.cfg.core.flow.checked.types.row(row.type).extent;
+				var backing = LLVMBuildArrayAlloca(this.builder, element, this.int32(count), this.empty);
 				LLVMSetAlignment(backing, LLVMABIAlignmentOfType(this.layout, element));
 				this.fixed_backings[n] = backing;
 			}
@@ -1076,6 +1077,13 @@ class RecoverLlvm {
 			}
 		}
 		if (op == 3) value = this.binary(ssa, row);
+		if (op == 95) {
+			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); var aggregate = this.values[row.a];
+			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+			var arguments = new void*[4]; arguments[0] = this.fixed_backings[block.origin - 1]; arguments[1] = this.int32(ssa.cfg.core.flow.checked.types.row(row.type).extent); arguments[2] = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty);
+			arguments[3] = LLVMConstInt(this.scalar(ssa.cfg.core.flow.checked, element), 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, receiver)) arguments[3] = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
+			operation = this.call(this.range_fills[kind - 1], arguments, true); var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), arguments[0], 0, this.empty); value = LLVMBuildInsertValue(this.builder, first, arguments[1], 1, this.empty);
+		}
 		if (op == 94) {
 			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
 			if (row.a > 0) aggregate = this.values[row.a];
@@ -2422,13 +2430,15 @@ class RecoverLlvm {
 		int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
-			if (row.kind == 94) {
+			if (row.kind == 94 || row.kind == 95) {
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type);
-				if (kind < 1 || kind > 10 || !range_collect_verified(ssa.cfg.core.flow.checked, row.source)) {
+				if (kind < 1 || kind > 10 || row.kind == 94 && !range_collect_verified(ssa.cfg.core.flow.checked, row.source) || row.kind == 95 && !range_fixed_verified(ssa.cfg.core.flow.checked, row.source)) {
 					throw new Error("LLVM_INVALID_UPSTREAM: range materialization source");
 				}
-				if (this.range_counts[kind - 1] == null) {
+				if (row.kind == 94 && this.range_counts[kind - 1] == null) {
 					this.range_counts[kind - 1] = recover_range_count_helper(this.context, this.module, this.builder, this.handles, this.trap_function, kind);
+				}
+				if (this.range_fills[kind - 1] == null) {
 					this.range_fills[kind - 1] = recover_range_fill_helper(this.context, this.module, this.builder, this.handles, this.layout, kind);
 				}
 			}
@@ -2438,24 +2448,31 @@ class RecoverLlvm {
 
 	bool range_materialization_verified(RecoverSsa ssa) throws Error {
 		if (len(this.range_counts) != 10 || len(this.range_fills) != 10) return false;
-		var needed = new bool[10]; int at = 0;
+		var needed = new bool[10]; var fill_needed = new bool[10]; int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
-			if (row.kind == 94) {
-				if (!range_collect_verified(ssa.cfg.core.flow.checked, row.source)) return false;
+			if (row.kind == 94 || row.kind == 95) {
+				if (row.kind == 94 && !range_collect_verified(ssa.cfg.core.flow.checked, row.source) || row.kind == 95 && !range_fixed_verified(ssa.cfg.core.flow.checked, row.source)) return false;
 				var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, receiver, 0).type);
 				if (kind < 1 || kind > 10) return false;
-				needed[kind - 1] = true;
+				if (row.kind == 94) needed[kind - 1] = true;
+				fill_needed[kind - 1] = true;
 			}
 			at = at + 1;
 		}
 		at = 0;
 		while (at < 10) {
 			if (needed[at]) {
-				if (!recover_range_count_verified(this.range_counts[at], at + 1, this.module) || !recover_range_fill_verified(this.range_fills[at], at + 1, this.module, this.layout)) return false;
+				if (!recover_range_count_verified(this.range_counts[at], at + 1, this.module)) return false;
 			} else {
-				if (this.range_counts[at] != null || this.range_fills[at] != null) return false;
+				if (this.range_counts[at] != null) return false;
+			}
+			if (fill_needed[at]) {
+				if (!recover_range_fill_verified(this.range_fills[at], at + 1, this.module, this.layout)) return false;
+			}
+			else {
+				if (this.range_fills[at] != null) return false;
 			}
 			at = at + 1;
 		}
@@ -2572,7 +2589,8 @@ class RecoverLlvm {
 		}
 		int materialization_at = helper_count; int materialization = 0;
 		while (materialization < 10) {
-			if (this.range_counts[materialization] != null) helper_count = helper_count + 2;
+			if (this.range_counts[materialization] != null) helper_count = helper_count + 1;
+			if (this.range_fills[materialization] != null) helper_count = helper_count + 1;
 			materialization = materialization + 1;
 		}
 		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
@@ -2601,8 +2619,11 @@ class RecoverLlvm {
 		while (materialization < 10) {
 			if (this.range_counts[materialization] != null) {
 				helpers[materialization_at] = this.range_counts[materialization];
-				helpers[materialization_at + 1] = this.range_fills[materialization];
-				materialization_at = materialization_at + 2;
+				materialization_at = materialization_at + 1;
+			}
+			if (this.range_fills[materialization] != null) {
+				helpers[materialization_at] = this.range_fills[materialization];
+				materialization_at = materialization_at + 1;
 			}
 			materialization = materialization + 1;
 		}

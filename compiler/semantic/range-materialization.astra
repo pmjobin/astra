@@ -27,3 +27,103 @@ bool range_collect_verified(CheckedIndex index, SyntaxNodeId node) {
 	var element = index.types.argument(index.types, receiver, 0); var actual = index.types.argument(index.types, use.type, 0);
 	return element.type.index == actual.type.index && element.flags == 0 && actual.flags == 0 && type_integer(checked_kind(index, element.type));
 }
+
+struct RangeConstant { bool valid; u64 bits; }
+
+RangeConstant range_constant(CheckedIndex index, SyntaxNodeId source, int depth) {
+	RangeConstant absent = {valid = false, bits = 0};
+	if (depth >= 128 || source.index < 1 || source.index >= len(index.uses)) return absent;
+	int kind = checked_kind(index, index.uses[source.index].type);
+	if (!type_integer(kind) || index.uses[source.index].flags != 0) return absent;
+	var syntax = index.bindings.program.arena.kind(source); var result = absent;
+	if (syntax == SyntaxKind.ParenthesizedExpressionSyntax() || syntax == SyntaxKind.ConversionExpressionSyntax()) {
+		var child = index.bindings.program.arena.get_node_expression(source);
+		if (syntax == SyntaxKind.ConversionExpressionSyntax()) child = index.bindings.program.arena.get_node_operand(source);
+		result = range_constant(index, child, depth + 1);
+		int source_kind = checked_kind(index, index.uses[child.index].type);
+		if (syntax == SyntaxKind.ConversionExpressionSyntax() && type_integer(source_kind) && type_signed(source_kind) && type_width(source_kind) < type_width(kind) && (result.bits & (1 as u64 << (type_width(source_kind)-1))) != 0) result.bits = result.bits | ~((1 as u64 << type_width(source_kind))-1);
+	} else {
+		if (syntax == SyntaxKind.PrefixExpressionSyntax()) {
+			var operation = index.bindings.program.arena.get_token_operator_token(source);
+			if (!index.bindings.program.arena.token_is(operation, "+") && !index.bindings.program.arena.token_is(operation, "-")) return absent;
+			var operand = index.bindings.program.arena.get_node_operand(source); var literal = operand; int wrappers = 0;
+			while (index.bindings.program.arena.kind(literal) == SyntaxKind.ParenthesizedExpressionSyntax() && wrappers < 128) {
+				literal = index.bindings.program.arena.get_node_expression(literal);
+				wrappers = wrappers + 1;
+			}
+			if (wrappers == 128) return absent;
+			if (index.bindings.program.arena.kind(literal) == SyntaxKind.IntegerLiteralExpressionSyntax()) {
+				try { var text = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(literal)); var magnitude = syntax_integer_magnitude(text.text, 18446744073709551615, true); result.valid = magnitude.valid; result.bits = magnitude.value; }
+				catch (Error error) { return absent; }
+			} else {
+				result = range_constant(index, operand, depth + 1);
+			}
+			if (index.bindings.program.arena.token_is(operation, "-")) result.bits = (0 as u64)-result.bits;
+		} else {
+			if (syntax != SyntaxKind.IntegerLiteralExpressionSyntax()) return absent;
+			try { var text = index.bindings.program.arena.token_message(index.bindings.program.arena.get_token_literal(source)); var magnitude = syntax_integer_magnitude(text.text, 18446744073709551615, true); result.valid = magnitude.valid; result.bits = magnitude.value; }
+			catch (Error error) { return absent; }
+		}
+	}
+	if (type_width(kind) < 64) result.bits = result.bits & ((1 as u64 << type_width(kind))-1);
+	return result;
+}
+
+// Only pure literal bounds/stride are a static cardinality proof. A named
+// variable is not made constant by inspecting a convenient initializer.
+int range_fixed_count(CheckedIndex index, SyntaxNodeId receiver) {
+	var source = receiver; int depth = 0;
+	while (index.bindings.program.arena.kind(source) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 128) {
+		source = index.bindings.program.arena.get_node_expression(source);
+		depth = depth + 1;
+	}
+	if (depth == 128 || source.index < 1) return -1;
+	var type = index.uses[source.index].type; if (!range_sequence_type_verified(index.types, type)) return -1;
+	int kind = checked_kind(index, index.types.argument(index.types, type, 0).type); u64 step = 1;
+	if (range_stride_type_verified(index.types, type)) {
+		if (!range_step_verified(index, source)) return -1;
+		var value = range_constant(index, index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_arguments(source), 0), 0); if (!value.valid) return -1; step = value.bits;
+		source = index.bindings.program.arena.get_node_receiver_place(source); depth = 0;
+		while (index.bindings.program.arena.kind(source) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 128) {
+			source = index.bindings.program.arena.get_node_expression(source);
+			depth = depth + 1;
+		}
+		if (depth == 128 || source.index < 1) return -1;
+	}
+	if (!range_type_verified(index.types, index.uses[source.index].type) || index.bindings.program.arena.kind(source) != SyntaxKind.BinaryExpressionSyntax() || !range_source_verified(index.bindings.program.arena, source) || step == 0 || type_signed(kind) && step >= (1 as u64 << (type_width(kind)-1))) return -1;
+	var first = range_constant(index, index.bindings.program.arena.get_node_left(source), 0); var last = range_constant(index, index.bindings.program.arena.get_node_right(source), 0); if (!first.valid || !last.valid) return -1;
+	bool reversed = first.bits > last.bits;
+	if (type_signed(kind)) {
+		u64 sign = 1 as u64 << (type_width(kind)-1); bool first_negative = (first.bits & sign) != 0; bool last_negative = (last.bits & sign) != 0;
+		if (first_negative != last_negative) reversed = !first_negative;
+	}
+	bool inclusive = index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_operator_token(source), "..=");
+	if (reversed || !inclusive && first.bits == last.bits) return 0;
+	u64 distance = last.bits-first.bits; if (type_width(kind) < 64) distance = distance & ((1 as u64 << type_width(kind))-1);
+	u64 quotient = distance/step; u64 extra = 0; if (inclusive || distance%step != 0) extra = 1;
+	if (quotient > (2147483647 as u64)-extra) return -1;
+	return (quotient+extra) as int;
+}
+
+bool range_fixed_call(CheckedIndex index, SyntaxNodeId node) {
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_fixed");
+}
+
+TypeId checked_range_fixed(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	if (!recover_storage_fixed(index, expected) || !type_integer(checked_kind(index, index.types.argument(index.types, expected, 0).type))) {
+		index.fail(index.bindings.program.arena.header(node).span, "collect_fixed requires an explicit fixed integer array destination"); return no_type();
+	}
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node); var actual = checked_expression(index, receiver, no_type(), depth + 1);
+	if (!range_sequence_type_verified(index.types, actual) || index.types.argument(index.types, actual, 0).type.index != index.types.argument(index.types, expected, 0).type.index || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node) || range_fixed_count(index, receiver) != index.types.row(expected).extent) {
+		index.fail(index.bindings.program.arena.header(node).span, "collect_fixed requires literal bounds and positive stride proving the exact destination count"); return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 19; index.uses[node.index] = use;
+	return expected;
+}
+
+bool range_fixed_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!range_fixed_call(index, node) || !range_query_source(index.bindings.program.arena, node)) return false;
+	var use = index.uses[node.index]; var receiver = index.bindings.program.arena.get_node_receiver_place(node); var type = range_query_receiver(index, node);
+	if (receiver.index < 1 || !recover_storage_fixed(index, use.type) || use.flags != 0 || use.deferred != 19 || !range_sequence_type_verified(index.types, type) || index.types.argument(index.types, type, 0).type.index != index.types.argument(index.types, use.type, 0).type.index || range_fixed_count(index, receiver) != index.types.row(use.type).extent) return false;
+	return checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) == 0 && !index.bindings.program.arena.get_bool_signal_emission(node);
+}

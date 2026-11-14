@@ -83,7 +83,12 @@ bool recover_array_memory(void* instruction, int opcode, void* address, void* va
 
 bool recover_array_backing_verified(RecoverSsa ssa, int id, void* backing, void* entry, void* layout) {
 	var row = ssa.cfg.core.nodes[id - 1].value;
-	if (row.kind != 57 || !recover_storage_fixed(ssa.cfg.core.flow.checked, row.type) || backing == null || LLVMIsAInstruction(backing) == null || LLVMGetInstructionOpcode(backing) != 26 || LLVMGetInstructionParent(backing) != entry || LLVMGetNumOperands(backing) != 1 || !recover_llvm_bits(LLVMGetOperand(backing, 0), 32, row.count as u64)) return false;
+	int count = row.count;
+	if (row.kind == 95) {
+		if (!range_fixed_verified(ssa.cfg.core.flow.checked, row.source)) return false;
+		count = ssa.cfg.core.flow.checked.types.row(row.type).extent;
+	}
+	if (row.kind != 57 && row.kind != 95 || !recover_storage_fixed(ssa.cfg.core.flow.checked, row.type) || backing == null || LLVMIsAInstruction(backing) == null || LLVMGetInstructionOpcode(backing) != 26 || LLVMGetInstructionParent(backing) != entry || LLVMGetNumOperands(backing) != 1 || !recover_llvm_bits(LLVMGetOperand(backing, 0), 32, count as u64)) return false;
 	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type;
 	var physical = LLVMGetAllocatedType(backing);
 	return recover_llvm_scalar_type(ssa.cfg.core.flow.checked, element, physical) && LLVMGetAlignment(backing) == LLVMABIAlignmentOfType(layout, physical) && LLVMGetPointerAddressSpace(LLVMTypeOf(backing)) == 0 && LLVMHasMetadata(backing) == 0;

@@ -176,11 +176,13 @@ int32_t llvm12_verify(LLVMModuleRef m) {
 
 int32_t llvm12_optimize(LLVMModuleRef m, LLVMTargetMachineRef t, int32_t level) {
 	if (llvm12_verify(m)) return 1;
-	if (level == 0) return 0;
-	if (level != 2) return 1;
+	if (level != 0 && level != 2) return 1;
 	LLVMPassBuilderOptionsRef options = LLVMCreatePassBuilderOptions();
 	LLVMPassBuilderOptionsSetVerifyEach(options, 1);
-	LLVMErrorRef error = LLVMRunPasses(m, "default<O2>", t, options);
+	/* Source correspondence is consumed before this output pass. Even O0
+	 * objects must discard unreachable private allocator helpers so a numeric
+	 * range/loop/fixed collection can link with an explicit no-libc startup. */
+	LLVMErrorRef error = LLVMRunPasses(m, level == 0 ? "globaldce" : "default<O2>", t, options);
 	LLVMDisposePassBuilderOptions(options);
 	if (error) {
 		char *message = LLVMGetErrorMessage(error);

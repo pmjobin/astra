@@ -160,7 +160,7 @@ bool recover_llvm_global_lanes(RecoverSsa ssa, RecoverLlvmIndex index, void* lay
 	while (n < ssa.cfg.core.count) {
 		var node = ssa.cfg.core.nodes[n]; bool sum = recover_value_kind(node.value.kind) && checked_kind(ssa.cfg.core.flow.checked, node.value.type) == 32;
 		if (!sum && !node.conditional && slots[n] != null) return false;
-		if (node.value.kind == 57) {
+		if (node.value.kind == 57 || node.value.kind == 95) {
 			if (!recover_array_backing_verified(ssa, n + 1, fixed_backings[n], entries[node.value.function - 1], layout)) return false;
 		} else {
 			if (fixed_backings[n] != null) return false;
@@ -246,7 +246,7 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 			if (sum && (LLVMGetAlignment(slot) != recover_enum_type_alignment(ssa.cfg.core.flow.checked, node.value.type, 0) || LLVMABISizeOfType(layout, LLVMGetAllocatedType(slot)) != recover_enum_type_bytes(ssa.cfg.core.flow.checked, node.value.type, 0) as u64 || LLVMABIAlignmentOfType(layout, LLVMGetAllocatedType(slot)) != recover_enum_type_alignment(ssa.cfg.core.flow.checked, node.value.type, 0))) return false;
 			allocation_count = allocation_count + 1;
 		}
-		if (node.value.kind == 57) allocation_count = allocation_count + 1;
+		if (node.value.kind == 57 || node.value.kind == 95) allocation_count = allocation_count + 1;
 		id = index.node_next[n];
 	}
 	void* previous_frame = null;
@@ -324,6 +324,9 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		} else {
 			if (op == 10 || values[block.origin] != locals[row.symbol.index]) return 0;
 		}
+	}
+	if (op == 95) {
+		instruction_count = recover_range_fixed_instruction(ssa, row, physical, operation, values[block.origin], values[row.a], fixed_backings[block.origin - 1], LLVMGetGlobalParent(functions[row.function - 1]), layout);
 	}
 	if (op >= 89 && op <= 92) {
 		instruction_count = recover_range_loop_instruction(ssa, block, layout, physical, operation, values[row.a], owner_addresses[row.symbol.index], locals[row.symbol.index], LLVMGetGlobalParent(functions[row.function - 1]));
@@ -707,7 +710,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op == 93 || op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+	if (op == 95 || op == 93 || op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
 	else {
 		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
 	}
