@@ -10,7 +10,15 @@ int recover_build_node(RecoverFlowData flow, CheckedIndex checked, RecoverTypes 
 	var kind = checked.bindings.program.arena.kind(source);
 	bool getter = kind == SyntaxKind.FieldAccessExpressionSyntax() && source.index < len(checked.generic_calls) && checked.generic_calls[source.index].index > 0;
 	var row = recover_empty(source, function, recover_type(types, source), handler, caught);
+	if (flow.lambda_stage > 0 && flow.lambda_stage <= flow.node_count) row.execution = flow.nodes[flow.lambda_stage - 1].c;
 	int id = flow.add(row); if (id == 0) return 0;
+	if (kind == SyntaxKind.NameExpressionSyntax() && flow.lambda_stage > 0) {
+		row.kind = 102; row.c = flow.lambda_stage; row.token = checked.bindings.program.arena.get_token_identifier(source); row.symbol = checked_target(checked, source, row.token);
+		flow.nodes[id - 1] = row; return id;
+	}
+	if (kind == SyntaxKind.LambdaExpressionSyntax() && lambda_verified(checked, source) || lazy_call_action(checked, source) != 0 && lazy_call_verified(checked, source)) {
+		row = recover_build_lazy(flow, checked, types, row, id, depth); flow.nodes[id - 1] = row; return id;
+	}
 	row = recover_build_enum(flow, checked, types, row, id, depth);
 	if (kind == SyntaxKind.Utf8FactoryExpressionSyntax()) {
 		row.kind = 53;

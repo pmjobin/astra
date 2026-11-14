@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// One traversal evaluates the base item and each reached callback once. A
+// failed filter advances directly; callback Error edges use ordinary lowering.
+int recover_cfg_lazy_stage(RecoverCfg cfg, int id, int next, int advance, int depth) {
+	if (id < 1 || id > cfg.core.count || depth > 192 || cfg.status != 0) {
+		cfg.status = 3; return 0;
+	}
+	var row = cfg.core.nodes[id - 1].value;
+	if (row.kind == 100) {
+		int operation = cfg.block(row.function, id, 100, 0, 0, next, 0, 0, 0, 0);
+		RecoverRegion region = {entry = operation, operation = operation, next = next}; cfg.regions[id - 1] = region; return operation;
+	}
+	if (row.kind != 101) {
+		cfg.status = 3; return 0;
+	}
+	var type = recover_lazy_stage_type(cfg.core.flow.data, cfg.core.flow.checked, id);
+	int operation = cfg.block(row.function, id, 101, row.a, row.b, next, 0, 0, 0, 0); int tail = operation;
+	if (type.index == 0) {
+		cfg.status = 3; return 0;
+	}
+	if (cfg.core.flow.checked.types.row(type).extent == 2) tail = cfg.block(row.function, id, 110, row.b, 0, operation, advance, 0, 0, 0);
+	int body = recover_cfg_tree(cfg, row.b, tail, depth + 1);
+	int entry = recover_cfg_lazy_stage(cfg, row.a, body, advance, depth + 1);
+	RecoverRegion region = {entry = entry, operation = operation, next = next}; cfg.regions[id - 1] = region; return entry;
+}
+
+int recover_cfg_lazy(RecoverCfg cfg, int id, int next, int depth) {
+	var row = cfg.core.nodes[id - 1].value;
+	int finish = cfg.block(row.function, id, 109, 0, 0, next, 0, 0, 0, 0);
+	int check = cfg.block(row.function, id, 104, 0, 0, 0, finish, 0, 0, 0);
+	int increment = cfg.block(row.function, id, 106, 0, 0, check, 0, 0, 0, 0);
+	int advance = cfg.block(row.function, id, 105, 0, 0, increment, finish, 0, 0, 0);
+	int initialize = cfg.block(row.function, id, 103, row.a, 0, check, 0, 0, 0, advance);
+	int add = cfg.block(row.function, id, 108, row.b, 0, advance, 0, 0, 0, 0);
+	if (cfg.status != 0) return 0;
+	var result = cfg.blocks[finish - 1]; result.rank = initialize; cfg.blocks[finish - 1] = result;
+	RecoverRegion early = {entry = initialize, operation = finish, next = next}; cfg.regions[id - 1] = early;
+	int body = recover_cfg_lazy_stage(cfg, row.b, add, advance, depth + 1);
+	var branch = cfg.blocks[check - 1]; branch.next = body; cfg.blocks[check - 1] = branch;
+	int entry = initialize; if (row.a > 0) entry = recover_cfg_tree(cfg, row.a, initialize, depth + 1);
+	RecoverRegion region = {entry = entry, operation = finish, next = next}; cfg.regions[id - 1] = region; return entry;
+}
+
+int recover_cfg_lazy_initialize(RecoverCfg cfg, int root) {
+	if (root < 1 || root > cfg.core.count || cfg.core.nodes[root - 1].value.kind != 99) return 0;
+	int finish = cfg.regions[root - 1].operation; if (finish < 1 || finish > cfg.block_count) return 0;
+	return cfg.blocks[finish - 1].rank;
+}
+
+bool recover_cfg_lazy_stage_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value; var region = cfg.regions[id - 1]; int operation = region.operation;
+	int initialize = recover_cfg_lazy_initialize(cfg, row.c); if (initialize < 1 || initialize > cfg.block_count) return false;
+	int advance = cfg.blocks[initialize - 1].rank; if (advance < 1 || advance > cfg.block_count) return false;
+	if (row.kind == 100) return region.entry == operation && recover_cfg_expect(cfg, operation, recover_cfg_expected(row.function, id, 100, 0, 0, next, 0, 0, 0, 0), seen);
+	if (row.kind != 101 || !recover_cfg_expect(cfg, operation, recover_cfg_expected(row.function, id, 101, row.a, row.b, next, 0, 0, 0, 0), seen)) return false;
+	var type = recover_lazy_stage_type(cfg.core.flow.data, cfg.core.flow.checked, id); if (type.index == 0) return false;
+	int tail = cfg.regions[row.b - 1].next;
+	if (cfg.core.flow.checked.types.row(type).extent == 2) {
+		if (!recover_cfg_expect(cfg, tail, recover_cfg_expected(row.function, id, 110, row.b, 0, operation, advance, 0, 0, 0), seen)) return false;
+	} else {
+		if (tail != operation) return false;
+	}
+	return recover_cfg_check_tree(cfg, row.a, cfg.regions[row.b - 1].entry, seen, nodes, depth + 1) && recover_cfg_check_tree(cfg, row.b, tail, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
+}
+
+bool recover_cfg_lazy_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
+	var row = cfg.core.nodes[id - 1].value; var region = cfg.regions[id - 1]; int finish = region.operation;
+	int initialize = recover_cfg_lazy_initialize(cfg, id); if (initialize < 1 || initialize > cfg.block_count) return false;
+	int check = cfg.blocks[initialize - 1].next; int advance = cfg.blocks[initialize - 1].rank;
+	if (check < 1 || check > cfg.block_count || advance < 1 || advance > cfg.block_count || row.b < 1 || row.b > cfg.core.count) return false;
+	int increment = cfg.blocks[advance - 1].next; int add = cfg.regions[row.b - 1].next;
+	if (!recover_cfg_expect(cfg, finish, recover_cfg_expected(row.function, id, 109, 0, 0, next, 0, 0, 0, initialize), seen) || !recover_cfg_expect(cfg, initialize, recover_cfg_expected(row.function, id, 103, row.a, 0, check, 0, 0, 0, advance), seen) || !recover_cfg_expect(cfg, check, recover_cfg_expected(row.function, id, 104, 0, 0, cfg.regions[row.b - 1].entry, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, advance, recover_cfg_expected(row.function, id, 105, 0, 0, increment, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, increment, recover_cfg_expected(row.function, id, 106, 0, 0, check, 0, 0, 0, 0), seen) || !recover_cfg_expect(cfg, add, recover_cfg_expected(row.function, id, 108, row.b, 0, advance, 0, 0, 0, 0), seen)) return false;
+	if (!recover_cfg_check_tree(cfg, row.b, add, seen, nodes, depth + 1)) return false;
+	if (row.a == 0) return region.entry == initialize;
+	return recover_cfg_check_tree(cfg, row.a, initialize, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;
+}

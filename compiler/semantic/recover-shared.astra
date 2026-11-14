@@ -74,8 +74,13 @@ SymbolId recover_shared_borrow_root(RecoverFlowData flow, CheckedIndex checked, 
 SymbolId recover_borrow_argument_root(RecoverFlowData flow, CheckedIndex checked, int id) {
 	int current = id;
 	int steps = 0;
-	while (current > 0 && current <= flow.node_count && flow.nodes[current - 1].kind == 7 && steps < 192) {
-		current = flow.nodes[current - 1].a;
+	while (current > 0 && current <= flow.node_count && steps < 192) {
+		var input = flow.nodes[current - 1];
+		if (input.kind == 7) current = input.a;
+		else {
+			if (input.kind != 56 || !range_slice_verified(checked, input.source) || input.count != 3 || input.first < 0 || input.first > flow.edge_count - 3) break;
+			current = flow.edges[input.first];
+		}
 		steps = steps + 1;
 	}
 	if (current < 1 || current > flow.node_count || steps == 192) return type_symbol(0);

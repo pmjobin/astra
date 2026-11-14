@@ -104,7 +104,7 @@ SymbolId recover_array_root(RecoverFlow flow, int value, bool write) {
 		}
 		return fact.receiver;
 	}
-	if (row.kind != 2 || row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return type_symbol(0);
+	if (row.kind != 2 && row.kind != 102 || row.symbol.index < 1 || row.symbol.index >= len(flow.storage.symbols)) return type_symbol(0);
 	int slot = flow.storage.symbols[row.symbol.index];
 	if (slot < 1 || slot > flow.storage.count) return type_symbol(0);
 	var backing = flow.storage.slots[slot - 1];

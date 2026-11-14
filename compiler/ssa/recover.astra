@@ -11,6 +11,7 @@ class RecoverWork {
 	owned int[] dominance_cycle_gate;
 	owned int[] temporary_consumers;
 	owned int[] function_counts;
+	owned int[] owner_shortcuts;
 
 	init(int limit) {
 		this.remaining = limit;
@@ -20,6 +21,7 @@ class RecoverWork {
 		this.dominance_cycle_gate = new int[0];
 		this.temporary_consumers = new int[0];
 		this.function_counts = new int[0];
+		this.owner_shortcuts = new int[0];
 	}
 
 	bool take() { if (this.exhausted || this.remaining == 0) {
@@ -309,6 +311,7 @@ int recover_ssa_definition(RecoverCfg cfg, int block) {
 	if (row.opcode == 33) return row.owner;
 	if (row.opcode == 39) return row.owner;
 	if (row.opcode == 30) return row.origin;
+	if (row.opcode == 109) return row.origin;
 	if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) return cfg.core.count + row.origin;
 	if (recover_value_kind(row.opcode) && cfg.core.nodes[row.origin - 1].value.type.index != 14) return row.origin;
 	return 0;
@@ -358,6 +361,26 @@ bool recover_ssa_use(RecoverSsaData data, RecoverCfg cfg, int value, int block, 
 	return !data.reachable[block - 1] || recover_ssa_dominates(anchor, block, work);
 }
 
+// Elide only straight paths with no owner definition, use, retirement or
+// branch. The fresh physical scan builds this index in increasing block order;
+// a forward edge or a cycle remains an explicit event. Standalone callers
+// without that index retain the complete original walk.
+void recover_ssa_value_shortcut(RecoverSsa ssa, int block, RecoverWork work) {
+	var row = ssa.cfg.blocks[block - 1]; int definition = recover_ssa_definition(ssa.cfg, block);
+	bool event = definition > 0 && ssa.data.values[definition].channel != 0 || row.next > 0 && row.other > 0 || row.next == 0 && row.other == 0 || row.carry != 0;
+	if (row.opcode == 6 || row.opcode == 66 || row.opcode == 22 || row.opcode == 23 || row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 || row.opcode == 11 || row.opcode == 67 || row.opcode == 71 || row.opcode == 44 || row.opcode == 84 || row.opcode == 85) event = true;
+	int target = row.next; if (target == 0) target = row.other;
+	if (!event && target < block) work.owner_shortcuts[block] = work.owner_shortcuts[target];
+	else {
+		work.owner_shortcuts[block] = block;
+	}
+}
+
+int recover_ssa_owner_target(RecoverCfg cfg, int target, RecoverWork work) {
+	if (len(work.owner_shortcuts) == cfg.block_count + 1) return work.owner_shortcuts[target];
+	return target;
+}
+
 // Explore each owner version on all its paths, including its retired state.
 // A phi consumes an incoming owner and creates a new version of that same
 // allocation. Borrow/message, destroy, carry and return uses require LIVE.
@@ -365,6 +388,7 @@ bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWo
 	var definition = data.values[value]; if (definition.channel == 0 || !data.reachable[definition.block - 1]) return true;
 	if (definition.channel == 4) return recover_ssa_temporary(data, cfg, value, work);
 	int start = cfg.blocks[definition.block - 1].next; if (definition.edge != 0) start = definition.edge;
+	start = recover_ssa_owner_target(cfg, start, work);
 	if (start == 0) return false;
 	var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
 	while (count > 0) {
@@ -399,6 +423,11 @@ bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWo
 				if (cfg.blocks[target - 1].opcode == 33 && carried == value) {
 					if (!live) return false;
 					next_live = false;
+				}
+				target = recover_ssa_owner_target(cfg, target, work);
+				if (target == 0) {
+					if (next_live) return false;
+					p = p + 1; continue;
 				}
 				int next_state = (target - 1) * 2; if (next_live) next_state = next_state + 1;
 				if (!seen[next_state]) {
@@ -553,11 +582,14 @@ bool recover_ssa_verify_details(RecoverSsa ssa, int[] detail) {
 	}
 	if (work.exhausted) return recover_ssa_refuse(work, detail);
 	detail[0] = 5;
+	work.owner_shortcuts = new int[ssa.cfg.block_count + 1];
 	b = 1;
 	while (b <= ssa.cfg.block_count) {
 		detail[1] = b;
 		var row = ssa.cfg.blocks[b - 1];
 		recover_ssa_owner_shortcut(owners, ssa.cfg, b - 1);
+		recover_ssa_value_shortcut(ssa, b, work);
+		if (!recover_ssa_lazy_inputs(ssa, b, locals, work)) return recover_ssa_refuse(work, detail);
 		if (row.opcode != 62 && row.opcode != 36 && row.opcode != 37 && row.opcode != 38 && (row.a != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.a, b, work) || row.b != 0 && !recover_ssa_use(ssa.data, ssa.cfg, row.b, b, work))) return recover_ssa_refuse(work, detail);
 		if (row.opcode == 90 || row.opcode == 91 || row.opcode == 92) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value;

@@ -85,7 +85,7 @@ bool recover_llvm_index_verified(RecoverLlvmIndex index, RecoverCoreNode[] nodes
 			} else {
 				if (declaration == 0) return false;
 				var row = nodes[declaration - 1].value;
-				if (row.kind != 27 && row.kind != 86 || row.symbol.index != symbol || row.function != slot.function) return false;
+				if (row.kind != 27 && row.kind != 86 && row.kind != 89 || row.symbol.index != symbol || row.function != slot.function) return false;
 			}
 		}
 		symbol = symbol + 1;
@@ -188,12 +188,12 @@ bool recover_llvm_global_lanes(RecoverSsa ssa, RecoverLlvmIndex index, void* lay
 	return true;
 }
 
-bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, void* module, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] destroyers, void*[] tables, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void* error_owner_function, void*[] class_payloads, void*[] class_destroyers, void* class_snapshot, void* shared_acquire, void* shared_clone, void* shared_borrow, void* shared_downgrade, void* weak_clone, void* weak_upgrade, RecoverSharedRuntime intrinsic_shared, void*[] shared_drops, void*[] foreign_functions, void* utf8_function, void*[] integer_functions, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, void* snapshot_initialize, void*[] slot_functions, RecoverRecordStorage[] record_storage) throws Error {
+bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, void* module, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] destroyers, void*[] tables, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void* error_owner_function, void*[] class_payloads, void*[] class_destroyers, void* class_snapshot, void* shared_acquire, void* shared_clone, void* shared_borrow, void* shared_downgrade, void* weak_clone, void* weak_upgrade, RecoverSharedRuntime intrinsic_shared, void*[] shared_drops, void*[] foreign_functions, void* utf8_function, void*[] integer_functions, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, void* snapshot_initialize, void*[] slot_functions, RecoverRecordStorage[] record_storage, RecoverLazyRuntime lazy_runtime) throws Error {
 	if (module == null || !type_owner_same(source_owner, ssa.cfg.core.identity) || !recover_ssa_verify(ssa) || len(functions) != ssa.cfg.core.flow.data.function_count || len(blocks) != ssa.cfg.block_count || len(values) != len(ssa.data.values) || LLVMABISizeOfType(layout, payload) != 32 || LLVMABIAlignmentOfType(layout, payload) != 8 || LLVMCountStructElementTypes(payload) != 4 || LLVMIsPackedStruct(payload) != 0) return false;
 	if (LLVMOffsetOfElement(layout, payload, 0) != 0 || LLVMOffsetOfElement(layout, payload, 1) != 8 || LLVMOffsetOfElement(layout, payload, 2) != 16 || LLVMOffsetOfElement(layout, payload, 3) != 24) return false;
 	if (len(fixed_backings) != ssa.cfg.core.count || len(index_functions) != 16 || len(slice_functions) != 13) return false;
 	if (!recover_library_llvm_roots(module, functions, ssa.cfg.core.flow.data.library)) return false;
-	if (!recover_array_backings_distinct(fixed_backings, slots, owner_addresses)) return false;
+	if (!recover_lazy_frames_verified(ssa, lazy_runtime, layout, entries, slots, owner_addresses, fixed_backings) || !recover_array_backings_distinct(fixed_backings, slots, owner_addresses)) return false;
 	if (!recover_error_types_verified(ssa, layout, payload, descriptors, payloads, destroyers, tables, class_destroyers, shared_drops, free_function, message_function)) return false;
 	int symbols = ssa.cfg.core.flow.checked.bindings.symbol_count + 1;
 	if (!recover_llvm_index_domain(ssa.cfg.core.nodes, ssa.cfg.core.count, ssa.cfg.core.flow.storage.slots, ssa.cfg.core.flow.storage.count, len(functions), symbols)) return false;
@@ -202,18 +202,18 @@ bool recover_llvm_check(RecoverSsa ssa, borrowed shared TypeOwner source_owner, 
 	if (!recover_llvm_global_lanes(ssa, index, layout, entries, slots, locals, owner_addresses, owner_armed, owner_initial_values, owner_initial_flags, fixed_backings)) return false;
 	int f = 0;
 	while (f < len(functions)) {
-		if (!recover_llvm_function_verified(ssa, layout, functions, entries, blocks, values, slots, locals, owner_addresses, owner_armed, owner_initial_values, owner_initial_flags, fixed_backings, index, f)) return false;
+		if (!recover_llvm_function_verified(ssa, layout, functions, entries, blocks, values, slots, locals, owner_addresses, owner_armed, owner_initial_values, owner_initial_flags, fixed_backings, index, lazy_runtime, f)) return false;
 		f = f + 1;
 	}
 	int b = 0;
 	while (b < ssa.cfg.block_count) {
-		if (!recover_llvm_block_verified(ssa, layout, payload, free_function, construct_function, message_function, destroy_function, subtype_function, equal_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, snapshot_initialize, slot_functions, record_storage, b)) return false;
+		if (!recover_llvm_block_verified(ssa, layout, payload, free_function, construct_function, message_function, destroy_function, subtype_function, equal_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, snapshot_initialize, slot_functions, record_storage, lazy_runtime, b)) return false;
 		b = b + 1;
 	}
 	return true;
 }
 
-bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void*[] fixed_backings, RecoverLlvmIndex index, int f) throws Error {
+bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functions, void*[] entries, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] owner_addresses, void*[] owner_armed, void*[] owner_initial_values, void*[] owner_initial_flags, void*[] fixed_backings, RecoverLlvmIndex index, RecoverLazyRuntime lazy_runtime, int f) throws Error {
 	var row = ssa.cfg.core.flow.data.functions[f]; var function = functions[f];
 	var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol);
 	var declaration = ssa.cfg.core.flow.checked.bindings.symbol(row.symbol); bool main = ssa.cfg.core.flow.checked.bindings.program.arena.token_is(declaration.token, "main");
@@ -246,6 +246,7 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 			if (sum && (LLVMGetAlignment(slot) != recover_enum_type_alignment(ssa.cfg.core.flow.checked, node.value.type, 0) || LLVMABISizeOfType(layout, LLVMGetAllocatedType(slot)) != recover_enum_type_bytes(ssa.cfg.core.flow.checked, node.value.type, 0) as u64 || LLVMABIAlignmentOfType(layout, LLVMGetAllocatedType(slot)) != recover_enum_type_alignment(ssa.cfg.core.flow.checked, node.value.type, 0))) return false;
 			allocation_count = allocation_count + 1;
 		}
+		if (node.value.kind == 99) allocation_count = allocation_count + 2;
 		if (node.value.kind == 57 || node.value.kind == 95) allocation_count = allocation_count + 1;
 		id = index.node_next[n];
 	}
@@ -700,7 +701,7 @@ int recover_llvm_owner_instructions(RecoverSsa ssa, void* layout, void* payload,
 	return instruction_count;
 }
 
-bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void* error_owner_function, void*[] class_payloads, void*[] class_destroyers, void* class_snapshot, void* shared_acquire, void* shared_clone, void* shared_borrow, void* shared_downgrade, void* weak_clone, void* weak_upgrade, RecoverSharedRuntime intrinsic_shared, void*[] shared_drops, void*[] foreign_functions, void* utf8_function, void*[] integer_functions, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, void* snapshot_initialize, void*[] slot_functions, RecoverRecordStorage[] record_storage, int b) throws Error {
+bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, void* free_function, void* construct_function, void* message_function, void* destroy_function, void* subtype_function, void* equal_function, void*[] origins, void*[] functions, void*[] blocks, void*[] values, void*[] slots, void*[] locals, void*[] descriptors, void*[] payloads, void*[] operations, void* buffer_function, void* allocate_function, void*[] owner_addresses, void*[] owner_armed, void* error_owner_function, void*[] class_payloads, void*[] class_destroyers, void* class_snapshot, void* shared_acquire, void* shared_clone, void* shared_borrow, void* shared_downgrade, void* weak_clone, void* weak_upgrade, RecoverSharedRuntime intrinsic_shared, void*[] shared_drops, void*[] foreign_functions, void* utf8_function, void*[] integer_functions, void*[] fixed_backings, void*[] index_functions, void*[] slice_functions, void* snapshot_initialize, void*[] slot_functions, RecoverRecordStorage[] record_storage, RecoverLazyRuntime lazy_runtime, int b) throws Error {
 	var block = ssa.cfg.blocks[b]; var physical = blocks[b]; var term = LLVMGetBasicBlockTerminator(physical); var operation = operations[b];
 	if (physical == null || LLVMGetBasicBlockParent(physical) != functions[block.function - 1] || term == null) return false;
 	if (!ssa.data.reachable[b]) {
@@ -710,10 +711,11 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op == 95 || op == 93 || op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
-	else {
-		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
-	}
+	if (op >= 96 && op <= 110) instruction_count = recover_lazy_instruction_verified(ssa, block, lazy_runtime, layout, LLVMGetGlobalParent(functions[row.function - 1]), physical, operation, blocks, values, locals, owner_addresses);
+	else { if (op == 95 || op == 93 || op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+		else {
+			instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
+		} }
 	if (instruction_count == 0) return false;
 	if (recover_llvm_instruction_count(physical) != instruction_count) return false;
 	if (op == 1 && !recover_llvm_literal(ssa.cfg.core.flow.checked, row, values[block.origin])) return false;
@@ -810,7 +812,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 		}
 		if (incoming == 0 || incoming != LLVMCountIncoming(phi)) return false;
 	}
-	if (op == 90 || op == 91 || op == 21 || op == 63 || op == 73 || op == 74 || op == 83 || op == 16 || op == 31 || op == 39 || op == 46) {
+	if (op == 104 || op == 105 || op == 110 || op == 90 || op == 91 || op == 21 || op == 63 || op == 73 || op == 74 || op == 83 || op == 16 || op == 31 || op == 39 || op == 46) {
 		if (LLVMGetNumSuccessors(term) != 2 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1] || LLVMGetSuccessor(term, 1) != blocks[block.other - 1]) return false;
 		if ((op == 21 || op == 63) && LLVMGetCondition(term) != values[block.a]) return false;
 		if ((op == 90 || op == 91) && LLVMGetCondition(term) != operation) return false;
@@ -819,7 +821,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 			if (LLVMIsAInstruction(condition) == null || LLVMGetInstructionOpcode(condition) != 42 || LLVMGetICmpPredicate(condition) != 33 || LLVMGetOperand(condition, 0) != values[block.a] || LLVMIsNull(LLVMGetOperand(condition, 1)) == 0 || operation != term) return false;
 		}
 	}
-	if (op != 90 && op != 91 && op != 21 && op != 63 && op != 73 && op != 74 && op != 83 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && op != 46 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
+	if (op != 104 && op != 105 && op != 110 && op != 90 && op != 91 && op != 21 && op != 63 && op != 73 && op != 74 && op != 83 && op != 16 && op != 22 && op != 23 && op != 31 && op != 35 && op != 39 && op != 46 && !(op == 4 && ssa.cfg.core.nodes[block.origin - 1].conditional)) {
 		if (LLVMGetInstructionOpcode(term) != 70 || LLVMGetNumSuccessors(term) != 1 || LLVMGetSuccessor(term, 0) != blocks[block.next - 1]) return false;
 	}
 	return true;

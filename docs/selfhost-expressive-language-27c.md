@@ -742,3 +742,88 @@ but its C0 SSA construction fails on a struct-valued loop-condition temporary;
 the candidate reads the channel count before the loop. Semantic10 and ssa13 are
 focused builds in progress. No callable/capture runtime or pipeline execution,
 interpolation, comprehension or migration acceptance is claimed by this code.
+
+The afed63e development build (selfhost27c-dev8) completed from replacement C0
+in 3716.603 seconds. Its optimized executable SHA-256 is
+8372932ac04ce9f5def9e3e0947912b4946a446a5bd1389e1fa92692775cbb6c;
+this is a C0-built generation, not an Astra-built or converged generation.
+Range fixed collection and compound stride/owned collection pass actual O0/O2
+LLVM/native execution, independent C0-expanded oracles, strict returning compiler
+and target memory checks and all 31 range semantic negatives
+(selfhost27c-range-dev8-1). The separately authored exact literal specimen
+`(20..=80).step_by(5).collect_array()` verifies every one of thirteen elements,
+20 through 80, total 650, and exactly one 52-byte allocation
+(selfhost27c-range-dev8-literal1). Static fixed collection observes zero heap
+allocations. These receipts do not qualify the later lazy runtime candidate.
+
+Dev7's fifteen selected match targets pass actual O0/O2 execution and strict
+compiler/target memory checks (selfhost27c-match-dev7). Its physical campaign
+passes six controls and eight LLVM-valid refused mutants; the ninth fixture
+incorrectly expected one residual retirement when the actual two-arm source
+has two. The corrected separate residual test passes a control and rejects the
+actual one-arm retirement corruption (selfhost27c-physical-dev7-residual2).
+The earlier count failure remains retained, not silently credited as a PASS.
+The dev7 named-range foreach specimen independently reached a physical index
+predicate that recorded binder kind 89 but omitted it from its final declaration
+guard. The candidate adds the same independently checked binder kind there;
+its actual native foreach qualification awaits the next compiler.
+
+Semantic10 and Semantic11 pass focused native and strict memory checks. The
+latter consumes genuine map/filter/capture/iterator source, rejects forged
+execution identities and illegal owner replacement, and preserves deferred
+callback effects under the consuming handler. The new private execution origin
+connects independently reconstructed callback bodies to their consumer scope;
+construction neither executes those bodies nor commits their Error effects.
+Scalar captures are snapshots; captured numeric buffers are pinned for the
+function's lifetime by the current conservative borrow subset. Lazy descriptors
+are local, non-escaping and reusable by separately lowered consumptions.
+
+Fresh exact owner/physical-index kernels pass C0 O0/O2 and strict zero-live-byte,
+zero-error, zero-suppression Valgrind (selfhost27c-owner-kernel2): 0 through 96
+reservation controls against the retained scalar algorithm, wrong reservation
+and absent commit negatives, restored positives, and an Error-owner linear
+walk requiring 3 versus 2047 visits with identical decisions. These helper
+kernels do not establish whole-compiler SSA headroom. Fifteen actual match
+sources independently pass source through SSA and strict returning memory with
+the compressed owner walks (selfhost27c-owner-source-ssa14). The old development
+source's separate bounded budget diagnostic exhausts phase 7, entering packed
+slot validation with only 143321 units remaining; no current-source acceptance
+or output object is credited from that diagnostic.
+
+SSA13/14 default fixtures incorrectly demanded that standalone slot liveness
+reject a source commit changed to a restore, although the retained scalar
+reference agreed and the independent CFG/source consumer rejected the edge.
+The corrected test requires that agreement and full refusal, plus a genuine
+missing-commit negative. SSA15 then exposed a second fixture assumption:
+a cleanup mutation at unreachable block 16 was properly ignored by standalone
+owner liveness, while the complete verifier rejected its source correspondence.
+Read-only inspection confirmed the unreachable bitmap, Error owner 49, and a
+separate reachable cleanup at block 18. The candidate retains complete refusal
+for every altered cleanup and requires standalone rejection only for reachable
+cleanup blocks, with nonzero coverage of both. SSA16 rebuild is pending.
+SSA15's selected source CLI independently accepts the five-reduction lazy
+specimen, borrowed slice argument and fixed-root slice with strict returning
+memory (selfhost27c-ssa15-cases1); this is source-to-SSA evidence, not lazy native
+execution or acceptance of the default mutation suite.
+
+The lazy backend candidate lowers map/filter/sum into one traversal with two
+private scalar stack frames per reduction, immutable capture carriers, a
+checked source descriptor, explicit filter skip edges and ordinary callback
+Error cleanup. A fresh physical cursor checks all actual instructions,
+operands, signedness, no-wrap/fast-math flags, metadata, alignments, branches,
+frame distinctness and helper inventory. Integer sums wrap at their concrete
+width; floating sums perform an ordered IEEE left fold from positive zero,
+without fast-math or parallel reduction. No intermediate collection or closure
+heap allocation is emitted. These are implementation properties awaiting
+actual native/physical-mutation qualification, not a pipeline PASS claim.
+
+Whole current compiler-source C0 semantic preflight passes in 72.397 seconds
+(selfhost27c-preflight16). Preflights12 through15 retain source-routing failures
+for owned-child aliases, overlapping parent/child borrows, assignment ordering
+and passing the legacy non-owning `this` receiver as a value. The implementation
+uses the existing module methods and explicit field routing instead; C0 and its
+rules remain unchanged. The stable candidate still requires genuine Astra-built
+current-source acceptance under the unchanged 8M SSA budget, lazy native and
+corruption proof, typed interpolation, comprehensions, qualified source migration
+and final safety/ABI qualification. Original 27-B remains PARTIAL, its original
+prepublication G5 remains PENDING, and 27-C post-delivery G7 remains separate.

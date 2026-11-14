@@ -607,6 +607,54 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-collect-literal', '''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int main() {
+	var values = (20..=80).step_by(5).collect_array();
+	if (len(values) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int at = 0; int total = 0;
+	while (at < len(values)) { if (values[at] != 20+at*5) return 2; total = total+values[at]; at = at+1; }
+	if (total != 650) return 3; return 42;
+}
+''', '''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int main() {
+	owned int[] values = new int[13]; int at = 0; int current = 20;
+	while (at < 13) { values[at] = current; at = at+1; if (at < 13) current = current+5; }
+	if (len(values) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	at = 0; int total = 0;
+	while (at < len(values)) { if (values[at] != 20+at*5) return 2; total = total+values[at]; at = at+1; }
+	if (total != 650) return 3; return 42;
+}
+''', False),
+	('range-collect-named', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int main() {
+	reset_trace(); var interval = tick(1)+19..=tick(2)+78; var sequence = interval.step_by(tick(3)+2);
+	var data = sequence.collect_array();
+	if (trace() != 123 || len(data) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int at = 0; int total = 0;
+	while (at < len(data)) { if (data[at] != 20+at*5) return 2; total = total+data[at]; at = at+1; }
+	int count = 0; int iterated = 0;
+	foreach (var item in sequence) { count = count+1; iterated = iterated+item; }
+	if (total != 650 || data[0] != 20 || data[12] != 80 || count != 13 || iterated != 650 || allocation_calls() != 1) return 3;
+	return 42;
+}
+''', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int main() {
+	reset_trace(); int first = tick(1)+19; int end = tick(2)+78; int step = tick(3)+2;
+	owned int[] data = new int[13]; int at = 0;
+	while (at < 13) { data[at] = first+at*step; at = at+1; }
+	if (trace() != 123 || len(data) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	at = 0; int total = 0;
+	while (at < len(data)) { if (data[at] != 20+at*5) return 2; total = total+data[at]; at = at+1; }
+	int count = 0; int iterated = 0; int item = first;
+	while (item <= end) { count = count+1; iterated = iterated+item; if (item == end || end-item < step) break; item = item+step; }
+	if (total != 650 || data[0] != 20 || data[12] != 80 || count != 13 || iterated != 650 || allocation_calls() != 1) return 3;
+	return 42;
+}
+''', False),
 	('range-fixed', '''extern(C) int allocation_calls();
 int main() {
 	int[13] values = (20..=80).step_by(5).collect_fixed(); int total = 0; int at = 0;
@@ -904,7 +952,7 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name in ('range-collect', 'range-fixed'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])

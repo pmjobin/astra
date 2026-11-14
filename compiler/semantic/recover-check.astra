@@ -5,7 +5,7 @@ bool recover_borrow_preserved(RecoverFlowData flow, int id, SymbolId receiver, i
 	if (id < 1 || id > flow.node_count || depth > 192 || work[0] == 0) return false;
 	work[0] = work[0] - 1; var row = flow.nodes[id - 1];
 	if (!recover_value_kind(row.kind) || row.kind == 69 || row.kind == 10 && row.symbol.index == receiver.index) return false;
-	if (row.kind == 82) return true;
+	if (row.kind == 82 || row.kind == 100 || row.kind == 102) return true;
 	if (row.kind == 80) {
 		if (row.b != 0 || row.c != 0 || row.count < 1 || row.first < 0 || row.first > flow.edge_count - row.count || !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1)) return false;
 		int at = 0;
@@ -32,7 +32,7 @@ bool recover_borrow_preserved(RecoverFlowData flow, int id, SymbolId receiver, i
 		}
 		return true;
 	}
-	if (row.a != 0 && !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1) || row.b != 0 && !recover_borrow_preserved(flow, row.b, receiver, work, depth + 1) || row.c != 0 && !recover_borrow_preserved(flow, row.c, receiver, work, depth + 1)) return false;
+	if (row.a != 0 && !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1) || row.b != 0 && !recover_borrow_preserved(flow, row.b, receiver, work, depth + 1) || row.c != 0 && row.kind != 101 && !recover_borrow_preserved(flow, row.c, receiver, work, depth + 1)) return false;
 	int i = 0;
 	while (i < row.count) {
 		if (!recover_borrow_preserved(flow, flow.edges[row.first + i], receiver, work, depth + 1)) return false;
@@ -64,6 +64,10 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 	seen[child - 1] = true; var row = flow.nodes[child - 1];
 	if (row.source.index != source.index || row.function != function || row.handler != handler || row.caught != caught || row.first < 0 || row.count < 0 || row.first > flow.edge_count - row.count) return false;
 	var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind >= 96 && row.kind <= 102) {
+		if (row.kind != 100 && row.kind != 101 && row.type.index != types.types[source.index].index) return false;
+		return recover_lazy_source(flow, checked, types, child, function, handler, caught, seen, edges, bindings, depth);
+	}
 	if (recover_value_kind(row.kind) && row.type.index != types.types[source.index].index) return false;
 	if (!recover_value_kind(row.kind) && row.kind != 25 && row.type.index != 14) return false;
 	if (row.kind != 3 && row.kind != 62 && row.kind != 77 && row.kind != 79 && row.kind != 55 && row.kind != 61 && row.kind != 76 && row.kind != 21 && row.kind != 28 && row.kind != 29 && row.kind != 41 && row.kind != 45 && row.kind != 73 && row.kind != 81 && row.kind != 82 && row.kind != 86 && row.kind != 88 && row.kind != 89 && row.kind != 93 && row.kind != 94 && row.kind != 95 && (row.b != 0 || row.c != 0)) return false;
@@ -251,7 +255,8 @@ bool recover_child_calls_with_bindings(RecoverFlowData flow, CheckedIndex checke
 					var root = recover_borrow_argument_root(flow, checked, flow.edges[row.first + argument]);
 					if (root.index < 1 || root.index > checked.bindings.symbol_count) return false;
 					var binding = checked.bindings.symbol(root);
-					if (binding.kind != 7 && !(binding.kind == 8 && checked.symbol_flags[root.index] == 4) && !recover_error_borrow_binding(checked, root)) return false;
+					bool fixed_root = binding.kind == 8 && checked.symbol_flags[root.index] == 0 && recover_storage_fixed(checked, checked.symbol_types[root.index]);
+					if (binding.kind != 7 && !(binding.kind == 8 && checked.symbol_flags[root.index] == 4) && !fixed_root && !recover_error_borrow_binding(checked, root)) return false;
 					int other = 0;
 					while (other < row.count) {
 						if (other != argument && !recover_borrow_preserved(flow, flow.edges[row.first + other], root, work, 0)) return false;
@@ -458,7 +463,7 @@ bool recover_mutations_verified(RecoverFlowData flow) {
 }
 
 bool recover_flow_verify(RecoverFlow flow) {
-	if (flow.data.status != 0 || flow.data.pattern_arm != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > len(flow.data.nodes) || flow.data.edge_count < 0 || flow.data.edge_count > len(flow.data.edges) || len(flow.data.nodes) > 8000000 || len(flow.data.edges) > 8000000 || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || len(flow.data.catch_owners) != len(flow.data.symbols) || !flow.checked.validate() || flow.checked.failed()) return false;
+	if (flow.data.status != 0 || flow.data.pattern_arm != 0 || flow.data.lambda_stage != 0 || flow.data.limit < 1 || flow.data.limit > 8192 || flow.data.function_count < 1 || flow.data.function_count > flow.data.limit || flow.data.node_count < 1 || flow.data.node_count > len(flow.data.nodes) || flow.data.edge_count < 0 || flow.data.edge_count > len(flow.data.edges) || len(flow.data.nodes) > 8000000 || len(flow.data.edges) > 8000000 || len(flow.data.functions) != flow.data.limit || len(flow.data.symbols) != flow.checked.bindings.symbol_count + 1 || len(flow.data.catch_owners) != len(flow.data.symbols) || !flow.checked.validate() || flow.checked.failed()) return false;
 	if (!recover_types_verify(flow.types, flow.checked) || !recover_storage_verify(flow.storage, flow.checked, flow.data.symbols)) return false;
 	var source = checked_effect_source_verify(flow.checked); if (source.status != 0 || !generic_verify(flow.checked)) return false;
 	var seen = new bool[flow.data.node_count]; var edges = new bool[flow.data.edge_count]; var caught_symbols = new bool[len(flow.data.catch_owners)]; int expected = 0; int s = 1; int entries = 0;
@@ -517,5 +522,5 @@ bool recover_flow_verify(RecoverFlow flow) {
 		if (!caught_symbols[i] && flow.data.catch_owners[i] != 0) return false;
 		i = i + 1;
 	}
-	return recover_compound_places_verified(flow) && recover_mutations_verified(flow.data) && recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data) && recover_text_views_verified(flow) && recover_enum_borrows_verified(flow);
+	return recover_lazy_executions_verified(flow.data) && recover_lazy_borrows_verified(flow) && recover_compound_places_verified(flow) && recover_mutations_verified(flow.data) && recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data) && recover_slot_places_verified(flow) && recover_array_places_verified(flow) && recover_payload_calls_verified(flow) && recover_literal_string_results(flow.data) && recover_text_views_verified(flow) && recover_enum_borrows_verified(flow);
 }

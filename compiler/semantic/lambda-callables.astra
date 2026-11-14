@@ -46,6 +46,7 @@ bool lambda_capture_type(CheckedIndex index, SymbolId symbol) {
 	var declaration = index.bindings.symbol(symbol); if (declaration.kind != 7 && declaration.kind != 8 && declaration.kind != 15) return false;
 	var type = index.symbol_types[symbol.index]; int flags = index.symbol_flags[symbol.index];
 	if (lambda_scalar(index, type)) return flags == 0;
+	if (declaration.kind != 7 && declaration.kind != 8) return false;
 	int kind = checked_kind(index, type);
 	if (kind != 22 && kind != 21 || kind == 21 && !recover_storage_fixed(index, type) || kind == 22 && flags != 0 && flags != 2 && flags != 4 || kind == 21 && flags != 0) return false;
 	var element = index.types.argument(index.types, type, 0);

@@ -165,7 +165,7 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 	int gate = -1;
 	if (consumer_block > 0 && consumer_block < len(work.dominance_cycle_gate)) gate = work.dominance_cycle_gate[consumer_block];
 	bool restart = gate >= 0 && consumer_block != definition.block && recover_ssa_dominates(definition.block, consumer_block, work) && (gate == 0 || recover_ssa_dominates(gate, definition.block, work));
-	int start = cfg.blocks[definition.block - 1].next; if (start == 0) return false; var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
+	int start = recover_ssa_owner_target(cfg, cfg.blocks[definition.block - 1].next, work); if (start == 0) return false; var seen = new bool[cfg.block_count * 2]; var pending = new int[cfg.block_count * 2]; int count = 1; pending[0] = (start - 1) * 2 + 1; seen[pending[0]] = true;
 	while (count > 0) { if (!work.take()) return false; count = count - 1; int item = pending[count]; int block = item / 2 + 1; bool live = item % 2 == 1; var row = cfg.blocks[block - 1];
 		if (block == definition.block) {
 			if (live) return false;
@@ -189,6 +189,11 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 			int target = row.next;
 			if (polarity == 1) target = row.other;
 			if (target > 0) {
+				target = recover_ssa_owner_target(cfg, target, work);
+				if (target == 0) {
+					if (live) return false;
+					polarity = polarity + 1; continue;
+				}
 				int next = (target - 1) * 2;
 				if (live) next = next + 1;
 				if (!seen[next]) {

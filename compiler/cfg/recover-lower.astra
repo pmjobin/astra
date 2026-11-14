@@ -31,6 +31,11 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		return 0;
 	}
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
+	if (row.kind == 99) return recover_cfg_lazy(cfg, id, next, depth);
+	if (row.kind == 102) {
+		int operation = cfg.block(row.function, id, 102, 0, 0, next, 0, 0, 0, 0);
+		RecoverRegion region = {entry = operation, operation = operation, next = next}; cfg.regions[id - 1] = region; return operation;
+	}
 	if (row.kind == 82 || row.kind == 86) {
 		int operation = cfg.block(row.function, id, row.kind, row.a, 0, next, 0, 0, 0, 0);
 		RecoverRegion region = {entry = operation, operation = operation, next = next}; cfg.regions[id - 1] = region;

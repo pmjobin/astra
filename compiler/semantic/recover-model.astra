@@ -33,6 +33,7 @@ struct RecoverNode {
 	int count;
 	int handler;
 	int caught;
+	int execution;
 }
 
 class RecoverFlowData {
@@ -54,6 +55,7 @@ class RecoverFlowData {
 	int first_edge;
 	bool library;
 	int pattern_arm;
+	int lambda_stage;
 
 	init(int symbols, int limit) {
 		var owner = new TypeOwner(); var identity = shared_acquire(move owner); this.identity = move identity;
@@ -65,6 +67,7 @@ class RecoverFlowData {
 		this.unit = 0; this.first_node = 0; this.first_edge = 0;
 		this.library = false;
 		this.pattern_arm = 0;
+		this.lambda_stage = 0;
 		int status = 0; if (capacity == 0) status = 2; this.status = status;
 		SyntaxNodeId absent = {index = 0}; this.boundary = absent;
 	}
@@ -150,7 +153,7 @@ int recover_module_capacity(int current, int needed) {
 }
 
 RecoverNode recover_empty(SyntaxNodeId source, int function, TypeId type, int handler, int caught) {
-	RecoverNode row = {kind = 0, function = function, source = source, type = type, token = {index = 0}, symbol = {index = 0}, a = 0, b = 0, c = 0, first = 0, count = 0, handler = handler, caught = caught}; return row;
+	RecoverNode row = {kind = 0, function = function, source = source, type = type, token = {index = 0}, symbol = {index = 0}, a = 0, b = 0, c = 0, first = 0, count = 0, handler = handler, caught = caught, execution = 0}; return row;
 }
 
 // Keep mutable construction tables separate from retained source authority.

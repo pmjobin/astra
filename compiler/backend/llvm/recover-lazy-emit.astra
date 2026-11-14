@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Module-owned handles for finite inline pipelines. These are LLVM values,
+// never runtime heap objects or reusable verification certificates.
+class RecoverLazyRuntime {
+	owned void*[] sources;
+	owned void*[] bases;
+	owned void*[] counters;
+	owned void*[] totals;
+
+	init(int nodes) {
+		this.sources = new void*[nodes]; this.bases = new void*[nodes];
+		this.counters = new void*[nodes]; this.totals = new void*[nodes];
+	}
+}
+
+TypeId recover_lazy_counter_type(CheckedIndex checked, TypeId base) {
+	if (checked_kind(checked, base) == 40) return type_id(1);
+	return checked.types.lazy_element(base, 0);
+}

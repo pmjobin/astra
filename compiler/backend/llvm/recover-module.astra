@@ -81,6 +81,7 @@ class RecoverLlvm {
 	void* error_owner_function;
 	void* class_snapshot;
 	void* utf8_function;
+	owned RecoverLazyRuntime lazy_runtime;
 	owned void*[] range_steps;
 	owned void*[] range_queries;
 	owned void*[] range_counts;
@@ -131,6 +132,7 @@ class RecoverLlvm {
 		this.snapshot_initialize_function = null;
 		this.class_snapshot = null;
 		this.utf8_function = null;
+		var lazy_runtime = new RecoverLazyRuntime(ssa.cfg.core.count); this.lazy_runtime = move lazy_runtime;
 		this.range_steps = new void*[10];
 		this.range_queries = new void*[20];
 		this.range_counts = new void*[10];
@@ -278,6 +280,17 @@ class RecoverLlvm {
 			var fields = new void*[count]; var element = this.scalar(checked, checked.types.argument(checked.types, type, 0).type);
 			fields[0] = element; fields[1] = element; fields[2] = this.boolean; if (kind == 37) fields[3] = element;
 			return this.structure(fields);
+		}
+		if (kind == 40 && checked.types.lazy_element(type, 0).index != 0) return this.text;
+		if (kind == 38 && checked.types.inline_callable_type(type)) {
+			int count = checked.types.row(type).count - 2; var fields = new void*[count]; int at = 0;
+			while (at < count) {
+				fields[at] = this.scalar(checked, checked.types.argument(checked.types, type, at + 2).type); at = at + 1;
+			}
+			return this.structure(fields);
+		}
+		if (kind == 39 && checked.types.lazy_element(type, 0).index != 0) {
+			var fields = new void*[2]; fields[0] = this.scalar(checked, checked.types.argument(checked.types, type, 0).type); fields[1] = this.scalar(checked, checked.types.argument(checked.types, type, 1).type); return this.structure(fields);
 		}
 		if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
 		if (kind == 23) {
@@ -666,6 +679,10 @@ class RecoverLlvm {
 			var row = ssa.cfg.core.nodes[n].value;
 			if (row.kind == 93) this.range_step_declare(ssa.cfg.core.flow.checked, row.type);
 			if (row.kind == 88) this.range_query_declare(ssa.cfg.core.flow.checked, row.source);
+			if (row.kind == 99) {
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) this.range_query_declare_type(ssa.cfg.core.flow.checked, base, 2);
+			}
 			if (row.kind == 89) this.range_query_declare_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 2);
 			if (row.kind == 54) {
 				int source = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type);
@@ -999,10 +1016,144 @@ class RecoverLlvm {
 		return LLVMBuildICmp(this.builder, predicate, left, right, this.empty);
 	}
 
+	void* lazy_symbol(RecoverSsa ssa, SymbolId symbol) {
+		if (recover_mutable(ssa.cfg.core.flow.data, symbol) || (ssa.cfg.core.flow.checked.symbol_flags[symbol.index] & 4) != 0) return this.load(this.scalar(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[symbol.index]), this.owner_addresses[symbol.index]);
+		return this.locals[symbol.index];
+	}
+
+	void* lazy_receiver(RecoverSsa ssa, RecoverNode row) {
+		if (row.a > 0) return this.values[row.a];
+		return this.lazy_symbol(ssa, row.symbol);
+	}
+
+	void lazy_frames(RecoverSsa ssa) {
+		int at = 0;
+		while (at < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 99) {
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				LLVMPositionBuilderAtEnd(this.builder, this.entries[row.function - 1]);
+				var counter = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)), this.empty);
+				var total = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, row.type), this.empty);
+				this.lazy_runtime.counters[at] = counter; this.lazy_runtime.totals[at] = total;
+			}
+			at = at + 1;
+		}
+	}
+
+	RecoverOwnerInstruction lazy_instruction(RecoverSsa ssa, RecoverBlock block) {
+		RecoverOwnerInstruction result = {value = null, operation = null};
+		var row = ssa.cfg.core.nodes[block.origin - 1].value; int op = block.opcode;
+		if (op == 96) {
+			var facts = lambda_facts(ssa.cfg.core.flow.checked, row.source); void* value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type)); int at = 0;
+			while (at < facts.count) {
+				value = LLVMBuildInsertValue(this.builder, value, this.lazy_symbol(ssa, facts.captures[at]), at, this.empty);
+				at = at + 1;
+			}
+			result.value = value; return result;
+		}
+		if (op == 97) {
+			var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type)), this.lazy_receiver(ssa, row), 0, this.empty);
+			result.value = LLVMBuildInsertValue(this.builder, first, this.values[row.b], 1, this.empty); return result;
+		}
+		if (op == 98) {
+			if (row.a > 0) result.value = this.values[row.a];
+			else {
+				result.value = this.lazy_symbol(ssa, ssa.cfg.core.flow.checked.types.row(row.type).nominal);
+			}
+			return result;
+		}
+		if (op == 101) {
+			var type = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, block.origin);
+			result.value = this.values[row.a]; if (ssa.cfg.core.flow.checked.types.row(type).extent == 1) result.value = this.values[row.b]; return result;
+		}
+		if (op == 110) {
+			result.operation = this.values[row.b];
+			var branch = LLVMBuildCondBr(this.builder, result.operation, this.blocks[block.next - 1], this.blocks[block.other - 1]); return result;
+		}
+		int root = block.origin;
+		if (op == 100) root = row.c;
+		if (op == 102) {
+			var stage = ssa.cfg.core.nodes[row.c - 1].value; root = stage.c;
+			if (stage.symbol.index == row.symbol.index) {
+				result.value = this.values[stage.a]; return result;
+			}
+			var type = range_query_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c);
+			void* carrier = this.lazy_runtime.sources[root - 1]; int depth = 0;
+			while (type.index != target.index && depth < 8) {
+				carrier = LLVMBuildExtractValue(this.builder, carrier, 0, this.empty); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
+			}
+			var captures = LLVMBuildExtractValue(this.builder, carrier, 1, this.empty); var facts = lambda_facts(ssa.cfg.core.flow.checked, stage.source); int at = 0;
+			while (at < facts.count && facts.captures[at].index != row.symbol.index) at = at + 1;
+			result.value = LLVMBuildExtractValue(this.builder, captures, at, this.empty); return result;
+		}
+		var consumer = ssa.cfg.core.nodes[root - 1].value;
+		var sequence = range_query_receiver(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
+		var element = recover_lazy_counter_type(ssa.cfg.core.flow.checked, base); var integer = this.scalar(ssa.cfg.core.flow.checked, element); var counter = this.lazy_runtime.counters[root - 1]; var total = this.lazy_runtime.totals[root - 1];
+		bool array = checked_kind(ssa.cfg.core.flow.checked, base) == 40;
+		if (op == 103) {
+			void* aggregate = this.lazy_receiver(ssa, row); this.lazy_runtime.sources[root - 1] = aggregate; var type = sequence; int depth = 0;
+			while (checked_kind(ssa.cfg.core.flow.checked, type) == 39 && depth < 8) {
+				aggregate = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
+			}
+			this.lazy_runtime.bases[root - 1] = aggregate; void* start = LLVMConstNull(integer); if (!array) start = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty);
+			var initialized = LLVMBuildStore(this.builder, start, counter);
+			result.operation = LLVMBuildStore(this.builder, LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, consumer.type)), total); return result;
+		}
+		if (op == 108) {
+			var previous = this.load(this.scalar(ssa.cfg.core.flow.checked, consumer.type), total); void* added = null;
+			if (checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 11 || checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 12) added = LLVMBuildFAdd(this.builder, previous, this.values[block.a], this.empty);
+			else {
+				added = LLVMBuildAdd(this.builder, previous, this.values[block.a], this.empty);
+			}
+			result.operation = LLVMBuildStore(this.builder, added, total); return result;
+		}
+		if (op == 109) {
+			result.value = this.load(this.scalar(ssa.cfg.core.flow.checked, consumer.type), total); result.operation = result.value; return result;
+		}
+		var current = this.load(integer, counter); var aggregate = this.lazy_runtime.bases[root - 1];
+		if (op == 100) {
+			result.value = current;
+			if (array) {
+				var pointer = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty); var arguments = new void*[1]; arguments[0] = current;
+				var value_type = this.scalar(ssa.cfg.core.flow.checked, row.type); var address = LLVMBuildGEP2(this.builder, value_type, pointer, this.arguments(arguments), 1, this.empty); LLVMGEPSetNoWrapFlags(address, 0);
+				result.value = this.load(value_type, address);
+			}
+			result.operation = result.value; return result;
+		}
+		void* step = LLVMConstInt(integer, 1, 0);
+		if (!array && range_stride_type_verified(ssa.cfg.core.flow.checked.types, base)) step = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
+		if (op == 106) {
+			var added = LLVMBuildAdd(this.builder, current, step, this.empty); result.operation = LLVMBuildStore(this.builder, added, counter); return result;
+		}
+		if (op == 104) {
+			if (array) result.operation = LLVMBuildICmp(this.builder, 40, current, LLVMBuildExtractValue(this.builder, aggregate, 1, this.empty), this.empty);
+			else {
+				var arguments = new void*[4]; int at = 0;
+				while (at < 3) {
+					arguments[at] = LLVMBuildExtractValue(this.builder, aggregate, at, this.empty); at = at + 1;
+				}
+				arguments[3] = current; result.operation = this.call(this.range_queries[(checked_kind(ssa.cfg.core.flow.checked, element) - 1) * 2 + 1], arguments, true);
+			}
+		} else {
+			var end = LLVMBuildExtractValue(this.builder, aggregate, 1, this.empty); var distance = LLVMBuildSub(this.builder, end, current, this.empty);
+			if (array) result.operation = LLVMBuildICmp(this.builder, 34, distance, step, this.empty);
+			else {
+				int predicate = 36; if (type_signed(checked_kind(ssa.cfg.core.flow.checked, element))) predicate = 40;
+				var ordered = LLVMBuildICmp(this.builder, predicate, current, end, this.empty); var room = LLVMBuildICmp(this.builder, 35, distance, step, this.empty);
+				result.operation = LLVMBuildAnd(this.builder, ordered, room, this.empty);
+			}
+		}
+		var branch = LLVMBuildCondBr(this.builder, result.operation, this.blocks[block.next - 1], this.blocks[block.other - 1]); return result;
+	}
+
 	void emit_block(RecoverSsa ssa, int id) throws Error {
 		this.emitted[id - 1] = true; var block = ssa.cfg.blocks[id - 1]; LLVMPositionBuilderAtEnd(this.builder, this.blocks[id - 1]);
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
+		if (op >= 96 && op <= 110) {
+			var lowered = this.lazy_instruction(ssa, block); value = lowered.value; operation = lowered.operation;
+		}
 		if (op == 82) {
 			value = this.enum_read(ssa, block);
 			operation = value;
@@ -2098,6 +2249,7 @@ class RecoverLlvm {
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
+		this.lazy_frames(ssa);
 		this.enum_helpers(ssa);
 		this.range_materialization_helpers(ssa);
 		this.class_finalizers(ssa);
@@ -2300,6 +2452,14 @@ class RecoverLlvm {
 		if (len(this.range_queries) != 20) return false; var needed = new bool[20]; int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 99) {
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) {
+					if (!range_sequence_type_verified(ssa.cfg.core.flow.checked.types, base)) return false;
+					var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, base, 0).type;
+					needed[(checked_kind(ssa.cfg.core.flow.checked, element) - 1) * 2 + 1] = true;
+				}
+			}
 			if (row.kind == 89) {
 				var type = ssa.cfg.core.nodes[row.a - 1].value.type;
 				if (!range_sequence_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
@@ -2737,7 +2897,7 @@ class RecoverLlvm {
 			clone = this.shared_runtime.clone;
 			borrow = this.shared_runtime.borrow;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.intrinsic_shared, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.intrinsic_shared, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage, this.lazy_runtime);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

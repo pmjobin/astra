@@ -236,6 +236,30 @@ void expressive_lazy_effects() throws Error {
 	assert_that(throwing == 1);
 }
 
+void expressive_lazy_flow() throws Error {
+	var checked = expressive_checked("language astra27b; int square(int value) { return value*value; } int main() { int bias = 3; owned int[] data = new int[10]; var values = (0..10).map(i => square(i)+bias).filter(x => x>5); var views = data.iter().filter(x => x>0).map(x => x*x); var indexed = (0..3).map(i => data[i]+bias); return values.sum()+values.sum()+views.sum()+indexed.sum(); }");
+	var flow = recover_flow_lower(move checked, 8192);
+	assert_that(flow.data.status == 0 && recover_flow_verify(flow));
+	int stages = 0; int reads = 0; int at = 0;
+	while (at < flow.data.node_count) {
+		var original = flow.data.nodes[at];
+		if (original.kind == 101) stages = stages + 1;
+		if (original.kind == 102) {
+			reads = reads + 1; var changed = original; changed.execution = 0; flow.data.nodes[at] = changed;
+			assert_that(!recover_flow_verify(flow)); flow.data.nodes[at] = original;
+			changed = original; changed.c = original.execution; flow.data.nodes[at] = changed;
+			assert_that(!recover_flow_verify(flow)); flow.data.nodes[at] = original;
+			assert_that(recover_flow_verify(flow));
+		}
+		at = at + 1;
+	}
+	assert_that(stages == 7 && reads > 7);
+	var invalid = expressive_checked("language astra27b; int main() { owned int[] data = new int[3]; var deferred = data.iter().map(x => x+1); data = new int[3]; return deferred.sum(); }");
+	var refused = recover_flow_lower(move invalid, 8192); assert_that(refused.data.status != 0);
+	var throwing = expressive_checked("language astra27b; [ExceptionRoot] class Error { readonly string text; init(string message) { this.text=message; } virtual property string message { get { return this.text; } } } int risky(int value) throws Error { if (value == 1) { throw new Error(\"callback failure\"); } return value; } int main() { var deferred = (0..3).map(i => risky(i)); try { return deferred.sum(); } catch (Error error) { return 42; } }");
+	var guarded = recover_flow_lower(move throwing, 8192); assert_that(guarded.data.status == 0 && recover_flow_verify(guarded));
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -268,6 +292,7 @@ int main(string[] args) {
 		expressive_range_values();
 		expressive_lazy_types();
 		expressive_lazy_effects();
+		expressive_lazy_flow();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

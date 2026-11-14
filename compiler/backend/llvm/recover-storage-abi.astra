@@ -130,7 +130,23 @@ bool recover_storage_llvm_type(CheckedIndex checked, TypeId type, void* actual) 
 		var pointer = LLVMStructGetTypeAtIndex(actual, 0); var count = LLVMStructGetTypeAtIndex(actual, 1); var capacity = LLVMStructGetTypeAtIndex(actual, 2);
 		return LLVMGetTypeKind(pointer) == 12 && LLVMGetPointerAddressSpace(pointer) == 0 && LLVMGetTypeKind(count) == 8 && LLVMGetIntTypeWidth(count) == 32 && capacity == count;
 	}
-	if (kind == 21 || kind == 22 || kind == 15) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
+	if (kind == 38 || kind == 39) {
+		if (LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
+		int first = 0; int count = 2;
+		if (kind == 38) {
+			if (!checked.types.inline_callable_type(type)) return false;
+			first = 2; count = checked.types.row(type).count - 2;
+		} else {
+			if (checked.types.lazy_element(type, 0).index == 0) return false;
+		}
+		if (LLVMCountStructElementTypes(actual) != count) return false;
+		int at = 0; while (at < count) {
+			if (!recover_storage_llvm_type(checked, checked.types.argument(checked.types, type, at + first).type, LLVMStructGetTypeAtIndex(actual, at))) return false;
+			at = at + 1;
+		} return true;
+	}
+	if (kind == 40 && checked.types.lazy_element(type, 0).index == 0) return false;
+	if (kind == 40 || kind == 21 || kind == 22 || kind == 15) return LLVMGetTypeKind(actual) == 10 && LLVMIsPackedStruct(actual) == 0 && LLVMCountStructElementTypes(actual) == 2 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 0)) == 12 && LLVMGetTypeKind(LLVMStructGetTypeAtIndex(actual, 1)) == 8 && LLVMGetIntTypeWidth(LLVMStructGetTypeAtIndex(actual, 1)) == 32;
 	if (kind == 30 || kind == 36 || kind == 37) {
 		if ((!recover_storage_record(checked, type) && !range_sequence_type_verified(checked.types, type)) || LLVMGetTypeKind(actual) != 10 || LLVMIsPackedStruct(actual) != 0) return false;
 		int count = recover_record_value_count(checked, type, 0); if (count < 0 || LLVMCountStructElementTypes(actual) != count) return false; int f = 0;

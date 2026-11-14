@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Flow retains capture snapshots separately from deferred bodies. Callback
+// expressions use ordinary typed operations under their consuming handler.
+TypeId recover_lazy_base(CheckedIndex checked, TypeId type) {
+	var current = type; int depth = 0;
+	while (checked_kind(checked, current) == 39 && depth < 8) {
+		current = checked.types.argument(checked.types, current, 0).type;
+		depth = depth + 1;
+	}
+	if (checked.types.lazy_element(current, 0).index == 0) return no_type();
+	return current;
+}
+
+bool recover_lazy_binding(CheckedIndex checked, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(symbol); var type = checked.symbol_types[symbol.index]; int kind = checked_kind(checked, type);
+	if (declaration.kind != 8 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.InferredLocalDeclarationSyntax() || kind != 39 && kind != 40 || checked.types.lazy_element(type, 0).index == 0 || checked.symbol_flags[symbol.index] != checked.types.lazy_flags(type)) return false;
+	var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);
+	return initializer.index > 0 && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == checked.symbol_flags[symbol.index] && checked.uses[initializer.index].deferred == 0;
+}
+
+int recover_lazy_stage(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, TypeId type, int reduction, int depth) {
+	if (depth > 8 || checked.types.lazy_element(type, 0).index == 0) {
+		flow.status = 3; return 0;
+	}
+	var parent = flow.nodes[reduction - 1]; var row = recover_empty(parent.source, parent.function, checked.types.lazy_element(type, 0), parent.handler, parent.caught);
+	row.kind = 100; row.c = reduction; row.execution = reduction;
+	var shape = checked.types.row(type);
+	if (shape.kind != 39) return flow.add(row);
+	var callback = checked.types.argument(checked.types, type, 1).type; var declaration = checked.bindings.symbol(checked.types.row(callback).nominal);
+	row.kind = 101; row.source = declaration.node; row.symbol = checked.types.row(callback).nominal; row.token = checked.bindings.program.arena.lambda_expression(row.source).f_arrow;
+	int id = flow.add(row); if (id == 0) return 0;
+	row.a = recover_lazy_stage(flow, checked, types, checked.types.argument(checked.types, type, 0).type, reduction, depth + 1);
+	flow.nodes[id - 1] = row;
+	int previous = flow.lambda_stage; flow.lambda_stage = id;
+	row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_expression(row.source), row.function, row.handler, row.caught, depth + 1);
+	flow.lambda_stage = previous; flow.nodes[id - 1] = row; return id;
+}
+
+RecoverNode recover_build_lazy(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode input, int id, int depth) {
+	var row = input;
+	if (checked.bindings.program.arena.kind(row.source) == SyntaxKind.LambdaExpressionSyntax()) {
+		row.kind = 96; row.symbol = checked.node_symbols[row.source.index]; row.token = checked.bindings.program.arena.get_token_binding(row.source); return row;
+	}
+	int action = lazy_call_action(checked, row.source); row.token = checked.bindings.program.arena.get_token_identifier(row.source);
+	row.kind = 97; if (action == 1) row.kind = 98; if (action == 4) row.kind = 99;
+	var receiver = checked.bindings.program.arena.get_node_receiver_place(row.source);
+	if (receiver.index > 0) row.a = recover_build_node(flow, checked, types, receiver, row.function, row.handler, row.caught, depth + 1);
+	else {
+		row.symbol = checked_target(checked, row.source, checked.bindings.program.arena.get_token_receiver(row.source));
+	}
+	if (action == 2 || action == 3) row.b = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(row.source), 0), row.function, row.handler, row.caught, depth + 1);
+	if (action == 4) {
+		flow.nodes[id - 1] = row;
+		row.b = recover_lazy_stage(flow, checked, types, range_query_receiver(checked, row.source), id, 0);
+	}
+	return row;
+}
+
+TypeId recover_lazy_stage_type(RecoverFlowData flow, CheckedIndex checked, int stage) {
+	if (stage < 1 || stage > flow.node_count) return no_type();
+	var row = flow.nodes[stage - 1]; if (row.c < 1 || row.c > flow.node_count) return no_type();
+	var root = flow.nodes[row.c - 1]; if (root.kind != 99) return no_type();
+	var type = range_query_receiver(checked, root.source); int current = root.b; int depth = 0;
+	while (current > 0 && current <= flow.node_count && depth <= 8) {
+		var candidate = flow.nodes[current - 1]; if (candidate.c != row.c) return no_type();
+		if (current == stage) return type;
+		if (candidate.kind != 101 || checked_kind(checked, type) != 39) return no_type();
+		type = checked.types.argument(checked.types, type, 0).type; current = candidate.a; depth = depth + 1;
+	}
+	return no_type();
+}
+
+bool recover_lazy_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, int child, int function, int handler, int caught, bool[] seen, bool[] edges, u8[] bindings, int depth) {
+	var row = flow.nodes[child - 1];
+	if (row.first != 0 || row.count != 0) return false;
+	if (row.kind == 100 || row.kind == 101) {
+		var type = recover_lazy_stage_type(flow, checked, child); if (type.index == 0 || row.execution != row.c || row.type.index != checked.types.lazy_element(type, 0).index) return false;
+		var root = flow.nodes[row.c - 1];
+		if (root.function != function || root.handler != handler || root.caught != caught) return false;
+		if (row.kind == 100) return checked_kind(checked, type) != 39 && row.a == 0 && row.b == 0 && row.token.index == 0 && row.symbol.index == 0 && row.source.index == root.source.index;
+		if (checked_kind(checked, type) != 39) return false;
+		var callback = checked.types.argument(checked.types, type, 1).type; var shape = checked.types.row(callback); var declaration = checked.bindings.symbol(shape.nominal);
+		if (row.source.index != declaration.node.index || row.symbol.index != shape.nominal.index || row.token.index != checked.bindings.program.arena.lambda_expression(row.source).f_arrow.index || !lambda_verified(checked, row.source) || row.a < 1 || row.a > flow.node_count) return false;
+		return recover_child_with_bindings(flow, checked, types, row.a, flow.nodes[row.a - 1].source, function, handler, caught, seen, edges, bindings, depth + 1) && recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.get_node_expression(row.source), function, handler, caught, seen, edges, bindings, depth + 1);
+	}
+	if (row.kind == 102) {
+		if (row.a != 0 || row.b != 0 || row.c < 1 || row.c > flow.node_count || checked.bindings.program.arena.kind(row.source) != SyntaxKind.NameExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_identifier(row.source).index || !lambda_name_target_verified(checked, row.source, row.symbol) || row.type.index != checked.symbol_types[row.symbol.index].index) return false;
+		var stage = flow.nodes[row.c - 1]; var type = recover_lazy_stage_type(flow, checked, row.c);
+		if (stage.kind != 101 || type.index == 0 || row.execution != stage.execution || stage.function != function || stage.handler != handler || stage.caught != caught) return false;
+		if (row.symbol.index == stage.symbol.index) return true;
+		var facts = lambda_facts(checked, stage.source); if (!facts.valid) return false; int at = 0;
+		while (at < facts.count) {
+			if (facts.captures[at].index == row.symbol.index) return true;
+			at = at + 1;
+		}
+		return false;
+	}
+	if (row.c != 0) return false;
+	if (row.kind == 96) return row.a == 0 && row.b == 0 && row.execution == 0 && lambda_verified(checked, row.source) && row.symbol.index == checked.node_symbols[row.source.index].index && row.token.index == checked.bindings.program.arena.get_token_binding(row.source).index;
+	if (!lazy_call_verified(checked, row.source) || row.token.index != checked.bindings.program.arena.get_token_identifier(row.source).index || row.execution != 0) return false;
+	int action = lazy_call_action(checked, row.source);
+	if (row.kind == 97 && action != 2 && action != 3 || row.kind == 98 && action != 1 || row.kind == 99 && action != 4) return false;
+	var receiver = checked.bindings.program.arena.get_node_receiver_place(row.source);
+	if (receiver.index > 0) {
+		if (row.symbol.index != 0 || !recover_child_with_bindings(flow, checked, types, row.a, receiver, function, handler, caught, seen, edges, bindings, depth + 1)) return false;
+	} else {
+		if (row.a != 0 || row.symbol.index < 1 || row.symbol.index != checked_target(checked, row.source, checked.bindings.program.arena.get_token_receiver(row.source)).index || !recover_source_binding(checked, row.symbol, bindings)) return false;
+	}
+	if (row.kind == 98) return row.b == 0;
+	if (row.kind == 97) return recover_child_with_bindings(flow, checked, types, row.b, checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(row.source), 0), function, handler, caught, seen, edges, bindings, depth + 1);
+	if (row.b < 1 || row.b > flow.node_count) return false;
+	return recover_child_with_bindings(flow, checked, types, row.b, flow.nodes[row.b - 1].source, function, handler, caught, seen, edges, bindings, depth + 1);
+}
+
+bool recover_lazy_child_execution(RecoverFlowData flow, int child, int execution) {
+	return child == 0 || child > 0 && child <= flow.node_count && flow.nodes[child - 1].execution == execution;
+}
+
+bool recover_lazy_executions_verified(RecoverFlowData flow) {
+	int function = 0;
+	while (function < flow.function_count) {
+		if (!recover_lazy_child_execution(flow, flow.functions[function].body, 0)) return false;
+		function = function + 1;
+	}
+	int at = 0;
+	while (at < flow.node_count) {
+		var row = flow.nodes[at];
+		if (row.execution != 0) {
+			if (row.execution < 1 || row.execution > flow.node_count) return false;
+			var root = flow.nodes[row.execution - 1];
+			if (root.kind != 99 || root.execution != 0 || root.function != row.function || root.handler != row.handler || root.caught != row.caught) return false;
+		}
+		if (row.kind != 82 && row.kind != 86 && row.kind != 100 && row.kind != 102) {
+			if (!recover_lazy_child_execution(flow, row.a, row.execution)) return false;
+			int body_execution = row.execution; if (row.kind == 99) body_execution = at + 1;
+			if (!recover_lazy_child_execution(flow, row.b, body_execution)) return false;
+			if ((row.kind == 21 || row.kind == 61 || row.kind == 76 || row.kind == 77) && !recover_lazy_child_execution(flow, row.c, row.execution)) return false;
+			int edge = 0;
+			while (edge < row.count) {
+				if (!recover_lazy_child_execution(flow, flow.edges[row.first + edge], row.execution)) return false;
+				edge = edge + 1;
+			}
+		}
+		at = at + 1;
+	}
+	return true;
+}
+
+int recover_execution_scope(RecoverFlowData flow, CheckedIndex checked, int node) {
+	var row = flow.nodes[node - 1];
+	if (row.execution > 0 && row.execution <= flow.node_count) return checked.bindings.scope_for_node(flow.nodes[row.execution - 1].source).index;
+	var scope = checked.bindings.scope_for_node(row.source);
+	if (row.kind == 96) return checked.bindings.scope(scope).parent.index;
+	return scope.index;
+}
+
+bool recover_lazy_root_outlives(RecoverFlow flow, SymbolId root, int scope, int function, int[] work) {
+	if (root.index < 1 || root.index >= len(flow.storage.symbols)) return false;
+	int slot = flow.storage.symbols[root.index]; if (slot < 1 || slot > flow.storage.count) return false;
+	var backing = flow.storage.slots[slot - 1];
+	if (backing.function != function || !recover_storage_outlives(flow.storage, backing.scope, scope)) return false;
+	// Pin the descriptor for this function. Element mutation is observed at
+	// consumption; moving/replacing the descriptor is conservatively refused.
+	int at = 0;
+	while (at < flow.data.node_count) {
+		if (work[0] == 0) return false; work[0] = work[0] - 1;
+		var row = flow.data.nodes[at];
+		if ((row.kind == 10 || row.kind == 42 || row.kind == 43 || row.kind == 75) && row.symbol.index == root.index) return false;
+		at = at + 1;
+	}
+	return true;
+}
+
+bool recover_lazy_type_roots(RecoverFlow flow, TypeId type, int scope, int function, int[] work, int depth) {
+	if (depth > 8 || flow.checked.types.lazy_element(type, 0).index == 0) return false;
+	var shape = flow.checked.types.row(type);
+	if (shape.kind == 40) return recover_lazy_root_outlives(flow, shape.nominal, scope, function, work);
+	if (shape.kind != 39) return true;
+	if (!recover_lazy_type_roots(flow, flow.checked.types.argument(flow.checked.types, type, 0).type, scope, function, work, depth + 1)) return false;
+	var callback = flow.checked.types.argument(flow.checked.types, type, 1).type; var declaration = flow.checked.bindings.symbol(flow.checked.types.row(callback).nominal);
+	var facts = lambda_facts(flow.checked, declaration.node); if (!facts.valid) return false; int at = 0;
+	while (at < facts.count) {
+		var symbol = facts.captures[at];
+		if (!lambda_scalar(flow.checked, flow.checked.symbol_types[symbol.index]) && !recover_lazy_root_outlives(flow, symbol, scope, function, work)) return false;
+		at = at + 1;
+	}
+	return true;
+}
+
+bool recover_lazy_borrows_verified(RecoverFlow flow) {
+	var work = new int[1]; work[0] = 8000000; int at = 0;
+	while (at < flow.data.node_count) {
+		var row = flow.data.nodes[at];
+		if (row.kind == 99 && !recover_lazy_type_roots(flow, range_query_receiver(flow.checked, row.source), recover_execution_scope(flow.data, flow.checked, at + 1), row.function, work, 0)) return false;
+		if (row.kind == 27 && (checked_kind(flow.checked, flow.checked.symbol_types[row.symbol.index]) == 39 || checked_kind(flow.checked, flow.checked.symbol_types[row.symbol.index]) == 40) && !recover_lazy_type_roots(flow, flow.checked.symbol_types[row.symbol.index], recover_execution_scope(flow.data, flow.checked, at + 1), row.function, work, 0)) return false;
+		if (row.kind == 96) {
+			var facts = lambda_facts(flow.checked, row.source); if (!facts.valid) return false; int capture = 0;
+			while (capture < facts.count) {
+				var symbol = facts.captures[capture];
+				if (!lambda_scalar(flow.checked, flow.checked.symbol_types[symbol.index]) && !recover_lazy_root_outlives(flow, symbol, recover_execution_scope(flow.data, flow.checked, at + 1), row.function, work)) return false;
+				capture = capture + 1;
+			}
+		}
+		if (row.kind == 98 && !recover_lazy_type_roots(flow, row.type, recover_execution_scope(flow.data, flow.checked, at + 1), row.function, work, 0)) return false;
+		at = at + 1;
+	}
+	return work[0] > 0;
+}

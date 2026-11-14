@@ -42,6 +42,7 @@ bool recover_storage_binding(CheckedIndex checked, SymbolId symbol) {
 	var declaration = checked.bindings.symbol(symbol);
 	var type = checked.symbol_types[symbol.index];
 	int flags = checked.symbol_flags[symbol.index];
+	if (checked_kind(checked, type) == 39 || checked_kind(checked, type) == 40) return recover_lazy_binding(checked, symbol);
 	if (declaration.kind == 8 && recover_storage_fixed(checked, type)) {
 		if (flags != 0 || checked.bindings.program.arena.kind(declaration.node) != SyntaxKind.LocalDeclarationSyntax()) return false;
 		var initializer = checked.bindings.program.arena.get_node_initializer(declaration.node);

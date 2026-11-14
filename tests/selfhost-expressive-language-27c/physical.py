@@ -92,8 +92,10 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
      if opcode(value)!=45 or not name(pointer('LLVMGetCalledValue',value)).startswith('astra.enum.drop.'):continue
      argument=operand(value,0)
      if pointer('LLVMIsAInstruction',argument) and opcode(argument)==26:candidates.append(value)
-   assert len(candidates)==1,candidates
-   target=candidates[0];old=operand(target,0);before=dict(captured_address=old)
+   # Each of the two source arms retires the same captured sum. Corrupt one
+   # actual arm operation while preserving the other arm as generated.
+   assert len(candidates)==2,candidates
+   target=candidates[0];old=operand(target,0);before=dict(captured_address=old,arm_retirements=len(candidates),selected_arm=0)
    changed=pointer('LLVMConstNull',pointer('LLVMTypeOf',old));set_operand(target,0,changed);after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']==1
   elif action=='match-phi':
    candidates=[value for block in body for value in instructions(block) if opcode(value)==44 and number('(unsigned)LLVMCountIncoming((void*)%d)'%value)==3]

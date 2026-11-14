@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Capture reads belong to construction. Deferred parameter/capture reads belong
+// to the independently checked consuming loop and its ordinary Error handler.
+bool recover_ssa_lazy_symbol(RecoverSsa ssa, SymbolId symbol, int block, int[] locals, RecoverWork work) {
+	if (symbol.index < 1 || symbol.index >= len(locals)) return false;
+	var declaration = ssa.cfg.core.flow.checked.bindings.symbol(symbol);
+	if (declaration.kind == 7) return true;
+	if (declaration.kind != 8 && !enum_scoped_binding(ssa.cfg.core.flow.checked, symbol) && !range_foreach_binding(ssa.cfg.core.flow.checked, symbol)) return false;
+	int definition = locals[symbol.index];
+	return definition > 0 && (!ssa.data.reachable[block - 1] || recover_ssa_dominates(definition, block, work));
+}
+
+bool recover_ssa_lazy_inputs(RecoverSsa ssa, int block, int[] locals, RecoverWork work) {
+	var physical = ssa.cfg.blocks[block - 1]; int opcode = physical.opcode;
+	if (opcode < 96 || opcode > 110) return true;
+	if (physical.origin < 1 || physical.origin > ssa.cfg.core.count) return false;
+	var row = ssa.cfg.core.nodes[physical.origin - 1].value;
+	if (opcode == 96) {
+		var facts = lambda_facts(ssa.cfg.core.flow.checked, row.source); if (!facts.valid) return false; int at = 0;
+		while (at < facts.count) {
+			if (!recover_ssa_lazy_symbol(ssa, facts.captures[at], block, locals, work)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+	if (opcode == 97) return row.a > 0 || recover_ssa_lazy_symbol(ssa, row.symbol, block, locals, work);
+	if (opcode == 98) return recover_ssa_lazy_symbol(ssa, ssa.cfg.core.flow.checked.types.row(row.type).nominal, block, locals, work);
+	int root = physical.origin;
+	if (opcode == 100 || opcode == 101 || opcode == 110) root = row.c;
+	if (opcode == 102) {
+		if (row.c < 1 || row.c > ssa.cfg.core.count) return false;
+		var stage = ssa.cfg.core.nodes[row.c - 1].value; root = stage.c;
+		if (row.symbol.index == stage.symbol.index && !recover_ssa_use(ssa.data, ssa.cfg, stage.a, block, work)) return false;
+	}
+	int initialize = recover_cfg_lazy_initialize(ssa.cfg, root);
+	if (initialize < 1 || initialize > ssa.cfg.block_count) return false;
+	var consumer = ssa.cfg.core.nodes[root - 1].value;
+	if (consumer.a > 0) {
+		if (!recover_ssa_use(ssa.data, ssa.cfg, consumer.a, block, work)) return false;
+	} else {
+		if (!recover_ssa_lazy_symbol(ssa, consumer.symbol, block, locals, work)) return false;
+	}
+	if (ssa.data.reachable[block - 1] && !recover_ssa_dominates(initialize, block, work)) return false;
+	if (opcode == 100) {
+		int check = ssa.cfg.blocks[initialize - 1].next;
+		if (check < 1 || check > ssa.cfg.block_count || ssa.data.reachable[block - 1] && !recover_ssa_dominates(check, block, work)) return false;
+	}
+	return true;
+}

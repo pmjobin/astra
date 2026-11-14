@@ -1,0 +1,241 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A fresh physical cursor consumes every instruction in one supplied block.
+// It neither invokes the emitter nor accepts a stored validation result.
+class RecoverLazyCursor {
+	void* block;
+	void* layout;
+	void* cursor;
+	int count;
+	bool valid;
+
+	init(void* block, void* layout) {
+		this.block = block; this.layout = layout; this.cursor = LLVMGetFirstInstruction(block); this.count = 0; this.valid = true;
+	}
+
+	void* take(int opcode) {
+		var value = this.cursor;
+		if (!this.valid || value == null || LLVMIsAInstruction(value) == null || LLVMGetInstructionParent(value) != this.block || LLVMGetInstructionOpcode(value) != opcode || LLVMHasMetadata(value) != 0) {
+			this.valid = false; return null;
+		}
+		this.cursor = LLVMGetNextInstruction(value); this.count = this.count + 1; return value;
+	}
+
+	void* extract(void* aggregate, int ordinal) {
+		if (!this.valid || aggregate == null || LLVMGetTypeKind(LLVMTypeOf(aggregate)) != 10 || ordinal < 0 || ordinal >= LLVMCountStructElementTypes(LLVMTypeOf(aggregate))) {
+			this.valid = false; return null;
+		}
+		if (LLVMIsAInstruction(aggregate) == null) return LLVMGetAggregateElement(aggregate, ordinal);
+		var value = this.take(53); if (value == null) return null;
+		if (LLVMGetNumOperands(value) != 1 || !recover_llvm_extract(value, aggregate, ordinal)) this.valid = false;
+		return value;
+	}
+
+	void* load(void* address) {
+		var value = this.take(27); if (value == null) return null;
+		if (LLVMGetNumOperands(value) != 1 || LLVMGetOperand(value, 0) != address || LLVMGetAlignment(value) != LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(value)) || LLVMGetVolatile(value) != 0 || LLVMGetOrdering(value) != 0) this.valid = false;
+		return value;
+	}
+
+	void* store(void* value, void* address) {
+		var operation = this.take(28); if (operation == null) return null;
+		if (value == null || !recover_range_counter_store(operation, address, this.layout, this.block) || LLVMGetOperand(operation, 0) != value) this.valid = false;
+		return operation;
+	}
+
+	void* binary(int opcode, void* left, void* right) {
+		var value = this.take(opcode); if (value == null) return null;
+		if (left == null || right == null || LLVMGetNumOperands(value) != 2 || LLVMGetOperand(value, 0) != left || LLVMGetOperand(value, 1) != right) this.valid = false;
+		if ((opcode == 8 || opcode == 10) && (LLVMGetNUW(value) != 0 || LLVMGetNSW(value) != 0)) this.valid = false;
+		if (opcode == 9 && LLVMGetFastMathFlags(value) != 0) this.valid = false;
+		return value;
+	}
+
+	void* compare(int predicate, void* left, void* right) {
+		var value = this.take(42); if (value == null) return null;
+		if (left == null || right == null || LLVMGetNumOperands(value) != 2 || !recover_llvm_compare(value, predicate, left, right) || LLVMGetICmpSameSign(value) != 0) this.valid = false;
+		return value;
+	}
+
+	// Walk the actual insert chain. A constant-folded prefix has no effects;
+	// its final fields are still compared against every source capture below.
+	bool field(void* aggregate, int ordinal, int fields, void* expected) {
+		if (!this.valid || aggregate == null || expected == null) return false;
+		void* current = aggregate; int at = fields - 1;
+		while (at > ordinal && LLVMIsAInstruction(current) != null) {
+			if (LLVMGetInstructionOpcode(current) != 54 || LLVMGetNumOperands(current) != 2 || llvm13_index(current, 0, at) != 1 || LLVMGetInstructionParent(current) != this.block || LLVMHasMetadata(current) != 0) return false;
+			current = LLVMGetOperand(current, 0); at = at - 1;
+		}
+		if (LLVMIsAInstruction(current) == null) return LLVMGetAggregateElement(current, ordinal) == expected;
+		var inserted = this.take(54);
+		return inserted != null && inserted == current && LLVMGetNumOperands(inserted) == 2 && LLVMGetOperand(inserted, 1) == expected && llvm13_index(inserted, 0, ordinal) == 1;
+	}
+
+	int finish(void* term, RecoverBlock block, void* condition, void*[] blocks) {
+		if (!this.valid || this.cursor != term) return 0;
+		if (condition == null) {
+			if (!recover_llvm_jump(term, blocks[block.next - 1])) return 0;
+		} else {
+			if (!recover_llvm_split(term, condition, blocks[block.next - 1], blocks[block.other - 1])) return 0;
+		}
+		if (LLVMHasMetadata(term) != 0 || LLVMGetNextInstruction(term) != null) return 0;
+		return this.count + 1;
+	}
+}
+
+void* recover_lazy_symbol_checked(RecoverLazyCursor cursor, RecoverSsa ssa, SymbolId symbol, void*[] locals, void*[] addresses) {
+	if (recover_mutable(ssa.cfg.core.flow.data, symbol) || (ssa.cfg.core.flow.checked.symbol_flags[symbol.index] & 4) != 0) return cursor.load(addresses[symbol.index]);
+	return locals[symbol.index];
+}
+
+bool recover_lazy_frame(void* value, void* entry, void* layout, CheckedIndex checked, TypeId type) {
+	return value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 26 && LLVMGetInstructionParent(value) == entry && LLVMGetNumOperands(value) == 1 && recover_llvm_bits(LLVMGetOperand(value, 0), 32, 1) && recover_storage_llvm_type(checked, type, LLVMGetAllocatedType(value)) && LLVMGetAlignment(value) == LLVMPreferredAlignmentOfType(layout, LLVMGetAllocatedType(value)) && LLVMHasMetadata(value) == 0;
+}
+
+bool recover_lazy_frames_verified(RecoverSsa ssa, RecoverLazyRuntime runtime, void* layout, void*[] entries, void*[] slots, void*[] addresses, void*[] fixed) {
+	int count = ssa.cfg.core.count;
+	if (len(runtime.sources) != count || len(runtime.bases) != count || len(runtime.counters) != count || len(runtime.totals) != count) return false;
+	int roots = 0; int at = 0;
+	while (at < count) {
+		if (ssa.cfg.core.nodes[at].value.kind == 99) roots = roots + 1;
+		else {
+			if (runtime.sources[at] != null || runtime.bases[at] != null || runtime.counters[at] != null || runtime.totals[at] != null) return false;
+		}
+		at = at + 1;
+	}
+	if (roots == 0) return true;
+	var frames = new void*[roots * 2]; int used = 0; at = 0;
+	while (at < count) {
+		var row = ssa.cfg.core.nodes[at].value;
+		if (row.kind == 99) {
+			var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+			if (!recover_lazy_frame(runtime.counters[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)) || !recover_lazy_frame(runtime.totals[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, row.type) || LLVMGetNextInstruction(runtime.counters[at]) != runtime.totals[at]) return false;
+			int initialize = recover_cfg_lazy_initialize(ssa.cfg, at + 1);
+			if (!ssa.data.reachable[initialize - 1] && (runtime.sources[at] != null || runtime.bases[at] != null)) return false;
+			frames[used] = runtime.counters[at]; frames[used + 1] = runtime.totals[at]; used = used + 2;
+		}
+		at = at + 1;
+	}
+	var none = new void*[0];
+	return recover_array_backings_distinct(frames, slots, addresses) && recover_array_backings_distinct(frames, fixed, none);
+}
+
+int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, RecoverLazyRuntime runtime, void* layout, void* module, void* physical, void* operation, void*[] blocks, void*[] values, void*[] locals, void*[] addresses) throws Error {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value; int op = block.opcode;
+	var cursor = new RecoverLazyCursor(physical, layout); var term = LLVMGetBasicBlockTerminator(physical);
+	if (op == 96 || op == 97 || op == 98) {
+		var value = values[block.origin]; if (value == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value)) || operation != term) return 0;
+		if (op == 96) {
+			var facts = lambda_facts(ssa.cfg.core.flow.checked, row.source); if (!facts.valid) return 0; int at = 0;
+			while (at < facts.count) {
+				var captured = recover_lazy_symbol_checked(cursor, ssa, facts.captures[at], locals, addresses);
+				if (!cursor.field(value, at, facts.count, captured)) return 0; at = at + 1;
+			}
+			if (facts.count == 0 && LLVMIsNull(value) == 0) return 0;
+		}
+		if (op == 97) {
+			void* input = null; if (row.a > 0) input = values[row.a]; else {
+				input = recover_lazy_symbol_checked(cursor, ssa, row.symbol, locals, addresses);
+			}
+			if (!cursor.field(value, 0, 2, input) || !cursor.field(value, 1, 2, values[row.b])) return 0;
+		}
+		if (op == 98) {
+			void* expected = null; if (row.a > 0) expected = values[row.a]; else {
+				expected = recover_lazy_symbol_checked(cursor, ssa, ssa.cfg.core.flow.checked.types.row(row.type).nominal, locals, addresses);
+			}
+			if (expected == null || value != expected) return 0;
+		}
+		return cursor.finish(term, block, null, blocks);
+	}
+	if (op == 101) {
+		var type = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, block.origin); void* expected = values[row.a]; if (ssa.cfg.core.flow.checked.types.row(type).extent == 1) expected = values[row.b];
+		if (values[block.origin] != expected || operation != term) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	if (op == 110) {
+		if (operation != values[row.b]) return 0;
+		return cursor.finish(term, block, values[row.b], blocks);
+	}
+	int root = block.origin; if (op == 100) root = row.c;
+	if (op == 102) {
+		var stage = ssa.cfg.core.nodes[row.c - 1].value; root = stage.c; void* expected = null;
+		if (row.symbol.index == stage.symbol.index) expected = values[stage.a];
+		else {
+			var type = range_query_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c); void* carrier = runtime.sources[root - 1]; int depth = 0;
+			while (type.index != target.index && depth < 8) {
+				carrier = cursor.extract(carrier, 0); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
+			}
+			if (type.index != target.index) return 0;
+			var captures = cursor.extract(carrier, 1); var facts = lambda_facts(ssa.cfg.core.flow.checked, stage.source); if (!facts.valid) return 0; int at = 0;
+			while (at < facts.count && facts.captures[at].index != row.symbol.index) at = at + 1;
+			if (at == facts.count) return 0; expected = cursor.extract(captures, at);
+		}
+		if (expected == null || values[block.origin] != expected || operation != term) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	var consumer = ssa.cfg.core.nodes[root - 1].value; var sequence = range_query_receiver(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
+	var counter = runtime.counters[root - 1]; var total = runtime.totals[root - 1]; var integer = LLVMGetAllocatedType(counter); var sum_type = LLVMGetAllocatedType(total); bool array = checked_kind(ssa.cfg.core.flow.checked, base) == 40;
+	if (op == 103) {
+		void* aggregate = null; if (row.a > 0) aggregate = values[row.a]; else {
+			aggregate = recover_lazy_symbol_checked(cursor, ssa, row.symbol, locals, addresses);
+		}
+		if (aggregate == null || runtime.sources[root - 1] != aggregate || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, sequence, LLVMTypeOf(aggregate))) return 0;
+		var type = sequence; int depth = 0;
+		while (checked_kind(ssa.cfg.core.flow.checked, type) == 39 && depth < 8) {
+			aggregate = cursor.extract(aggregate, 0); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
+		}
+		if (aggregate == null || runtime.bases[root - 1] != aggregate || type.index != base.index) return 0;
+		void* start = LLVMConstNull(integer); if (!array) start = cursor.extract(aggregate, 0);
+		var initialized = cursor.store(start, counter); var cleared = cursor.store(LLVMConstNull(sum_type), total);
+		if (initialized == null || cleared == null || operation != cleared) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	if (op == 108) {
+		var previous = cursor.load(total); int opcode = 8; if (checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 11 || checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 12) opcode = 9;
+		var added = cursor.binary(opcode, previous, values[block.a]); var stored = cursor.store(added, total);
+		if (stored == null || stored != operation) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	if (op == 109) {
+		var loaded = cursor.load(total); if (loaded == null || operation != loaded || values[root] != loaded || LLVMTypeOf(loaded) != sum_type) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	var current = cursor.load(counter); var aggregate = runtime.bases[root - 1]; if (current == null || LLVMTypeOf(current) != integer || aggregate == null) return 0;
+	if (op == 100) {
+		void* expected = current;
+		if (array) {
+			var pointer = cursor.extract(aggregate, 0); var address = cursor.take(29); if (address == null) return 0;
+			if (LLVMGetNumOperands(address) != 2 || LLVMGetOperand(address, 0) != pointer || LLVMGetOperand(address, 1) != current || LLVMGEPGetNoWrapFlags(address) != 0 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMGetGEPSourceElementType(address))) return 0;
+			expected = cursor.load(address); if (expected == null || LLVMTypeOf(expected) != LLVMGetGEPSourceElementType(address)) return 0;
+		}
+		if (values[block.origin] != expected || operation != expected) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	void* step = LLVMConstInt(integer, 1, 0); if (!array && range_stride_type_verified(ssa.cfg.core.flow.checked.types, base)) step = cursor.extract(aggregate, 3);
+	if (op == 106) {
+		var added = cursor.binary(8, current, step); var stored = cursor.store(added, counter); if (stored == null || operation != stored) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
+	void* condition = null;
+	if (op == 104) {
+		if (array) condition = cursor.compare(40, current, cursor.extract(aggregate, 1));
+		else {
+			var arguments = new void*[3]; int at = 0;
+			while (at < 3) {
+				arguments[at] = cursor.extract(aggregate, at); at = at + 1;
+			}
+			condition = cursor.take(45); if (condition == null || recover_range_call(ssa, base, 2, condition, aggregate, current, module) == 0) return 0;
+			at = 0; while (at < 3) {
+				if (LLVMGetArgOperand(condition, at) != arguments[at]) return 0; at = at + 1;
+			}
+		}
+	} else {
+		if (op != 105) return 0; var end = cursor.extract(aggregate, 1); var distance = cursor.binary(10, end, current);
+		if (array) condition = cursor.compare(34, distance, step);
+		else {
+			int predicate = 36; if (type_signed(checked_kind(ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)))) predicate = 40;
+			var ordered = cursor.compare(predicate, current, end); var room = cursor.compare(35, distance, step); condition = cursor.binary(23, ordered, room);
+		}
+	}
+	if (condition == null || condition != operation) return 0;
+	return cursor.finish(term, block, condition, blocks);
+}
