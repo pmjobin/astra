@@ -1,6 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Reconstruct each active variant's reverse field retirement from its source.
 // Module-local helper handles are candidates, not proof of their bodies.
+bool recover_enum_drop_call_verified(CheckedIndex checked, TypeId type, void* block, void* operation, void* address) throws Error {
+	if (!enum_storage_owned(checked, type, 0) || operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 45 || LLVMGetInstructionParent(operation) != block) return false;
+	var function = LLVMGetCalledValue(operation);
+	var name = llvm_name("astra.enum.drop.", type.index);
+	if (!recover_llvm_helper_signature(function, 1) || llvm13_named(function, name.text) != 1 || LLVMGetGlobalParent(function) != LLVMGetGlobalParent(LLVMGetBasicBlockParent(block)) || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0 || LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, 0))) != 12) return false;
+	return recover_llvm_call(operation, function, 1, 8) && LLVMGetArgOperand(operation, 0) == address;
+}
+
+bool recover_enum_slot_drop_verified(CheckedIndex checked, RecoverSlot slot, void* block, void* address, void* armed, void* operation) throws Error {
+	var body = recover_llvm_body(block, 5);
+	if (len(body) != 5 || LLVMGetInstructionOpcode(body[0]) != 27 || LLVMGetOperand(body[0], 0) != armed || LLVMGetTypeKind(LLVMTypeOf(body[0])) != 8 || LLVMGetIntTypeWidth(LLVMTypeOf(body[0])) != 1 || LLVMGetAlignment(body[0]) != 1 || LLVMGetVolatile(body[0]) != 0 || LLVMGetOrdering(body[0]) != 0 || LLVMHasMetadata(body[0]) != 0) return false;
+	if (LLVMGetInstructionOpcode(body[1]) != 46 || LLVMGetOperand(body[1], 0) != body[0] || LLVMGetOperand(body[1], 1) != address || LLVMIsNull(LLVMGetOperand(body[1], 2)) == 0 || LLVMHasMetadata(body[1]) != 0 || LLVMGetInstructionOpcode(body[2]) != 28) return false;
+	var zero = LLVMGetOperand(body[2], 0);
+	return recover_llvm_bits(zero, 1, 0) && recover_enum_store_verified(body[2], zero, armed, 1) && operation == body[3] && recover_enum_drop_call_verified(checked, slot.type, block, operation, body[1]);
+}
+
+int recover_enum_binding_verified(RecoverSsa ssa, RecoverBlock block, void* physical, void* layout, void* operation, void*[] slots, void*[] locals, void*[] addresses, void*[] armed) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value;
+	var root = ssa.cfg.core.nodes[row.a - 1].value;
+	var arm = ssa.cfg.core.nodes[row.c - 1].value;
+	if (row.kind != 86 || !enum_scoped_binding(ssa.cfg.core.flow.checked, row.symbol)) return 0;
+	int levels = enum_projection_depth(ssa.cfg.core.flow.checked, arm.source, row.source, 0);
+	if (levels < 1 || levels > 32) return 0;
+	bool owner = ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] == 4;
+	int count = levels * 2 + 2; if (owner) count = count + 3;
+	var body = recover_llvm_body(physical, count);
+	if (len(body) != count) return 0;
+	var loaded = body[levels * 2];
+	var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
+	if (operation != loaded || locals[row.symbol.index] != loaded || LLVMGetInstructionOpcode(loaded) != 27 || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(loaded)) || LLVMGetAlignment(loaded) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(loaded)) || LLVMGetVolatile(loaded) != 0 || LLVMGetOrdering(loaded) != 0 || LLVMHasMetadata(loaded) != 0) return 0;
+	var address = LLVMGetOperand(loaded, 0);
+	var captured = recover_enum_projection_root(ssa.cfg.core.flow.checked, arm.source, root.type, row.source, address, physical, 0);
+	if (captured == null || captured != slots[row.a - 1] || LLVMGetNextInstruction(address) != loaded) return 0;
+	void* current = address; void* first = address; int level = 0;
+	while (level < levels) {
+		first = LLVMGetOperand(current, 0); current = LLVMGetOperand(first, 0); level = level + 1;
+	}
+	if (current != captured || body[0] != first) return 0;
+	if (owner) {
+		if (LLVMGetInstructionOpcode(body[levels * 2 + 1]) != 28 || LLVMGetInstructionOpcode(body[levels * 2 + 3]) != 28) return 0;
+		var zero = LLVMGetOperand(body[levels * 2 + 1], 0);
+		if (LLVMIsNull(zero) == 0 || LLVMTypeOf(zero) != LLVMTypeOf(loaded) || !recover_enum_store_verified(body[levels * 2 + 1], zero, address, LLVMABIAlignmentOfType(layout, LLVMTypeOf(loaded))) || !recover_enum_store_verified(body[levels * 2 + 2], loaded, addresses[row.symbol.index], LLVMABIAlignmentOfType(layout, LLVMTypeOf(loaded)))) return 0;
+		var flag = LLVMGetOperand(body[levels * 2 + 3], 0);
+		if (!recover_llvm_bits(flag, 1, 1) || !recover_enum_store_verified(body[levels * 2 + 3], flag, armed[row.symbol.index], 1)) return 0;
+	}
+	return count;
+}
+
 bool recover_enum_drop_verified(CheckedIndex checked, TypeId type, void* function, void*[] drops, void* free_function, void* trap_function) throws Error {
 	if (!enum_storage_owned(checked, type, 0) || !recover_llvm_helper_signature(function, 1) || LLVMGetTypeKind(LLVMTypeOf(LLVMGetParam(function, 0))) != 12 || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(function))) != 0) return false;
 	var name = llvm_name("astra.enum.drop.", type.index);

@@ -334,3 +334,34 @@ their executions finish. The first source preflights rejected an immutable
 parameter assignment in the physical checker and an unsupported projected
 mutation in the authored test; both were repaired without changing C0. Full
 production-source C0 semantics then passed (preflight 30, 65.047 seconds).
+
+The fresh-value component now executes those real source paths through Core,
+CFG and SSA, rejects missing/rebound/reordered abort records, wrong retirement
+operations and erased SSA owner channels, and restores each positive control.
+The C0-built ssa2 product returns 42 and passes strict returning Valgrind with
+zero live allocations/errors/suppressions. Its SHA-256 is
+`a6b47f58f69e50f8178ffb89f34a8e0f7df2a6d1007efa723ca45b8f3a7f9efb`;
+its exact frozen sources and recipes are in the retained component identity.
+All five expanded C0 reference targets also pass strict returning Valgrind.
+These are compiler-consumer/reference results, not target new-form or host proof.
+
+The next owning-sum candidate replaces repeated payload reads with one captured
+carrier (CFG 85), source-bound arm publications (Flow/CFG 86), and residual
+retirement before the arm expression (CFG 87). Consuming publications clear the
+exact field before arming its scoped binder. Normal and exceptional arm exits
+retire live binders; a selected moved result commits before arm cleanup and its
+owned phi remains tracked. Inspecting publications borrow without clearing;
+the independent source consumer preserves the original root across every arm.
+The physical consumer reconstructs projection paths, publication/clear stores,
+residual helper identity and armed enum-slot retirement in the active module.
+Modern owning sums now have connected candidate storage channels; legacy owning
+sum declarations still refuse. This admission is under qualification, not an
+accepted feature or milestone claim.
+
+Full C0 production-source semantics passes for the capture/cleanup path
+(preflight 32, 65.547 seconds), LLVM path (33, 66.135 seconds), and connected
+modern storage admission (34, 68.408 seconds). A duplicate local in the first
+capture preflight was corrected; its failed receipt remains retained. The ssa3
+component is building consuming, inspecting, nested and throwing-arm controls
+with independent capture/publication/residual mutations. Native owning-sum
+targets, physical mutations, full host and ABI qualification remain pending.

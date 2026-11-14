@@ -31,8 +31,8 @@ int recover_cfg_tree(RecoverCfg cfg, int id, int next, int depth) {
 		return 0;
 	}
 	var node = cfg.core.nodes[id - 1]; var row = node.value;
-	if (row.kind == 82) {
-		int operation = cfg.block(row.function, id, 82, row.a, 0, next, 0, 0, 0, 0);
+	if (row.kind == 82 || row.kind == 86) {
+		int operation = cfg.block(row.function, id, row.kind, row.a, 0, next, 0, 0, 0, 0);
 		RecoverRegion region = {entry = operation, operation = operation, next = next}; cfg.regions[id - 1] = region;
 		return operation;
 	}

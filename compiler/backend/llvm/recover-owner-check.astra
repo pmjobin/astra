@@ -43,6 +43,7 @@ bool recover_llvm_temporary_drop(CheckedIndex checked, TypeId type, void* block,
 	}
 	if (kind == 32) {
 		if (!enum_storage_owned(checked, type, 0) || address == null || LLVMGetInstructionOpcode(body[0]) != 28 || LLVMGetOperand(body[0], 0) != value || LLVMGetOperand(body[0], 1) != address || LLVMGetAlignment(body[0]) != recover_enum_type_alignment(checked, type, 0) || LLVMGetVolatile(body[0]) != 0 || LLVMGetOrdering(body[0]) != 0) return false;
+		if (LLVMGetInstructionOpcode(body[1]) != 45) return false;
 		var name = llvm_name("astra.enum.drop.", type.index);
 		selected_drop = LLVMGetCalledValue(body[1]);
 		if (!recover_llvm_helper_signature(selected_drop, 1) || llvm13_named(selected_drop, name.text) != 1 || LLVMGetGlobalParent(selected_drop) != LLVMGetGlobalParent(LLVMGetBasicBlockParent(block)) || LLVMGetTypeKind(LLVMGetReturnType(LLVMGlobalGetValueType(selected_drop))) != 0) return false;

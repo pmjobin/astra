@@ -40,6 +40,8 @@ int recover_cfg_pattern_chain(RecoverCfg cfg, int entry, int arm_id, SyntaxNodeI
 int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
 	var row = cfg.core.nodes[id - 1].value;
 	var type = cfg.core.nodes[row.a - 1].value.type;
+	bool scoped = enum_storage_owned(cfg.core.flow.checked, type, 0);
+	bool consuming = scoped && enum_match_consuming(cfg.core.flow.checked, row.source);
 	var declaration = cfg.core.flow.checked.bindings.symbol(cfg.core.flow.checked.types.row(type).nominal);
 	int count = cfg.core.flow.checked.bindings.program.arena.list_count(cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
 	int continuation = next;
@@ -52,10 +54,22 @@ int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
 		int tail = continuation;
 		if (row.kind == 80) {
 			tail = cfg.block(row.function, id, 78, arm.a, 0, continuation, 0, 0, 0, at);
+			if (scoped) {
+				int scope = cfg.core.owners.scopes[child - 1];
+				tail = recover_cfg_scope_exit(cfg, child, scope, cfg.core.flow.storage.parents[scope], arm.caught, 0, 0, tail, 0);
+			}
 			int owner = recover_owner_unwrap(cfg.core.flow.data, arm.a);
 			if (cfg.core.owners.slots[owner - 1] > 0) tail = cfg.block(row.function, id, 36, owner, cfg.core.owners.slots[owner - 1], tail, 0, 0, 0, id);
 		}
 		int body = recover_cfg_tree(cfg, arm.a, tail, depth + 1);
+		if (scoped) {
+			if (consuming) body = cfg.block(row.function, child, 87, row.a, 0, body, 0, 0, 0, id);
+			int binding = arm.count - 1;
+			while (binding >= 0 && cfg.status == 0) {
+				body = recover_cfg_tree(cfg, cfg.core.flow.data.edges[arm.first + binding], body, depth + 1);
+				binding = binding - 1;
+			}
+		}
 		int operation = 0;
 		if (arm.symbol.index != 0) {
 			if (row.kind == 80 && !checked_payload_free_enum(cfg.core.flow.checked, type)) operation = recover_cfg_pattern(cfg, child, arm.source, row.a, body, dispatch, 0);
@@ -71,7 +85,14 @@ int recover_cfg_enum(RecoverCfg cfg, int id, int next, int depth) {
 		cfg.regions[child - 1] = region;
 		at = at - 1;
 	}
-	int guard = cfg.block(row.function, id, 74, row.a, 0, dispatch, fatal, 0, 0, count);
+	int selected = dispatch;
+	if (scoped) {
+		int mode = 0; if (consuming) mode = 1;
+		selected = cfg.block(row.function, id, 85, row.a, 0, dispatch, 0, 0, 0, mode);
+		int owner = recover_owner_unwrap(cfg.core.flow.data, row.a);
+		if (consuming && cfg.core.owners.slots[owner - 1] > 0) selected = cfg.block(row.function, id, 36, owner, cfg.core.owners.slots[owner - 1], selected, 0, 0, 0, id);
+	}
+	int guard = cfg.block(row.function, id, 74, row.a, 0, selected, fatal, 0, 0, count);
 	int head = recover_cfg_tree(cfg, row.a, guard, depth + 1);
 	int operation = guard;
 	if (row.kind == 80) operation = continuation;
@@ -90,11 +111,28 @@ bool recover_cfg_enum_verified(RecoverCfg cfg, int id, int next, bool[] seen, bo
 	}
 	if (guard < 1 || guard > cfg.block_count || row.a < 1 || row.a > cfg.core.count) return false;
 	var type = cfg.core.nodes[row.a - 1].value.type;
-	if (!enum_value_type_verified(cfg.core.flow.checked, type)) return false;
+	bool scoped = enum_storage_owned(cfg.core.flow.checked, type, 0);
+	bool consuming = scoped && enum_match_consuming(cfg.core.flow.checked, row.source);
+	if (!enum_storage_type_verified(cfg.core.flow.checked, type) || scoped && row.kind != 80) return false;
 	var declaration = cfg.core.flow.checked.bindings.symbol(cfg.core.flow.checked.types.row(type).nominal);
 	int count = cfg.core.flow.checked.bindings.program.arena.list_count(cfg.core.flow.checked.bindings.program.arena.get_list_variants(declaration.node));
 	int dispatch = cfg.blocks[guard - 1].next; int fatal = cfg.blocks[guard - 1].other;
 	if (!recover_cfg_expect(cfg, guard, recover_cfg_expected(row.function, id, 74, row.a, 0, dispatch, fatal, 0, 0, count), seen) || !recover_cfg_expect(cfg, fatal, recover_cfg_expected(row.function, id, 35, 0, 0, 0, 0, 0, 0, 0), seen)) return false;
+	if (scoped) {
+		int owner = recover_owner_unwrap(cfg.core.flow.data, row.a);
+		if (owner < 1 || owner > cfg.core.count) return false;
+		if (consuming && cfg.core.owners.slots[owner - 1] > 0) {
+			if (dispatch < 1 || dispatch > cfg.block_count) return false;
+			int following = cfg.blocks[dispatch - 1].next;
+			if (!recover_cfg_expect(cfg, dispatch, recover_cfg_expected(row.function, id, 36, owner, cfg.core.owners.slots[owner - 1], following, 0, 0, 0, id), seen)) return false;
+			dispatch = following;
+		}
+		if (dispatch < 1 || dispatch > cfg.block_count) return false;
+		int following = cfg.blocks[dispatch - 1].next;
+		int mode = 0; if (consuming) mode = 1;
+		if (!recover_cfg_expect(cfg, dispatch, recover_cfg_expected(row.function, id, 85, row.a, 0, following, 0, 0, 0, mode), seen)) return false;
+		dispatch = following;
+	}
 	if (!recover_cfg_check_tree(cfg, row.a, guard, seen, nodes, depth + 1) || region.entry != cfg.regions[row.a - 1].entry) return false;
 	int at = 0; bool fallback = false;
 	while (at < row.count) {
@@ -107,7 +145,23 @@ bool recover_cfg_enum_verified(RecoverCfg cfg, int id, int next, bool[] seen, bo
 			arm_kind = 81;
 			tail = anchor.next;
 		}
-		if (arm.kind != arm_kind || arm.c != id || anchor.next != tail || arm.a < 1 || arm.a > cfg.core.count || !recover_cfg_check_tree(cfg, arm.a, tail, seen, nodes, depth + 1) || anchor.entry != cfg.regions[arm.a - 1].entry) return false;
+		if (arm.kind != arm_kind || arm.c != id || anchor.next != tail || arm.a < 1 || arm.a > cfg.core.count || !recover_cfg_check_tree(cfg, arm.a, tail, seen, nodes, depth + 1)) return false;
+		int body = cfg.regions[arm.a - 1].entry;
+		if (scoped) {
+			int binding = arm.count - 1;
+			if (consuming) {
+				int residual = anchor.entry;
+				if (arm.count > 0) residual = cfg.regions[cfg.core.flow.data.edges[arm.first + arm.count - 1] - 1].next;
+				if (!recover_cfg_expect(cfg, residual, recover_cfg_expected(row.function, child, 87, row.a, 0, body, 0, 0, 0, id), seen)) return false;
+				body = residual;
+			}
+			while (binding >= 0) {
+				int leaf = cfg.core.flow.data.edges[arm.first + binding];
+				if (!recover_cfg_check_tree(cfg, leaf, body, seen, nodes, depth + 1)) return false;
+				body = cfg.regions[leaf - 1].entry; binding = binding - 1;
+			}
+		}
+		if (anchor.entry != body) return false;
 		if (row.kind == 80) {
 			int edge = tail;
 			int owner = recover_owner_unwrap(cfg.core.flow.data, arm.a);
@@ -116,6 +170,20 @@ bool recover_cfg_enum_verified(RecoverCfg cfg, int id, int next, bool[] seen, bo
 				if (tail < 1 || tail > cfg.block_count) return false;
 				edge = cfg.blocks[tail - 1].next;
 				if (!recover_cfg_expect(cfg, tail, recover_cfg_expected(row.function, id, 36, owner, cfg.core.owners.slots[owner - 1], edge, 0, 0, 0, id), seen)) return false;
+			}
+			if (scoped) {
+				int scope = cfg.core.owners.scopes[child - 1]; int after = edge;
+				int place = 0;
+				while (place < cfg.core.flow.storage.count) {
+					var slot = cfg.core.flow.storage.slots[place];
+					if (slot.owner && slot.function == row.function && slot.scope == scope) {
+						if (after < 1 || after > cfg.block_count) return false;
+						after = cfg.blocks[after - 1].next;
+					}
+					place = place + 1;
+				}
+				if (!recover_cfg_check_scope_exit(cfg, edge, child, scope, cfg.core.flow.storage.parents[scope], arm.caught, 0, 0, after, seen)) return false;
+				edge = after;
 			}
 			if (!recover_cfg_expect(cfg, edge, recover_cfg_expected(row.function, id, 78, arm.a, 0, region.operation, 0, 0, 0, at), seen)) return false;
 		}

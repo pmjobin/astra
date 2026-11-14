@@ -366,7 +366,11 @@ bool recover_storage_pointer(CheckedIndex checked, TypeId type) {
 bool recover_storage_channel(CheckedIndex checked, TypeId type, int flags, bool result) {
 	int kind = checked_kind(checked, type);
 	if (flags == 0 && (type_numeric(kind) || kind == 13 || result && kind == 14 || recover_storage_pointer(checked, type))) return true;
-	if (kind == 32) return flags == 0 && enum_value_type_verified(checked, type);
+	if (kind == 32) {
+		if (!recover_enum_type_verified(checked, type)) return false;
+		if (enum_storage_owned(checked, type, 0)) return flags == 4 || !result && flags == 2;
+		return flags == 0;
+	}
 	if (kind == 15) return flags == 0;
 	if (kind == 30) return flags == 0 && recover_storage_record(checked, type);
 	if (kind == 27) return (flags == 4 || !result && flags == 2) && recover_storage_shared(checked, type);
@@ -426,7 +430,7 @@ void recover_storage_inventory(RecoverStorage storage, CheckedIndex checked, int
 	int s = 1;
 	while (s <= checked.bindings.symbol_count && storage.status == 0) {
 		var symbol = type_symbol(s); var declaration = checked.bindings.symbol(symbol);
-		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
+		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, symbol)) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			int function = functions[declaration.owner.index];
 			if (function > 8192 || units[function] == 8192) {
 				storage.status = 2;
@@ -454,7 +458,7 @@ bool recover_storage_verify(RecoverStorage storage, CheckedIndex checked, int[] 
 	int expected = 0; int s = 1;
 	while (s <= checked.bindings.symbol_count) {
 		var declaration = checked.bindings.symbol(type_symbol(s));
-		if ((declaration.kind == 7 || declaration.kind == 8) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
+		if ((declaration.kind == 7 || declaration.kind == 8 || enum_scoped_binding(checked, type_symbol(s))) && declaration.owner.index > 0 && functions[declaration.owner.index] > 0) {
 			if (expected >= storage.count || storage.symbols[s] != expected + 1) return false;
 			var row = storage.slots[expected]; if (row.symbol.index != s || row.type.index != checked.symbol_types[s].index || row.flags != checked.symbol_flags[s] || row.function != functions[declaration.owner.index] || row.scope != declaration.scope.index || row.parameter != (declaration.kind == 7) || row.owner != ((row.flags & 4) != 0) || !recover_storage_binding(checked, type_symbol(s))) return false;
 			if (row.function > 8192 || units[row.function] == 8192) return false;

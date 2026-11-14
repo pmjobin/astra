@@ -31,7 +31,7 @@ void recover_ssa_owner_shortcut(RecoverSsaOwnerIndex index, RecoverCfg cfg, int 
 		if (symbol > 0 && symbol < len(cfg.core.flow.storage.symbols)) place = cfg.core.flow.storage.symbols[symbol];
 	}
 	bool event = row.opcode == 22 || row.opcode == 23 || row.opcode == 36 || row.opcode == 37 || row.opcode == 38 || row.next > 0 && row.other > 0;
-	if (place > 0 && cfg.core.flow.storage.slots[place - 1].owner && (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46 || row.opcode == 27)) event = true;
+	if (place > 0 && cfg.core.flow.storage.slots[place - 1].owner && (row.opcode == 2 || row.opcode == 10 || row.opcode == 12 || row.opcode == 17 || row.opcode == 18 || row.opcode == 44 || row.opcode == 46 || row.opcode == 27 || row.opcode == 86)) event = true;
 	int target = row.next; if (target == 0) target = row.other;
 	if (!event && target <= b) index.shortcuts[b + 1] = index.shortcuts[target];
 	else {
@@ -108,7 +108,7 @@ bool recover_ssa_slot(RecoverSsa ssa, int place, RecoverSsaOwnerIndex index, Rec
 				after = index.reservations[row.origin - 1];
 			}
 		}
-		if (row.opcode == 27 && source.symbol.index == slot.symbol.index) {
+		if ((row.opcode == 27 || row.opcode == 86) && source.symbol.index == slot.symbol.index) {
 			if (before != 0) return false;
 			after = 1;
 		}
@@ -155,6 +155,8 @@ bool recover_ssa_slots(RecoverSsa ssa, RecoverSsaOwnerIndex index, RecoverWork w
 // Their unique consumer must execute before every returning normal/error exit.
 bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWork work) {
 	var definition = data.values[value]; int consumer = cfg.core.owners.consumers[value - 1]; if (consumer < 1) return false;
+	var parent = cfg.core.nodes[consumer - 1].value;
+	bool selected_root = parent.kind == 80 && recover_owner_unwrap(cfg.core.flow.data, parent.a) == value && enum_match_consuming(cfg.core.flow.checked, parent.source);
 	int consumer_block = 0;
 	if (consumer < len(work.temporary_consumers)) consumer_block = work.temporary_consumers[consumer];
 	int gate = -1;
@@ -166,7 +168,7 @@ bool recover_ssa_temporary(RecoverSsaData data, RecoverCfg cfg, int value, Recov
 			if (live) return false;
 			live = true;
 		}
-		if (row.origin == consumer && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (cfg.core.nodes[row.origin - 1].value.kind == 77 || cfg.core.nodes[row.origin - 1].value.kind == 80) || (row.opcode == 11 || row.opcode == 67) || row.opcode == 71 || row.opcode == 44)) {
+		if (row.origin == consumer && (selected_root && row.opcode == 85 || !selected_root && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (cfg.core.nodes[row.origin - 1].value.kind == 77 || cfg.core.nodes[row.origin - 1].value.kind == 80) || (row.opcode == 11 || row.opcode == 67) || row.opcode == 71 || row.opcode == 44))) {
 			if (!live) return false;
 			live = false;
 			// With one physical consumer, every cycle back to it passes the

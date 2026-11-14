@@ -420,7 +420,7 @@ owned int[] recover_ssa_local_definitions(RecoverCfg cfg, RecoverWork work) {
 	while (n < cfg.core.count) {
 		if (!work.take()) return move result;
 		var source = cfg.core.nodes[n].value;
-		if (source.kind == 27) {
+		if (source.kind == 27 || source.kind == 86) {
 			int symbol = source.symbol.index; int operation = cfg.regions[n].operation;
 			if (symbol > 0 && symbol < len(result)) {
 				if (result[symbol] != 0) result[symbol] = -1;
@@ -440,7 +440,7 @@ bool recover_ssa_block_facts(RecoverCfg cfg, int block, int[] locals, RecoverSsa
 	var row = cfg.blocks[block - 1];
 	if (row.origin == 0) return true;
 	var source = cfg.core.nodes[row.origin - 1].value;
-	if (source.kind == 27 && row.opcode == 27) {
+	if (source.kind == 27 && row.opcode == 27 || source.kind == 86 && row.opcode == 86) {
 		if (cfg.regions[row.origin - 1].operation != block) return false;
 		int symbol = source.symbol.index;
 		if (symbol > 0 && symbol < len(locals)) {
@@ -497,7 +497,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		owners.positions[b - 1] = owner_position;
 		owners.blocks[owners.starts[row.function - 1] + owner_position] = b;
 		if (!recover_ssa_block_facts(ssa.cfg, b, locals, owners)) return false;
-		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || ssa.cfg.core.nodes[row.origin - 1].value.kind == 80) || row.opcode == 11 || row.opcode == 67 || row.opcode == 71 || row.opcode == 44)) {
+		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || ssa.cfg.core.nodes[row.origin - 1].value.kind == 80) || row.opcode == 11 || row.opcode == 67 || row.opcode == 71 || row.opcode == 85 || row.opcode == 44)) {
 			if (consumers[row.origin] == 0) consumers[row.origin] = b;
 			else {
 				consumers[row.origin] = -1;
@@ -561,7 +561,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		if ((row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 23) && !recover_ssa_use(ssa.data, ssa.cfg, row.owner, b, work)) return false;
 		if (row.opcode == 2 || (row.opcode == 12 || row.opcode == 58) && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0 || row.opcode == 42 || row.opcode == 75 || row.opcode == 79 && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(source.symbol);
-			if (declaration.kind == 8) {
+			if (declaration.kind == 8 || enum_scoped_binding(ssa.cfg.core.flow.checked, source.symbol)) {
 				int definition = locals[source.symbol.index];
 				if (definition < 1 || ssa.data.reachable[b - 1] && !recover_ssa_dominates(definition, b, work)) return false;
 			}

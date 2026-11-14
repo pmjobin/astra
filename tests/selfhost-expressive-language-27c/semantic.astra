@@ -42,8 +42,9 @@ void expressive_enum_storage() throws Error {
 	assert_that(enum_value_type_verified(checked, copied) && !enum_storage_owned(checked, copied, 0));
 	assert_that(recover_enum_type_bytes(checked, packet, 0) == 32 && recover_enum_type_bytes(checked, envelope, 0) == 56);
 	assert_that(recover_enum_type_alignment(checked, packet, 0) == 8 && recover_enum_type_alignment(checked, envelope, 0) == 8);
-	// A source shape grants neither a consuming channel nor cleanup admission.
-	assert_that(!recover_storage_channel(checked, packet, 4, false));
+	// Native channels preserve intrinsic ownership; an owning sum is not a copy.
+	assert_that(recover_storage_channel(checked, packet, 4, false) && recover_storage_channel(checked, packet, 2, false));
+	assert_that(!recover_storage_channel(checked, packet, 0, false) && !recover_storage_channel(checked, packet, 2, true));
 	var declaration = checked.bindings.symbol(payload);
 	int flags = checked.symbol_flags[payload.index];
 	checked.symbol_flags[payload.index] = 0;

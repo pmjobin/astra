@@ -15,6 +15,13 @@ bool enum_storage_type_verified(CheckedIndex index, TypeId type) {
 	return enum_storage_type_depth(index, type, 0, true);
 }
 
+bool recover_enum_type_verified(CheckedIndex index, TypeId type) {
+	if (enum_value_type_verified(index, type)) return true;
+	if (!enum_storage_owned(index, type, 0)) return false;
+	var declaration = index.bindings.symbol(index.types.row(type).nominal);
+	return checked_modern_source(index, declaration.node);
+}
+
 bool enum_storage_type_depth(CheckedIndex index, TypeId type, int depth, bool owners) {
 	if (depth > 32) return false;
 	if (!index.field_effects || !index.types.valid_id(type)) return false;
@@ -271,6 +278,61 @@ bool enum_leaf_binding(CheckedIndex index, SymbolId symbol) {
 	if (symbol.index < 1 || symbol.index >= len(index.symbol_types)) return false;
 	var declaration = index.bindings.symbol(symbol);
 	return declaration.kind == 15 && index.bindings.program.arena.kind(declaration.node) == SyntaxKind.EnumBindingSyntax() && index.bindings.program.arena.get_node_nested_pattern(declaration.node).index == 0 && index.bindings.program.arena.get_token_binding(declaration.node).index == declaration.token.index && index.symbol_flags[symbol.index] == 0 && enum_pattern_match(index, declaration.node).index > 0;
+}
+
+// Owning sums publish pattern leaves into actual arm-scoped storage. Inspecting
+// leaves borrow that sum; consuming leaves take their selected payload field.
+bool enum_scoped_binding(CheckedIndex index, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index >= len(index.symbol_types)) return false;
+	var declaration = index.bindings.symbol(symbol);
+	if (declaration.kind != 15 || index.bindings.program.arena.kind(declaration.node) != SyntaxKind.EnumBindingSyntax() || index.bindings.program.arena.get_node_nested_pattern(declaration.node).index != 0 || index.bindings.program.arena.get_token_binding(declaration.node).index != declaration.token.index) return false;
+	var root = enum_pattern_match(index, declaration.node);
+	if (root.index == 0) return false;
+	var input = index.bindings.program.arena.get_node_scrutinee(root);
+	return enum_storage_owned(index, index.uses[input.index].type, 0) && enum_match_expression_verified(index, root);
+}
+
+int enum_pattern_leaf_count(CheckedIndex index, SyntaxNodeId pattern, int depth) {
+	if (depth > 32) return -1;
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	int count = 0; int at = 0;
+	while (at < index.bindings.program.arena.list_count(bindings)) {
+		var binding = index.bindings.program.arena.node_at(bindings, at);
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		int added = 0;
+		if (nested.index != 0) added = enum_pattern_leaf_count(index, nested, depth + 1);
+		else {
+			var token = index.bindings.program.arena.get_token_binding(binding);
+			if (token.index != 0 && !index.bindings.program.arena.token_is(token, "_")) added = 1;
+		}
+		if (added < 0 || added > 8192 - count) return -1;
+		count = count + added; at = at + 1;
+	}
+	return count;
+}
+
+SyntaxNodeId enum_pattern_leaf_at(CheckedIndex index, SyntaxNodeId pattern, int ordinal, int depth) {
+	SyntaxNodeId absent = {index = 0};
+	if (depth > 32 || ordinal < 0) return absent;
+	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	int remaining = ordinal; int at = 0;
+	while (at < index.bindings.program.arena.list_count(bindings)) {
+		var binding = index.bindings.program.arena.node_at(bindings, at);
+		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		int count = 0;
+		if (nested.index != 0) count = enum_pattern_leaf_count(index, nested, depth + 1);
+		else {
+			var token = index.bindings.program.arena.get_token_binding(binding);
+			if (token.index != 0 && !index.bindings.program.arena.token_is(token, "_")) count = 1;
+		}
+		if (count < 0) return absent;
+		if (remaining < count) {
+			if (nested.index != 0) return enum_pattern_leaf_at(index, nested, remaining, depth + 1);
+			return binding;
+		}
+		remaining = remaining - count; at = at + 1;
+	}
+	return absent;
 }
 
 // Retained match identity is evidence to check, never an authority to trust.

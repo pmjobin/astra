@@ -48,6 +48,7 @@ bool recover_storage_binding(CheckedIndex checked, SymbolId symbol) {
 		return checked.bindings.program.arena.kind(initializer) == SyntaxKind.ArrayInitializerSyntax() && checked.uses[initializer.index].type.index == type.index && checked.uses[initializer.index].flags == 0;
 	}
 	if (!recover_storage_channel(checked, type, flags, false)) return false;
+	if (enum_scoped_binding(checked, symbol)) return true;
 	if (declaration.kind != 8) return declaration.kind == 7;
 	int kind = checked_kind(checked, type);
 	if (kind == 15) {

@@ -52,6 +52,24 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 		int child = flow.add(arm);
 		if (child == 0) return row;
 		flow.nodes[child - 1] = arm;
+		if (expression && enum_storage_owned(checked, flow.nodes[row.a - 1].type, 0)) {
+			int leaves_count = enum_pattern_leaf_count(checked, source, 0);
+			if (leaves_count < 0) {
+				flow.status = 2; return row;
+			}
+			var leaves = new int[leaves_count]; int leaf_ordinal = 0;
+			while (leaf_ordinal < leaves_count && flow.status == 0) {
+				var leaf = enum_pattern_leaf_at(checked, source, leaf_ordinal, 0);
+				var binding = recover_empty(leaf, row.function, type_id(14), row.handler, row.caught);
+				binding.kind = 86; binding.symbol = checked.node_symbols[leaf.index]; binding.a = row.a; binding.c = child;
+				leaves[leaf_ordinal] = flow.add(binding); leaf_ordinal = leaf_ordinal + 1;
+			}
+			arm.first = flow.edge_count; arm.count = leaves_count; leaf_ordinal = 0;
+			while (leaf_ordinal < leaves_count && flow.status == 0) {
+				int edge = flow.edge(leaves[leaf_ordinal]); leaf_ordinal = leaf_ordinal + 1;
+			}
+			flow.nodes[child - 1] = arm;
+		}
 		var value = checked.bindings.program.arena.get_node_body(source);
 		if (expression) value = checked.bindings.program.arena.get_node_expression(source);
 		int previous_arm = flow.pattern_arm;
@@ -76,7 +94,15 @@ bool recover_enum_source(RecoverFlowData flow, CheckedIndex checked, RecoverType
 }
 
 bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int id, bool[] seen, bool[] edges, u8[] bindings, int depth) {
+	if (row.kind == 86) {
+		if (row.b != 0 || row.count != 0 || row.first != 0 || row.token.index != 0 || row.type.index != 14 || !enum_scoped_binding(checked, row.symbol) || checked.bindings.symbol(row.symbol).node.index != row.source.index || row.c < 1 || row.c > flow.node_count) return false;
+		var arm = flow.nodes[row.c - 1];
+		if (arm.kind != 81 || arm.function != row.function || arm.handler != row.handler || arm.caught != row.caught || arm.c < 1 || arm.c > flow.node_count || !enum_pattern_contains(checked, arm.source, row.source, 0)) return false;
+		var parent = flow.nodes[arm.c - 1];
+		return parent.kind == 80 && parent.a == row.a && enum_pattern_match(checked, row.source).index == parent.source.index;
+	}
 	if (row.kind == 82) {
+		if (enum_scoped_binding(checked, row.symbol)) return false;
 		if (checked.bindings.program.arena.kind(row.source) != SyntaxKind.NameExpressionSyntax() || row.b != 0 || row.count != 0 || row.first != 0 || row.token.index != 0 || row.c < 1 || row.c > flow.node_count || !enum_leaf_binding(checked, row.symbol) || checked_target(checked, row.source, checked.bindings.program.arena.get_token_identifier(row.source)).index != row.symbol.index || row.type.index != checked.symbol_types[row.symbol.index].index) return false;
 		var arm = flow.nodes[row.c - 1];
 		if (arm.kind != 81 || arm.function != row.function || arm.handler != row.handler || arm.caught != row.caught || arm.c < 1 || arm.c > flow.node_count || !enum_pattern_contains(checked, arm.source, checked.bindings.symbol(row.symbol).node, 0)) return false;
@@ -142,5 +168,40 @@ bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 	}
 	var value = checked.bindings.program.arena.get_node_body(row.source);
 	if (expression) value = checked.bindings.program.arena.get_node_expression(row.source);
+	int expected = 0;
+	if (expression && enum_storage_owned(checked, type, 0)) expected = enum_pattern_leaf_count(checked, row.source, 0);
+	if (expected < 0 || row.count != expected) return false;
+	int ordinal = 0;
+	while (ordinal < expected) {
+		int edge = row.first + ordinal;
+		if (edges[edge]) return false;
+		edges[edge] = true;
+		int child = flow.edges[edge];
+		if (child < 1 || child > flow.node_count || flow.nodes[child - 1].kind != 86 || flow.nodes[child - 1].c != id || !recover_child_with_bindings(flow, checked, types, child, enum_pattern_leaf_at(checked, row.source, ordinal, 0), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+		ordinal = ordinal + 1;
+	}
 	return recover_child_with_bindings(flow, checked, types, row.a, value, row.function, row.handler, row.caught, seen, edges, bindings, depth + 1);
+}
+
+bool recover_enum_borrows_verified(RecoverFlow flow) {
+	var work = new int[1]; work[0] = 8000000;
+	int at = 0;
+	while (at < flow.data.node_count) {
+		if (work[0] == 0) return false;
+		work[0] = work[0] - 1;
+		var row = flow.data.nodes[at];
+		if (row.kind == 80 && enum_storage_owned(flow.checked, flow.data.nodes[row.a - 1].type, 0) && !enum_match_consuming(flow.checked, row.source)) {
+			int root = recover_owner_unwrap(flow.data, row.a);
+			if (root < 1 || root > flow.data.node_count || flow.data.nodes[root - 1].kind != 2) return false;
+			var symbol = flow.data.nodes[root - 1].symbol;
+			int arm = 0;
+			while (arm < row.count) {
+				var branch = flow.data.nodes[flow.data.edges[row.first + arm] - 1];
+				if (!recover_borrow_preserved(flow.data, branch.a, symbol, work, 0)) return false;
+				arm = arm + 1;
+			}
+		}
+		at = at + 1;
+	}
+	return true;
 }

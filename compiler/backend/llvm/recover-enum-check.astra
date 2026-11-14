@@ -100,7 +100,8 @@ int recover_enum_read_verified(RecoverSsa ssa, RecoverBlock block, void* physica
 	var captured = recover_enum_projection_root(ssa.cfg.core.flow.checked, arm.source, root.type, target, address, physical, 0);
 	if (captured == null || captured != slots[block.a - 1]) return 0;
 	var first = LLVMGetFirstInstruction(physical);
-	if (!recover_enum_store_verified(first, values[block.a], captured, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0))) return 0;
+	bool scoped = enum_storage_owned(ssa.cfg.core.flow.checked, root.type, 0);
+	if (!scoped && !recover_enum_store_verified(first, values[block.a], captured, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0))) return 0;
 	void* first_projection = after_projection;
 	void* current = address; int level = 0;
 	while (level < levels) {
@@ -108,7 +109,8 @@ int recover_enum_read_verified(RecoverSsa ssa, RecoverBlock block, void* physica
 		current = LLVMGetOperand(first_projection, 0);
 		level = level + 1;
 	}
-	if (current != captured || LLVMGetNextInstruction(first) != first_projection || levels > 0 && LLVMGetNextInstruction(address) != after_projection) return 0;
+	if (current != captured || !scoped && LLVMGetNextInstruction(first) != first_projection || scoped && first != first_projection || levels > 0 && LLVMGetNextInstruction(address) != after_projection) return 0;
+	if (scoped) return 2 + levels * 2 + extra;
 	return 3 + levels * 2 + extra;
 }
 

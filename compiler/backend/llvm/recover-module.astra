@@ -474,8 +474,10 @@ class RecoverLlvm {
 			arm = ssa.cfg.core.nodes[arm.c - 1].value;
 		}
 		var address = this.slots[block.a - 1];
-		var copied = LLVMBuildStore(this.builder, this.values[block.a], address);
-		LLVMSetAlignment(copied, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0));
+		if (!enum_storage_owned(ssa.cfg.core.flow.checked, root.type, 0)) {
+			var copied = LLVMBuildStore(this.builder, this.values[block.a], address);
+			LLVMSetAlignment(copied, recover_enum_type_alignment(ssa.cfg.core.flow.checked, root.type, 0));
+		}
 		var selected = this.enum_projection(ssa.cfg.core.flow.checked, arm.source, root.type, address, target, 0);
 		var type = ssa.cfg.core.flow.checked.uses[target.index].type;
 		if (block.opcode == 83) {
@@ -929,6 +931,31 @@ class RecoverLlvm {
 			value = this.enum_read(ssa, block);
 			operation = value;
 		}
+		if (op == 85) {
+			var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+			operation = LLVMBuildStore(this.builder, this.values[block.a], this.slots[block.a - 1]);
+			LLVMSetAlignment(operation, recover_enum_type_alignment(ssa.cfg.core.flow.checked, type, 0));
+		}
+		if (op == 86) {
+			var root = ssa.cfg.core.nodes[row.a - 1].value;
+			var arm = ssa.cfg.core.nodes[row.c - 1].value;
+			var address = this.enum_projection(ssa.cfg.core.flow.checked, arm.source, root.type, this.slots[row.a - 1], row.source, 0);
+			var type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index];
+			var loaded = this.load(this.scalar(ssa.cfg.core.flow.checked, type), address);
+			LLVMSetAlignment(loaded, LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(loaded)));
+			operation = loaded; this.locals[row.symbol.index] = loaded;
+			if (ssa.cfg.core.flow.checked.symbol_flags[row.symbol.index] == 4) {
+				var cleared = LLVMBuildStore(this.builder, LLVMConstNull(LLVMTypeOf(loaded)), address);
+				LLVMSetAlignment(cleared, LLVMABIAlignmentOfType(this.layout, LLVMTypeOf(loaded)));
+				var published = LLVMBuildStore(this.builder, loaded, this.owner_addresses[row.symbol.index]);
+				var armed = LLVMBuildStore(this.builder, LLVMConstInt(this.boolean, 1, 0), this.owner_armed[row.symbol.index]);
+			}
+		}
+		if (op == 87) {
+			var type = ssa.cfg.core.nodes[block.a - 1].value.type;
+			var arguments = new void*[1]; arguments[0] = this.slots[block.a - 1];
+			operation = this.call(this.enum_drops[type.index], arguments, true);
+		}
 		if (op == 1) value = this.literal(ssa, row);
 		if (op == 51) value = this.caller_literal(ssa.cfg.core.flow.checked, row);
 		if (op == 52) {
@@ -1240,7 +1267,15 @@ class RecoverLlvm {
 			var arguments = new void*[1]; arguments[0] = this.slots[block.a - 1];
 			operation = this.call(this.enum_drops[type.index], arguments, true);
 		}
-		if (owner_read || owner_write || op == 68 || op == 9 || op == 10 || op == 13 || op == 14 || op == 36 || op == 38 || op == 84 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[block.a - 1].value.type) != 32) {
+		if (op == 38 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.storage.slots[block.a - 1].type) == 32) {
+			var slot = ssa.cfg.core.flow.storage.slots[block.a - 1];
+			var live = this.load(this.boolean, this.owner_armed[slot.symbol.index]);
+			var selected = LLVMBuildSelect(this.builder, live, this.owner_addresses[slot.symbol.index], LLVMConstNull(this.pointer), this.empty);
+			var disarm = LLVMBuildStore(this.builder, LLVMConstInt(this.boolean, 0, 0), this.owner_armed[slot.symbol.index]);
+			var arguments = new void*[1]; arguments[0] = selected;
+			operation = this.call(this.enum_drops[slot.type.index], arguments, true);
+		}
+		if (owner_read || owner_write || op == 68 || op == 9 || op == 10 || op == 13 || op == 14 || op == 36 || op == 38 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.storage.slots[block.a - 1].type) != 32 || op == 84 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[block.a - 1].value.type) != 32) {
 			var type = row.type; if (owner_write) type = ssa.cfg.core.flow.checked.symbol_types[row.symbol.index]; if (op == 38) type = ssa.cfg.core.flow.storage.slots[block.a - 1].type;
 			if (op == 84) type = ssa.cfg.core.nodes[block.a - 1].value.type;
 			var storage = this.scalar(ssa.cfg.core.flow.checked, type); void* element = null;

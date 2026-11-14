@@ -27,6 +27,12 @@ def main():
 	prior.CONDITIONAL = selected['match-three-way']
 	prior.RECORD = selected['match-nested-payload']
 	prior.PARAMETER = selected['match-payload-alignment']
+	prior.BOX = '''enum Packet { Empty, Data(owned int[] data, owned int[] extra, int count) }
+int main() {
+	var packet = Packet.Data(new int[13],new int[7],13);
+	return match (move packet) { case Packet.Empty() => 1; case Packet.Data(data,_,count) => len(data)+count+16; };
+}
+'''
 	prior.INTRINSIC = '''[ExceptionRoot] class Error {
 	readonly string text;
 	init(string message) { this.text = message; }
@@ -44,6 +50,8 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 		'enum-constructor-tag': ('record', 'main', 'enum-tag'),
 		'enum-carrier-alignment': ('parameter', 'main', 'enum-alignment'),
 		'fresh-temporary-retirement': ('intrinsic', 'main', 'temporary-drop'),
+		'owning-payload-clear': ('box', 'main', 'enum-clear'),
+		'owning-residual-retirement': ('box', 'main', 'enum-residual'),
 	}
 	mutations = '''  elif action=='named-slots':
    candidates=[]
@@ -62,6 +70,30 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
    assert len(candidates)==1,candidates
    target=candidates[0];old=operand(target,0);assert pointer('LLVMIsAInstruction',old) and opcode(old)==53
    before=dict(argument=old,argument_opcode=opcode(old))
+   changed=pointer('LLVMConstNull',pointer('LLVMTypeOf',old));set_operand(target,0,changed);after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']==1
+  elif action=='enum-clear':
+   candidates=[]
+   for block in body:
+    sequence=instructions(block)
+    for at,value in enumerate(sequence):
+     if opcode(value)!=28 or not number('(int)LLVMIsNull((void*)%d)'%operand(value,0)):continue
+     address=operand(value,1)
+     if not pointer('LLVMIsAInstruction',address) or opcode(address)!=29:continue
+     kind=pointer('LLVMTypeOf',operand(value,0))
+     if number('(int)LLVMGetTypeKind((void*)%d)'%kind)!=10 or number('(unsigned)LLVMCountStructElementTypes((void*)%d)'%kind)!=2:continue
+     first=number('(void*)LLVMStructGetTypeAtIndex((void*)%d,0)'%kind)
+     if number('(int)LLVMGetTypeKind((void*)%d)'%first)==12 and at>0 and opcode(sequence[at-1])==27:candidates.append((value,sequence[at-1]))
+   assert len(candidates)==1,candidates
+   target,loaded=candidates[0];before=dict(is_null=True);set_operand(target,0,loaded);after=dict(is_original_payload=operand(target,0)==loaded);assert after['is_original_payload']
+  elif action=='enum-residual':
+   candidates=[]
+   for block in body:
+    for value in instructions(block):
+     if opcode(value)!=45 or not name(pointer('LLVMGetCalledValue',value)).startswith('astra.enum.drop.'):continue
+     argument=operand(value,0)
+     if pointer('LLVMIsAInstruction',argument) and opcode(argument)==26:candidates.append(value)
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,0);before=dict(captured_address=old)
    changed=pointer('LLVMConstNull',pointer('LLVMTypeOf',old));set_operand(target,0,changed);after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']==1
   elif action=='match-phi':
    candidates=[value for block in body for value in instructions(block) if opcode(value)==44 and number('(unsigned)LLVMCountIncoming((void*)%d)'%value)==3]
