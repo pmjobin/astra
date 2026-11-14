@@ -914,3 +914,35 @@ PASS is inferred. Format-plan type controls, including preserved closure/range
 identities and invalid channels, separately pass C0 O0/O2 and strict memory
 (selfhost27c-types4). Neither build nor these focused receipts establish final
 milestone acceptance or same-source Stage3 convergence.
+
+Semantic13 completes its focused mutation suite with native exit 42 and strict
+returning memory, zero live bytes, errors and suppressions. Seven actual typed
+formatting specimens also pass its independent source/Flow CLI
+(selfhost27c-semantic13-format2): copied scalar widths, counted borrowed text,
+written evaluation order, operand failure before sink writes, owned results,
+nonfinite rejection, invalid pre-existing sink bytes and fresh-owner abort.
+The initial focused invocation supplied an unused Vector template, correctly
+refused at its source declaration; the revised input lists the specimens'
+actual dependencies. Earlier out-of-range literal and incomplete catch fixtures
+remain recorded. This is source/Flow evidence, without Core, SSA or LLVM credit.
+
+Independently expanded C0 formatting oracles execute those seven cases with
+strict returning memory (the first five in selfhost27c-format-oracles4, the
+remaining two in selfhost27c-format-oracles5). Pre-reserved sink observations
+wrap calloc, malloc and realloc and observe no allocations during formatting.
+Raw invalid bytes enter only through the byte builder, preserving the ordinary
+UTF-8 string invariant; snapshot rejection remains an explicit InvalidUtf8.
+These reference results do not qualify typed-site execution. The existing
+physical mutation adapter now includes formatting fragment lengths, floating
+prechecks, failure branches, owned output slots, builder retirement and returned
+Error corruption cases; their candidate execution remains pending.
+
+Candidate 221da1f is undergoing a genuine Astra compiler-source build using
+dev9 as producer. Its C0 semantic preflight passes in 73.353 seconds. A separate
+live /proc observation authenticates the actual producer executable SHA and
+mapped pinned LLVM SHA (selfhost27c-dev10/live-process1.json), without changing
+process memory. Build completion, current-source 8M headroom, native formatting
+and lazy qualification remain pending; no generation acceptance is inferred
+from this observation. Comprehensions, source migration and final qualification
+are still outstanding. The historical exception and release reservations above
+remain unchanged.

@@ -991,12 +991,165 @@ RANGE_NEGATIVE = [
 ]
 
 
+FORMAT_OBSERVE = '''extern(C) void format_allocation_mark();
+extern(C) int format_allocations_since();
+extern(C) f32 format_f32(int selector);
+extern(C) f64 format_f64(int selector);
+'''
+FORMAT_CASES = [
+	('format-sink-scalars', FORMAT_OBSERVE+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(512)) return 1;
+			i8 small = -128; u8 byte = 255; i16 short_value = -32768; u16 word = 65535;
+			i64 low = -9223372036854775808; u64 high = 18446744073709551615; u32 full = 4294967295;
+			f32 single = format_f32(1); f64 wide = format_f64(1);
+			string fragment = "\\u00e9\\0";
+			format_allocation_mark();
+			if (!format_into(builder, $"{{{small},{byte},{short_value},{word},{-2147483648},{full},{low},{high},{true},{false},{single},{wide},{fragment}}}")) return 2;
+			if (format_allocations_since() != 0) return 3;
+			var message = builder.snapshot();
+			if (message.text != "{-128,255,-32768,65535,-2147483648,4294967295,-9223372036854775808,18446744073709551615,true,false,-0x1.8p+0,0x1.0p+0,\\u00e9\\0}") return 4;
+			return 42;
+		} catch (Error error) { return 5; }
+	}
+''', FORMAT_OBSERVE+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(512)) return 1;
+			format_allocation_mark();
+			if (!builder.append_text("{") || !append_int(builder, -128) || !builder.append_text(",") || !append_u32(builder, 255) || !builder.append_text(",") || !append_int(builder, -32768) || !builder.append_text(",") || !append_u32(builder, 65535) || !builder.append_text(",") || !append_int(builder, -2147483648) || !builder.append_text(",") || !append_u32(builder, 4294967295) || !builder.append_text(",") || !append_i64(builder, -9223372036854775808) || !builder.append_text(",") || !append_u64(builder, 18446744073709551615) || !builder.append_text(",") || !append_bool(builder, true) || !builder.append_text(",") || !append_bool(builder, false) || !builder.append_text(",") || !builder.append_text("-0x1.8p+0,0x1.0p+0,\\u00e9\\0}")) return 2;
+			if (format_allocations_since() != 0) return 3;
+			var message = builder.snapshot();
+			if (message.text != "{-128,255,-32768,65535,-2147483648,4294967295,-9223372036854775808,18446744073709551615,true,false,-0x1.8p+0,0x1.0p+0,\\u00e9\\0}") return 4;
+			return 42;
+		} catch (Error error) { return 5; }
+	}
+''', True),
+	('format-order-and-message', FORMAT_OBSERVE+TICKS+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(64)) return 1;
+			u8[2] bytes = {195, 169}; var fragment = utf8_message(slice(bytes)); reset_trace();
+			format_allocation_mark();
+			if (!format_into(builder, $"{tick(3)}:{fragment}:{tick(1)}:{tick(2)}")) return 2;
+			if (trace() != 312 || format_allocations_since() != 0) return 3;
+			var message = builder.snapshot(); if (message.text != "3:\\u00e9:1:2") return 4;
+			return 42;
+		} catch (Error error) { return 5; }
+	}
+''', FORMAT_OBSERVE+TICKS+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(64)) return 1;
+			u8[2] bytes = {195, 169}; var fragment = utf8_message(slice(bytes)); reset_trace();
+			format_allocation_mark(); int first = tick(3); int middle = tick(1); int last = tick(2);
+			if (!append_int(builder, first) || !builder.append_text(":") || !builder.append_text(fragment.text) || !builder.append_text(":") || !append_int(builder, middle) || !builder.append_text(":") || !append_int(builder, last)) return 2;
+			if (trace() != 312 || format_allocations_since() != 0) return 3;
+			var message = builder.snapshot(); if (message.text != "3:\\u00e9:1:2") return 4;
+			return 42;
+		} catch (Error error) { return 5; }
+	}
+''', True),
+	('format-operand-error', TICKS+'''int risky() throws Error { int ignored = tick(2); throw new Error("format operand stop"); }
+	int main() {
+		var builder = new Utf8ByteBuilder(); if (!builder.append_text("before")) return 1; reset_trace();
+		try { bool ignored = format_into(builder, $"prefix {tick(1)}:{risky()}:{tick(3)}"); return 2; }
+		catch (Error error) {
+			try { var text = builder.snapshot(); if (trace() == 12 && text.text == "before") return 42; }
+			catch (Error snapshot_error) { return 3; }
+		}
+		return 4;
+	}
+''', TICKS+'''int risky() throws Error { int ignored = tick(2); throw new Error("format operand stop"); }
+	int main() {
+		var builder = new Utf8ByteBuilder(); if (!builder.append_text("before")) return 1; reset_trace();
+		try { int first = tick(1); int middle = risky(); int last = tick(3); return 2; }
+		catch (Error error) {
+			try { var text = builder.snapshot(); if (trace() == 12 && text.text == "before") return 42; }
+			catch (Error snapshot_error) { return 3; }
+		}
+		return 4;
+	}
+''', True),
+	('format-owned-text', TICKS+'''owned Utf8Message make() throws Error { return format_text($"value {tick(4)}:{tick(2)}"); }
+	int main() {
+		try { reset_trace(); var text = make(); if (text.text != "value 4:2" || trace() != 42) return 1; return 42; }
+		catch (Error error) { return 2; }
+	}
+''', TICKS+'''owned Utf8Message make() throws Error {
+		int first = tick(4); int last = tick(2); var builder = new Utf8ByteBuilder();
+		if (!builder.append_text("value ") || !append_int(builder, first) || !builder.append_text(":") || !append_int(builder, last)) { throw new FormatError(); }
+		var text = builder.snapshot(); return move text;
+	}
+	int main() {
+		try { reset_trace(); var text = make(); if (text.text != "value 4:2" || trace() != 42) return 1; return 42; }
+		catch (Error error) { return 2; }
+	}
+''', True),
+	('format-nonfinite', FORMAT_OBSERVE+TICKS+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(64) || !builder.append_text("before")) return 1;
+			f32 nan = format_f32(2); f64 infinity = format_f64(2); reset_trace();
+			format_allocation_mark();
+			if (format_into(builder, $"prefix {tick(1)}:{nan}:{tick(2)}") || trace() != 12 || format_allocations_since() != 0) return 2;
+			if (format_into(builder, $"{infinity}")) return 3;
+			var text = builder.snapshot(); if (text.text != "before") return 4;
+			try { var rejected = format_text($"{nan}"); return 5; }
+			catch (FormatError failure) { return 42; }
+		} catch (Error error) { return 6; }
+	}
+''', FORMAT_OBSERVE+TICKS+'''int main() {
+		try {
+			var builder = new Utf8ByteBuilder(); if (!builder.reserve(64) || !builder.append_text("before")) return 1; reset_trace();
+			format_allocation_mark(); int first = tick(1); int last = tick(2);
+			if (trace() != 12 || format_allocations_since() != 0) return 2;
+			var text = builder.snapshot(); if (text.text != "before") return 4;
+			try { throw new FormatError(); }
+			catch (FormatError failure) { return 42; }
+		} catch (Error error) { return 6; }
+	}
+''', True),
+	('format-utf8-error', '''int main() {
+		var builder = new Utf8ByteBuilder(); u8[1] invalid = {255};
+		if (!builder.append_bytes(slice(invalid)) || !format_into(builder, $"valid {42}")) return 1;
+		try { var rejected = builder.snapshot(); return 2; } catch (InvalidUtf8 error) { return 42; }
+	}
+''', '''int main() {
+		var builder = new Utf8ByteBuilder(); u8[1] invalid = {255};
+		if (!builder.append_bytes(slice(invalid)) || !builder.append_text("valid ") || !append_int(builder, 42)) return 1;
+		try { var rejected = builder.snapshot(); return 2; } catch (InvalidUtf8 error) { return 42; }
+	}
+''', True),
+	('format-fresh-owner-abort', FORMAT_OBSERVE+ITEM+'''int eat(owned Utf8Message text, owned Item item) { return item.value; }
+	int main() {
+		f64 infinity = format_f64(2);
+		try { return eat(item: new Item(22), text: format_text($"{infinity}")); }
+		catch (FormatError error) { if (drops() == 1 && drop_sum() == 22) return 42; }
+		catch (Error error) { return 2; }
+		return 1;
+	}
+''', FORMAT_OBSERVE+ITEM+'''int main() {
+		try { var item = new Item(22); throw new FormatError(); }
+		catch (FormatError error) { if (drops() == 1 && drop_sum() == 22) return 42; }
+		catch (Error error) { return 2; }
+		return 1;
+	}
+''', True),
+]
+FORMAT_NEGATIVE = [
+	('format-escaping-plan', 'int main() { var plan = $"value {42}"; return 42; }'),
+	('format-unhandled-owned', 'int main() { var text = format_text($"value {42}"); return 42; }'),
+	('format-wrong-sink', 'int main() { int sink = 0; bool ok = format_into(sink, $"value {42}"); return 42; }'),
+	('format-labeled-plan', 'int main() { var sink = new Utf8ByteBuilder(); bool ok = format_into(sink, plan: $"value {42}"); return 42; }'),
+	('format-unsupported-object', ITEM+'int main() { var sink = new Utf8ByteBuilder(); var item = new Item(42); bool ok = format_into(sink, $"{item}"); return 42; }'),
+	('format-temporary-message', 'owned Utf8Message temporary() throws Error { u8[1] bytes = {42}; var text = utf8_message(slice(bytes)); return move text; } int main() { try { var sink = new Utf8ByteBuilder(); bool ok = format_into(sink, $"{temporary()}"); return 42; } catch (Error error) { return 1; } }'),
+	('format-interpolation-return', 'string message() { return $"{42}"; } int main() { return 42; }'),
+]
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
-	p.add_argument('--feature', choices=('named', 'match', 'range'), default='named')
+	p.add_argument('--feature', choices=('named', 'match', 'range', 'format'), default='named')
 	a = p.parse_args()
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
@@ -1017,12 +1170,12 @@ def main():
 		log = (runtime/name/'stderr').read_bytes()
 		assert all(m in log for m in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
 	bridge = runtime/'observe.c'
-	bridge.write_text('static int seen, retired, sum;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\n')
+	bridge.write_text('#include <stdint.h>\n#include <string.h>\nstatic int seen, retired, sum;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\nfloat format_f32(int selector) { uint32_t bits = selector == 1 ? UINT32_C(3217031168) : UINT32_C(2143289344); float value; memcpy(&value, &bits, sizeof value); return value; }\ndouble format_f64(int selector) { uint64_t bits = selector == 1 ? UINT64_C(4607182418800017408) : UINT64_C(9218868437227405312); double value; memcpy(&value, &bits, sizeof value); return value; }\n')
 	inputs[str(bridge)] = sha(bridge); bridge_object = build/'observe.o'
 	run('C-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', bridge, '-o', bridge_object])
 	objects = [*providers, str(bridge_object)]
 	allocation_source = runtime/'allocation-observer.c'
-	allocation_source.write_text('#include <stddef.h>\nvoid *__real_calloc(size_t, size_t);\nstatic int calls, bytes;\nvoid *__wrap_calloc(size_t count, size_t size) { ++calls; bytes += (int)(count*size); return __real_calloc(count,size); }\nint allocation_calls(void) { return calls; }\nint allocation_bytes(void) { return bytes; }\n')
+	allocation_source.write_text('#include <stddef.h>\nvoid *__real_calloc(size_t, size_t);\nvoid *__real_malloc(size_t);\nvoid *__real_realloc(void *, size_t);\nstatic int calls, bytes, total, mark;\nvoid *__wrap_calloc(size_t count, size_t size) { ++calls; ++total; bytes += (int)(count*size); return __real_calloc(count,size); }\nvoid *__wrap_malloc(size_t size) { ++total; return __real_malloc(size); }\nvoid *__wrap_realloc(void *pointer, size_t size) { ++total; return __real_realloc(pointer,size); }\nint allocation_calls(void) { return calls; }\nint allocation_bytes(void) { return bytes; }\nvoid format_allocation_mark(void) { mark = total; }\nint format_allocations_since(void) { return total-mark; }\n')
 	inputs[str(allocation_source)] = sha(allocation_source); allocation_object = build/'allocation-observer.o'
 	run('C-allocation-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', allocation_source, '-o', allocation_object])
 	cases = [r for r in CASES if not a.case or r[0] in a.case]
@@ -1033,17 +1186,22 @@ def main():
 	if a.feature == 'range':
 		cases = [r for r in RANGE_CASES if not a.case or r[0] in a.case]
 		negatives = RANGE_NEGATIVE
+	format_sources = [ROOT/('lib/astra/'+n+'.astra') for n in ('base/errors', 'base/diagnostics', 'text/utf8-message', 'text/utf8-byte-builder', 'text/scalar-format', 'hosted/text-ops', 'collections/bag', 'hosted/text')]
+	if a.feature == 'format':
+		cases = [r for r in FORMAT_CASES if not a.case or r[0] in a.case]
+		negatives = FORMAT_NEGATIVE
 	assert cases and (not a.case or set(a.case) == {r[0] for r in cases})
 	for name, modern, expanded, errors in cases:
 		source = runtime/(name+'.astra'); source.write_text('language astra27b;\n'+modern)
 		oracle = runtime/(name+'-expanded.astra'); oracle.write_text(expanded)
 		extra = [ROOT/'lib/astra/base/errors.astra', ROOT/'lib/astra/hosted/text.astra'] if errors else []
+		if a.feature == 'format': extra = format_sources
 		if name == 'namespace-call':
 			helper = runtime/'Helpers.astra'; helper.write_text('namespace Helpers;\nint add(int first, int last) { return first+last; }\n')
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith('lazy-'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])
@@ -1051,6 +1209,7 @@ def main():
 		else:
 			run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
 		run(name+'-C0-native', [reference], 42); products[str(reference)] = sha(reference)
+		if a.feature == 'format': memory(name+'-C0-memory', [reference], 42)
 		if a.oracle_only: continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o'); target = build/(name+'-'+mode)
@@ -1068,7 +1227,9 @@ def main():
 		source = runtime/(name+'-negative.astra'); source.write_text('language astra27b;\n'+text+'\n')
 		inputs[str(source)] = sha(source); write(runtime/'inputs.json', inputs)
 		target = build/(name+'-sentinel.ll'); marker = b'ASTRA27C_NAMED_REFUSAL_SENTINEL\n'; target.write_bytes(marker)
-		run(name+'-reject', [a.compiler, '--emit-llvm', '-o', target, source], 1)
+		extra = format_sources if a.feature == 'format' else []
+		inputs.update({str(n):sha(n) for n in extra}); write(runtime/'inputs.json', inputs)
+		run(name+'-reject', [a.compiler, '--emit-llvm', '-o', target, source, *extra], 1)
 		assert target.read_bytes() == marker and (runtime/(name+'-reject/stderr')).stat().st_size > 0
 	assert all(sha(n) == h for n,h in {**inputs, **providers, **tools, **products}.items())
 	write(runtime/'identity.json', dict(inputs=inputs, providers=providers, tools=tools, products=products, environment={n:env.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'PYTHONHOME', 'LIBRARY_PATH', 'LC_ALL', 'LANG')}))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """27-C cases for the existing process-local LLVM mutation driver."""
+import argparse
 import importlib.util
 import json
 from pathlib import Path
@@ -20,6 +21,10 @@ def module(name, path):
 
 
 def main():
+	selection = argparse.ArgumentParser(add_help=False)
+	selection.add_argument('--feature', choices=('existing', 'format'), default='existing')
+	options, remaining = selection.parse_known_args()
+	sys.argv = [sys.argv[0], *remaining]
 	prior = module('ownership_physical', PRIOR/'physical.py')
 	cases = module('expressive_cases', Path(__file__).with_name('named.py'))
 	selected = {row[0]:row[1] for row in cases.MATCH_CASES}
@@ -141,14 +146,90 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	needle = "  else:assert action=='control'\n"
 	assert prior.GDB.count(needle) == 1
 	prior.GDB = prior.GDB.replace(needle, mutations+needle)
+	extra = []
+	if options.feature == 'format':
+		# Reuse the existing public-CLI/process-local mutation driver. These
+		# specimens load their actual library dependencies as distinct sources.
+		extra = [ROOT/('lib/astra/'+n+'.astra') for n in ('base/errors', 'base/diagnostics', 'text/utf8-message', 'text/utf8-byte-builder', 'text/scalar-format', 'hosted/text-ops', 'collections/bag', 'hosted/text')]
+		prior.COMPOUND = '''int main() {
+	try {
+		var builder = new Utf8ByteBuilder(); f64 value = 1.0d;
+		if (!format_into(builder, $"prefix {value} suffix")) return 1;
+		return 42;
+	} catch (Error error) { return 2; }
+}
+'''
+		prior.RECORD = '''int main() {
+	try { var text = format_text($"value {42}"); if (text.text == "value 42") return 42; return 1; }
+	catch (Error error) { return 2; }
+}
+'''
+		prior.CASES = {
+			'format-fragment-length': ('compound', '@prefix:astra.format.into.', 'format-fragment-length'),
+			'format-nonfinite-mask': ('compound', '@prefix:astra.format.into.', 'format-nonfinite-mask'),
+			'format-failure-branch': ('compound', '@prefix:astra.format.into.', 'format-failure-branch'),
+			'format-owned-output': ('record', '@prefix:astra.format.text.', 'format-owned-output'),
+			'format-owned-retirement': ('record', '@prefix:astra.format.text.', 'format-owned-retirement'),
+			'format-owned-error': ('record', '@prefix:astra.format.text.', 'format-owned-error'),
+		}
+		lookup = ''' if requested.startswith('@prefix:'):
+  function=pointer('LLVMGetFirstFunction',module);matches=[];budget=8192
+  while function and budget:
+   if name(function).startswith(requested[8:]) and blocks(function):matches.append(function)
+   function=pointer('LLVMGetNextFunction',function);budget-=1
+  assert len(matches)==1,matches
+  return matches[0]
+'''
+		assert prior.GDB.count('def function_for(module,requested):\n') == 1
+		prior.GDB = prior.GDB.replace('def function_for(module,requested):\n', 'def function_for(module,requested):\n'+lookup)
+		format_mutations = '''  elif action=='format-fragment-length':
+   candidates=[value for value in instructions(body[1]) if opcode(value)==45 and number('(unsigned)LLVMGetNumArgOperands((void*)%d)'%value)==3]
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,2);before=integer(old);assert before==7
+   set_operand(target,2,replacement(old,8));after=integer(operand(target,2));assert after==8
+  elif action=='format-nonfinite-mask':
+   candidates=[value for value in instructions(body[0]) if opcode(value)==23 and pointer('LLVMIsAConstantInt',operand(value,1)) and integer(operand(value,1))==9218868437227405312]
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,1);before=integer(old)
+   set_operand(target,1,replacement(old,0));after=integer(operand(target,1));assert after==0
+  elif action=='format-failure-branch':
+   target=pointer('LLVMGetBasicBlockTerminator',body[1]);assert opcode(target)==2 and number('(unsigned)LLVMGetNumSuccessors((void*)%d)'%target)==2
+   first=number('(void*)LLVMGetSuccessor((void*)%d,0)'%target);last=number('(void*)LLVMGetSuccessor((void*)%d,1)'%target);assert first!=last
+   before=[first,last]
+   gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,0,(void*)%d)'%(target,last));gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,1,(void*)%d)'%(target,first))
+   after=[number('(void*)LLVMGetSuccessor((void*)%d,%d)'%(target,n)) for n in (0,1)];assert after==[last,first]
+  elif action=='format-owned-output':
+   target=instructions(body[1])[0];assert opcode(target)==45 and number('(unsigned)LLVMGetNumArgOperands((void*)%d)'%target)==2
+   old=operand(target,0);before=dict(is_output_slot=old==number('(void*)LLVMGetParam((void*)%d,0)'%function));assert before['is_output_slot']
+   set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
+  elif action=='format-owned-retirement':
+   target=instructions(body[1])[1];assert opcode(target)==45 and number('(unsigned)LLVMGetNumArgOperands((void*)%d)'%target)==1
+   old=operand(target,0);before=dict(builder=old);assert old==instructions(body[0])[0]
+   set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
+  elif action=='format-owned-error':
+   target=pointer('LLVMGetBasicBlockTerminator',body[2]);assert opcode(target)==1
+   old=operand(target,0);before=dict(error_constructor=old);assert opcode(old)==45
+   set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
+'''
+		assert prior.GDB.count(needle) == 1
+		prior.GDB = prior.GDB.replace(needle, format_mutations+needle)
+		original_execute = prior.execute
+		def with_sources(argv, *args, **kwargs):
+			if argv[0] == 'gdb':
+				argv.extend(extra)
+				write(Path(args[0]).parent/'extension-inputs.json', identity)
+			return original_execute(argv, *args, **kwargs)
+		prior.execute = with_sources
 	identity = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('named.py'), PRIOR/'physical.py', PRIOR/'support.py')}
+	identity.update({str(path):sha(path) for path in extra})
 	prior.main()
 	assert all(sha(path) == h for path,h in identity.items())
 	arguments = sys.argv[1:]
 	runtime = Path(arguments[arguments.index('--runtime')+1])
 	result = json.loads((runtime/'result.json').read_text())
 	result['extension_inputs'] = identity
-	result['scope'] = 'Selected 27-C actual named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
+	result['feature'] = options.feature
+	result['scope'] = 'Selected 27-C actual '+('typed formatting fragments, finite prechecks, failure edges, owned output and retirement' if options.feature == 'format' else 'named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement')+'. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
 	write(runtime/'result.json', result)
 
 
