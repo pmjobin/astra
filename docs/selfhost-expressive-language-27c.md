@@ -1199,3 +1199,25 @@ corruptions. Both C0 O0/O2 native runs and strict returning memory pass with zer
 live bytes, errors and suppressions (selfhost27c-cursor-kernel3). Earlier missing
 declaration/dependency preflights remain recorded. This exact-kernel proof does
 not replace actual formatting-site, current complete-source or generation tests.
+
+The next genuine Astra production build freezes a0acd386e10b8a6cbf45d4845f9747cd41df5448
+(tree 0d4fea9f645762e671b538b75118aae62338b64a) and 230 actual compiler/library
+inputs (selfhost27c-dev12). Its separately identified C0 semantic preflight passes
+in 75.984 seconds. A read-only live /proc receipt independently authenticates the
+actual dev11 Astra producer SHA above, exact ordered argv/input closure, disabled
+cache/preload/suppressions, no imported process-launch functions and mapped
+LLVM SHA 3149b73c3118dee2d2829a210b422ca89a4aa0064b57e77936ede12bdcfe750d.
+The observation records CPU/RSS and a newly dated timestamp. The compiler build
+is active; there is no product or successful generation credit yet.
+
+A migration planning probe confirms that text-valued expression-match results
+remain outside the existing bounded copyable/explicit-owner join subset because
+borrowed text needs an outlives proof (selfhost27c-match-text-dev11-1). Its C0
+expanded statement oracle passes, while actual Astra refuses the expression;
+this is not claimed as text-match acceptance. The refusal is now an explicit
+semantic negative. The supported three-way numeric match passes C0 comparison,
+actual O0/O2 execution, LLVM verification and strict returning compiler/target
+memory, with all nineteen match negatives refused and sentinels intact
+(selfhost27c-match-join-dev11-1). Compiler enum-code migration will use that
+qualified numeric result subset instead of broadening borrowed joins implicitly.
+Idiomatic migration, stable final qualification and publication remain pending.

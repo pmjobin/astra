@@ -581,6 +581,8 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	# Text joins require an outlives proof beyond the bounded copy/owner subset.
+	('match-borrowed-text-result', MATCH_TAG+'string name(Mode value) => match (value) { case Mode.First() => "first"; case Mode.Middle() => "middle"; case Mode.Last() => "last"; }; int main() { return 42; }'),
 	('match-destination-moved', 'enum E { First, Last } class Box { int value; init() { this.value = 0; } } int consume(owned Box box) { return 42; } int main() { var box = new Box(); box.value = match (E.First()) { case E.First() => consume(move box); case E.Last() => 42; }; return 42; }'),
 	('match-owner-alias', ITEM+'enum E { Only } Item choose(owned Item value) { return match (E.Only()) { case E.Only() => value; }; } int main() { var item = choose(new Item(42)); return item.value; }'),
 	('match-payload-label', 'enum Pair { Data(int first, int second) } int main() { return match (Pair.Data(20,22)) { case Pair.Data(first=a, missing=b) => a+b; }; }'),
