@@ -2,6 +2,7 @@
 // Re-lex only the gaps around original argument expressions. This consumer
 // does not call the parser or trust its label list, including an erased list.
 bool syntax_call_gap_verified(SyntaxArena arena, SyntaxSourceId source, int start, int end, bool opening, bool comma, SyntaxTokenId name, SyntaxTokenId colon, bool trailing) {
+	if (name.index < 0 || name.index > arena.token_count || colon.index < 0 || colon.index > arena.token_count || name.index != 0 && colon.index == 0) return false;
 	try {
 		var backing = arena.source(source);
 		if (!source_valid_span(shared_borrow(backing), start, end)) return false;
@@ -62,8 +63,11 @@ bool syntax_call_labels_verified(SyntaxArena arena, SyntaxNodeId call) {
 			return false;
 		}
 	} else {
-		var opening = arena.token_span(arena.get_token_open_paren(call));
-		var closing = arena.token_span(arena.get_token_close_paren(call));
+		var opening_token = arena.get_token_open_paren(call);
+		var closing_token = arena.get_token_close_paren(call);
+		if (opening_token.index < 1 || opening_token.index > arena.token_count || closing_token.index < 1 || closing_token.index > arena.token_count) return false;
+		var opening = arena.token_span(opening_token);
+		var closing = arena.token_span(closing_token);
 		if (opening.source.index != span.source.index || closing.source.index != span.source.index || !arena.token_is(arena.get_token_open_paren(call), "(") || !arena.token_is(arena.get_token_close_paren(call), ")")) return false;
 		begin = opening.end;
 		end = closing.start;
@@ -87,5 +91,5 @@ bool syntax_call_labels_verified(SyntaxArena arena, SyntaxNodeId call) {
 		i = i + 1;
 	}
 	SyntaxTokenId absent = {index = 0};
-	return syntax_call_gap_verified(arena, span.source, begin, end, heap && count == 0, false, absent, absent, count > 0);
+	return syntax_call_gap_verified(arena, span.source, begin, end, heap && count == 0, false, absent, absent, count > 0 && syntax_source_language_profile(arena, span.source) == 1);
 }

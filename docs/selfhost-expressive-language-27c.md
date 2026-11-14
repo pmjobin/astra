@@ -84,3 +84,24 @@ Preserved Python3.15.0 and its library match the original exact pins, so the
 task uses those bytes and their preserved standard library. No formatter pin
 was changed. The guarded apply checked 31 task source paths and changed eight
 layouts while independently preserving parsed structure and tokens.
+
+The O2 syntax component subsequently passed native execution and strict memory,
+including independently rejected erased/reordered labels with restored positive
+controls. Eight separately authored expanded C0 programs now return 42:
+lexical scalar order, distinct parameter types, inferred/explicit generics,
+constructor/method order, C ABI order, owned call commit/abort, throwing operand
+ordering, and a separate file-scoped namespace. Development oracle failures
+retain the reserved-keyword and incorrect namespace-block specimens; neither
+was substituted for a passing source program.
+
+The optimized development build freezes commit
+`44b31891d865bd53a67aec636d31a374146690ad`. Its C0 semantic and Core preflights
+passed. All eighteen original LLVM C-provider header dependencies match the
+preserved SDK. A byte-identical relocated llvm-config supplies the task-local
+SDK include path; isolated linker/runtime routing selects the exact 23.1.4
+library. The older capsule and system installation remain unchanged.
+
+A later source batch adds explicit namespace owner/selection verification to
+the recovered pipeline and tightens malformed-token and legacy-comma source
+checks. It passed current C0 semantic admission. This repair is later than the
+running development compiler's frozen graph and has no native-host credit yet.

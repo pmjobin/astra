@@ -3,6 +3,48 @@
 // A receiver is accepted only with the original generic/Class storage proof.
 // These local predicates are used within passes that verify the whole generic
 // map at entry. They read the current source rows on every invocation.
+bool recover_namespace_function_owner(CheckedIndex checked, SymbolId function) {
+	if (function.index < 1 || function.index > checked.bindings.symbol_count) return false;
+	var declaration = checked.bindings.symbol(function);
+	if (declaration.kind != 1 || declaration.owner.index < 1 || declaration.owner.index > checked.generic_symbols) return false;
+	var owner = checked.bindings.symbol(declaration.owner);
+	if (owner.kind != 10 || checked.bindings.program.arena.kind(owner.node) != SyntaxKind.CompilationUnitSyntax() || owner.token.index == 0 || !generic_token_equal(checked, owner.token, checked.bindings.program.arena.get_token_namespace_name(owner.node))) return false;
+	var source = checked.bindings.program.arena.header(declaration.node).span.source;
+	var scope = declaration.scope;
+	if (scope.index == 0 || checked.bindings.scope(scope).owner.index != declaration.owner.index) return false;
+	int i = 0;
+	while (i < checked.bindings.program.arena.list_count(checked.bindings.program.units)) {
+		var unit = checked.bindings.program.arena.node_at(checked.bindings.program.units, i);
+		if (checked.bindings.program.arena.header(unit).span.source.index == source.index) {
+			var name = checked.bindings.program.arena.get_token_namespace_name(unit);
+			return name.index > 0 && generic_token_equal(checked, owner.token, name);
+		}
+		i = i + 1;
+	}
+	return false;
+}
+
+bool recover_namespace_call_source(CheckedIndex checked, SyntaxNodeId source, SymbolId target) {
+	if (source.index < 1 || source.index >= len(checked.uses) || checked.bindings.program.arena.kind(source) != SyntaxKind.CallExpressionSyntax()) return false;
+	if (!recover_namespace_function_owner(checked, target) || checked.bindings.program.arena.get_node_receiver_place(source).index != 0) return false;
+	var receiver = checked.bindings.program.arena.get_token_receiver(source);
+	var member = checked.bindings.program.arena.get_token_identifier(source);
+	var operation = checked.bindings.program.arena.get_token_member_operator(source);
+	var declaration = checked.bindings.symbol(target);
+	if (receiver.index == 0 || operation.index == 0 || checked.bindings.program.arena.token_kind(receiver) != TokenKind.IDENTIFIER() || !checked.bindings.program.arena.token_is(operation, ".") || checked_target(checked, source, receiver).index != declaration.owner.index || !generic_token_equal(checked, member, declaration.token)) return false;
+	try {
+		var prefix = checked.bindings.program.arena.token_message(receiver);
+		var name = checked.bindings.program.arena.token_message(member);
+		var scope = checked.bindings.scope_for_node(source);
+		if (scope.index == 0 || checked.bindings.lexical(scope, prefix.text, 2).index != 0 || checked.bindings.root_constant(prefix.text).index != 0) return false;
+		var qualified = binding_qualified(prefix.text, name.text);
+		var resolved = checked.bindings.resolve(scope, source, member, qualified.text, 2);
+		return resolved.state_code == 1 && resolved.target.index == target.index && checked.bindings.accessible(target, scope);
+	} catch (Error error) {
+		return false;
+	}
+}
+
 bool recover_closed_free_function(CheckedIndex checked, SymbolId function) {
 	int instance = generic_instance_for(checked, function);
 	if (instance < 1) return false;
@@ -56,7 +98,7 @@ bool recover_owner_function_source(CheckedIndex checked, SymbolId symbol) {
 	else {
 		bool method = recover_static_method(checked, symbol);
 		if (kind != SyntaxKind.FunctionDeclarationSyntax() && (!method || kind != SyntaxKind.LifecycleDeclarationSyntax())) return false;
-		if (!method && (declaration.owner.index != 0 || generic_instance_for(checked, symbol) != 0 && !recover_closed_free_function(checked, symbol))) return false;
+		if (!method && (declaration.owner.index != 0 && !recover_namespace_function_owner(checked, symbol) || generic_instance_for(checked, symbol) != 0 && !recover_closed_free_function(checked, symbol))) return false;
 	}
 	if (kind != SyntaxKind.FunctionDeclarationSyntax() && kind != SyntaxKind.LifecycleDeclarationSyntax()) return false;
 	int ordinal = checked.symbol_signatures[symbol.index].index; if (ordinal < 1 || ordinal > checked.signature_count) return false; var signature = checked.signatures[ordinal - 1];
