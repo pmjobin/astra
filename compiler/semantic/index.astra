@@ -1517,7 +1517,7 @@ class BindingIndex {
 				this.collect_list(this.program.arena.get_list_parameters(node), scope, owner, 7, 2, false);
 			} else {
 				if (kind == SyntaxKind.BlockStatementSyntax() || kind == SyntaxKind.ForStatementSyntax() || kind == SyntaxKind.ForeachStatementSyntax() || kind == SyntaxKind.CatchClauseSyntax() || kind == SyntaxKind.EnumArmSyntax() || kind == SyntaxKind.WithStatementSyntax() || kind == SyntaxKind.PropertyAccessorSyntax()) {
-					scope = this.child_scope(scope, owner, node, 5);
+					if (kind != SyntaxKind.EnumArmSyntax() || this.program.arena.get_node_body(node).index != 0 || this.program.arena.get_node_expression(node).index != 0) scope = this.child_scope(scope, owner, node, 5);
 					if (kind == SyntaxKind.CatchClauseSyntax()) {
 						var declared_6 = this.declaration(node, this.program.arena.get_token_binding(node), scope, owner, 15, 2, false);
 					}
@@ -1526,6 +1526,10 @@ class BindingIndex {
 						int i = 0;
 						while (i < this.program.arena.list_count(bindings) && !this.failed()) {
 							var binding = this.program.arena.node_at(bindings, i);
+							if (this.program.arena.get_token_binding(binding).index == 0) {
+								i = i + 1;
+								continue;
+							}
 							var binding_name = this.program.arena.token_message(this.program.arena.get_token_binding(binding));
 							if (binding_name.text == "_") {
 								i = i + 1;
@@ -2032,11 +2036,13 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_first(node), scope, 0);
 			}
 			case SyntaxKind.EnumArmSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
 				this.push(this.program.arena.get_node_body(node), scope, 0);
 				this.push_list(this.program.arena.get_list_bindings(node), scope);
 				this.push_list(this.program.arena.get_list_type_arguments(node), scope);
 			}
 			case SyntaxKind.EnumBindingSyntax(): {
+				this.push(this.program.arena.get_node_nested_pattern(node), scope, 0);
 			}
 			case SyntaxKind.EnumDeclarationSyntax(): {
 				this.push_list(this.program.arena.get_list_variants(node), scope);
@@ -2247,6 +2253,10 @@ class BindingIndex {
 			case SyntaxKind.CompoundAssignmentSyntax(): {
 				this.push(this.program.arena.get_node_expression(node), scope, 0);
 				this.push(this.program.arena.get_node_target(node), scope, 0);
+			}
+			case SyntaxKind.MatchExpressionSyntax(): {
+				this.push_list(this.program.arena.get_list_arms(node), scope);
+				this.push(this.program.arena.get_node_scrutinee(node), scope, 0);
 			}
 			else: {
 				assert_that(false);

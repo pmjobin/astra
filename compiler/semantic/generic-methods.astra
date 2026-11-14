@@ -71,14 +71,24 @@ int checked_named_argument_slot(CheckedIndex index, SyntaxNodeId node, SymbolId 
 	var declaration = index.bindings.symbol(target);
 	if (declaration.kind != 1 && declaration.kind != 11 && declaration.kind != 12) return -1;
 	var parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
-	int offset = index.bindings.program.arena.list_count(parameters) - count;
-	if (offset < 0 || offset > 1 || offset != 0 && !class_storage_initializing(index, target)) return -1;
-	int positional = count - labelled;
+	int offset = 0;
+	if (class_storage_initializing(index, target)) offset = 1;
+	var explicit_arguments = checked_call_written_arguments(index, node);
+	int explicit_count = index.bindings.program.arena.list_count(explicit_arguments);
+	int total = index.bindings.program.arena.list_count(parameters) - offset;
+	if (explicit_count > total || count != explicit_count && count != total) return -1;
+	int implicit_at = explicit_count;
+	while (implicit_at < total) {
+		if (offset != 0 || recover_caller_kind(index, target, implicit_at) == 0) return -1;
+		implicit_at = implicit_at + 1;
+	}
+	if (written >= explicit_count) return written;
+	int positional = explicit_count - labelled;
 	if (written < positional) return written;
 	var name = index.bindings.program.arena.token_at(names, written - positional);
 	int found = -1;
 	int p = offset;
-	while (p < index.bindings.program.arena.list_count(parameters)) {
+	while (p < explicit_count + offset) {
 		var parameter = index.bindings.program.arena.node_at(parameters, p);
 		var token = index.bindings.program.arena.get_token_name(parameter);
 		if (index.bindings.program.arena.token_text_equal(token, name)) {
@@ -90,8 +100,9 @@ int checked_named_argument_slot(CheckedIndex index, SyntaxNodeId node, SymbolId 
 	return found;
 }
 
-bool checked_named_arguments_verified(CheckedIndex index, SyntaxNodeId node, SymbolId target, int count) {
+bool checked_named_mapping_verified(CheckedIndex index, SyntaxNodeId node, SymbolId target, int count) {
 	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) == 0) return true;
+	if (count < 0 || count > 257) return false;
 	var written = checked_call_written_arguments(index, node);
 	var original = index.bindings.program.arena.get_list_arguments(node);
 	if (count != index.bindings.program.arena.list_count(written)) return false;
@@ -113,17 +124,35 @@ bool checked_named_arguments_verified(CheckedIndex index, SyntaxNodeId node, Sym
 	return count >= index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node));
 }
 
-SyntaxListId checked_call_arguments(CheckedIndex index, SyntaxNodeId node) {
+bool checked_named_arguments_verified(CheckedIndex index, SyntaxNodeId node, SymbolId target, int count) {
+	if (!checked_named_mapping_verified(index, node, target, count)) return false;
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) == 0) return true;
+	if (node.index < 1 || node.index >= len(index.named_argument_lists)) return false;
+	var ordered = index.named_argument_lists[node.index];
+	if (ordered.index == 0 || index.bindings.program.arena.list_count(ordered) != count) return false;
 	var written = checked_call_written_arguments(index, node);
-	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) == 0) return written;
-	var target = checked_named_call_target(index, node);
-	int count = index.bindings.program.arena.list_count(written);
+	int i = 0;
+	while (i < count) {
+		int slot = checked_named_argument_slot(index, node, target, count, i);
+		if (slot < 0 || slot >= count || index.bindings.program.arena.node_at(ordered, slot).index != index.bindings.program.arena.node_at(written, i).index) return false;
+		i = i + 1;
+	}
+	return true;
+}
+
+// Construction is confined to semantic checking. Consumers only read and
+// independently validate the retained permutation against original syntax.
+bool checked_prepare_named_arguments(CheckedIndex index, SyntaxNodeId node, SymbolId target, int count) {
+	if (!checked_named_mapping_verified(index, node, target, count)) return false;
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) == 0 || checked_named_arguments_verified(index, node, target, count)) return true;
+	if (node.index < 1 || node.index >= len(index.named_argument_lists)) return false;
+	var written = checked_call_written_arguments(index, node);
 	var ordered = new SyntaxNodeId[count];
 	int i = 0;
 	while (i < count) {
 		int slot = checked_named_argument_slot(index, node, target, count, i);
 		if (slot < 0 || slot >= count || ordered[slot].index != 0) {
-			return written;
+			return false;
 		}
 		ordered[slot] = index.bindings.program.arena.node_at(written, i);
 		i = i + 1;
@@ -134,7 +163,31 @@ SyntaxListId checked_call_arguments(CheckedIndex index, SyntaxNodeId node) {
 		index.bindings.program.arena.append_node(result, ordered[i]);
 		i = i + 1;
 	}
-	return result;
+	index.named_argument_lists[node.index] = result;
+	return checked_named_arguments_verified(index, node, target, count);
+}
+
+SyntaxListId checked_call_arguments(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index > 0 && node.index < len(index.named_argument_lists) && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) > 0 && index.named_argument_lists[node.index].index != 0) return index.named_argument_lists[node.index];
+	return checked_call_written_arguments(index, node);
+}
+
+bool checked_named_facts_verified(CheckedIndex index) {
+	if (len(index.named_argument_lists) != len(index.uses)) return false;
+	int i = 1;
+	while (i < len(index.uses)) {
+		var use = index.uses[i];
+		bool named = index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(use.node)) > 0;
+		if (index.named_argument_lists[i].index != 0 || named && use.type.index != 0) {
+			if (!named) return false;
+			var target = checked_named_call_target(index, use.node);
+			var written = checked_call_written_arguments(index, use.node);
+			int count = index.bindings.program.arena.list_count(written);
+			if (!checked_named_arguments_verified(index, use.node, target, count)) return false;
+		}
+		i = i + 1;
+	}
+	return true;
 }
 
 bool generic_class_source(CheckedIndex index, SymbolId origin) {

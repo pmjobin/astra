@@ -103,6 +103,7 @@ bool generic_syntax_count_valid(int originals, int total) {
 
 int generic_verify_failure(CheckedIndex index) {
 	if (!generic_syntax_count_valid(index.generic_nodes, index.bindings.program.arena.node_count)) return 32;
+	if (!checked_named_facts_verified(index)) return 33;
 	if (!index.native_abi) {
 		if (index.instance_count != 0) return 1;
 		int source = 0;

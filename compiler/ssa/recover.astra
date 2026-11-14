@@ -497,7 +497,7 @@ bool recover_ssa_verify(RecoverSsa ssa) {
 		owners.positions[b - 1] = owner_position;
 		owners.blocks[owners.starts[row.function - 1] + owner_position] = b;
 		if (!recover_ssa_block_facts(ssa.cfg, b, locals, owners)) return false;
-		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || row.opcode == 11 || row.opcode == 67 || row.opcode == 44)) {
+		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || ssa.cfg.core.nodes[row.origin - 1].value.kind == 80) || row.opcode == 11 || row.opcode == 67 || row.opcode == 44)) {
 			if (consumers[row.origin] == 0) consumers[row.origin] = b;
 			else {
 				consumers[row.origin] = -1;

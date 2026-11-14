@@ -256,8 +256,10 @@ void checked_deferred_children(CheckedIndex index, SyntaxNodeId node, int reason
 				at_bindings = at_bindings + 1;
 			}
 			checked_deferred_node(index, index.bindings.program.arena.get_node_body(node), reason, depth + 1);
+			checked_deferred_node(index, index.bindings.program.arena.get_node_expression(node), reason, depth + 1);
 		}
 		case SyntaxKind.EnumBindingSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_nested_pattern(node), reason, depth + 1);
 		}
 		case SyntaxKind.EnumDeclarationSyntax(): {
 			var list_variants = index.bindings.program.arena.get_list_variants(node);
@@ -603,6 +605,15 @@ void checked_deferred_children(CheckedIndex index, SyntaxNodeId node, int reason
 		case SyntaxKind.CompoundAssignmentSyntax(): {
 			checked_deferred_node(index, index.bindings.program.arena.get_node_target(node), reason, depth + 1);
 			checked_deferred_node(index, index.bindings.program.arena.get_node_expression(node), reason, depth + 1);
+		}
+		case SyntaxKind.MatchExpressionSyntax(): {
+			checked_deferred_node(index, index.bindings.program.arena.get_node_scrutinee(node), reason, depth + 1);
+			var list_arms = index.bindings.program.arena.get_list_arms(node);
+			int at_arms = 0;
+			while (at_arms < index.bindings.program.arena.list_count(list_arms)) {
+				checked_deferred_node(index, index.bindings.program.arena.node_at(list_arms, at_arms), reason, depth + 1);
+				at_arms = at_arms + 1;
+			}
 		}
 		else: { assert_that(false); }
 	}

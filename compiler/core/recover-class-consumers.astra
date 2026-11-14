@@ -34,6 +34,15 @@ bool recover_class_consumers(RecoverOwners plan, RecoverFlow flow, RecoverOwnerP
 				var join = flow.data.nodes[consumer - 1];
 				selected_owner = join.function == row.function && (flow.checked.uses[join.source.index].flags & 4) != 0 && (recover_owner_unwrap(flow.data, join.b) == n + 1 || recover_owner_unwrap(flow.data, join.c) == n + 1);
 			}
+			if (kind == 80) {
+				var join = flow.data.nodes[consumer - 1];
+				int at = 0;
+				while (at < join.count && !selected_owner) {
+					int arm = flow.data.edges[join.first + at];
+					selected_owner = join.function == row.function && (flow.checked.uses[join.source.index].flags & 4) != 0 && recover_owner_unwrap(flow.data, flow.data.nodes[arm - 1].a) == n + 1;
+					at = at + 1;
+				}
+			}
 			if (kind != 27 && !selected_owner && !(recover_error_new_kind(row.kind) && kind == 23)) return false;
 		}
 		n = n + 1;

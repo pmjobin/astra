@@ -212,13 +212,14 @@ EnumArmSyntaxData syntax_empty_enum_arm() {
 	SyntaxListId empty_SyntaxListId = {index = 0};
 	SyntaxNodeId empty_SyntaxNodeId = {index = 0};
 	SyntaxTokenId empty_SyntaxTokenId = {index = 0};
-	EnumArmSyntaxData result = {f_type_arguments = empty_SyntaxListId, f_qualifier = empty_SyntaxTokenId, f_variant = empty_SyntaxTokenId, f_bindings = empty_SyntaxListId, f_body = empty_SyntaxNodeId};
+	EnumArmSyntaxData result = {f_type_arguments = empty_SyntaxListId, f_qualifier = empty_SyntaxTokenId, f_variant = empty_SyntaxTokenId, f_bindings = empty_SyntaxListId, f_body = empty_SyntaxNodeId, f_expression = empty_SyntaxNodeId, f_match_arrow = empty_SyntaxTokenId, f_semicolon = empty_SyntaxTokenId};
 	return result;
 }
 
 EnumBindingSyntaxData syntax_empty_enum_binding() {
+	SyntaxNodeId empty_SyntaxNodeId = {index = 0};
 	SyntaxTokenId empty_SyntaxTokenId = {index = 0};
-	EnumBindingSyntaxData result = {f_field = empty_SyntaxTokenId, f_binding = empty_SyntaxTokenId};
+	EnumBindingSyntaxData result = {f_field = empty_SyntaxTokenId, f_binding = empty_SyntaxTokenId, f_nested_pattern = empty_SyntaxNodeId};
 	return result;
 }
 
@@ -648,5 +649,12 @@ CompoundAssignmentSyntaxData syntax_empty_compound_assignment() {
 	SyntaxTokenId token = {index = 0};
 	SyntaxNodeId node = {index = 0};
 	CompoundAssignmentSyntaxData result = {f_assignment_token = token, f_target = node, f_operator_token = token, f_expression = node, f_semicolon = token};
+	return result;
+}
+
+MatchExpressionSyntaxData syntax_empty_match_expression() {
+	SyntaxListId empty_SyntaxListId = {index = 0};
+	SyntaxNodeId empty_SyntaxNodeId = {index = 0};
+	MatchExpressionSyntaxData result = {f_scrutinee = empty_SyntaxNodeId, f_arms = empty_SyntaxListId};
 	return result;
 }

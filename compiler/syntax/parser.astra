@@ -1406,6 +1406,97 @@ class SyntaxParser {
 		return v_declaration_32;
 	}
 
+	SyntaxNodeId parse_enum_pattern(SyntaxArena arena, int depth) throws Error {
+		if (depth > 128) {
+			this.fail(arena, this.token_span(arena, this.current), "nested enum pattern depth exceeds 128");
+			return syntax_no_node();
+		}
+		var qualifier = this.expect(arena, TokenKind.IDENTIFIER(), "expected concrete enum pattern qualifier");
+		if (qualifier.index == 0) return syntax_no_node();
+		var types = arena.new_list(syntax_kind_code(SyntaxKind.TypeNameSyntax()));
+		if (this.token_kind(arena, this.current) == TokenKind.LESS()) {
+			types = this.parse_type_arguments(arena, -1);
+			if (types.index == 0) return syntax_no_node();
+		}
+		if (this.expect(arena, TokenKind.DOT(), "expected '.' in enum pattern").index == 0) return syntax_no_node();
+		var variant = this.expect(arena, TokenKind.IDENTIFIER(), "expected enum variant in pattern");
+		if (variant.index == 0 || this.expect(arena, TokenKind.OPEN_PAREN(), "enum patterns require parentheses").index == 0) return syntax_no_node();
+		var bindings = arena.new_list(syntax_kind_code(SyntaxKind.EnumBindingSyntax()));
+		while (this.token_kind(arena, this.current) != TokenKind.CLOSE_PAREN()) {
+			var begin = this.current;
+			var data = syntax_empty_enum_binding();
+			if (this.token_kind(arena, this.current) != TokenKind.IDENTIFIER()) {
+				this.fail(arena, this.token_span(arena, this.current), "expected payload binding or nested enum constructor");
+				return syntax_no_node();
+			}
+			if (this.next_is(arena, TokenKind.EQUAL())) {
+				data.f_field = this.current;
+				if (!this.advance(arena) || !this.advance(arena)) return syntax_no_node();
+			}
+			if (this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && (this.next_is(arena, TokenKind.DOT()) || this.next_is(arena, TokenKind.LESS()))) {
+				data.f_nested_pattern = this.parse_enum_pattern(arena, depth + 1);
+				if (data.f_nested_pattern.index == 0) return syntax_no_node();
+			} else {
+				data.f_binding = this.expect(arena, TokenKind.IDENTIFIER(), "expected payload binding or '_'");
+				if (data.f_binding.index == 0) return syntax_no_node();
+			}
+			var span = this.token_span(arena, begin);
+			if (data.f_nested_pattern.index != 0) {
+				span = syntax_cover(span, arena.header(data.f_nested_pattern).span);
+			} else {
+				span = syntax_cover(span, this.token_span(arena, data.f_binding));
+			}
+			var binding = arena.add_enum_binding(data, span, depth);
+			arena.append_node(bindings, binding);
+			if (this.token_kind(arena, this.current) != TokenKind.COMMA()) break;
+			if (!this.advance(arena)) return syntax_no_node();
+			if (this.token_kind(arena, this.current) == TokenKind.CLOSE_PAREN()) break;
+		}
+		var close = this.expect(arena, TokenKind.CLOSE_PAREN(), "expected ')' after enum pattern");
+		if (close.index == 0) return syntax_no_node();
+		var data = syntax_empty_enum_arm();
+		data.f_qualifier = qualifier;
+		data.f_variant = variant;
+		data.f_type_arguments = types;
+		data.f_bindings = bindings;
+		return arena.add_enum_arm(data, syntax_cover(this.token_span(arena, qualifier), this.token_span(arena, close)), depth);
+	}
+
+	SyntaxNodeId parse_match_expression(SyntaxArena arena, int depth) throws Error {
+		var keyword = this.expect(arena, TokenKind.MATCH(), "expected 'match'");
+		if (keyword.index == 0 || this.expect(arena, TokenKind.OPEN_PAREN(), "expected '(' after 'match'").index == 0) return syntax_no_node();
+		var scrutinee = this.parse_expression(arena, 0, depth + 1);
+		if (scrutinee.index == 0 || this.expect(arena, TokenKind.CLOSE_PAREN(), "expected ')' after match scrutinee").index == 0 || this.expect(arena, TokenKind.OPEN_BRACE(), "expected '{' before match arms").index == 0) return syntax_no_node();
+		var arms = arena.new_list(syntax_kind_code(SyntaxKind.EnumArmSyntax()));
+		int expression_depth = arena.header(scrutinee).depth;
+		while (this.token_kind(arena, this.current) != TokenKind.CLOSE_BRACE()) {
+			var start = this.expect(arena, TokenKind.CASE(), "expression match requires an explicit enum case");
+			if (start.index == 0) return syntax_no_node();
+			var pattern = this.parse_enum_pattern(arena, 0);
+			if (pattern.index == 0) return syntax_no_node();
+			var arrow = this.expect(arena, TokenKind.FAT_ARROW(), "expected '=>' after expression match pattern");
+			if (arrow.index == 0) return syntax_no_node();
+			var expression = this.parse_expression(arena, 0, depth + 1);
+			if (expression.index == 0) return syntax_no_node();
+			var semicolon = this.expect(arena, TokenKind.SEMICOLON(), "expected ';' after match arm expression");
+			if (semicolon.index == 0) return syntax_no_node();
+			var data = arena.enum_arm(pattern);
+			data.f_expression = expression;
+			data.f_match_arrow = arrow;
+			data.f_semicolon = semicolon;
+			var arm = arena.add_enum_arm(data, syntax_cover(this.token_span(arena, start), this.token_span(arena, semicolon)), arena.header(expression).depth);
+			arena.append_node(arms, arm);
+			expression_depth = syntax_max(expression_depth, arena.header(expression).depth);
+		}
+		var close = this.expect(arena, TokenKind.CLOSE_BRACE(), "expected '}' after match expression");
+		if (close.index == 0 || arena.list_count(arms) == 0) {
+			if (close.index != 0) this.fail(arena, this.token_span(arena, close), "match expression requires at least one arm");
+			return syntax_no_node();
+		}
+		MatchExpressionSyntaxData data = {f_scrutinee = scrutinee, f_arms = arms};
+		return this.bounded(arena, arena.add_match_expression(data, syntax_cover(this.token_span(arena, keyword), this.token_span(arena, close)), expression_depth + 1), this.token_span(arena, keyword));
+	}
+
 	SyntaxNodeId parse_match(SyntaxArena arena) throws Error {
 		var v_keyword_1 = this.expect(arena, TokenKind.MATCH(), "expected 'match'");
 		var tmp_2 = (v_keyword_1.index == 0);
@@ -6886,6 +6977,7 @@ class SyntaxParser {
 	}
 
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.MATCH()) return this.parse_match_expression(arena, arg_recursion_depth);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.OPEN_BRACE())) return this.parse_record_expression(arena);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.MOVE()) {
 			var keyword = this.current;

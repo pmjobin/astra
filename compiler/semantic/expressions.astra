@@ -285,6 +285,7 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
+	if (index.field_effects && kind == SyntaxKind.MatchExpressionSyntax()) return checked_enum_match_expression(index, node, expected, depth);
 	if (index.field_effects && kind == SyntaxKind.Utf8FactoryExpressionSyntax()) return checked_utf8_expression(index, node);
 	if (index.field_effects && kind == SyntaxKind.ArrayInitializerSyntax()) return checked_fixed_numeric_initializer(index, node, expected, depth);
 	if (index.class_storage && kind == SyntaxKind.TextMemberExpressionSyntax()) {
@@ -613,7 +614,7 @@ TypeId checked_pending_effect_result(CheckedIndex index, SyntaxNodeId node, Symb
 	var callable = index.types.row(signature.callable);
 	var written_arguments = checked_call_written_arguments(index, node);
 	int written_count = index.bindings.program.arena.list_count(written_arguments);
-	if (!checked_named_arguments_verified(index, node, target, written_count)) {
+	if (!checked_prepare_named_arguments(index, node, target, written_count)) {
 		index.fail(index.bindings.program.arena.header(node).span, "invalid named argument mapping");
 		return no_type();
 	}
@@ -716,7 +717,7 @@ TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) thro
 	var signature = index.types.descriptor(index.types, type);
 	var written_arguments = checked_call_written_arguments(index, node);
 	int written_count = index.bindings.program.arena.list_count(written_arguments);
-	if (!checked_named_arguments_verified(index, node, target, written_count)) {
+	if (!checked_prepare_named_arguments(index, node, target, written_count)) {
 		index.fail(index.bindings.program.arena.header(node).span, "named arguments require unique declared parameter labels and every required argument");
 		return no_type();
 	}

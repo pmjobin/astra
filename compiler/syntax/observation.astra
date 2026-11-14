@@ -1556,7 +1556,60 @@ class SyntaxObservation {
 		return move result;
 	}
 
+	owned Utf8Message format_enum_pattern(SyntaxArena arena, SyntaxNodeId pattern, int depth) throws Error {
+		if (depth > 128) {
+			throw new Error("invalid nested pattern observation depth");
+		}
+		var data = arena.enum_arm(pattern);
+		var output = new Utf8ByteBuilder();
+		arena.write_token(data.f_qualifier, output);
+		source_append_text(output, ".");
+		arena.write_token(data.f_variant, output);
+		source_append_text(output, "(");
+		int i = 0;
+		while (i < arena.list_count(data.f_bindings)) {
+			if (i > 0) source_append_text(output, ", ");
+			var binding = arena.enum_binding(arena.node_at(data.f_bindings, i));
+			if (binding.f_field.index != 0) {
+				arena.write_token(binding.f_field, output);
+				source_append_text(output, "=");
+			}
+			if (binding.f_nested_pattern.index != 0) {
+				var nested = this.format_enum_pattern(arena, binding.f_nested_pattern, depth + 1);
+				source_append_text(output, nested.text);
+			} else {
+				arena.write_token(binding.f_binding, output);
+			}
+			i = i + 1;
+		}
+		source_append_text(output, ")");
+		var result = output.snapshot();
+		return move result;
+	}
+
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.MatchExpressionSyntax()) {
+			var data = arena.match_expression(arg_expression);
+			var scrutinee = this.format_expression(arena, data.f_scrutinee);
+			var output = new Utf8ByteBuilder();
+			source_append_text(output, "(match-expression ");
+			source_append_text(output, scrutinee.text);
+			int i = 0;
+			while (i < arena.list_count(data.f_arms)) {
+				var arm = arena.node_at(data.f_arms, i);
+				var pattern = this.format_enum_pattern(arena, arm, 0);
+				var expression = this.format_expression(arena, arena.get_node_expression(arm));
+				source_append_text(output, " (case ");
+				source_append_text(output, pattern.text);
+				source_append_text(output, " => ");
+				source_append_text(output, expression.text);
+				source_append_text(output, ")");
+				i = i + 1;
+			}
+			source_append_text(output, ")");
+			var result = output.snapshot();
+			return move result;
+		}
 		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.ConditionalExpressionSyntax()) {
 			var data = arena.conditional_expression(arg_expression);
 			var condition = this.format_expression(arena, data.f_condition);

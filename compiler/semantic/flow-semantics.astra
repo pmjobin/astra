@@ -237,7 +237,7 @@ int flowsem_initializer(borrowed FlowGraph graph, CheckedIndex checked, int[] or
 bool flowsem_owner_producer(CheckedIndex checked, SyntaxNodeId input) {
 	var node = flow_unwrap(checked, input);
 	var kind = checked.bindings.program.arena.kind(node);
-	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || ((kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax()) && (checked.uses[node.index].flags & 4) != 0);
+	return kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.HeapObjectConstructionSyntax() || ((kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[node.index].flags & 4) != 0);
 }
 
 int flowsem_field_write(borrowed FlowGraph graph, CheckedIndex checked, int[] origins, SyntaxNodeId node, int region, int next, int depth) throws Error {

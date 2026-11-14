@@ -216,8 +216,10 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 				at_bindings = at_bindings + 1;
 			}
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_body(node), depth);
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_expression(node), depth);
 		}
 		case SyntaxKind.EnumBindingSyntax(): {
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_nested_pattern(node), depth);
 		}
 		case SyntaxKind.EnumDeclarationSyntax(): {
 		}
@@ -458,6 +460,15 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 		case SyntaxKind.CompoundAssignmentSyntax(): {
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_target(node), depth);
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_expression(node), depth);
+		}
+		case SyntaxKind.MatchExpressionSyntax(): {
+			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_scrutinee(node), depth);
+			var list_arms = index.bindings.program.arena.get_list_arms(node);
+			int at_arms = 0;
+			while (at_arms < index.bindings.program.arena.list_count(list_arms)) {
+				checked_effect_source_visit(index, source, index.bindings.program.arena.node_at(list_arms, at_arms), depth);
+				at_arms = at_arms + 1;
+			}
 		}
 		else: { assert_that(false); }
 	}

@@ -465,6 +465,23 @@ int flow_expression(borrowed FlowGraph graph, CheckedIndex checked, int[] class_
 		return graph.add(event);
 	}
 
+	if (kind == SyntaxKind.MatchExpressionSyntax()) {
+		var arms = checked.bindings.program.arena.get_list_arms(node);
+		int at = checked.bindings.program.arena.list_count(arms) - 1;
+		int dispatch = 0;
+		while (at >= 0) {
+			var arm = checked.bindings.program.arena.node_at(arms, at);
+			int body = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_expression(arm), region, next, call, depth + 1);
+			if (dispatch == 0) dispatch = body;
+			else {
+				var branch = flow_event(checked, arm, 10, 0, region, body);
+				branch.other = dispatch;
+				dispatch = graph.add(branch);
+			}
+			at = at - 1;
+		}
+		return flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_scrutinee(node), region, dispatch, 0, depth + 1);
+	}
 	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
 		int yes = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_left(node), region, next, call, depth + 1);
 		int no = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.get_node_right(node), region, next, call, depth + 1);
@@ -533,7 +550,7 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	if (!destination.owner && flow_borrow_type(checked, destination.type) && source == 0 && kind != SyntaxKind.NullPointerExpressionSyntax() && !(checked.class_storage && kind == SyntaxKind.TextLiteralExpressionSyntax())) {
 		graph.defer(node, 4);
 	}
-	bool owned_result = checked.class_storage && (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0;
+	bool owned_result = checked.class_storage && (kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0;
 	if (initializing && destination.owner && checked_kind(checked, destination.type) == 31 && checked.bindings.program.arena.kind(node) == SyntaxKind.LocalDeclarationSyntax() && kind != SyntaxKind.HeapObjectConstructionSyntax() && kind != SyntaxKind.MoveExpressionSyntax() && !owned_result) {
 		graph.defer(node, 15);
 	}
@@ -555,7 +572,7 @@ int flow_store(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 			tail = graph.add(event);
 		}
 	}
-	if (destination.owner && kind != SyntaxKind.MoveExpressionSyntax() && kind != SyntaxKind.BufferAllocationSyntax() && kind != SyntaxKind.HeapObjectConstructionSyntax() && !((kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0)) {
+	if (destination.owner && kind != SyntaxKind.MoveExpressionSyntax() && kind != SyntaxKind.BufferAllocationSyntax() && kind != SyntaxKind.HeapObjectConstructionSyntax() && !((kind == SyntaxKind.CallExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0)) {
 		var bad = flow_event(checked, direct, 16, source, region, tail);
 		bad.call = 5;
 		tail = graph.add(bad);
@@ -661,7 +678,7 @@ int flow_statement(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 		var direct = flow_unwrap(checked, value);
 		if (value.index != 0 && (result.flags & 4) != 0) {
 			var value_kind = checked.bindings.program.arena.kind(direct);
-			if (value_kind != SyntaxKind.MoveExpressionSyntax() && value_kind != SyntaxKind.BufferAllocationSyntax() && value_kind != SyntaxKind.HeapObjectConstructionSyntax() && !(value_kind == SyntaxKind.NullPointerExpressionSyntax() && (checked_kind(checked, result.type) == 31 || checked_kind(checked, result.type) == 27 || checked_kind(checked, result.type) == 28)) && !((value_kind == SyntaxKind.CallExpressionSyntax() || value_kind == SyntaxKind.ConditionalExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0)) {
+			if (value_kind != SyntaxKind.MoveExpressionSyntax() && value_kind != SyntaxKind.BufferAllocationSyntax() && value_kind != SyntaxKind.HeapObjectConstructionSyntax() && !(value_kind == SyntaxKind.NullPointerExpressionSyntax() && (checked_kind(checked, result.type) == 31 || checked_kind(checked, result.type) == 27 || checked_kind(checked, result.type) == 28)) && !((value_kind == SyntaxKind.CallExpressionSyntax() || value_kind == SyntaxKind.ConditionalExpressionSyntax() || value_kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[direct.index].flags & 4) != 0)) {
 				var bad = flow_event(checked, direct, 16, flow_origin(graph, checked, class_origins, direct), region, marker);
 				bad.call = 5;
 				marker = graph.add(bad);

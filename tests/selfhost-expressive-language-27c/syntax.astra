@@ -79,9 +79,54 @@ void expressive_argument_labels() throws Error {
 	assert_that(legacy.failed());
 }
 
+void expressive_match_patterns() throws Error {
+	var program = expressive_program("language astra27b; enum Problem { NotFound, Decode(int code) } enum Result { Success(int value), Failure(Problem problem) } int status(Result result) => match (result) { case Result.Success(value) => value; case Result.Failure(Problem.NotFound()) => 1; case Result.Failure(Problem.Decode(code)) => code+2; };");
+	assert_that(!program.failed() && syntax_program_languages_verified(program));
+	int matches = 0;
+	int i = 1;
+	while (i <= program.arena.node_count) {
+		SyntaxNodeId node = {index = i};
+		if (program.arena.kind(node) == SyntaxKind.MatchExpressionSyntax()) {
+			var data = program.arena.match_expression(node);
+			assert_that(program.arena.list_count(data.f_arms) == 3 && data.f_scrutinee.index != 0);
+			var first = program.arena.node_at(data.f_arms, 0);
+			var last = program.arena.node_at(data.f_arms, 2);
+			assert_that(program.arena.get_node_body(first).index == 0 && program.arena.get_node_expression(first).index != 0);
+			assert_that(program.arena.token_is(program.arena.get_token_match_arrow(first), "=>"));
+			var bindings = program.arena.get_list_bindings(last);
+			assert_that(program.arena.list_count(bindings) == 1);
+			var binding = program.arena.node_at(bindings, 0);
+			var nested = program.arena.get_node_nested_pattern(binding);
+			assert_that(nested.index != 0 && program.arena.token_is(program.arena.get_token_variant(nested), "Decode"));
+			assert_that(program.arena.get_node_expression(nested).index == 0 && program.arena.get_node_body(nested).index == 0);
+			var leaf_bindings = program.arena.get_list_bindings(nested);
+			assert_that(program.arena.list_count(leaf_bindings) == 1);
+			var leaf = program.arena.node_at(leaf_bindings, 0);
+			assert_that(program.arena.token_is(program.arena.get_token_binding(leaf), "code"));
+			matches = matches + 1;
+		}
+		i = i + 1;
+	}
+	assert_that(matches == 1);
+	var observation = syntax_program_dump(program);
+	var projection = syntax_projection(program);
+	assert_that(observation.text.byte_length > 0 && projection.text.byte_length > 0);
+	var missing_semicolon = expressive_program("language astra27b; int main() { return match (value) { case Mode.One() => 42 }; }");
+	assert_that(missing_semicolon.failed());
+	var malformed_pattern = expressive_program("language astra27b; int main() { return match (value) { case Mode.One => 42; }; }");
+	assert_that(malformed_pattern.failed());
+	var fallback = expressive_program("language astra27b; int main() { return match (value) { else => 42; }; }");
+	assert_that(fallback.failed());
+	var empty = expressive_program("language astra27b; int main() { return match (value) {}; }");
+	assert_that(empty.failed());
+	var legacy = expressive_program("language legacy27a; int main() { return match (value) { case Mode.One() => 42; }; }");
+	assert_that(legacy.failed());
+}
+
 int main() {
 	try {
 		expressive_argument_labels();
+		expressive_match_patterns();
 		return 42;
 	} catch (Error error) {
 		return 1;

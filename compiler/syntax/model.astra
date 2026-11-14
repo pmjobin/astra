@@ -140,6 +140,7 @@ enum SyntaxKind {
 	RecordExpressionSyntax,
 	ConditionalExpressionSyntax,
 	CompoundAssignmentSyntax,
+	MatchExpressionSyntax,
 }
 
 int syntax_kind_code(SyntaxKind kind) {
@@ -426,6 +427,7 @@ int syntax_kind_code(SyntaxKind kind) {
 		case SyntaxKind.RecordExpressionSyntax(): { return 94; }
 		case SyntaxKind.ConditionalExpressionSyntax(): { return 95; }
 		case SyntaxKind.CompoundAssignmentSyntax(): { return 96; }
+		case SyntaxKind.MatchExpressionSyntax(): { return 97; }
 
 	}
 }
@@ -713,6 +715,7 @@ SyntaxKind syntax_kind_from_code(int code) {
 	if (code == 94) return SyntaxKind.RecordExpressionSyntax();
 	if (code == 95) return SyntaxKind.ConditionalExpressionSyntax();
 	if (code == 96) return SyntaxKind.CompoundAssignmentSyntax();
+	if (code == 97) return SyntaxKind.MatchExpressionSyntax();
 	assert_that(false);
 	return SyntaxKind.AddressOfExpressionSyntax();
 }
@@ -1004,6 +1007,7 @@ bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 		case SyntaxKind.RecordExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.ConditionalExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.CompoundAssignmentSyntax(): { return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode(); }
+		case SyntaxKind.MatchExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 
 	}
 }
@@ -1235,11 +1239,15 @@ struct EnumArmSyntaxData {
 	SyntaxTokenId f_variant;
 	SyntaxListId f_bindings;
 	SyntaxNodeId f_body;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_match_arrow;
+	SyntaxTokenId f_semicolon;
 }
 
 struct EnumBindingSyntaxData {
 	SyntaxTokenId f_field;
 	SyntaxTokenId f_binding;
+	SyntaxNodeId f_nested_pattern;
 }
 
 struct EnumDeclarationSyntaxData {
@@ -1700,4 +1708,9 @@ struct CompoundAssignmentSyntaxData {
 	SyntaxNodeId f_expression;
 	SyntaxTokenId f_semicolon;
 	SyntaxTokenId f_assignment_token;
+}
+
+struct MatchExpressionSyntaxData {
+	SyntaxNodeId f_scrutinee;
+	SyntaxListId f_arms;
 }

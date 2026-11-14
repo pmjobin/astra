@@ -337,6 +337,12 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_scrutinee, second_data.f_scrutinee)) return false;
 			if (!generic_check_list(index, plan, first_data.f_arms, second_data.f_arms)) return false;
 		}
+		case SyntaxKind.MatchExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.match_expression(original);
+			var second_data = index.bindings.program.arena.match_expression(concrete);
+			if (!generic_check_child(index, plan, first_data.f_scrutinee, second_data.f_scrutinee)) return false;
+			if (!generic_check_list(index, plan, first_data.f_arms, second_data.f_arms)) return false;
+		}
 		case SyntaxKind.EnumArmSyntax(): {
 			var first_data = index.bindings.program.arena.enum_arm(original);
 			var second_data = index.bindings.program.arena.enum_arm(concrete);
@@ -345,12 +351,16 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (first_data.f_variant.index != second_data.f_variant.index) return false;
 			if (!generic_check_list(index, plan, first_data.f_bindings, second_data.f_bindings)) return false;
 			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+			if (first_data.f_match_arrow.index != second_data.f_match_arrow.index) return false;
+			if (first_data.f_semicolon.index != second_data.f_semicolon.index) return false;
 		}
 		case SyntaxKind.EnumBindingSyntax(): {
 			var first_data = index.bindings.program.arena.enum_binding(original);
 			var second_data = index.bindings.program.arena.enum_binding(concrete);
 			if (first_data.f_field.index != second_data.f_field.index) return false;
 			if (first_data.f_binding.index != second_data.f_binding.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_nested_pattern, second_data.f_nested_pattern)) return false;
 		}
 		case SyntaxKind.AssignmentStatementSyntax(): {
 			var first_data = index.bindings.program.arena.assignment_statement(original);

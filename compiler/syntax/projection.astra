@@ -545,6 +545,11 @@ class SyntaxProjection {
 			this.token(arena, "variant", data.f_variant);
 			this.nodes(arena, "bindings", "EnumBindingSyntax", data.f_bindings, false);
 			this.edge("body", "BlockStatementSyntax", data.f_body);
+			if (data.f_expression.index != 0) {
+				this.edge("expression", "ExpressionSyntax", data.f_expression);
+				this.token(arena, "match_arrow", data.f_match_arrow);
+				this.token(arena, "semicolon", data.f_semicolon);
+			}
 			return;
 		}
 		if (kind == SyntaxKind.EnumBindingSyntax()) {
@@ -554,6 +559,7 @@ class SyntaxProjection {
 			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
 			this.token(arena, "field", data.f_field);
 			this.token(arena, "binding", data.f_binding);
+			if (data.f_nested_pattern.index != 0) this.edge("nested_pattern", "EnumArmSyntax", data.f_nested_pattern);
 			return;
 		}
 		if (kind == SyntaxKind.EnumDeclarationSyntax()) {
@@ -808,6 +814,15 @@ class SyntaxProjection {
 			this.token(arena, "equals_token", data.f_equals_token);
 			this.edge("initializer", "ExpressionSyntax", data.f_initializer);
 			this.token(arena, "semicolon", data.f_semicolon);
+			return;
+		}
+		if (kind == SyntaxKind.MatchExpressionSyntax()) {
+			var data = arena.match_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.edge("scrutinee", "ExpressionSyntax", data.f_scrutinee);
+			this.nodes(arena, "arms", "EnumArmSyntax", data.f_arms, false);
 			return;
 		}
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
@@ -1468,6 +1483,7 @@ string syntax_kind_name(SyntaxKind kind) {
 		case SyntaxKind.LocalDeclarationSyntax(): {
 			return "LocalDeclarationSyntax";
 		}
+		case SyntaxKind.MatchExpressionSyntax(): { return "MatchExpressionSyntax"; }
 		case SyntaxKind.MatchStatementSyntax(): {
 			return "MatchStatementSyntax";
 		}

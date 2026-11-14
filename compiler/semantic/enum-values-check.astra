@@ -63,7 +63,7 @@ bool enum_constructor_verified(CheckedIndex index, SyntaxNodeId node, SymbolId v
 	return use.type.index == type.index && use.flags == 0 && use.deferred == 0 && generic_token_equal(index, data.f_identifier, member.token) && checked_target(index, node, data.f_identifier).index == variant.index && index.bindings.accessible(variant, index.bindings.scope_for_node(node)) && enum_qualifier_verified(index, node, data.f_receiver, type);
 }
 
-bool enum_arm_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId variant, TypeId type) {
+bool enum_pattern_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId variant, TypeId type) {
 	if (arm.index < 1 || arm.index >= len(index.uses) || index.bindings.program.arena.kind(arm) != SyntaxKind.EnumArmSyntax() || enum_value_ordinal(index, type, variant) < 0) return false;
 	var header = index.bindings.program.arena.header(arm);
 	if (header.foreign_member.index != 0 || index.bindings.program.arena.list_count(header.foreign_channels) != 0) return false;
@@ -71,6 +71,12 @@ bool enum_arm_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId va
 	if (index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_bindings) != 0) return false;
 	var use = index.uses[arm.index];
 	return use.type.index == type.index && use.flags == 0 && use.deferred == 0 && generic_token_equal(index, data.f_variant, index.bindings.symbol(variant).token) && checked_target(index, arm, data.f_variant).index == variant.index && index.bindings.accessible(variant, index.bindings.scope_for_node(arm)) && enum_qualifier_verified(index, arm, data.f_qualifier, type);
+}
+
+bool enum_arm_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId variant, TypeId type) {
+	if (!enum_pattern_variant_verified(index, arm, variant, type)) return false;
+	var data = index.bindings.program.arena.enum_arm(arm);
+	return data.f_expression.index == 0 && data.f_match_arrow.index == 0 && data.f_semicolon.index == 0;
 }
 
 bool enum_match_verified(CheckedIndex index, SyntaxNodeId node) {
@@ -93,6 +99,7 @@ bool enum_match_verified(CheckedIndex index, SyntaxNodeId node) {
 		var arm = index.bindings.program.arena.node_at(arms, at);
 		if (arm.index < 1 || arm.index >= len(index.uses) || index.bindings.program.arena.kind(arm) != SyntaxKind.EnumArmSyntax() || fallback) return false;
 		var data = index.bindings.program.arena.enum_arm(arm);
+		if (data.f_expression.index != 0 || data.f_match_arrow.index != 0 || data.f_semicolon.index != 0) return false;
 		var arm_use = index.uses[arm.index];
 		if (arm_use.type.index != type.index || arm_use.flags != 0 || arm_use.deferred != 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_bindings) != 0 || data.f_body.index < 1 || index.bindings.program.arena.kind(data.f_body) != SyntaxKind.BlockStatementSyntax()) return false;
 		var span = index.bindings.program.arena.header(arm).span;
@@ -126,7 +133,61 @@ bool enum_value_facts_verified(CheckedIndex index) {
 			if (target.index > 0 && index.bindings.symbol(target).kind == 13 && !enum_constructor_verified(index, node, target, use.type)) return false;
 		}
 		if (kind == SyntaxKind.MatchStatementSyntax() && use.type.index == 14 && use.deferred == 0 && !enum_match_verified(index, node)) return false;
+		if (kind == SyntaxKind.MatchExpressionSyntax() && use.type.index != 0 && !enum_match_expression_verified(index, node)) return false;
 		n = n + 1;
 	}
 	return true;
+}
+
+bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.MatchExpressionSyntax() || !checked_modern_source(index, node)) return false;
+	var use = index.uses[node.index];
+	if (use.type.index == 0 || use.deferred != 0 || use.flags != 0 && use.flags != 4) return false;
+	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
+	if (scrutinee.index < 1 || scrutinee.index >= len(index.uses)) return false;
+	var type = index.uses[scrutinee.index].type;
+	if (!enum_value_type_verified(index, type)) return false;
+	var declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
+	int count = index.bindings.program.arena.list_count(variants);
+	var arms = index.bindings.program.arena.get_list_arms(node);
+	if (index.bindings.program.arena.list_count(arms) != count) return false;
+	var seen = new bool[count];
+	var enclosing = index.bindings.program.arena.header(node).span;
+	var input = index.bindings.program.arena.header(scrutinee).span;
+	if (input.source.index != enclosing.source.index || input.start < enclosing.start || input.end > enclosing.end) return false;
+	int previous = input.end;
+	bool producer = false;
+	int at = 0;
+	while (at < count) {
+		var arm = index.bindings.program.arena.node_at(arms, at);
+		if (arm.index < 1 || arm.index >= len(index.uses)) return false;
+		var data = index.bindings.program.arena.enum_arm(arm);
+		if (data.f_body.index != 0 || data.f_expression.index < 1 || data.f_expression.index >= len(index.uses) || data.f_match_arrow.index < 1 || data.f_match_arrow.index > index.bindings.program.arena.token_count || data.f_semicolon.index < 1 || data.f_semicolon.index > index.bindings.program.arena.token_count) return false;
+		if (index.bindings.program.arena.token_kind(data.f_match_arrow) != TokenKind.FAT_ARROW() || !index.bindings.program.arena.token_is(data.f_match_arrow, "=>") || index.bindings.program.arena.token_kind(data.f_semicolon) != TokenKind.SEMICOLON() || !index.bindings.program.arena.token_is(data.f_semicolon, ";")) return false;
+		var variant = checked_target(index, arm, data.f_variant);
+		if (!enum_pattern_variant_verified(index, arm, variant, type)) return false;
+		int ordinal = enum_value_ordinal(index, type, variant);
+		if (ordinal < 0 || ordinal >= count || seen[ordinal]) return false;
+		seen[ordinal] = true;
+		var span = index.bindings.program.arena.header(arm).span;
+		var expression = index.bindings.program.arena.header(data.f_expression).span;
+		var arrow = index.bindings.program.arena.token_span(data.f_match_arrow);
+		var semicolon = index.bindings.program.arena.token_span(data.f_semicolon);
+		var qualifier = index.bindings.program.arena.token_span(data.f_qualifier);
+		var selected = index.bindings.program.arena.token_span(data.f_variant);
+		if (span.source.index != enclosing.source.index || span.start < previous || span.end > enclosing.end || expression.source.index != span.source.index || arrow.source.index != span.source.index || semicolon.source.index != span.source.index || qualifier.source.index != span.source.index || selected.source.index != span.source.index || qualifier.start < span.start || qualifier.end > selected.start || selected.end > arrow.start || arrow.end > expression.start || expression.end > semicolon.start || semicolon.end != span.end) return false;
+		var value = index.uses[data.f_expression.index];
+		if (value.type.index != use.type.index) return false;
+		if (use.flags == 4) {
+			var direct = flow_unwrap(index, data.f_expression);
+			bool arm_owner = (index.uses[direct.index].flags & 4) != 0;
+			if (!arm_owner && index.bindings.program.arena.kind(direct) != SyntaxKind.NullPointerExpressionSyntax()) return false;
+			producer = producer || arm_owner;
+		}
+		previous = span.end;
+		at = at + 1;
+	}
+	if (use.flags == 4) return producer && recover_storage_channel(index, use.type, 4, true);
+	return use.type.index != 14 && use.type.index != 15 && recover_copy_channel(index, use.type, 0, false);
 }

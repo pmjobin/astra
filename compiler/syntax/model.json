@@ -590,7 +590,10 @@
         "qualifier": "Token?",
         "variant": "Token?",
         "bindings": "GenericArray<EnumBindingSyntax>",
-        "body": "BlockStatementSyntax"
+        "body": "BlockStatementSyntax?",
+        "expression": "ExpressionSyntax?",
+        "match_arrow": "Token?",
+        "semicolon": "Token?"
       },
       "ancestors": [
         "EnumArmSyntax",
@@ -606,7 +609,8 @@
         "module_internal": "bool",
         "foreign_channels": "GenericArray<ForeignPolicySyntax>",
         "field": "Token?",
-        "binding": "Token"
+        "binding": "Token",
+        "nested_pattern": "EnumArmSyntax?"
       },
       "ancestors": [
         "EnumBindingSyntax",
@@ -1844,6 +1848,23 @@
       "ancestors": [
         "CompoundAssignmentSyntax",
         "StatementSyntax",
+        "SyntaxNode"
+      ]
+    },
+    "MatchExpressionSyntax": {
+      "base": "ExpressionSyntax",
+      "abstract": false,
+      "path": "compiler/syntax/model.astra",
+      "fields": {
+        "foreign_member": "ForeignPolicySyntax?",
+        "module_internal": "bool",
+        "foreign_channels": "GenericArray<ForeignPolicySyntax>",
+        "scrutinee": "ExpressionSyntax",
+        "arms": "GenericArray<EnumArmSyntax>"
+      },
+      "ancestors": [
+        "MatchExpressionSyntax",
+        "ExpressionSyntax",
         "SyntaxNode"
       ]
     }

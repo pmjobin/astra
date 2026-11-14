@@ -100,3 +100,73 @@ bool checked_enum_match(CheckedIndex index, SyntaxNodeId node, TypeId result, in
 	var recorded = index.record(node, type_id(14), 0);
 	return true;
 }
+
+TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	var span = index.bindings.program.arena.header(node).span;
+	if (!checked_modern_source(index, node)) {
+		index.fail(span, "match expression requires the explicit modern language profile");
+		return no_type();
+	}
+	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
+	var type = checked_expression(index, scrutinee, no_type(), depth + 1);
+	if (type.index == 0) return index.defer(node, 17);
+	if (checked_kind(index, type) != 32 || !checked_payload_free_enum(index, type)) return index.defer(node, 17);
+	var declaration = index.bindings.symbol(index.types.row(type).nominal);
+	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
+	int count = index.bindings.program.arena.list_count(variants);
+	var seen = new bool[count];
+	var arms = index.bindings.program.arena.get_list_arms(node);
+	var result = expected;
+	if (result.index == 0) {
+		int context_arm = 0;
+		while (context_arm < index.bindings.program.arena.list_count(arms) && result.index == 0) {
+			var arm = index.bindings.program.arena.node_at(arms, context_arm);
+			result = checked_context(index, index.bindings.program.arena.get_node_expression(arm), depth + 1);
+			context_arm = context_arm + 1;
+		}
+	}
+	bool owning = true;
+	bool producer = false;
+	int at = 0;
+	while (at < index.bindings.program.arena.list_count(arms) && !index.failed()) {
+		var arm = index.bindings.program.arena.node_at(arms, at);
+		var data = index.bindings.program.arena.enum_arm(arm);
+		var actual_enum = checked_enum_qualifier(index, arm, data.f_qualifier);
+		var variant = checked_enum_variant(index, type, data.f_variant);
+		if (data.f_body.index != 0 || data.f_expression.index == 0 || data.f_match_arrow.index == 0 || data.f_semicolon.index == 0 || actual_enum.index != type.index || variant.index == 0 || index.bindings.program.arena.list_count(data.f_type_arguments) != 0 || index.bindings.program.arena.list_count(data.f_bindings) != 0) {
+			index.fail(index.bindings.program.arena.header(arm).span, "expression case requires an exact enum variant and one result expression");
+			return no_type();
+		}
+		int ordinal = 0;
+		while (ordinal < count && index.node_symbols[index.bindings.program.arena.node_at(variants, ordinal).index].index != variant.index) ordinal = ordinal + 1;
+		if (ordinal == count || seen[ordinal]) {
+			index.fail(index.bindings.program.arena.header(arm).span, "unreachable duplicate enum case");
+			return no_type();
+		}
+		seen[ordinal] = true;
+		checked_complete_member(index, arm, data.f_variant, variant);
+		var recorded = index.record(arm, type, 0);
+		var value = checked_expression(index, data.f_expression, result, depth + 1);
+		if (value.index == 0) return index.defer(node, 17);
+		if (result.index == 0) result = value;
+		checked_mismatch(index, index.bindings.program.arena.header(data.f_expression).span, result, value, "match arm result");
+		var direct = flow_unwrap(index, data.f_expression);
+		bool arm_owner = (index.uses[direct.index].flags & 4) != 0;
+		bool absent = index.bindings.program.arena.kind(direct) == SyntaxKind.NullPointerExpressionSyntax();
+		owning = owning && (arm_owner || absent);
+		producer = producer || arm_owner;
+		at = at + 1;
+	}
+	if (index.failed()) return no_type();
+	if (at != count) {
+		index.fail(span, "nonexhaustive enum match expression");
+		return no_type();
+	}
+	if (result.index != 14 && result.index != 15 && recover_copy_channel(index, result, 0, false)) return result;
+	if (owning && producer && recover_storage_channel(index, result, 4, true)) {
+		var use = index.uses[node.index]; use.flags = 4; index.uses[node.index] = use;
+		return result;
+	}
+	index.fail(span, "match join requires exact copyable values or explicit owning arm producers; borrowed results need an outlives proof");
+	return no_type();
+}

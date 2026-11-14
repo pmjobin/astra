@@ -19,6 +19,7 @@ class CheckedIndex {
 	int generic_scope_used;
 	owned SymbolId[] generic_calls;
 	owned SyntaxListId[] generic_argument_lists;
+	owned SyntaxListId[] named_argument_lists;
 	owned bool[] generic_active;
 	int generic_nodes;
 	int generic_symbols;
@@ -76,6 +77,7 @@ class CheckedIndex {
 		int nodes = this.bindings.program.arena.node_count + 1;
 		this.generic_calls = new SymbolId[nodes];
 		this.generic_argument_lists = new SyntaxListId[nodes];
+		this.named_argument_lists = new SyntaxListId[nodes];
 		this.generic_active = new bool[this.generic_symbols + 1];
 		int symbols = this.bindings.symbol_count + 1;
 		this.direct_method_symbols = new int[symbols];
@@ -204,6 +206,7 @@ class CheckedIndex {
 	}
 
 	bool validate() {
+		if (len(this.named_argument_lists) != len(this.uses)) return false;
 		if (this.field_effects && !this.class_storage) return false;
 		if (this.class_storage && !this.native_abi) return false;
 		if (this.native_abi && !this.semantic_admission) return false;
@@ -213,6 +216,7 @@ class CheckedIndex {
 		int i = 1;
 		while (i < len(this.uses)) {
 			var use = this.uses[i];
+
 			if (use.type.index != 0 && !this.types.owns(this.types, use.type)) {
 				return false;
 			}

@@ -104,4 +104,38 @@ library. The older capsule and system installation remain unchanged.
 A later source batch adds explicit namespace owner/selection verification to
 the recovered pipeline and tightens malformed-token and legacy-comma source
 checks. It passed current C0 semantic admission. This repair is later than the
-running development compiler's frozen graph and has no native-host credit yet.
+development compiler's frozen graph and has no native-host credit yet.
+
+The next in-progress batch appends `MatchExpressionSyntax` as kind 97, retaining
+all earlier kind identities. Expression arms and recursive enum patterns retain
+typed child nodes and original spans; ordinary statement-match consumers require
+the new expression fields to be absent. Generated child, effect, deferral and
+generic-copy consumers are regenerated from their maintained specifications.
+Parser support alone grants no exhaustiveness, payload, ownership or native
+matching credit.
+
+This batch also moves named-list construction into semantic checking. Later
+consumers read the retained declaration-order list and independently compare it
+with the original written operands and declared labels. This removes the earlier
+development accessor's list allocation during verification. The frozen development compiler predates this repair; its results remain bound
+to its own graph.
+
+The C0-built development product completed with SHA-256
+`acf2341ef69ac2bd5a3068568a65334661a4d42a889c5f78fb21bd8272b54743`.
+Seven actual named-call programs passed ELF execution at O0 and O2, strict
+returning target and compiler Valgrind, and independent LLVM verification.
+The separate namespace case rejected on this older product as expected; its
+repair remains unqualified. The failed suite receipt is retained rather than
+converted into a complete suite PASS. Additional regressions cover reservation
+order across a throwing operand and labelled CallerArgumentExpression inputs.
+
+The O0 match parser component returned 42 and passed strict returning Valgrind.
+The subsequent payload-free match-expression implementation adds independently
+checked exhaustive source selection, arm result joins, once-only scrutinee
+lowering, and arbitrary-arm phi correspondence through recovered Flow, Core,
+CFG, SSA and physical LLVM. Owning joins transfer their selected arm result;
+borrowed result escape remains refused pending an outlives proof. This batch
+passed full C0 source semantics before the final Core role additions. Its three
+separate expanded C0 match oracles returned 42. Native execution of the new
+match lowering is still pending. Nested payload matching, typed interpolation,
+ranges/lazy collections, migration and final qualification remain open work.

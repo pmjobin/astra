@@ -12,12 +12,17 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 			row.token = checked.bindings.program.arena.get_token_identifier(row.source);
 		}
 	}
-	if (kind != SyntaxKind.MatchStatementSyntax()) return row;
-	if (!enum_match_verified(checked, row.source)) {
+	bool expression = kind == SyntaxKind.MatchExpressionSyntax();
+	if (kind != SyntaxKind.MatchStatementSyntax() && !expression) return row;
+	if (expression && !enum_match_expression_verified(checked, row.source) || !expression && !enum_match_verified(checked, row.source)) {
 		flow.defer(row.source);
 		return row;
 	}
-	row.kind = 72; row.type = type_id(14);
+	row.kind = 72;
+	if (expression) row.kind = 80;
+	else {
+		row.type = type_id(14);
+	}
 	row.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, depth + 1);
 	var arms = checked.bindings.program.arena.get_list_arms(row.source);
 	int count = checked.bindings.program.arena.list_count(arms);
@@ -26,11 +31,14 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 		var source = checked.bindings.program.arena.node_at(arms, at);
 		var arm = recover_empty(source, row.function, type_id(14), row.handler, row.caught);
 		arm.kind = 73; arm.c = id;
+		if (expression) arm.kind = 81;
 		arm.token = checked.bindings.program.arena.get_token_variant(source);
 		if (arm.token.index != 0) arm.symbol = checked_target(checked, source, arm.token);
 		int child = flow.add(arm);
 		if (child == 0) return row;
-		arm.a = recover_build_node(flow, checked, types, checked.bindings.program.arena.get_node_body(source), row.function, row.handler, row.caught, depth + 1);
+		var value = checked.bindings.program.arena.get_node_body(source);
+		if (expression) value = checked.bindings.program.arena.get_node_expression(source);
+		arm.a = recover_build_node(flow, checked, types, value, row.function, row.handler, row.caught, depth + 1);
 		flow.nodes[child - 1] = arm;
 		children[at] = child;
 		at = at + 1;
@@ -52,8 +60,9 @@ bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 	if (row.kind == 71) {
 		return row.a == 0 && row.b == 0 && row.c == 0 && row.token.index == checked.bindings.program.arena.get_token_identifier(row.source).index && enum_constructor_verified(checked, row.source, row.symbol, row.type);
 	}
-	if (row.kind == 72) {
-		if (row.b != 0 || row.c != 0 || !enum_match_verified(checked, row.source) || !recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+	if (row.kind == 72 || row.kind == 80) {
+		bool expression = row.kind == 80;
+		if (row.b != 0 || row.c != 0 || expression && !enum_match_expression_verified(checked, row.source) || !expression && !enum_match_verified(checked, row.source) || !recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_scrutinee(row.source), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
 		var arms = checked.bindings.program.arena.get_list_arms(row.source);
 		if (row.count != checked.bindings.program.arena.list_count(arms)) return false;
 		int at = 0;
@@ -62,15 +71,24 @@ bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 			if (edges[edge]) return false;
 			edges[edge] = true;
 			int child = flow.edges[edge];
-			if (child < 1 || child > flow.node_count || flow.nodes[child - 1].kind != 73 || flow.nodes[child - 1].c != id || !recover_child_with_bindings(flow, checked, types, child, checked.bindings.program.arena.node_at(arms, at), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+			int arm_kind = 73;
+			if (expression) arm_kind = 81;
+			if (child < 1 || child > flow.node_count || flow.nodes[child - 1].kind != arm_kind || flow.nodes[child - 1].c != id || !recover_child_with_bindings(flow, checked, types, child, checked.bindings.program.arena.node_at(arms, at), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+			if (expression && flow.nodes[flow.nodes[child - 1].a - 1].type.index != row.type.index) return false;
 			at = at + 1;
 		}
 		return true;
 	}
-	if (row.kind != 73 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.EnumArmSyntax() || row.b != 0 || row.c < 1 || row.c > flow.node_count) return false;
+	if (row.kind != 73 && row.kind != 81 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.EnumArmSyntax() || row.b != 0 || row.c < 1 || row.c > flow.node_count) return false;
 	var parent = flow.nodes[row.c - 1];
-	if (parent.kind != 72 || parent.function != row.function || parent.handler != row.handler || parent.caught != row.caught || parent.a < 1 || parent.a > flow.node_count) return false;
-	if (checked.bindings.program.arena.kind(parent.source) != SyntaxKind.MatchStatementSyntax() || parent.first < 0 || parent.count < 1 || parent.first > flow.edge_count - parent.count) return false;
+	bool expression = row.kind == 81;
+	int parent_kind = 72; var syntax_kind = SyntaxKind.MatchStatementSyntax();
+	if (expression) {
+		parent_kind = 80;
+		syntax_kind = SyntaxKind.MatchExpressionSyntax();
+	}
+	if (parent.kind != parent_kind || parent.function != row.function || parent.handler != row.handler || parent.caught != row.caught || parent.a < 1 || parent.a > flow.node_count) return false;
+	if (checked.bindings.program.arena.kind(parent.source) != syntax_kind || parent.first < 0 || parent.count < 1 || parent.first > flow.edge_count - parent.count) return false;
 	var arms = checked.bindings.program.arena.get_list_arms(parent.source);
 	if (parent.count != checked.bindings.program.arena.list_count(arms)) return false;
 	int found = 0; int at = 0;
@@ -83,7 +101,9 @@ bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 	if (row.token.index == 0) {
 		if (row.symbol.index != 0 || checked.bindings.program.arena.get_token_qualifier(row.source).index != 0) return false;
 	} else {
-		if (!enum_arm_variant_verified(checked, row.source, row.symbol, type)) return false;
+		if (expression && !enum_pattern_variant_verified(checked, row.source, row.symbol, type) || !expression && !enum_arm_variant_verified(checked, row.source, row.symbol, type)) return false;
 	}
-	return recover_child_with_bindings(flow, checked, types, row.a, checked.bindings.program.arena.get_node_body(row.source), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1);
+	var value = checked.bindings.program.arena.get_node_body(row.source);
+	if (expression) value = checked.bindings.program.arena.get_node_expression(row.source);
+	return recover_child_with_bindings(flow, checked, types, row.a, value, row.function, row.handler, row.caught, seen, edges, bindings, depth + 1);
 }

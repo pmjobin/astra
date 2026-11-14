@@ -144,6 +144,16 @@ int main() {
 }
 ''', False),
 	('owned-call-abort', OWNER.replace('@CALL@', 'return eat(right: move right, left: move left, marker: mark(fail));'), OWNER.replace('@CALL@', 'int marker = mark(fail); return eat(move left, move right, marker);'), True),
+	('owner-reservation-written-order', OWNER.replace('int eat(owned Item left, owned Item right, int marker)', 'int eat(int marker, owned Item left, owned Item right)').replace('@CALL@', 'return eat(right: move right, marker: mark(fail), left: move left);'), OWNER.replace('int eat(owned Item left, owned Item right, int marker)', 'int eat(int marker, owned Item left, owned Item right)').replace('@CALL@', 'int marker = mark(fail); return eat(marker, move left, move right);'), True),
+	('caller-expression-label', '''bool observe(int first, int last, [CallerArgumentExpression("first")] string expression) {
+	return first == 20 && last == 22 && expression == "10 * 2";
+}
+int main() { if (observe(last: 22, first: 10 * 2)) return 42; return 1; }
+''', '''bool observe(int first, int last, [CallerArgumentExpression("first")] string expression) {
+	return first == 20 && last == 22 && expression == "10 * 2";
+}
+int main() { if (observe(10 * 2, 22)) return 42; return 1; }
+''', False),
 	('throw-order', THROW.replace('@CALL@', 'int value = choose(first: tick(1), middle: risky(), last: tick(3));'), THROW.replace('@CALL@', 'int first = tick(1); int middle = risky(); int last = tick(3); int value = choose(first, middle, last);'), True),
 	('namespace-call', '''int main() { return Helpers.add(last: 22, first: 20); }
 ''', '''int main() { return Helpers.add(20, 22); }
@@ -162,12 +172,82 @@ NEGATIVE = [
 	('hidden-receiver-label', PAIR+'int main() { var pair = new Pair(4, 2); return pair.combine(_astra_receiver: pair, first: 1, last: 2); }'),
 ]
 
+MATCH_TAG = 'enum Mode { First, Middle, Last }\n'
+MATCH_CASES = [
+	('match-three-way', MATCH_TAG+'''int status(Mode value) => match (value) {
+	case Mode.Last() => 42;
+	case Mode.First() => 20;
+	case Mode.Middle() => 22;
+};
+int main() { if (status(Mode.First()) != 20 || status(Mode.Middle()) != 22) return 1; return status(Mode.Last()); }
+''', MATCH_TAG+'''int status(Mode value) {
+	match (value) {
+		case Mode.Last(): { return 42; }
+		case Mode.First(): { return 20; }
+		case Mode.Middle(): { return 22; }
+	}
+}
+int main() { if (status(Mode.First()) != 20 || status(Mode.Middle()) != 22) return 1; return status(Mode.Last()); }
+''', False),
+	('match-single-scrutinee', TICKS+MATCH_TAG+'''Mode input() { int ignored = tick(1); return Mode.Middle(); }
+int main() {
+	reset_trace();
+	int result = match (input()) {
+		case Mode.First() => tick(3);
+		case Mode.Middle() => tick(2)+40;
+		case Mode.Last() => tick(4);
+	};
+	if (trace() != 12) return 1;
+	return result;
+}
+''', TICKS+MATCH_TAG+'''Mode input() { int ignored = tick(1); return Mode.Middle(); }
+int main() {
+	reset_trace();
+	int result = 0;
+	match (input()) {
+		case Mode.First(): { result = tick(3); }
+		case Mode.Middle(): { result = tick(2)+40; }
+		case Mode.Last(): { result = tick(4); }
+	}
+	if (trace() != 12) return 1;
+	return result;
+}
+''', False),
+	('match-owned-result', ITEM+MATCH_TAG+'''owned Item make(Mode value) {
+	return match (value) {
+		case Mode.First() => new Item(20);
+		case Mode.Middle() => new Item(22);
+		case Mode.Last() => new Item(42);
+	};
+}
+int run() { var item = make(Mode.Last()); return item.value; }
+int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; return 42; }
+''', ITEM+MATCH_TAG+'''owned Item make(Mode value) {
+	match (value) {
+		case Mode.First(): { var item = new Item(20); return move item; }
+		case Mode.Middle(): { var item = new Item(22); return move item; }
+		case Mode.Last(): { var item = new Item(42); return move item; }
+	}
+}
+int run() { var item = make(Mode.Last()); return item.value; }
+int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; return 42; }
+''', False),
+]
+MATCH_NEGATIVE = [
+	('match-nonexhaustive', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.Last() => 3; }; }'),
+	('match-overlap', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.First() => 3; case Mode.Last() => 4; }; }'),
+	('match-result-type', MATCH_TAG+'int main() { return match (Mode.First()) { case Mode.First() => 42; case Mode.Middle() => true; case Mode.Last() => 3; }; }'),
+	('match-foreign-variant', MATCH_TAG+'enum Other { First } int main() { return match (Mode.First()) { case Other.First() => 42; case Mode.Middle() => 2; case Mode.Last() => 3; }; }'),
+	('match-borrow-escape', ITEM+MATCH_TAG+'Item choose(Mode value, Item item) { return match (value) { case Mode.First() => item; case Mode.Middle() => item; case Mode.Last() => item; }; } int main() { return 42; }'),
+]
+
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
+	p.add_argument('--feature', choices=('named', 'match'), default='named')
 	a = p.parse_args()
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
@@ -193,6 +273,10 @@ def main():
 	run('C-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', bridge, '-o', bridge_object])
 	objects = [*providers, str(bridge_object)]
 	cases = [r for r in CASES if not a.case or r[0] in a.case]
+	negatives = NEGATIVE
+	if a.feature == 'match':
+		cases = [r for r in MATCH_CASES if not a.case or r[0] in a.case]
+		negatives = MATCH_NEGATIVE
 	assert cases and (not a.case or set(a.case) == {r[0] for r in cases})
 	for name, modern, expanded, errors in cases:
 		source = runtime/(name+'.astra'); source.write_text('language astra27b;\n'+modern)
@@ -218,7 +302,7 @@ def main():
 		memory(name+'-compiler-memory', [a.compiler, '--emit-llvm', '-o', ir, source, *extra], 0)
 		run(name+'-LLVM-verify', ['opt', '-passes=verify', '-disable-output', ir]); products[str(ir)] = sha(ir)
 		write(runtime/'products.json', products)
-	for name, text in [] if a.oracle_only else NEGATIVE:
+	for name, text in [] if a.oracle_only else negatives:
 		source = runtime/(name+'-negative.astra'); source.write_text('language astra27b;\n'+text+'\n')
 		inputs[str(source)] = sha(source); write(runtime/'inputs.json', inputs)
 		target = build/(name+'-sentinel.ll'); marker = b'ASTRA27C_NAMED_REFUSAL_SENTINEL\n'; target.write_bytes(marker)
@@ -226,7 +310,7 @@ def main():
 		assert target.read_bytes() == marker and (runtime/(name+'-reject/stderr')).stat().st_size > 0
 	assert all(sha(n) == h for n,h in {**inputs, **providers, **tools, **products}.items())
 	write(runtime/'identity.json', dict(inputs=inputs, providers=providers, tools=tools, products=products, environment={n:env.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'PYTHONHOME', 'LIBRARY_PATH', 'LC_ALL', 'LANG')}))
-	write(runtime/'result.json', dict(status='EXPANDED_C0_NAMED_ORACLES_ONLY' if a.oracle_only else 'SELECTED_NAMED_NATIVE_AND_MEMORY_PASS', compiler_sha256=a.compiler_sha256, oracle_only=a.oracle_only, cases=[r[0] for r in cases], negatives=0 if a.oracle_only else len(NEGATIVE), identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), limitation='Selected actual named-call behavior only. Independent map/owner/LLVM corruptions and full current compiler qualification remain separate gates.'))
+	write(runtime/'result.json', dict(status='EXPANDED_C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_EXPRESSIVE_NATIVE_AND_MEMORY_PASS', feature=a.feature, compiler_sha256=a.compiler_sha256, oracle_only=a.oracle_only, cases=[r[0] for r in cases], negatives=0 if a.oracle_only else len(negatives), identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), limitation='Selected actual source behavior only. Independent source/owner/LLVM corruptions and full current compiler qualification remain separate gates.'))
 
 
 if __name__ == '__main__': main()

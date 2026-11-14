@@ -106,7 +106,7 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		var named_target = checked_named_call_target(index, node);
 		var written_arguments = checked_call_written_arguments(index, node);
 		int written_count = index.bindings.program.arena.list_count(written_arguments);
-		if (!checked_named_arguments_verified(index, node, named_target, written_count)) {
+		if (!checked_prepare_named_arguments(index, node, named_target, written_count)) {
 			index.fail(index.bindings.program.arena.header(node).span, "constructor named argument does not identify a unique declared parameter");
 			return no_type();
 		}

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Concrete typed payload arrays keep node ownership independent of child edges.
 class SyntaxArena {
+	private owned MatchExpressionSyntaxData[] match_expression_data;
+	private int match_expression_used;
 	private owned RecordExpressionSyntaxData[] record_expression_data;
 	private int record_expression_used;
 	private owned ConditionalExpressionSyntaxData[] conditional_expression_data;
@@ -319,6 +321,8 @@ class SyntaxArena {
 		this.lifecycle_declaration_used = 0;
 		this.local_declaration_data = new LocalDeclarationSyntaxData[0];
 		this.local_declaration_used = 0;
+		this.match_expression_data = new MatchExpressionSyntaxData[0];
+		this.match_expression_used = 0;
 		this.match_statement_data = new MatchStatementSyntaxData[0];
 		this.match_statement_used = 0;
 		this.move_expression_data = new MoveExpressionSyntaxData[0];
@@ -1794,11 +1798,17 @@ class SyntaxArena {
 	}
 
 	void validate_enum_arm(EnumArmSyntaxData data) {
+		assert_that(data.f_body.index == 0 || data.f_expression.index == 0);
+		assert_that(data.f_expression.index != 0 || data.f_match_arrow.index == 0 && data.f_semicolon.index == 0);
+		assert_that(data.f_expression.index == 0 || data.f_match_arrow.index != 0 && data.f_semicolon.index != 0);
 		this.check_list(data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()));
 		this.check_token(data.f_qualifier);
 		this.check_token(data.f_variant);
 		this.check_list(data.f_bindings, syntax_kind_code(SyntaxKind.EnumBindingSyntax()));
 		this.check_node(data.f_body, SyntaxKind.BlockStatementSyntax());
+		this.check_node(data.f_expression, SyntaxKind.ExpressionSyntax());
+		this.check_token(data.f_match_arrow);
+		this.check_token(data.f_semicolon);
 	}
 
 	SyntaxNodeId add_enum_arm(EnumArmSyntaxData data, SyntaxSpan span, int depth) {
@@ -1833,8 +1843,10 @@ class SyntaxArena {
 	}
 
 	void validate_enum_binding(EnumBindingSyntaxData data) {
+		assert_that((data.f_binding.index == 0) != (data.f_nested_pattern.index == 0));
 		this.check_token(data.f_field);
 		this.check_token(data.f_binding);
+		this.check_node(data.f_nested_pattern, SyntaxKind.EnumArmSyntax());
 	}
 
 	SyntaxNodeId add_enum_binding(EnumBindingSyntaxData data, SyntaxSpan span, int depth) {
@@ -2655,6 +2667,42 @@ class SyntaxArena {
 		var header = this.header(id);
 		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.LocalDeclarationSyntax()));
 		this.local_declaration_data[header.slot] = data;
+	}
+
+	void validate_match_expression(MatchExpressionSyntaxData data) {
+		this.check_node(data.f_scrutinee, SyntaxKind.ExpressionSyntax());
+		this.check_list(data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()));
+	}
+
+	SyntaxNodeId add_match_expression(MatchExpressionSyntaxData data, SyntaxSpan span, int depth) {
+		this.validate_match_expression(data);
+		assert_that(this.match_expression_used < 2147483647);
+		if (this.match_expression_used == len(this.match_expression_data)) {
+			var replacement = new MatchExpressionSyntaxData[syntax_grown_capacity(len(this.match_expression_data), this.match_expression_used + 1)];
+			int i = 0;
+			while (i < this.match_expression_used) {
+				replacement[i] = this.match_expression_data[i];
+				i = i + 1;
+			}
+			swap(this.match_expression_data, replacement);
+		}
+		var result = this.add_header(SyntaxKind.MatchExpressionSyntax(), this.match_expression_used, span, depth);
+		this.match_expression_data[this.match_expression_used] = data;
+		this.match_expression_used = this.match_expression_used + 1;
+		return result;
+	}
+
+	MatchExpressionSyntaxData match_expression(SyntaxNodeId id) {
+		var header = this.header(id);
+		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MatchExpressionSyntax()));
+		return this.match_expression_data[header.slot];
+	}
+
+	void replace_match_expression(SyntaxNodeId id, MatchExpressionSyntaxData data) {
+		this.validate_match_expression(data);
+		var header = this.header(id);
+		assert_that(header.kind_code == syntax_kind_code(SyntaxKind.MatchExpressionSyntax()));
+		this.match_expression_data[header.slot] = data;
 	}
 
 	void validate_match_statement(MatchStatementSyntaxData data) {
@@ -4461,6 +4509,10 @@ class SyntaxArena {
 
 	SyntaxListId get_list_arms(SyntaxNodeId id) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.MatchExpressionSyntax()) {
+			var data = this.match_expression(id);
+			return data.f_arms;
+		}
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
 			var data = this.match_statement(id);
 			return data.f_arms;
@@ -4472,6 +4524,12 @@ class SyntaxArena {
 
 	void set_list_arms(SyntaxNodeId id, SyntaxListId value) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.MatchExpressionSyntax()) {
+			var data = this.match_expression(id);
+			data.f_arms = value;
+			this.replace_match_expression(id, data);
+			return;
+		}
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
 			var data = this.match_statement(id);
 			data.f_arms = value;
@@ -6169,6 +6227,10 @@ class SyntaxArena {
 			var data = this.throw_statement(id);
 			return data.f_expression;
 		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			var data = this.enum_arm(id);
+			return data.f_expression;
+		}
 		assert_that(false);
 		SyntaxNodeId absent = {index = 0};
 		return absent;
@@ -6234,6 +6296,12 @@ class SyntaxArena {
 			var data = this.throw_statement(id);
 			data.f_expression = value;
 			this.replace_throw_statement(id, data);
+			return;
+		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			var data = this.enum_arm(id);
+			data.f_expression = value;
+			this.replace_enum_arm(id, data);
 			return;
 		}
 		assert_that(false);
@@ -9071,6 +9139,10 @@ class SyntaxArena {
 
 	SyntaxNodeId get_node_scrutinee(SyntaxNodeId id) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.MatchExpressionSyntax()) {
+			var data = this.match_expression(id);
+			return data.f_scrutinee;
+		}
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
 			var data = this.match_statement(id);
 			return data.f_scrutinee;
@@ -9082,6 +9154,12 @@ class SyntaxArena {
 
 	void set_node_scrutinee(SyntaxNodeId id, SyntaxNodeId value) {
 		var kind = this.kind(id);
+		if (kind == SyntaxKind.MatchExpressionSyntax()) {
+			var data = this.match_expression(id);
+			data.f_scrutinee = value;
+			this.replace_match_expression(id, data);
+			return;
+		}
 		if (kind == SyntaxKind.MatchStatementSyntax()) {
 			var data = this.match_statement(id);
 			data.f_scrutinee = value;
@@ -9169,6 +9247,10 @@ class SyntaxArena {
 		}
 		if (kind == SyntaxKind.StructLocalDeclarationSyntax()) {
 			var data = this.struct_local_declaration(id);
+			return data.f_semicolon;
+		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			var data = this.enum_arm(id);
 			return data.f_semicolon;
 		}
 		assert_that(false);
@@ -9260,6 +9342,12 @@ class SyntaxArena {
 			var data = this.struct_local_declaration(id);
 			data.f_semicolon = value;
 			this.replace_struct_local_declaration(id, data);
+			return;
+		}
+		if (kind == SyntaxKind.EnumArmSyntax()) {
+			var data = this.enum_arm(id);
+			data.f_semicolon = value;
+			this.replace_enum_arm(id, data);
 			return;
 		}
 		assert_that(false);
@@ -10323,11 +10411,13 @@ class SyntaxArena {
 	}
 
 	SyntaxCheckpoint checkpoint() {
-		SyntaxCheckpoint result = {record_expression_used = this.record_expression_used, conditional_expression_used = this.conditional_expression_used, compound_assignment_used = this.compound_assignment_used, used = this.used, address_of_expression_used = this.address_of_expression_used, array_initializer_used = this.array_initializer_used, array_struct_initializer_used = this.array_struct_initializer_used, array_type_used = this.array_type_used, assignment_statement_used = this.assignment_statement_used, async_runtime_used = this.async_runtime_used, await_expression_used = this.await_expression_used, await_statement_used = this.await_statement_used, binary_expression_used = this.binary_expression_used, block_statement_used = this.block_statement_used, boolean_literal_expression_used = this.boolean_literal_expression_used, break_statement_used = this.break_statement_used, buffer_allocation_used = this.buffer_allocation_used, c_code_entry_used = this.c_code_entry_used, call_expression_used = this.call_expression_used, call_statement_used = this.call_statement_used, callable_channel_type_used = this.callable_channel_type_used, caller_information_used = this.caller_information_used, catch_clause_used = this.catch_clause_used, class_declaration_used = this.class_declaration_used, com_import_used = this.com_import_used, comparison_chain_used = this.comparison_chain_used, compilation_unit_used = this.compilation_unit_used, constant_declaration_used = this.constant_declaration_used, constructor_initializer_used = this.constructor_initializer_used, continue_statement_used = this.continue_statement_used, conversion_expression_used = this.conversion_expression_used, dereference_assignment_used = this.dereference_assignment_used, dereference_expression_used = this.dereference_expression_used, dsp_expression_used = this.dsp_expression_used, enum_arm_used = this.enum_arm_used, enum_binding_used = this.enum_binding_used, enum_declaration_used = this.enum_declaration_used, enum_payload_used = this.enum_payload_used, enum_variant_used = this.enum_variant_used, field_access_expression_used = this.field_access_expression_used, field_assignment_statement_used = this.field_assignment_statement_used, field_initializer_used = this.field_initializer_used, float_literal_expression_used = this.float_literal_expression_used, for_statement_used = this.for_statement_used, foreach_statement_used = this.foreach_statement_used, foreign_policy_used = this.foreign_policy_used, function_declaration_used = this.function_declaration_used, generic_type_application_used = this.generic_type_application_used, heap_object_construction_used = this.heap_object_construction_used, if_statement_used = this.if_statement_used, index_expression_used = this.index_expression_used, indexed_assignment_used = this.indexed_assignment_used, inferred_local_declaration_used = this.inferred_local_declaration_used, integer_literal_expression_used = this.integer_literal_expression_used, lifecycle_declaration_used = this.lifecycle_declaration_used, local_declaration_used = this.local_declaration_used, match_statement_used = this.match_statement_used, move_expression_used = this.move_expression_used, name_expression_used = this.name_expression_used, non_null_type_used = this.non_null_type_used, null_pointer_expression_used = this.null_pointer_expression_used, owner_slots_type_used = this.owner_slots_type_used, parameter_used = this.parameter_used, parenthesized_expression_used = this.parenthesized_expression_used, pointer_type_used = this.pointer_type_used, prefix_expression_used = this.prefix_expression_used, property_accessor_used = this.property_accessor_used, property_declaration_used = this.property_declaration_used, release_statement_used = this.release_statement_used, return_statement_used = this.return_statement_used, shared_type_used = this.shared_type_used, short_circuit_expression_used = this.short_circuit_expression_used, slice_type_used = this.slice_type_used, struct_declaration_used = this.struct_declaration_used, struct_field_declaration_used = this.struct_field_declaration_used, struct_initializer_used = this.struct_initializer_used, struct_local_declaration_used = this.struct_local_declaration_used, swap_statement_used = this.swap_statement_used, text_literal_expression_used = this.text_literal_expression_used, text_member_expression_used = this.text_member_expression_used, throw_statement_used = this.throw_statement_used, try_statement_used = this.try_statement_used, type_name_used = this.type_name_used, utf8_factory_expression_used = this.utf8_factory_expression_used, vector_dot_expression_used = this.vector_dot_expression_used, vector_extract_expression_used = this.vector_extract_expression_used, vector_initializer_used = this.vector_initializer_used, vector_primitive_expression_used = this.vector_primitive_expression_used, vector_reduction_expression_used = this.vector_reduction_expression_used, vector_type_used = this.vector_type_used, where_clause_used = this.where_clause_used, while_statement_used = this.while_statement_used, with_statement_used = this.with_statement_used, tokens = this.tokens.count(), texts = this.texts.count(), lists = this.lists.count(), generated_sources = this.generated_sources.count()};
+		SyntaxCheckpoint result = {match_expression_used = this.match_expression_used, record_expression_used = this.record_expression_used, conditional_expression_used = this.conditional_expression_used, compound_assignment_used = this.compound_assignment_used, used = this.used, address_of_expression_used = this.address_of_expression_used, array_initializer_used = this.array_initializer_used, array_struct_initializer_used = this.array_struct_initializer_used, array_type_used = this.array_type_used, assignment_statement_used = this.assignment_statement_used, async_runtime_used = this.async_runtime_used, await_expression_used = this.await_expression_used, await_statement_used = this.await_statement_used, binary_expression_used = this.binary_expression_used, block_statement_used = this.block_statement_used, boolean_literal_expression_used = this.boolean_literal_expression_used, break_statement_used = this.break_statement_used, buffer_allocation_used = this.buffer_allocation_used, c_code_entry_used = this.c_code_entry_used, call_expression_used = this.call_expression_used, call_statement_used = this.call_statement_used, callable_channel_type_used = this.callable_channel_type_used, caller_information_used = this.caller_information_used, catch_clause_used = this.catch_clause_used, class_declaration_used = this.class_declaration_used, com_import_used = this.com_import_used, comparison_chain_used = this.comparison_chain_used, compilation_unit_used = this.compilation_unit_used, constant_declaration_used = this.constant_declaration_used, constructor_initializer_used = this.constructor_initializer_used, continue_statement_used = this.continue_statement_used, conversion_expression_used = this.conversion_expression_used, dereference_assignment_used = this.dereference_assignment_used, dereference_expression_used = this.dereference_expression_used, dsp_expression_used = this.dsp_expression_used, enum_arm_used = this.enum_arm_used, enum_binding_used = this.enum_binding_used, enum_declaration_used = this.enum_declaration_used, enum_payload_used = this.enum_payload_used, enum_variant_used = this.enum_variant_used, field_access_expression_used = this.field_access_expression_used, field_assignment_statement_used = this.field_assignment_statement_used, field_initializer_used = this.field_initializer_used, float_literal_expression_used = this.float_literal_expression_used, for_statement_used = this.for_statement_used, foreach_statement_used = this.foreach_statement_used, foreign_policy_used = this.foreign_policy_used, function_declaration_used = this.function_declaration_used, generic_type_application_used = this.generic_type_application_used, heap_object_construction_used = this.heap_object_construction_used, if_statement_used = this.if_statement_used, index_expression_used = this.index_expression_used, indexed_assignment_used = this.indexed_assignment_used, inferred_local_declaration_used = this.inferred_local_declaration_used, integer_literal_expression_used = this.integer_literal_expression_used, lifecycle_declaration_used = this.lifecycle_declaration_used, local_declaration_used = this.local_declaration_used, match_statement_used = this.match_statement_used, move_expression_used = this.move_expression_used, name_expression_used = this.name_expression_used, non_null_type_used = this.non_null_type_used, null_pointer_expression_used = this.null_pointer_expression_used, owner_slots_type_used = this.owner_slots_type_used, parameter_used = this.parameter_used, parenthesized_expression_used = this.parenthesized_expression_used, pointer_type_used = this.pointer_type_used, prefix_expression_used = this.prefix_expression_used, property_accessor_used = this.property_accessor_used, property_declaration_used = this.property_declaration_used, release_statement_used = this.release_statement_used, return_statement_used = this.return_statement_used, shared_type_used = this.shared_type_used, short_circuit_expression_used = this.short_circuit_expression_used, slice_type_used = this.slice_type_used, struct_declaration_used = this.struct_declaration_used, struct_field_declaration_used = this.struct_field_declaration_used, struct_initializer_used = this.struct_initializer_used, struct_local_declaration_used = this.struct_local_declaration_used, swap_statement_used = this.swap_statement_used, text_literal_expression_used = this.text_literal_expression_used, text_member_expression_used = this.text_member_expression_used, throw_statement_used = this.throw_statement_used, try_statement_used = this.try_statement_used, type_name_used = this.type_name_used, utf8_factory_expression_used = this.utf8_factory_expression_used, vector_dot_expression_used = this.vector_dot_expression_used, vector_extract_expression_used = this.vector_extract_expression_used, vector_initializer_used = this.vector_initializer_used, vector_primitive_expression_used = this.vector_primitive_expression_used, vector_reduction_expression_used = this.vector_reduction_expression_used, vector_type_used = this.vector_type_used, where_clause_used = this.where_clause_used, while_statement_used = this.while_statement_used, with_statement_used = this.with_statement_used, tokens = this.tokens.count(), texts = this.texts.count(), lists = this.lists.count(), generated_sources = this.generated_sources.count()};
 		return result;
 	}
 
 	void rewind(SyntaxCheckpoint checkpoint) {
+		assert_that(checkpoint.match_expression_used <= this.match_expression_used);
+		this.match_expression_used = checkpoint.match_expression_used;
 		assert_that(checkpoint.used <= this.used);
 		this.used = checkpoint.used;
 		assert_that(checkpoint.record_expression_used <= this.record_expression_used);
@@ -10775,6 +10865,28 @@ class SyntaxArena {
 		var data = this.compound_assignment(id);
 		data.f_assignment_token = value;
 		this.replace_compound_assignment(id, data);
+	}
+
+	SyntaxNodeId get_node_nested_pattern(SyntaxNodeId id) {
+		var data = this.enum_binding(id);
+		return data.f_nested_pattern;
+	}
+
+	void set_node_nested_pattern(SyntaxNodeId id, SyntaxNodeId value) {
+		var data = this.enum_binding(id);
+		data.f_nested_pattern = value;
+		this.replace_enum_binding(id, data);
+	}
+
+	SyntaxTokenId get_token_match_arrow(SyntaxNodeId id) {
+		var data = this.enum_arm(id);
+		return data.f_match_arrow;
+	}
+
+	void set_token_match_arrow(SyntaxNodeId id, SyntaxTokenId value) {
+		var data = this.enum_arm(id);
+		data.f_match_arrow = value;
+		this.replace_enum_arm(id, data);
 	}
 
 }
