@@ -48,6 +48,12 @@ class RecoverSsaData {
 	}
 
 	void fail(int status) { this.status = status; }
+
+	void refuse(int[] detail) {
+		assert_that(len(detail) == 4);
+		this.failure_phase = detail[0]; this.failure_item = detail[1]; this.failure_remaining = detail[2]; this.failure_exhausted = detail[3];
+		this.status = 1;
+	}
 }
 
 class RecoverSsa {
@@ -700,8 +706,7 @@ owned RecoverSsa recover_ssa_lower(owned RecoverCfg cfg, int work_limit) {
 	if (ssa.data.status == 0) {
 		var detail = new int[4];
 		if (!recover_ssa_verify_details(ssa, detail)) {
-			ssa.data.failure_phase = detail[0]; ssa.data.failure_item = detail[1]; ssa.data.failure_remaining = detail[2]; ssa.data.failure_exhausted = detail[3];
-			ssa.data.fail(1);
+			ssa.data.refuse(detail);
 		}
 	}
 	return move ssa;

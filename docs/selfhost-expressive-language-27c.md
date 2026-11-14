@@ -1307,3 +1307,12 @@ debugger replay merely to identify a future failing phase. Current complete
 source acceptance of this final diagnostic addition and the next optimized
 development host remain pending; no migration or generation credit follows from
 the focused packing results.
+
+The first optimized dev13 attempt stops in C0 semantic preflight after 11.591
+seconds: the new diagnostic recorder used a projected owned-child field write
+without a complete enclosing receiver loan. No expensive compiler construction
+starts. Recording now occurs inside RecoverSsaData.refuse, through the same
+temporary receiver borrow used by its existing fail method. This preserves the
+original loan rule and does not change proof acceptance. The failed source and
+receipt remain attributed to f2f0421; complete corrected-source preflight and
+optimized construction remain required.
