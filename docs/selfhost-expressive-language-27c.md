@@ -206,3 +206,27 @@ The next optimized development build freezes
 pipeline and metadata-only binder reference fix, but predates the repairs in the
 preceding paragraphs. It is a changing-source development generation, with no
 fixed-source Stage3 or release claim.
+
+Four separately authored C0 expansions now exercise consuming a payload buffer,
+nonconsuming inspection, nested consumption with discarded owners, and an arm
+that throws after binding an owner. All return 42 and pass strict returning
+target Valgrind with zero leaked bytes, errors or suppressions. C0's actual
+`Packet` carrier is 32 bytes and its enclosing `Envelope` is 56 bytes, both
+aligned to eight. These remain reference executions, not expression-form credit.
+
+The current source separates intrinsic owning-sum shape from copyable enum
+admission. Empty variants retain their whole sum's ownership classification.
+The source shape query checks exact owned buffer fields and nested sums; the
+existing recovered storage path still refuses those owning channels until their
+transfer and cleanup path is complete. Pattern metadata now retains the actual
+enclosing match, independently checked against original arm lists, spans and
+lexical scopes. A focused semantic consumer tests erased/rebound metadata and
+missing coverage, together with ownership qualifier/source mismatches.
+
+The focused semantic closure passes C0 source semantics (37.053 seconds).
+Its first preflight exposed two read-only recovered Flow value queries located
+in the later Core module. Moving those unchanged queries into the semantic
+owner consumer restores independent semantic construction; Core still builds
+and verifies the distinct owner-use plan. Native execution of the new focused
+consumer is pending. The component recipe freezes its actual inputs and keeps
+source/producer identities separate from feature and host qualification.

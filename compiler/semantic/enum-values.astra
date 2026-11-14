@@ -117,8 +117,9 @@ bool checked_enum_match(CheckedIndex index, SyntaxNodeId node, TypeId result, in
 	return true;
 }
 
-bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type, int depth) throws Error {
+bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type, SyntaxNodeId match_node, int depth) throws Error {
 	if (depth > 32 || !enum_value_type_verified(index, type)) return false;
+	index.pattern_matches[pattern.index] = match_node;
 	var data = index.bindings.program.arena.enum_arm(pattern);
 	var actual = checked_enum_qualifier(index, pattern, data.f_qualifier);
 	var variant = checked_enum_variant(index, type, data.f_variant);
@@ -144,6 +145,7 @@ bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type,
 		}
 		seen[slot] = true;
 		var binding = index.bindings.program.arena.node_at(data.f_bindings, at);
+		index.pattern_matches[binding.index] = match_node;
 		var field = index.bindings.program.arena.node_at(fields, slot);
 		var field_symbol = index.node_symbols[field.index];
 		var expected = index.symbol_types[field_symbol.index];
@@ -152,7 +154,7 @@ bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type,
 		var binding_use = index.record(binding, expected, 0);
 		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
 		if (nested.index != 0) {
-			if (!checked_enum_pattern(index, nested, expected, depth + 1)) {
+			if (!checked_enum_pattern(index, nested, expected, match_node, depth + 1)) {
 				if (!index.failed()) index.fail(index.bindings.program.arena.header(binding).span, "nested pattern requires a concrete enum payload");
 				return false;
 			}
@@ -204,7 +206,7 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 	while (at < index.bindings.program.arena.list_count(arms) && !index.failed()) {
 		var arm = index.bindings.program.arena.node_at(arms, at);
 		var data = index.bindings.program.arena.enum_arm(arm);
-		if (data.f_body.index != 0 || data.f_expression.index == 0 || data.f_match_arrow.index == 0 || data.f_semicolon.index == 0 || !checked_enum_pattern(index, arm, type, 0)) {
+		if (data.f_body.index != 0 || data.f_expression.index == 0 || data.f_match_arrow.index == 0 || data.f_semicolon.index == 0 || !checked_enum_pattern(index, arm, type, node, 0)) {
 			index.fail(index.bindings.program.arena.header(arm).span, "expression case requires an exact enum variant and one result expression");
 			return no_type();
 		}

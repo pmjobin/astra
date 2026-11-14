@@ -174,7 +174,105 @@ NEGATIVE = [
 
 MATCH_TAG = 'enum Mode { First, Middle, Last }\n'
 NESTED_TAG = 'enum Problem { NotFound, Decode(int code) }\nenum Result { Success(int value), Failure(Problem problem) }\n'
+OWNING_TAG = 'enum Packet { Empty, Data(owned int[] data, int count) }\n'
 MATCH_CASES = [
+	('match-consuming-payload', OWNING_TAG+'''owned int[] take(Packet value) => match (move value) {
+	case Packet.Empty() => new int[0];
+	case Packet.Data(data, count) => move data;
+};
+int main() {
+	var state = Packet.Data(new int[13], 13);
+	owned int[] values = take(move state);
+	owned int[] empty = take(Packet.Empty());
+	return len(values)+len(empty)+29;
+}
+''', OWNING_TAG+'''owned int[] take(Packet value) {
+	match (move value) {
+		case Packet.Empty(): { return new int[0]; }
+		case Packet.Data(data, count): { return move data; }
+	}
+}
+int main() {
+	var state = Packet.Data(new int[13], 13);
+	owned int[] values = take(move state);
+	owned int[] empty = take(Packet.Empty());
+	return len(values)+len(empty)+29;
+}
+''', False),
+	('match-inspecting-owner', OWNING_TAG+'''int inspect(Packet value) {
+	int count = match (value) {
+		case Packet.Empty() => 0;
+		case Packet.Data(data, count) => len(data)+count;
+	};
+	return count;
+}
+int main() { return inspect(Packet.Data(new int[13], 29)); }
+''', OWNING_TAG+'''int inspect(Packet value) {
+	int result = 0;
+	match (value) {
+		case Packet.Empty(): { result = 0; }
+		case Packet.Data(data, count): { result = len(data)+count; }
+	}
+	return result;
+}
+int main() { return inspect(Packet.Data(new int[13], 29)); }
+''', False),
+	('match-consuming-nested', OWNING_TAG+'''enum Envelope { Missing, Child(Packet packet, owned int[] tail) }
+owned int[] take(Envelope value) => match (move value) {
+	case Envelope.Missing() => new int[0];
+	case Envelope.Child(Packet.Empty(), _) => new int[0];
+	case Envelope.Child(Packet.Data(data, count), _) => move data;
+};
+int main() {
+	owned int[] values = take(Envelope.Child(Packet.Data(new int[13], 13), new int[7]));
+	owned int[] empty = take(Envelope.Child(Packet.Empty(), new int[9]));
+	owned int[] missing = take(Envelope.Missing());
+	return len(values)+len(empty)+len(missing)+29;
+}
+''', OWNING_TAG+'''enum Envelope { Missing, Child(Packet packet, owned int[] tail) }
+owned int[] take(Envelope value) {
+	match (move value) {
+		case Envelope.Missing(): { return new int[0]; }
+		case Envelope.Child(packet, _): {
+			match (move packet) {
+				case Packet.Empty(): { return new int[0]; }
+				case Packet.Data(data, count): { return move data; }
+			}
+		}
+	}
+}
+int main() {
+	owned int[] values = take(Envelope.Child(Packet.Data(new int[13], 13), new int[7]));
+	owned int[] empty = take(Envelope.Child(Packet.Empty(), new int[9]));
+	owned int[] missing = take(Envelope.Missing());
+	return len(values)+len(empty)+len(missing)+29;
+}
+''', False),
+	('match-consuming-error', OWNING_TAG+'''int fail(int[] data, int count) throws Error {
+	if (len(data) == count) { throw new Error("selected payload failure"); }
+	return 1;
+}
+int attempt() throws Error {
+	var state = Packet.Data(new int[13], 13);
+	return match (move state) {
+		case Packet.Empty() => 1;
+		case Packet.Data(data, count) => fail(data, count);
+	};
+}
+int main() { try { return attempt(); } catch (Error error) { return 42; } }
+''', OWNING_TAG+'''int fail(int[] data, int count) throws Error {
+	if (len(data) == count) { throw new Error("selected payload failure"); }
+	return 1;
+}
+int attempt() throws Error {
+	var state = Packet.Data(new int[13], 13);
+	match (move state) {
+		case Packet.Empty(): { return 1; }
+		case Packet.Data(data, count): { return fail(data, count); }
+	}
+}
+int main() { try { return attempt(); } catch (Error error) { return 42; } }
+''', True),
 	('match-constructor-source', MATCH_TAG+'''class Box {
 	int value;
 	init(Mode mode) {
@@ -391,6 +489,10 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	('match-inspection-move', OWNING_TAG+'owned int[] take(Packet value) { return match (value) { case Packet.Empty() => new int[0]; case Packet.Data(data, count) => move data; }; } int main() { return 42; }'),
+	('match-consumed-use', OWNING_TAG+'int main() { var state = Packet.Data(new int[13], 13); int result = match (move state) { case Packet.Empty() => 0; case Packet.Data(data, count) => len(data); }; return match (state) { case Packet.Empty() => 0; case Packet.Data(data, count) => result+count; }; }'),
+	('match-payload-double-move', OWNING_TAG+'int eat(owned int[] first, owned int[] second) { return len(first)+len(second); } int main() { var state = Packet.Data(new int[13], 13); return match (move state) { case Packet.Empty() => 0; case Packet.Data(data, count) => eat(move data, move data); }; }'),
+	('match-payload-borrow-escape', OWNING_TAG+'int[] inspect(Packet value) { return match (value) { case Packet.Empty() => new int[0]; case Packet.Data(data, count) => data; }; } int main() { return 42; }'),
 	('match-constructor-uninitialized', 'enum E { Data(int value) } class Box { int value; init() { this.value = match (E.Data(this.value)) { case E.Data(value) => value; }; } } int main() { var box = new Box(); return box.value; }'),
 	('match-nested-missing', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(Problem.NotFound()) => 1; }; }'),
 	('match-nested-overlap', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(problem) => 1; case Result.Failure(Problem.Decode(code)) => code; }; }'),

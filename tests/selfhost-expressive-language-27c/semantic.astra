@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Execute actual source consumers. Deliberate corruptions are restored before
+// positive controls; no retained builder result is substituted for verification.
+owned CheckedIndex expressive_checked(string text) throws Error {
+	var bytes = new u8[text.byte_length]; int at = 0;
+	while (at < len(bytes)) {
+		bytes[at] = astra_host_text_byte(text, at) as u8;
+		at = at + 1;
+	}
+	var buffer = source_buffer("expressive-semantic-input", move bytes, false);
+	var retained = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1);
+	var entry = new SourceEntry(move retained); assert_that(entries.append(move entry));
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	assert_that(!program.failed());
+	var bindings = binding_index(move program, 0);
+	var checked = checked_build_effects_profile(move bindings, 0);
+	assert_that(!checked.failed() && checked.validate() && generic_verify(checked) && enum_value_facts_verified(checked));
+	return move checked;
+}
+
+void expressive_enum_storage() throws Error {
+	var checked = expressive_checked("language astra27b; enum Packet { Empty, Data(owned int[] data, int count) } enum Envelope { Missing, Child(Packet packet, owned int[] tail) } enum Copy { Value(int value), Empty } int main() { return 42; }");
+	var packet = no_type(); var envelope = no_type(); var copied = no_type(); SymbolId payload = {index = 0};
+	int at = 1;
+	while (at <= checked.bindings.symbol_count) {
+		var symbol = checked.bindings.symbol(type_symbol(at));
+		if (symbol.kind == 5) {
+			if (checked.bindings.program.arena.token_is(symbol.token, "Packet")) packet = checked.symbol_types[at];
+			if (checked.bindings.program.arena.token_is(symbol.token, "Envelope")) envelope = checked.symbol_types[at];
+			if (checked.bindings.program.arena.token_is(symbol.token, "Copy")) copied = checked.symbol_types[at];
+		}
+		if (symbol.kind == 17 && checked.bindings.program.arena.token_is(symbol.token, "data")) payload = type_symbol(at);
+		at = at + 1;
+	}
+	assert_that(packet.index > 0 && envelope.index > 0 && copied.index > 0 && payload.index > 0);
+	assert_that(enum_storage_type_verified(checked, packet) && enum_storage_type_verified(checked, envelope));
+	assert_that(enum_storage_owned(checked, packet, 0) && enum_storage_owned(checked, envelope, 0));
+	assert_that(!enum_value_type_verified(checked, packet) && !enum_value_type_verified(checked, envelope));
+	assert_that(!recover_copy_channel(checked, packet, 0, false) && !recover_copy_channel(checked, envelope, 0, false));
+	assert_that(enum_value_type_verified(checked, copied) && !enum_storage_owned(checked, copied, 0));
+	assert_that(recover_enum_type_bytes(checked, packet, 0) == 32 && recover_enum_type_bytes(checked, envelope, 0) == 56);
+	assert_that(recover_enum_type_alignment(checked, packet, 0) == 8 && recover_enum_type_alignment(checked, envelope, 0) == 8);
+	// A source shape grants neither a consuming channel nor cleanup admission.
+	assert_that(!recover_storage_channel(checked, packet, 4, false));
+	var declaration = checked.bindings.symbol(payload);
+	int flags = checked.symbol_flags[payload.index];
+	checked.symbol_flags[payload.index] = 0;
+	assert_that(!enum_storage_type_verified(checked, packet) && !enum_storage_type_verified(checked, envelope));
+	checked.symbol_flags[payload.index] = flags;
+	assert_that(enum_storage_type_verified(checked, packet) && enum_storage_type_verified(checked, envelope));
+	checked.symbol_flags[payload.index] = 2;
+	assert_that(!enum_storage_type_verified(checked, packet));
+	checked.symbol_flags[payload.index] = flags;
+	var token = checked.bindings.program.arena.get_token_owned_keyword(declaration.node);
+	SyntaxTokenId absent = {index = 0};
+	checked.bindings.program.arena.set_token_owned_keyword(declaration.node, absent);
+	assert_that(!enum_storage_type_verified(checked, packet) && !enum_storage_owned(checked, packet, 0));
+	checked.bindings.program.arena.set_token_owned_keyword(declaration.node, token);
+	assert_that(enum_storage_type_verified(checked, packet) && enum_storage_owned(checked, packet, 0));
+	assert_that(!enum_storage_type_depth(checked, packet, 33, true) && !enum_storage_owned(checked, packet, 33));
+}
+
+void expressive_pattern_context() throws Error {
+	var checked = expressive_checked("language astra27b; enum Bit { Off, On } enum Pair { Both(Bit first, Bit second) } int value(Pair pair) => match (pair) { case Pair.Both(Bit.Off(), Bit.Off()) => 0; case Pair.Both(Bit.Off(), Bit.On()) => 1; case Pair.Both(Bit.On(), Bit.Off()) => 2; case Pair.Both(Bit.On(), Bit.On()) => 3; }; int other(Pair pair) => match (pair) { case Pair.Both(first, second) => 4; }; int main() { return 42; }");
+	SyntaxNodeId first = {index = 0}; SyntaxNodeId other = {index = 0}; SyntaxNodeId nested = {index = 0};
+	int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.MatchExpressionSyntax()) {
+			if (first.index == 0) first = node;
+			else {
+				other = node;
+			}
+		}
+		at = at + 1;
+	}
+	assert_that(first.index > 0 && other.index > 0);
+	var arms = checked.bindings.program.arena.get_list_arms(first);
+	var arm = checked.bindings.program.arena.node_at(arms, 0);
+	var bindings = checked.bindings.program.arena.get_list_bindings(arm);
+	var binding = checked.bindings.program.arena.node_at(bindings, 0);
+	nested = checked.bindings.program.arena.get_node_nested_pattern(binding);
+	assert_that(nested.index > 0 && enum_pattern_match(checked, nested).index == first.index);
+	SyntaxNodeId absent = {index = 0};
+	var original = checked.pattern_matches[nested.index];
+	checked.pattern_matches[nested.index] = absent;
+	assert_that(!enum_match_expression_verified(checked, first));
+	checked.pattern_matches[nested.index] = original;
+	assert_that(enum_match_expression_verified(checked, first));
+	checked.pattern_matches[nested.index] = other;
+	assert_that(!enum_match_expression_verified(checked, first) && !enum_value_facts_verified(checked));
+	checked.pattern_matches[nested.index] = original;
+	assert_that(enum_match_expression_verified(checked, first) && enum_value_facts_verified(checked));
+	var saved = checked.pattern_matches[binding.index];
+	checked.pattern_matches[binding.index] = other;
+	assert_that(!enum_match_expression_verified(checked, first));
+	checked.pattern_matches[binding.index] = saved;
+	assert_that(enum_match_expression_verified(checked, first));
+	var reduced = checked.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.EnumArmSyntax()));
+	at = 0;
+	while (at < 3) {
+		checked.bindings.program.arena.append_node(reduced, checked.bindings.program.arena.node_at(arms, at));
+		at = at + 1;
+	}
+	checked.bindings.program.arena.set_list_arms(first, reduced);
+	assert_that(!enum_match_expression_verified(checked, first));
+	checked.bindings.program.arena.set_list_arms(first, arms);
+	assert_that(enum_match_expression_verified(checked, first) && enum_value_facts_verified(checked) && generic_verify(checked));
+}
+
+int main() {
+	try {
+		expressive_enum_storage();
+		expressive_pattern_context();
+		return 42;
+	} catch (Error error) { println_stderr(error.message); return 1; }
+}

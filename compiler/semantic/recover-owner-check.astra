@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Source correspondence for owner operations, independent of the builder.
+// These read-only value queries belong to recovered Flow. Source verification
+// can run without linking the later Core owner-plan builder or its consumers.
+int recover_owner_unwrap(RecoverFlowData flow, int id) {
+	int current = id; int depth = 0; while (current > 0 && current <= flow.node_count && flow.nodes[current - 1].kind == 7 && depth < 192) {
+		current = flow.nodes[current - 1].a;
+		depth = depth + 1;
+	} if (depth == 192) return 0; return current;
+}
+
+bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
+	if (row.kind == 5 || row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind)) return true;
+	if (row.kind != 4 && row.kind != 19 && row.kind != 69 && row.kind != 77 && row.kind != 80) return false;
+	return (checked.uses[row.source.index].flags & 4) != 0;
+}
+
 bool recover_owner_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, int function, int handler, int caught, bool[] seen, bool[] edges, int depth) {
 	var bindings = new u8[len(checked.symbol_types)];
 	return recover_owner_source_with_bindings(flow, checked, types, row, function, handler, caught, seen, edges, bindings, depth);

@@ -243,18 +243,18 @@ bool generic_closed(CheckedIndex index, TypeId type, int depth) {
 void generic_resize(CheckedIndex index) {
 	int size = index.bindings.program.arena.node_count + 1;
 	if (size > len(index.uses)) {
-		var uses = new CheckedTypeUse[size]; var symbols = new SymbolId[size]; var refs = new int[size]; var checking = new bool[size]; var calls = new SymbolId[size]; var lists = new SyntaxListId[size]; var named_lists = new SyntaxListId[size];
+		var uses = new CheckedTypeUse[size]; var symbols = new SymbolId[size]; var refs = new int[size]; var checking = new bool[size]; var calls = new SymbolId[size]; var lists = new SyntaxListId[size]; var named_lists = new SyntaxListId[size]; var matches = new SyntaxNodeId[size];
 		int i = 1;
 		while (i < size) {
 			if (i < len(index.uses)) {
-				uses[i] = index.uses[i]; symbols[i] = index.node_symbols[i]; refs[i] = index.node_references[i]; checking[i] = index.checking[i]; calls[i] = index.generic_calls[i]; lists[i] = index.generic_argument_lists[i]; named_lists[i] = index.named_argument_lists[i];
+				uses[i] = index.uses[i]; symbols[i] = index.node_symbols[i]; refs[i] = index.node_references[i]; checking[i] = index.checking[i]; calls[i] = index.generic_calls[i]; lists[i] = index.generic_argument_lists[i]; named_lists[i] = index.named_argument_lists[i]; matches[i] = index.pattern_matches[i];
 			} else {
 				SyntaxNodeId node = {index = i};
 				CheckedTypeUse use = {node = node, span = index.bindings.program.arena.header(node).span, type = no_type(), flags = 0, deferred = 0}; uses[i] = use;
 			}
 			i = i + 1;
 		}
-		swap(index.uses, uses); swap(index.node_symbols, symbols); swap(index.node_references, refs); swap(index.checking, checking); swap(index.generic_calls, calls); swap(index.generic_argument_lists, lists); swap(index.named_argument_lists, named_lists);
+		swap(index.uses, uses); swap(index.node_symbols, symbols); swap(index.node_references, refs); swap(index.checking, checking); swap(index.generic_calls, calls); swap(index.generic_argument_lists, lists); swap(index.named_argument_lists, named_lists); swap(index.pattern_matches, matches);
 	}
 	size = index.bindings.symbol_count + 1;
 	if (size > len(index.symbol_types)) {

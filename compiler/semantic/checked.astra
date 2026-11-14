@@ -20,6 +20,7 @@ class CheckedIndex {
 	owned SymbolId[] generic_calls;
 	owned SyntaxListId[] generic_argument_lists;
 	owned SyntaxListId[] named_argument_lists;
+	owned SyntaxNodeId[] pattern_matches;
 	owned bool[] generic_active;
 	int generic_nodes;
 	int generic_symbols;
@@ -78,6 +79,7 @@ class CheckedIndex {
 		this.generic_calls = new SymbolId[nodes];
 		this.generic_argument_lists = new SyntaxListId[nodes];
 		this.named_argument_lists = new SyntaxListId[nodes];
+		this.pattern_matches = new SyntaxNodeId[nodes];
 		this.generic_active = new bool[this.generic_symbols + 1];
 		int symbols = this.bindings.symbol_count + 1;
 		this.direct_method_symbols = new int[symbols];
@@ -206,7 +208,7 @@ class CheckedIndex {
 	}
 
 	bool validate() {
-		if (len(this.named_argument_lists) != len(this.uses)) return false;
+		if (len(this.named_argument_lists) != len(this.uses) || len(this.pattern_matches) != len(this.uses)) return false;
 		if (this.field_effects && !this.class_storage) return false;
 		if (this.class_storage && !this.native_abi) return false;
 		if (this.native_abi && !this.semantic_admission) return false;
