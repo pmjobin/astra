@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A comprehension is an immediate owning materialization. Its finite callable
+// and map carrier use existing type families and the real lexical source binder.
+// No generated lambda, hidden symbol, retained plan or context-dependent laziness.
+TypeId comprehension_sequence(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.ComprehensionExpressionSyntax()) return no_type();
+	var source = index.bindings.program.arena.get_node_collection(node); var callable = lambda_callable_type(index, node);
+	if (source.index < 1 || source.index >= len(index.uses) || !index.types.inline_callable_type(callable)) return no_type();
+	var base = index.uses[source.index].type; int at = 1;
+	while (at <= index.types.count && at <= 8000000) {
+		var type = type_id(at); var row = index.types.row(type);
+		if (row.kind == 39 && row.extent == 1 && row.nominal.index == 0 && row.count == 2 && index.types.lazy_element(type, 0).index > 0) {
+			var input = index.types.argument(index.types, type, 0); var body = index.types.argument(index.types, type, 1);
+			if (input.type.index == base.index && input.flags == 0 && body.type.index == callable.index && body.flags == index.types.inline_callable_flags(callable)) return type;
+		}
+		at = at+1;
+	}
+	return no_type();
+}
+
+TypeId checked_comprehension(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (!syntax_comprehension_verified(index.bindings.program.arena, node)) {
+		index.fail(index.bindings.program.arena.header(node).span, "comprehension requires its complete original source header and element expression"); return no_type();
+	}
+	var source = index.bindings.program.arena.get_node_collection(node); var input = checked_expression(index, source, no_type(), depth+1);
+	int count = range_fixed_count(index, source);
+	if (!range_sequence_type_verified(index.types, input) || index.uses[source.index].flags != 0 || count < 0 || count > 1048576) {
+		index.fail(index.bindings.program.arena.header(source).span, "comprehension requires literal integer bounds/positive stride and a proven count at most 1048576"); return no_type();
+	}
+	var callable = checked_lambda(index, node, index.types.lazy_element(input, 0), depth+1); if (callable.index == 0 || index.failed()) return no_type();
+	var edges = new TypeEdge[2]; TypeEdge base = {type = input, flags = 0}; TypeEdge body = {type = callable, flags = index.types.inline_callable_flags(callable)}; edges[0] = base; edges[1] = body;
+	var sequence = index.types.intern(39, type_symbol(0), 1, edges);
+	if (sequence.index == 0 || index.types.lazy_element(sequence, 0).index == 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "comprehension exceeds the finite scalar/capture subset"); return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 4; use.deferred = 19; index.uses[node.index] = use;
+	return index.types.unary(22, index.types.lazy_element(sequence, 0), 0);
+}
+
+bool comprehension_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!syntax_comprehension_verified(index.bindings.program.arena, node) || !lambda_verified(index, node)) return false;
+	var source = index.bindings.program.arena.get_node_collection(node); var use = index.uses[node.index]; var input = index.uses[source.index]; var sequence = comprehension_sequence(index, node);
+	int count = range_fixed_count(index, source);
+	if (!range_sequence_type_verified(index.types, input.type) || input.flags != 0 || count < 0 || count > 1048576 || sequence.index == 0 || use.flags != 4 || use.deferred != 19 || checked_kind(index, use.type) != 22) return false;
+	var element = index.types.argument(index.types, use.type, 0);
+	return element.flags == 0 && element.type.index == index.types.lazy_element(sequence, 0).index && lambda_scalar(index, element.type);
+}
+
+TypeId lazy_receiver_type(CheckedIndex index, SyntaxNodeId node) {
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) return comprehension_sequence(index, node);
+	return range_query_receiver(index, node);
+}
+
+bool lazy_collection_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) return comprehension_verified(index, node);
+	return lazy_call_action(index, node) == 5 && lazy_call_verified(index, node);
+}

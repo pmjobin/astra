@@ -36,6 +36,8 @@ kernel+=take(owners,'bool recover_ssa_temporary(')
 kernel+=take('compiler/ssa/recover-owner-packs.astra','class RecoverSsaOwnerPacks {')
 kernel+=take('compiler/semantic/recover-foreign.astra','bool recover_value_kind(','bool recover_constructor_kind(')
 kernel+=take('compiler/backend/llvm/recover-check.astra','class RecoverLlvmIndex {','bool recover_llvm_call(')
+kernel+=take('compiler/backend/llvm/recover-module.astra','int recover_llvm_emission_order(','struct RecoverRecordStorage {')
+kernel+=take('tests/selfhost-compiler-complete/ssa-dominance.astra','bool dominance_oracle(','int main(')
 view=leaf/'production-kernel.astra';view.write_bytes(kernel);view.chmod(0o444)
 model=ROOT/'tests/selfhost-compiler-complete/ssa-owner-packs-model.astra';driver=ROOT/'tests/selfhost-expressive-language-27c/owner-kernel.astra'
 inputs=[view]
@@ -52,7 +54,7 @@ def run(name,argv,expected=0):
 recipe=ROOT/'tests/selfhost-compiler-complete/run-recipe.py';tree=ast.parse(recipe.read_text());fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='declarations');ns={'hashlib':hashlib};exec(compile(ast.Module(body=[fn],type_ignores=[]),str(recipe),'exec'),ns);declarations=ns['declarations']
 full=[]
 for n,p in enumerate(origins):
-	if not p.startswith(str(ROOT/'compiler')):continue
+	if not p.startswith(str(ROOT/'compiler')) and p!=str(ROOT/'tests/selfhost-compiler-complete/ssa-dominance.astra'):continue
 	source=leaf/('source-'+str(n)+'.astra');source.write_bytes(Path(p).read_bytes());source.chmod(0o444);full.extend(declarations(run('syntax-'+str(n),[c0,'--dump-syntax',source])))
 actual=declarations(run('syntax-kernel',[c0,'--dump-syntax',view]));assert actual and all(full.count(row)==1 for row in actual)
 identity=dict(c0_sha256=sha(c0),recipe_sha256=sha(__file__),tools=tools,recipe_inputs={str(recipe):sha(recipe),str(a.link):sha(a.link)},origins=origins,selected=selected,normalized_declarations=actual,actual_inputs={str(p):sha(p) for p in inputs},providers=provider,limitation='Exact helper kernels with existing minimal containers; no full source, native feature, compiler or ABI qualification. The enum predicate is a declared test stub; selected-sum paths are outside this kernel scope.')

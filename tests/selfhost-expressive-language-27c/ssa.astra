@@ -330,6 +330,27 @@ void expressive_lazy_control() throws Error {
 	assert_that(reductions == 5 && filters == 3);
 }
 
+void expressive_materializing_collections() throws Error {
+	var ssa = expressive_ssa("language astra27b; int main() { var squares = [for (var i in 0..100) => i*i]; var filtered = (0..100).filter(j => j>20).map(k => k*k).collect_array(); int[3] source = {1,2,3}; var copied = source.iter().map(value => value+1).collect_array(); var empty = [for (var e in 3..3) => true]; return 42; }");
+	int allocations = 0; int at = 0;
+	while (at < ssa.cfg.core.count) {
+		var row = ssa.cfg.core.nodes[at].value;
+		if (row.kind == 115) {
+			int consumer = ssa.cfg.core.owners.consumers[at]; assert_that(consumer == row.c && consumer > 0 && ssa.cfg.core.nodes[consumer-1].value.kind == 99 && ssa.data.values[at+1].channel == 4 && ssa.data.values[consumer].channel == 4);
+			ssa.cfg.core.owners.consumers[at] = 0; assert_that(!recover_owners_verify(ssa.cfg.core.owners, ssa.cfg.core.flow)); ssa.cfg.core.owners.consumers[at] = consumer;
+			var original = ssa.cfg.core.flow.data.nodes[at]; var changed = original; changed.c = 0; ssa.cfg.core.flow.data.nodes[at] = changed; assert_that(!recover_flow_verify(ssa.cfg.core.flow)); ssa.cfg.core.flow.data.nodes[at] = original;
+			var value = ssa.data.values[at+1]; var forged = value; forged.channel = 0; ssa.data.values[at+1] = forged; assert_that(!recover_ssa_verify(ssa)); ssa.data.values[at+1] = value;
+			assert_that(recover_ssa_verify(ssa)); allocations = allocations+1;
+		}
+		at = at+1;
+	}
+	assert_that(allocations == 4);
+	var deferred = expressive_ssa("language astra27b; int probe(int value) throws Error { if (value == 2) { throw new Error(\"collector callback\"); } return value; } int main() { var sequence = (0..5).map(i => probe(i)); try { var values = sequence.collect_array(); return len(values); } catch (Error error) { return 42; } }");
+	expressive_abort_mutations(deferred, 1);
+	var immediate = expressive_ssa("language astra27b; int probe(int value) throws Error { if (value == 2) { throw new Error(\"comprehension callback\"); } return value; } int main() { try { var values = [for (var i in 0..5) => probe(i)]; return len(values); } catch (Error error) { return 42; } }");
+	expressive_abort_mutations(immediate, 1);
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -373,6 +394,7 @@ int main(string[] args) {
 		expressive_range_collect();
 		expressive_range_fixed();
 		expressive_lazy_control();
+		expressive_materializing_collections();
 		var nested = expressive_ssa("language astra27b; class Item { int value; init(int value) { this.value = value; } } int marker(bool fail) throws Error { if (fail) { throw new Error(\"operand failure\"); } return 0; } owned Item forward(owned Item item, int marker) { return move item; } int eat(owned Item left, owned Item right, int marker) { return left.value+right.value+marker; } int attempt(bool fail) { try { return eat(right: new Item(22), left: forward(item: new Item(20), marker: marker(fail)), marker: 0); } catch (Error error) { return 42; } } int main() { return attempt(true); }");
 		expressive_abort_mutations(nested, 2);
 		var first = nested.cfg.core.owners.aborts[0]; var second = nested.cfg.core.owners.aborts[1];

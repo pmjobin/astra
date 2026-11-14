@@ -3,6 +3,8 @@
 // controls qualify helper equivalence, never source admission or LLVM output.
 bool enum_match_consuming(OwnerKernelChecked checked, SyntaxNodeId source) { return false; }
 
+void dominance_observed(int work) { assert_that(work > 0 && work <= 80000); }
+
 bool kernel_slots(RecoverSsa ssa, bool packed) {
 	var work = new RecoverWork(8000000); var index = new RecoverSsaOwnerIndex(ssa.cfg);
 	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return false;
@@ -106,5 +108,6 @@ int main() {
 	if (!kernel_owner_walk(true, true, 2048) || !kernel_owner_walk(true, false, 2048)) return 2;
 	if (!kernel_owner_walk(false, true, 2048) || !kernel_owner_walk(false, false, 2048)) return 3;
 	if (!kernel_physical_binders()) return 4;
+	if (dominance_exhaustive() != 42 || dominance_generated() != 42 || dominance_chain() != 42) return 5;
 	return 42;
 }

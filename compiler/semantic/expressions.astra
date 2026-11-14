@@ -294,6 +294,7 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (index.field_effects && kind == SyntaxKind.MatchExpressionSyntax()) return checked_enum_match_expression(index, node, expected, depth);
+	if (index.field_effects && kind == SyntaxKind.ComprehensionExpressionSyntax()) return checked_comprehension(index, node, depth);
 	if (kind == SyntaxKind.InterpolationExpressionSyntax()) {
 		index.fail(index.bindings.program.arena.header(node).span, "interpolation is an immediate format_into/format_text argument and cannot escape as a value"); return no_type();
 	}

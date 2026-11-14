@@ -971,3 +971,77 @@ attributed to 221da1f and dev9 respectively. A separate read-only first-refusal
 trace is in progress on those same inputs; no increased budget or acceptance
 claim is used. This is an internal engineering failure to fix, with the failed
 receipt preserved, rather than a historical-loss stop or a publication result.
+
+The independent dev10 first-refusal trace completes on those frozen inputs:
+phase 5, item 414083, remaining work 0, exhausted true. The failure precedes
+the owner phases. The candidate keeps the 8M limit and changes the immediate
+dominator convergence scan: its first reverse-postorder pass checks every node
+and incoming edge; subsequent passes revisit only nodes having two distinct
+reachable predecessors. A straight path retains its unique predecessor while
+ancestor intersections follow the updated join parents. Duplicate edges and
+unreachable predecessors do not create extra joins. This reconstructs facts
+from the supplied CFG without accepting producer dominance metadata.
+
+The existing exact-source owner kernel now includes the production dominator
+routine and the existing independent dominance oracle. Its C0 O0/O2 targets
+pass 15,002 exhaustive deletion-oracle graphs, 237,409 queries, 4,096 generated
+cyclic graphs and the 8,192-node chain, alongside owner reservations and
+physical-index controls (selfhost27c-owner-kernel3). Strict returning memory
+reports zero live bytes, errors and suppressions. Full current compiler-source
+headroom still requires a new optimized development compiler and a genuine
+Astra source build; these kernel results do not supply that acceptance.
+
+Binding4 passes real comprehension collection/body scope and reference checks
+with strict returning memory. Its earlier duplicate-local fixture was corrected
+to preserve Astra's existing no-shadowing rule. Semantic14 passes independent
+comprehension syntax, type and ownership corruptions with restored controls,
+native exit 42 and strict zero-live-byte memory. Its snapshot precedes the new
+collection Flow/Core/CFG/SSA materialization code, which remains under focused
+qualification. Whole-current-source C0 semantic preflight23 passes in 76.010
+seconds without changing the baseline compiler or its type/borrow rules.
+
+The collection candidate represents a materialization's fresh allocation as an
+explicit owned temporary. Callback failure retires that temporary through the
+existing reverse abort machinery; normal completion transfers its pointer into
+the final owned descriptor. Filtering uses source-count capacity and records
+the accepted logical length. Materializing comprehensions require literal
+finite integer bounds and a positive literal stride, at most 1,048,576 elements,
+and the same bounded scalar callable/capture rules as lazy pipelines. They do
+not select a fixed-storage context implicitly. Optional filtered comprehension
+syntax remains refused. Actual native allocation, partial cleanup and source
+equivalence proofs remain pending.
+
+Five independently expanded collection references pass C0 native execution and
+strict returning memory (selfhost27c-collection-oracles2): 100 ordered squares,
+captured/filter order, narrow and floating element values, callback failure
+cleanup, and owned return/replacement. The C0 filter oracle carries an explicit
+logical used count separate from its capacity. C0 rejects owned Boolean arrays,
+so that reference uses an explicitly documented byte representation preserving
+Boolean values and one-byte storage cost; the actual Astra Boolean case remains
+required. These are reference oracles, not native new-construct acceptance.
+
+The existing physical mutation adapter now also has lazy reduction overflow and
+floating flags, filter edges and captures, plus collection allocation size,
+logical length, extra allocation, partial retirement and borrowed-read flag
+corruptions. Each requires real LLVM structural acceptance followed by independent
+physical refusal. The prepared cases confer no credit before actual execution.
+Idiomatic migration, stable final qualification, publication and independently
+dated post-delivery G7 remain outstanding.
+
+SSA17 completes: C0 semantic preflight 61.066 seconds, focused build 1545.699,
+native exit 42 in 1.155, and strict returning memory in 41.295 seconds, with
+zero live bytes, errors and suppressions. Its executable SHA-256 is
+3025a42d58b2bdf8737f7713202da03055c0ad522a9cd83cb7d5394e62db427b.
+The suite checks four collection forms and independent allocation-consumer,
+source-back-reference and SSA owner-channel corruptions, plus partial cleanup
+under both lazy and immediate throwing callbacks. Existing named, match, range
+and owner mutation controls remain active.
+
+The same focused executable accepts all seven actual formatting and five
+collection specimens through Source/Flow/Core/CFG/SSA
+(selfhost27c-ssa17-selected2). The first selected run preserves an unsupported
+fixed-Boolean-array fixture. Its replacement maps fixed integer flags into
+Boolean pipeline elements before filtering and collection, retaining the
+required owned Boolean result and one-byte final element storage without
+expanding the pre-existing fixed-array source subset. No LLVM or native-site
+acceptance follows from these frontend/SSA receipts.

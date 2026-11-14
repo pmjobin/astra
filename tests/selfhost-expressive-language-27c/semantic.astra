@@ -283,6 +283,26 @@ void expressive_formatting_types() throws Error {
 	var flow = recover_flow_lower(move checked, 8192); assert_that(flow.data.status == 0 && recover_flow_verify(flow));
 }
 
+void expressive_comprehension_types() throws Error {
+	var checked = expressive_checked("language astra27b; int main() { var squares = [for (var i in 0..100) => i*i]; var stepped = [for (var j in (20..=80).step_by(5)) => j+2]; var empty = [for (var e in 3..3) => true]; return 42; }");
+	int count = 0; int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) {
+			assert_that(comprehension_verified(checked, node) && lambda_verified(checked, node));
+			var use = checked.uses[at]; var sequence = comprehension_sequence(checked, node); var callable = lambda_callable_type(checked, node);
+			assert_that(checked_kind(checked, use.type) == 22 && use.flags == 4 && use.deferred == 19 && checked.types.inline_callable_type(callable) && checked.types.lazy_element(sequence, 0).index == checked.types.argument(checked.types, use.type, 0).type.index);
+			var changed = use; changed.flags = 0; checked.uses[at] = changed; assert_that(!comprehension_verified(checked, node)); checked.uses[at] = use;
+			changed = use; changed.type = checked.types.unary(22, type_id(3), 0); checked.uses[at] = changed; assert_that(!comprehension_verified(checked, node)); checked.uses[at] = use;
+			var original = checked.bindings.program.arena.comprehension_expression(node); var forged = original; forged.f_collection = original.f_expression;
+			checked.bindings.program.arena.replace_comprehension_expression(node, forged); assert_that(!comprehension_verified(checked, node)); checked.bindings.program.arena.replace_comprehension_expression(node, original);
+			assert_that(comprehension_verified(checked, node)); count = count+1;
+		}
+		at = at+1;
+	}
+	assert_that(count == 3 && checked.validate() && generic_verify(checked));
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -317,6 +337,7 @@ int main(string[] args) {
 		expressive_lazy_effects();
 		expressive_lazy_flow();
 		expressive_formatting_types();
+		expressive_comprehension_types();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

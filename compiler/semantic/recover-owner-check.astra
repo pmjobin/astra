@@ -10,6 +10,7 @@ int recover_owner_unwrap(RecoverFlowData flow, int id) {
 }
 
 bool recover_owner_value(CheckedIndex checked, RecoverNode row) {
+	if (row.kind == 99 || row.kind == 115) return lazy_collection_verified(checked, row.source) && checked_kind(checked, row.type) == 22 && row.type.index == checked.uses[row.source.index].type.index;
 	if (row.kind == 113) return formatting_action(checked, row.source) == 2 && formatting_call_verified(checked, row.source);
 	if (row.kind == 94) return range_collect_verified(checked, row.source) && checked_kind(checked, row.type) == 22;
 	if (row.kind == 5 || row.kind == 9 || row.kind == 68 || row.kind == 10 || recover_constructor_kind(row.kind)) return true;

@@ -6,14 +6,22 @@ class RecoverLazyRuntime {
 	owned void*[] bases;
 	owned void*[] counters;
 	owned void*[] totals;
+	owned void*[] backings;
+	owned void*[] capacities;
 
 	init(int nodes) {
 		this.sources = new void*[nodes]; this.bases = new void*[nodes];
 		this.counters = new void*[nodes]; this.totals = new void*[nodes];
+		this.backings = new void*[nodes]; this.capacities = new void*[nodes];
 	}
 }
 
 TypeId recover_lazy_counter_type(CheckedIndex checked, TypeId base) {
 	if (checked_kind(checked, base) == 40) return type_id(1);
 	return checked.types.lazy_element(base, 0);
+}
+
+TypeId recover_lazy_total_type(CheckedIndex checked, RecoverNode row) {
+	if (lazy_collection_verified(checked, row.source)) return type_id(1);
+	return row.type;
 }

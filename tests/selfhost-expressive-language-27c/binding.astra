@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Collection bounds use the outer scope; the body gets its own immutable binder.
 void expressive_comprehension_binding() throws Error {
-	string text = "language astra27b; int main() { int i = 3; var values = [for (var i in 0..i) => i*i]; int after = i; return 42; }";
+	string text = "language astra27b; int main() { int count = 3; var values = [for (var i in 0..count) => i*i]; int after = count; return 42; }";
 	var bytes = new u8[text.byte_length]; int at = 0;
 	while (at < len(bytes)) {
 		bytes[at] = astra_host_text_byte(text, at) as u8;
@@ -13,12 +13,12 @@ void expressive_comprehension_binding() throws Error {
 	SymbolId outer = {index = 0}; SymbolId parameter = {index = 0}; at = 1;
 	while (at <= bindings.symbol_count) {
 		SymbolId symbol = {index = at}; var declaration = bindings.symbol(symbol);
-		if (bindings.program.arena.token_is(declaration.token, "i")) {
-			if (declaration.kind == 8) outer = symbol;
-			if (declaration.kind == 15) {
-				assert_that(bindings.program.arena.kind(declaration.node) == SyntaxKind.ComprehensionExpressionSyntax());
-				parameter = symbol;
-			}
+		if (declaration.kind == 8 && bindings.program.arena.token_is(declaration.token, "count")) outer = symbol;
+		if (declaration.kind == 15 && bindings.program.arena.token_is(declaration.token, "i")) {
+			assert_that(bindings.program.arena.kind(declaration.node) == SyntaxKind.ComprehensionExpressionSyntax());
+			var collection = bindings.program.arena.get_node_collection(declaration.node); var body = bindings.program.arena.get_node_expression(declaration.node);
+			assert_that(bindings.scope_for_node(collection).index == bindings.scope(declaration.scope).parent.index && bindings.scope_for_node(body).index == declaration.scope.index);
+			parameter = symbol;
 		}
 		at = at+1;
 	}

@@ -30,7 +30,8 @@ int recover_cfg_lazy(RecoverCfg cfg, int id, int next, int depth) {
 	int check = cfg.block(row.function, id, 104, 0, 0, 0, finish, 0, 0, 0);
 	int increment = cfg.block(row.function, id, 106, 0, 0, check, 0, 0, 0, 0);
 	int advance = cfg.block(row.function, id, 105, 0, 0, increment, finish, 0, 0, 0);
-	int initialize = cfg.block(row.function, id, 103, row.a, 0, check, 0, 0, 0, advance);
+	int allocated = check; if (row.c > 0) allocated = recover_cfg_tree(cfg, row.c, check, depth+1);
+	int initialize = cfg.block(row.function, id, 103, row.a, 0, allocated, 0, 0, 0, advance);
 	int add = cfg.block(row.function, id, 108, row.b, 0, advance, 0, 0, 0, 0);
 	if (cfg.status != 0) return 0;
 	var result = cfg.blocks[finish - 1]; result.rank = initialize; cfg.blocks[finish - 1] = result;
@@ -45,6 +46,17 @@ int recover_cfg_lazy_initialize(RecoverCfg cfg, int root) {
 	if (root < 1 || root > cfg.core.count || cfg.core.nodes[root - 1].value.kind != 99) return 0;
 	int finish = cfg.regions[root - 1].operation; if (finish < 1 || finish > cfg.block_count) return 0;
 	return cfg.blocks[finish - 1].rank;
+}
+
+int recover_cfg_lazy_test(RecoverCfg cfg, int root) {
+	int initialize = recover_cfg_lazy_initialize(cfg, root); if (initialize < 1 || initialize > cfg.block_count) return 0;
+	int next = cfg.blocks[initialize-1].next;
+	var row = cfg.core.nodes[root-1].value;
+	if (row.c > 0) {
+		if (next < 1 || next > cfg.block_count || cfg.blocks[next-1].opcode != 115 || cfg.blocks[next-1].origin != row.c) return 0;
+		next = cfg.blocks[next-1].next;
+	}
+	return next;
 }
 
 bool recover_cfg_lazy_stage_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
@@ -66,10 +78,15 @@ bool recover_cfg_lazy_stage_verified(RecoverCfg cfg, int id, int next, bool[] se
 bool recover_cfg_lazy_verified(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
 	var row = cfg.core.nodes[id - 1].value; var region = cfg.regions[id - 1]; int finish = region.operation;
 	int initialize = recover_cfg_lazy_initialize(cfg, id); if (initialize < 1 || initialize > cfg.block_count) return false;
-	int check = cfg.blocks[initialize - 1].next; int advance = cfg.blocks[initialize - 1].rank;
+	int check = recover_cfg_lazy_test(cfg, id); int advance = cfg.blocks[initialize - 1].rank;
 	if (check < 1 || check > cfg.block_count || advance < 1 || advance > cfg.block_count || row.b < 1 || row.b > cfg.core.count) return false;
 	int increment = cfg.blocks[advance - 1].next; int add = cfg.regions[row.b - 1].next;
-	if (!recover_cfg_expect(cfg, finish, recover_cfg_expected(row.function, id, 109, 0, 0, next, 0, 0, 0, initialize), seen) || !recover_cfg_expect(cfg, initialize, recover_cfg_expected(row.function, id, 103, row.a, 0, check, 0, 0, 0, advance), seen) || !recover_cfg_expect(cfg, check, recover_cfg_expected(row.function, id, 104, 0, 0, cfg.regions[row.b - 1].entry, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, advance, recover_cfg_expected(row.function, id, 105, 0, 0, increment, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, increment, recover_cfg_expected(row.function, id, 106, 0, 0, check, 0, 0, 0, 0), seen) || !recover_cfg_expect(cfg, add, recover_cfg_expected(row.function, id, 108, row.b, 0, advance, 0, 0, 0, 0), seen)) return false;
+	int allocated = check;
+	if (row.c > 0) {
+		if (!recover_cfg_check_tree(cfg, row.c, check, seen, nodes, depth+1)) return false;
+		allocated = cfg.regions[row.c-1].entry;
+	}
+	if (!recover_cfg_expect(cfg, finish, recover_cfg_expected(row.function, id, 109, 0, 0, next, 0, 0, 0, initialize), seen) || !recover_cfg_expect(cfg, initialize, recover_cfg_expected(row.function, id, 103, row.a, 0, allocated, 0, 0, 0, advance), seen) || !recover_cfg_expect(cfg, check, recover_cfg_expected(row.function, id, 104, 0, 0, cfg.regions[row.b - 1].entry, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, advance, recover_cfg_expected(row.function, id, 105, 0, 0, increment, finish, 0, 0, 0), seen) || !recover_cfg_expect(cfg, increment, recover_cfg_expected(row.function, id, 106, 0, 0, check, 0, 0, 0, 0), seen) || !recover_cfg_expect(cfg, add, recover_cfg_expected(row.function, id, 108, row.b, 0, advance, 0, 0, 0, 0), seen)) return false;
 	if (!recover_cfg_check_tree(cfg, row.b, add, seen, nodes, depth + 1)) return false;
 	if (row.a == 0) return region.entry == initialize;
 	return recover_cfg_check_tree(cfg, row.a, initialize, seen, nodes, depth + 1) && region.entry == cfg.regions[row.a - 1].entry;

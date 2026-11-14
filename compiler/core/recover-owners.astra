@@ -19,7 +19,7 @@ struct RecoverAbort { int operation; int reservation; int call; }
 
 bool recover_owner_fresh_argument(CheckedIndex checked, RecoverNode row) {
 	if (!recover_owner_value(checked, row)) return false;
-	return row.kind == 113 || row.kind == 94 || row.kind == 9 || row.kind == 11 || row.kind == 4 || row.kind == 19 || row.kind == 71 || row.kind == 77 || row.kind == 80;
+	return row.kind == 99 || row.kind == 115 || row.kind == 113 || row.kind == 94 || row.kind == 9 || row.kind == 11 || row.kind == 4 || row.kind == 19 || row.kind == 71 || row.kind == 77 || row.kind == 80;
 }
 
 class RecoverOwners {
@@ -45,6 +45,9 @@ class RecoverOwners {
 }
 
 int recover_owner_written_input(RecoverFlow flow, RecoverNode call, int ordinal) {
+	if (call.kind == 99 && recover_owner_value(flow.checked, call)) {
+		if (ordinal == 0) return call.c; if (ordinal == 1) return call.b; return 0;
+	}
 	if (call.kind == 71) {
 		if (ordinal < 0 || ordinal >= call.count) return 0;
 		return flow.data.edges[call.first + ordinal];
@@ -70,6 +73,7 @@ bool recover_owner_uses(RecoverFlow flow, int[] consumers, RecoverOwnerBudget wo
 	while (n < flow.data.node_count) {
 		if (!work.take()) return false;
 		var row = flow.data.nodes[n];
+		if (row.kind == 99 && !recover_owner_record_use(flow, consumers, row.c, n+1, work)) return false;
 		if ((row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43 || row.kind == 44) && !recover_owner_record_use(flow, consumers, row.a, n + 1, work)) return false;
 		if (row.kind == 77 && (!recover_owner_record_use(flow, consumers, row.b, n + 1, work) || !recover_owner_record_use(flow, consumers, row.c, n + 1, work))) return false;
 		if (row.kind == 80) {
@@ -162,7 +166,7 @@ owned RecoverOwners recover_owners_build(RecoverFlow flow, bool valid) {
 		n = n + 1;
 	}
 	int call = 1; while (call <= flow.data.node_count && plan.status == 0) { var parent = flow.data.nodes[call - 1];
-		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71) { int a = 1; bool reserved = false; while (a < parent.count && plan.status == 0) {
+		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71 || parent.kind == 99 && recover_owner_value(flow.checked, parent)) { int a = 1; bool reserved = false; int inputs = parent.count; if (parent.kind == 99) inputs = 2; while (a < inputs && plan.status == 0) {
 				int preceding_input = recover_owner_written_input(flow, parent, a - 1);
 				int preceding = recover_owner_unwrap(flow.data, preceding_input);
 				if (preceding > 0 && recover_owner_value(flow.checked, flow.data.nodes[preceding - 1])) reserved = true;
@@ -224,6 +228,7 @@ bool recover_owner_parents(RecoverFlowData flow, RecoverOwnerParent[] parents, R
 	while (n < flow.node_count) {
 		if (!work.take()) return false;
 		var row = flow.nodes[n];
+		if (row.kind == 99 && !recover_owner_parent(parents, row.c, n+1, -3)) return false;
 		if (row.kind == 7 || row.kind == 22 || row.kind == 23 || row.kind == 27 || row.kind == 43 || row.kind == 44) {
 			if (!recover_owner_parent(parents, row.a, n + 1, -1)) return false;
 		}
@@ -317,6 +322,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 			if (parent.node == 0) return false;
 			var candidate = flow.data.nodes[parent.node - 1];
 			consumer = parent.node;
+			if (candidate.kind == 99 && (row.kind != 115 || parent.argument != -3 || candidate.c != n+1 || row.function != candidate.function || !lazy_collection_verified(flow.checked, candidate.source))) return false;
 			if (candidate.kind == 77 && ((flow.checked.uses[candidate.source.index].flags & 4) == 0 || parent.argument < 0 || parent.argument > 1 || row.function != candidate.function)) return false;
 			if (candidate.kind == 80) {
 				if (row.function != candidate.function) return false;
@@ -359,32 +365,43 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 	var preceding_aborts = new int[count];
 	while (call <= count) {
 		var parent = flow.data.nodes[call - 1];
-		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71) {
-			int a = 1; bool reserved = false;
-			while (a < parent.count) {
-				int preceding_slot = a - 1;
-				if (parent.kind != 71) preceding_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a - 1);
-				if (preceding_slot < 0 || preceding_slot >= parent.count) return false;
-				int preceding = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + preceding_slot]);
+		if (parent.kind == 4 || recover_constructor_kind(parent.kind) || parent.kind == 71 || parent.kind == 99 && recover_owner_value(flow.checked, parent)) {
+			int a = 1; bool reserved = false; int inputs = parent.count; if (parent.kind == 99) inputs = 2;
+			while (a < inputs) {
+				int preceding_input = parent.c;
+				if (parent.kind != 99) {
+					int preceding_slot = a-1;
+					if (parent.kind != 71) preceding_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a-1);
+					if (preceding_slot < 0 || preceding_slot >= parent.count) return false;
+					preceding_input = flow.data.edges[parent.first+preceding_slot];
+				}
+				int preceding = recover_owner_unwrap(flow.data, preceding_input);
 				if (preceding > 0 && recover_owner_value(flow.checked, flow.data.nodes[preceding - 1])) reserved = true;
 				if (!reserved) {
 					a = a + 1;
 					continue;
 				}
-				int subtree_slot = a;
-				if (parent.kind != 71) subtree_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a);
-				if (subtree_slot < 0 || subtree_slot >= parent.count) return false;
-				int subtree = flow.data.edges[parent.first + subtree_slot];
+				int subtree = parent.b;
+				if (parent.kind != 99) {
+					int subtree_slot = a;
+					if (parent.kind != 71) subtree_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a);
+					if (subtree_slot < 0 || subtree_slot >= parent.count) return false;
+					subtree = flow.data.edges[parent.first+subtree_slot];
+				}
 				int child = first_checked[parent.function - 1];
 				while (child > 0) {
 					if (!work.take()) return false;
 					if (recover_owner_contains(flow.data, subtree, child, work, 0)) {
 						int earlier = 0;
 						while (earlier < a) {
-							int reserve_slot = earlier;
-							if (parent.kind != 71) reserve_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, earlier);
-							if (reserve_slot < 0 || reserve_slot >= parent.count) return false;
-							int reserve = recover_owner_unwrap(flow.data, flow.data.edges[parent.first + reserve_slot]);
+							int reserve_input = parent.c;
+							if (parent.kind != 99) {
+								int reserve_slot = earlier;
+								if (parent.kind != 71) reserve_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, earlier);
+								if (reserve_slot < 0 || reserve_slot >= parent.count) return false;
+								reserve_input = flow.data.edges[parent.first+reserve_slot];
+							}
+							int reserve = recover_owner_unwrap(flow.data, reserve_input);
 							if (reserve > 0 && recover_owner_value(flow.checked, flow.data.nodes[reserve - 1])) {
 								if (expected >= plan.abort_count) return false;
 								var abort = plan.aborts[expected];

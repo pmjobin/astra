@@ -22,7 +22,7 @@ def module(name, path):
 
 def main():
 	selection = argparse.ArgumentParser(add_help=False)
-	selection.add_argument('--feature', choices=('existing', 'format'), default='existing')
+	selection.add_argument('--feature', choices=('existing', 'format', 'lazy', 'collection'), default='existing')
 	options, remaining = selection.parse_known_args()
 	sys.argv = [sys.argv[0], *remaining]
 	prior = module('ownership_physical', PRIOR/'physical.py')
@@ -147,6 +147,111 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	assert prior.GDB.count(needle) == 1
 	prior.GDB = prior.GDB.replace(needle, mutations+needle)
 	extra = []
+	if options.feature == 'lazy':
+		prior.COMPOUND = 'int main() { return (0..13).map(i => i+7).sum(); }\n'
+		prior.CONDITIONAL = 'int main() { return (0..13).map(i => i+7).filter(x => x>10).sum(); }\n'
+		prior.PARAMETER = 'int main() { return (0..13).map(i => (i as f64)*0.5d).sum() == 39.0d ? 42 : 1; }\n'
+		prior.RECORD = 'int main() { int bias = 7; var values = (0..13).map(i => i+bias); bias = 9; return values.sum(); }\n'
+		prior.CASES = {
+			'lazy-reduction-overflow-flag': ('compound', 'main', 'lazy-overflow-flag'),
+			'lazy-reduction-fast-math': ('parameter', 'main', 'lazy-fast-math'),
+			'lazy-filter-skip-edge': ('conditional', 'main', 'lazy-filter-edge'),
+			'lazy-captured-value': ('record', 'main', 'lazy-capture'),
+		}
+	if options.feature == 'collection':
+		prior.COMPOUND = 'int main() { var values = (0..13).map(i => i+7).filter(x => x>10).collect_array(); return len(values); }\n'
+		prior.RECORD = 'int main() { var values = [for (var i in 0..13) => i*i]; return len(values); }\n'
+		prior.PARAMETER = 'int main() { int[3] data = {20,21,22}; var values = data.iter().map(i => i+1).collect_array(); return len(values); }\n'
+		prior.INTRINSIC = '''[ExceptionRoot] class Error {
+	readonly string text;
+	init(string message) { this.text = message; }
+	virtual property string message { get { return this.text; } }
+}
+int probe(int value) throws Error { if (value == 2) { throw new Error("stop"); } return value; }
+int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); return len(values); } catch (Error error) { return 42; } }
+'''
+		prior.CASES = {
+			'collection-element-allocation-size': ('compound', 'main', 'collection-element-size'),
+			'collection-logical-length': ('compound', 'main', 'collection-length'),
+			'collection-hidden-intermediate': ('compound', 'main', 'collection-extra-allocation'),
+			'collection-partial-retirement': ('intrinsic', 'main', 'collection-retirement'),
+			'comprehension-hidden-intermediate': ('record', 'main', 'collection-extra-allocation'),
+			'collection-borrowed-read-flags': ('parameter', 'main', 'collection-read-flags'),
+		}
+	if options.feature in ('lazy', 'collection'):
+		collection_mutations = '''  elif action in ('lazy-overflow-flag','lazy-fast-math','lazy-capture'):
+   candidates=[]
+   for block in body:
+    for value in instructions(block):
+     if action=='lazy-fast-math' and opcode(value)==9:candidates.append(value)
+     if opcode(value)!=8:continue
+     right=operand(value,1)
+     if action=='lazy-overflow-flag' and pointer('LLVMIsAInstruction',operand(value,0)) and opcode(operand(value,0))==27 and not pointer('LLVMIsAConstantInt',right):candidates.append(value)
+     if action=='lazy-capture' and pointer('LLVMIsAInstruction',right) and opcode(right)==53:candidates.append(value)
+   assert len(candidates)==1,candidates
+   target=candidates[0]
+   if action=='lazy-fast-math':
+    before=number('(unsigned)LLVMGetFastMathFlags((void*)%d)'%target);assert before==0
+    gdb.parse_and_eval('(void)LLVMSetFastMathFlags((void*)%d,1)'%target);after=number('(unsigned)LLVMGetFastMathFlags((void*)%d)'%target);assert after==1
+   elif action=='lazy-overflow-flag':
+    before=number('(int)LLVMGetNSW((void*)%d)'%target);assert before==0
+    gdb.parse_and_eval('(void)LLVMSetNSW((void*)%d,1)'%target);after=number('(int)LLVMGetNSW((void*)%d)'%target);assert after==1
+   else:
+    old=operand(target,1);before=dict(captured_value=old)
+    set_operand(target,1,replacement(old,8));after=dict(literal=integer(operand(target,1)));assert after['literal']==8
+  elif action=='lazy-filter-edge':
+   candidates=[]
+   for block in body:
+    term=pointer('LLVMGetBasicBlockTerminator',block)
+    if opcode(term)!=71:continue
+    condition=operand(term,0)
+    if opcode(condition)==42 and number('(int)LLVMGetICmpPredicate((void*)%d)'%condition)==38:candidates.append(term)
+   assert len(candidates)==1,candidates
+   target=candidates[0];before=[number('(void*)LLVMGetSuccessor((void*)%d,%d)'%(target,n)) for n in (0,1)];assert before[0]!=before[1]
+   for n in (0,1):gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,%d,(void*)%d)'%(target,n,before[1-n]))
+   after=[number('(void*)LLVMGetSuccessor((void*)%d,%d)'%(target,n)) for n in (0,1)];assert after==before[::-1]
+  elif action in ('collection-element-size','collection-extra-allocation'):
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='astra.e25a.buffer.allocate']
+   assert len(candidates)==1,candidates
+   target=candidates[0]
+   if action=='collection-element-size':
+    old=operand(target,1);before=integer(old);assert before==4
+    set_operand(target,1,replacement(old,8));after=integer(operand(target,1));assert after==8
+   else:
+    # The cloned call follows its dominating capacity value. Corrupted IR
+    # is structurally verified and refused, never executed as a target.
+    before=dict(allocation_calls=1);next_value=pointer('LLVMGetNextInstruction',target);assert next_value
+    clone=pointer('LLVMInstructionClone',target);assert clone
+    builder=pointer('LLVMCreateBuilderInContext',pointer('LLVMGetModuleContext',module));assert builder
+    gdb.parse_and_eval('(void)LLVMPositionBuilderBefore((void*)%d,(void*)%d)'%(builder,next_value))
+    gdb.parse_and_eval('(void)LLVMInsertIntoBuilder((void*)%d,(void*)%d)'%(builder,clone))
+    gdb.parse_and_eval('(void)LLVMDisposeBuilder((void*)%d)'%builder)
+    after=dict(allocation_calls=sum(opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='astra.e25a.buffer.allocate' for block in body for value in instructions(block)));assert after['allocation_calls']==2
+  elif action=='collection-length':
+   candidates=[]
+   for block in body:
+    for value in instructions(block):
+     if opcode(value)!=54 or number('(unsigned)LLVMGetNumIndices((void*)%d)'%value)!=1 or number('*(unsigned*)LLVMGetIndices((void*)%d)'%value)!=1:continue
+     kind=pointer('LLVMTypeOf',value)
+     if number('(unsigned)LLVMCountStructElementTypes((void*)%d)'%kind)!=2 or number('(int)LLVMGetTypeKind((void*)LLVMStructGetTypeAtIndex((void*)%d,0))'%kind)!=12:continue
+     length=operand(value,1)
+     if pointer('LLVMIsAInstruction',length) and opcode(length)==27:candidates.append(value)
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,1);before=dict(logical_length=old)
+   set_operand(target,1,replacement(old,13));after=dict(capacity_substituted=integer(operand(target,1)));assert after['capacity_substituted']==13
+  elif action=='collection-retirement':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='free']
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,0);before=dict(partial_buffer=old)
+   set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
+  elif action=='collection-read-flags':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==29 and pointer('LLVMIsAInstruction',operand(value,0)) and opcode(operand(value,0))==53]
+   assert len(candidates)==1,candidates
+   target=candidates[0];before=number('(unsigned)LLVMGEPGetNoWrapFlags((void*)%d)'%target);assert before==0
+   gdb.parse_and_eval('(void)LLVMGEPSetNoWrapFlags((void*)%d,1)'%target);after=number('(unsigned)LLVMGEPGetNoWrapFlags((void*)%d)'%target);assert after==1
+'''
+		assert prior.GDB.count(needle) == 1
+		prior.GDB = prior.GDB.replace(needle, collection_mutations+needle)
 	if options.feature == 'format':
 		# Reuse the existing public-CLI/process-local mutation driver. These
 		# specimens load their actual library dependencies as distinct sources.
@@ -193,7 +298,7 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
    target=candidates[0];old=operand(target,1);before=integer(old)
    set_operand(target,1,replacement(old,0));after=integer(operand(target,1));assert after==0
   elif action=='format-failure-branch':
-   target=pointer('LLVMGetBasicBlockTerminator',body[1]);assert opcode(target)==2 and number('(unsigned)LLVMGetNumSuccessors((void*)%d)'%target)==2
+   target=pointer('LLVMGetBasicBlockTerminator',body[1]);assert opcode(target)==71 and number('(unsigned)LLVMGetNumSuccessors((void*)%d)'%target)==2
    first=number('(void*)LLVMGetSuccessor((void*)%d,0)'%target);last=number('(void*)LLVMGetSuccessor((void*)%d,1)'%target);assert first!=last
    before=[first,last]
    gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,0,(void*)%d)'%(target,last));gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,1,(void*)%d)'%(target,first))
@@ -229,7 +334,8 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	result = json.loads((runtime/'result.json').read_text())
 	result['extension_inputs'] = identity
 	result['feature'] = options.feature
-	result['scope'] = 'Selected 27-C actual '+('typed formatting fragments, finite prechecks, failure edges, owned output and retirement' if options.feature == 'format' else 'named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement')+'. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
+	scopes = dict(existing='named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement', format='typed formatting fragments, finite prechecks, failure edges, owned output and retirement', lazy='integer/floating reduction flags, filter skip edges and captured values', collection='element allocation sizes, logical lengths, hidden intermediate allocations, partial retirement and borrowed reads')
+	result['scope'] = 'Selected 27-C actual '+scopes[options.feature]+'. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
 	write(runtime/'result.json', result)
 
 

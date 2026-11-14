@@ -9,6 +9,7 @@ int lazy_call_action(CheckedIndex index, SyntaxNodeId node) {
 	if (index.bindings.program.arena.token_is(token, "map")) return 2;
 	if (index.bindings.program.arena.token_is(token, "filter")) return 3;
 	if (index.bindings.program.arena.token_is(token, "sum")) return 4;
+	if (index.bindings.program.arena.token_is(token, "collect_array")) return 5;
 	return 0;
 }
 
@@ -67,7 +68,8 @@ TypeId checked_lazy_call(CheckedIndex index, SyntaxNodeId node, int depth) throw
 		var result = index.types.intern(40, root, 0, edges); var use = index.uses[node.index]; use.flags = 2; use.deferred = 0; index.uses[node.index] = use; return result;
 	}
 	var element = index.types.lazy_element(type, 0); if (element.index == 0) return no_type();
-	int count = 1; if (action == 4) count = 0;
+	if (action == 5 && checked_kind(index, type) != 39 && checked_kind(index, type) != 40) return no_type();
+	int count = 1; if (action >= 4) count = 0;
 	if (!lazy_positional_shape(index, node, count) || lazy_receiver_flags(index, node) != index.types.lazy_flags(type)) {
 		index.fail(index.bindings.program.arena.header(node).span, "iterator operation requires its exact positional signature and source channel");
 		return no_type();
@@ -78,6 +80,10 @@ TypeId checked_lazy_call(CheckedIndex index, SyntaxNodeId node, int depth) throw
 			return no_type();
 		}
 		var use = index.uses[node.index]; use.flags = 0; use.deferred = 0; index.uses[node.index] = use; return element;
+	}
+	if (action == 5) {
+		var use = index.uses[node.index]; use.flags = 4; use.deferred = 19; index.uses[node.index] = use;
+		return index.types.unary(22, element, 0);
 	}
 	var argument = lazy_lambda_argument(index, node); if (argument.index == 0) {
 		index.fail(index.bindings.program.arena.header(node).span, "map/filter requires one finite inline scalar lambda");
@@ -99,7 +105,8 @@ TypeId checked_lazy_call(CheckedIndex index, SyntaxNodeId node, int depth) throw
 
 bool lazy_call_verified(CheckedIndex index, SyntaxNodeId node) {
 	int action = lazy_call_action(index, node); if (action == 0 || !range_query_source(index.bindings.program.arena, node) || checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index != 0) return false;
-	var receiver = range_query_receiver(index, node); var use = index.uses[node.index]; if (use.deferred != 0) return false;
+	var receiver = range_query_receiver(index, node); var use = index.uses[node.index];
+	if (action != 5 && use.deferred != 0 || action == 5 && use.deferred != 19) return false;
 	if (action == 1) {
 		if (!lazy_iter_source(index, node) || !lazy_positional_shape(index, node, 0) || use.flags != 2 || checked_kind(index, use.type) != 40 || index.types.lazy_element(use.type, 0).index == 0) return false;
 		var shape = index.types.row(use.type); var root = lazy_iter_root(index, node);
@@ -107,6 +114,10 @@ bool lazy_call_verified(CheckedIndex index, SyntaxNodeId node) {
 	}
 	var element = index.types.lazy_element(receiver, 0); if (element.index == 0 || lazy_receiver_flags(index, node) != index.types.lazy_flags(receiver)) return false;
 	if (action == 4) return lazy_positional_shape(index, node, 0) && use.flags == 0 && use.type.index == element.index && type_numeric(checked_kind(index, element));
+	if (action == 5) {
+		if (checked_kind(index, receiver) != 39 && checked_kind(index, receiver) != 40 || !lazy_positional_shape(index, node, 0) || use.flags != 4 || checked_kind(index, use.type) != 22) return false;
+		var actual = index.types.argument(index.types, use.type, 0); return actual.flags == 0 && actual.type.index == element.index;
+	}
 	if (!lazy_positional_shape(index, node, 1) || checked_kind(index, use.type) != 39 || index.types.lazy_element(use.type, 0).index == 0) return false;
 	var argument = lazy_lambda_argument(index, node); if (argument.index == 0 || !lambda_verified(index, argument)) return false;
 	var shape = index.types.row(use.type); var source = index.types.argument(index.types, use.type, 0); var callback = index.types.argument(index.types, use.type, 1);

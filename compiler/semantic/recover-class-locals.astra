@@ -55,7 +55,7 @@ bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, 
 	}
 	if (initializer.index < 1 || depth == 192) return false;
 	var kind = checked.bindings.program.arena.kind(initializer);
-	bool producer = kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || (kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[initializer.index].flags & 4) != 0;
+	bool producer = kind == SyntaxKind.ComprehensionExpressionSyntax() && comprehension_verified(checked, initializer) || kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || (kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[initializer.index].flags & 4) != 0;
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var target = checked_target(checked, initializer, checked.bindings.program.arena.get_token_identifier(initializer));
 		if (target.index > 0) {
@@ -67,7 +67,7 @@ bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, 
 			}
 		} else {
 			int action = checked_shared_action(checked, initializer);
-			producer = formatting_action(checked, initializer) == 2 && formatting_call_verified(checked, initializer) || range_collect_verified(checked, initializer) || action == 1 || action == 2 || action == 4 || action == 5 || action == 6;
+			producer = lazy_collection_verified(checked, initializer) || formatting_action(checked, initializer) == 2 && formatting_call_verified(checked, initializer) || range_collect_verified(checked, initializer) || action == 1 || action == 2 || action == 4 || action == 5 || action == 6;
 		}
 	}
 	return ((checked.symbol_flags[symbol.index] & 4) != 0) == producer;

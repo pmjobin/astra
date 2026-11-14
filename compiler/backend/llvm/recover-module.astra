@@ -634,7 +634,7 @@ class RecoverLlvm {
 	}
 
 	void range_query_declare(CheckedIndex checked, SyntaxNodeId source) throws Error {
-		var type = range_query_receiver(checked, source); int action = range_query_action(checked, source);
+		var type = lazy_receiver_type(checked, source); int action = range_query_action(checked, source);
 		this.range_query_declare_type(checked, type, action);
 	}
 
@@ -682,7 +682,7 @@ class RecoverLlvm {
 			if (row.kind == 93) this.range_step_declare(ssa.cfg.core.flow.checked, row.type);
 			if (row.kind == 88) this.range_query_declare(ssa.cfg.core.flow.checked, row.source);
 			if (row.kind == 99) {
-				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
 				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) this.range_query_declare_type(ssa.cfg.core.flow.checked, base, 2);
 			}
 			if (row.kind == 89) this.range_query_declare_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 2);
@@ -1034,10 +1034,10 @@ class RecoverLlvm {
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
 			if (row.kind == 99) {
-				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
 				LLVMPositionBuilderAtEnd(this.builder, this.entries[row.function - 1]);
 				var counter = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)), this.empty);
-				var total = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, row.type), this.empty);
+				var total = LLVMBuildAlloca(this.builder, this.scalar(ssa.cfg.core.flow.checked, recover_lazy_total_type(ssa.cfg.core.flow.checked, row)), this.empty);
 				this.lazy_runtime.counters[at] = counter; this.lazy_runtime.totals[at] = total;
 			}
 			at = at + 1;
@@ -1075,13 +1075,13 @@ class RecoverLlvm {
 			var branch = LLVMBuildCondBr(this.builder, result.operation, this.blocks[block.next - 1], this.blocks[block.other - 1]); return result;
 		}
 		int root = block.origin;
-		if (op == 100) root = row.c;
+		if (op == 100 || op == 115) root = row.c;
 		if (op == 102) {
 			var stage = ssa.cfg.core.nodes[row.c - 1].value; root = stage.c;
 			if (stage.symbol.index == row.symbol.index) {
 				result.value = this.values[stage.a]; return result;
 			}
-			var type = range_query_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c);
+			var type = lazy_receiver_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c);
 			void* carrier = this.lazy_runtime.sources[root - 1]; int depth = 0;
 			while (type.index != target.index && depth < 8) {
 				carrier = LLVMBuildExtractValue(this.builder, carrier, 0, this.empty); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
@@ -1091,9 +1091,9 @@ class RecoverLlvm {
 			result.value = LLVMBuildExtractValue(this.builder, captures, at, this.empty); return result;
 		}
 		var consumer = ssa.cfg.core.nodes[root - 1].value;
-		var sequence = range_query_receiver(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
+		var sequence = lazy_receiver_type(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
 		var element = recover_lazy_counter_type(ssa.cfg.core.flow.checked, base); var integer = this.scalar(ssa.cfg.core.flow.checked, element); var counter = this.lazy_runtime.counters[root - 1]; var total = this.lazy_runtime.totals[root - 1];
-		bool array = checked_kind(ssa.cfg.core.flow.checked, base) == 40;
+		bool array = checked_kind(ssa.cfg.core.flow.checked, base) == 40; bool collected = consumer.c > 0;
 		if (op == 103) {
 			void* aggregate = this.lazy_receiver(ssa, row); this.lazy_runtime.sources[root - 1] = aggregate; var type = sequence; int depth = 0;
 			while (checked_kind(ssa.cfg.core.flow.checked, type) == 39 && depth < 8) {
@@ -1101,9 +1101,32 @@ class RecoverLlvm {
 			}
 			this.lazy_runtime.bases[root - 1] = aggregate; void* start = LLVMConstNull(integer); if (!array) start = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty);
 			var initialized = LLVMBuildStore(this.builder, start, counter);
-			result.operation = LLVMBuildStore(this.builder, LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, consumer.type)), total); return result;
+			result.operation = LLVMBuildStore(this.builder, LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, recover_lazy_total_type(ssa.cfg.core.flow.checked, consumer))), total); return result;
+		}
+		if (op == 115) {
+			var aggregate = this.lazy_runtime.bases[root-1]; void* count = null;
+			if (array) count = LLVMBuildExtractValue(this.builder, aggregate, 1, this.empty);
+			else {
+				var arguments = new void*[4]; int at = 0;
+				while (at < 3) {
+					arguments[at] = LLVMBuildExtractValue(this.builder, aggregate, at, this.empty);
+					at = at+1;
+				}
+				arguments[3] = LLVMConstInt(integer, 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, base)) arguments[3] = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
+				count = this.call(this.range_counts[checked_kind(ssa.cfg.core.flow.checked, element)-1], arguments, true);
+			}
+			var output = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, consumer.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, output); int bytes = 1; if (kind != 13) bytes = type_width(kind)/8;
+			var arguments = new void*[2]; arguments[0] = count; arguments[1] = LLVMConstInt(this.wide, bytes as u64, 0); var backing = this.call(this.buffer_function, arguments, true);
+			this.lazy_runtime.backings[root-1] = backing; this.lazy_runtime.capacities[root-1] = count;
+			var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), backing, 0, this.empty); result.value = LLVMBuildInsertValue(this.builder, first, count, 1, this.empty); result.operation = backing; return result;
 		}
 		if (op == 108) {
+			if (collected) {
+				var index = this.load(this.integer, total); var output = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, consumer.type, 0).type;
+				var arguments = new void*[1]; arguments[0] = index; var address = LLVMBuildGEP2(this.builder, this.scalar(ssa.cfg.core.flow.checked, output), this.lazy_runtime.backings[root-1], this.arguments(arguments), 1, this.empty); LLVMGEPSetNoWrapFlags(address, 0);
+				var stored = LLVMBuildStore(this.builder, this.values[block.a], address); LLVMSetAlignment(stored, LLVMABIAlignmentOfType(this.layout, this.scalar(ssa.cfg.core.flow.checked, output)));
+				var next = LLVMBuildAdd(this.builder, index, this.int32(1), this.empty); result.operation = LLVMBuildStore(this.builder, next, total); return result;
+			}
 			var previous = this.load(this.scalar(ssa.cfg.core.flow.checked, consumer.type), total); void* added = null;
 			if (checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 11 || checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 12) added = LLVMBuildFAdd(this.builder, previous, this.values[block.a], this.empty);
 			else {
@@ -1112,6 +1135,10 @@ class RecoverLlvm {
 			result.operation = LLVMBuildStore(this.builder, added, total); return result;
 		}
 		if (op == 109) {
+			if (collected) {
+				var count = this.load(this.integer, total); var backing = LLVMBuildExtractValue(this.builder, this.values[consumer.c], 0, this.empty);
+				var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), backing, 0, this.empty); result.value = LLVMBuildInsertValue(this.builder, first, count, 1, this.empty); result.operation = result.value; return result;
+			}
 			result.value = this.load(this.scalar(ssa.cfg.core.flow.checked, consumer.type), total); result.operation = result.value; return result;
 		}
 		var current = this.load(integer, counter); var aggregate = this.lazy_runtime.bases[root - 1];
@@ -1277,7 +1304,7 @@ class RecoverLlvm {
 			value = lowered.value;
 			operation = lowered.operation;
 		}
-		if (op >= 96 && op <= 110) {
+		if (op >= 96 && op <= 110 || op == 115) {
 			var lowered = this.lazy_instruction(ssa, block); value = lowered.value; operation = lowered.operation;
 		}
 		if (op == 82) {
@@ -1355,14 +1382,14 @@ class RecoverLlvm {
 		}
 		if (op == 3) value = this.binary(ssa, row);
 		if (op == 95) {
-			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); var aggregate = this.values[row.a];
+			var receiver = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source); var aggregate = this.values[row.a];
 			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, element);
 			var arguments = new void*[4]; arguments[0] = this.fixed_backings[block.origin - 1]; arguments[1] = this.int32(ssa.cfg.core.flow.checked.types.row(row.type).extent); arguments[2] = LLVMBuildExtractValue(this.builder, aggregate, 0, this.empty);
 			arguments[3] = LLVMConstInt(this.scalar(ssa.cfg.core.flow.checked, element), 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, receiver)) arguments[3] = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
 			operation = this.call(this.range_fills[kind - 1], arguments, true); var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), arguments[0], 0, this.empty); value = LLVMBuildInsertValue(this.builder, first, arguments[1], 1, this.empty);
 		}
 		if (op == 94) {
-			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
+			var receiver = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
 			if (row.a > 0) aggregate = this.values[row.a];
 			else {
 				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, receiver), this.owner_addresses[row.symbol.index]);
@@ -1381,7 +1408,7 @@ class RecoverLlvm {
 			var first = LLVMBuildInsertValue(this.builder, LLVMConstNull(this.text), backing, 0, this.empty); value = LLVMBuildInsertValue(this.builder, first, count, 1, this.empty);
 		}
 		if (op == 93) {
-			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
+			var receiver = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
 			if (row.a > 0) aggregate = this.values[row.a];
 			else {
 				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, receiver), this.owner_addresses[row.symbol.index]);
@@ -1397,7 +1424,7 @@ class RecoverLlvm {
 			value = LLVMBuildInsertValue(this.builder, value, step, 3, this.empty);
 		}
 		if (op == 88) {
-			var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+			var type = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source);
 			void* aggregate = this.locals[row.symbol.index];
 			if (row.a > 0) aggregate = this.values[row.a];
 			else {
@@ -2579,7 +2606,7 @@ class RecoverLlvm {
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
 			if (row.kind == 99) {
-				var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
 				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) {
 					if (!range_sequence_type_verified(ssa.cfg.core.flow.checked.types, base)) return false;
 					var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, base, 0).type;
@@ -2593,7 +2620,7 @@ class RecoverLlvm {
 				int kind = checked_kind(ssa.cfg.core.flow.checked, element); needed[(kind - 1) * 2 + 1] = true;
 			}
 			if (row.kind == 88) {
-				var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+				var type = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source);
 				if (!range_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
 				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, element);
@@ -2716,6 +2743,16 @@ class RecoverLlvm {
 		int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 99 && row.c > 0) {
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
+				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) {
+					int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.lazy_element(base, 0));
+					if (kind < 1 || kind > 10) {
+						throw new Error("LLVM_INVALID_UPSTREAM: collector range base");
+					}
+					if (this.range_counts[kind-1] == null) this.range_counts[kind-1] = recover_range_count_helper(this.context, this.module, this.builder, this.handles, this.trap_function, kind);
+				}
+			}
 			if (row.kind == 94 || row.kind == 95) {
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type);
 				if (kind < 1 || kind > 10 || row.kind == 94 && !range_collect_verified(ssa.cfg.core.flow.checked, row.source) || row.kind == 95 && !range_fixed_verified(ssa.cfg.core.flow.checked, row.source)) {
@@ -2737,9 +2774,16 @@ class RecoverLlvm {
 		var needed = new bool[10]; var fill_needed = new bool[10]; int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 99 && row.c > 0) {
+				if (!lazy_collection_verified(ssa.cfg.core.flow.checked, row.source)) return false;
+				var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
+				if (checked_kind(ssa.cfg.core.flow.checked, base) != 40) {
+					int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.lazy_element(base, 0)); if (kind < 1 || kind > 10) return false; needed[kind-1] = true;
+				}
+			}
 			if (row.kind == 94 || row.kind == 95) {
 				if (row.kind == 94 && !range_collect_verified(ssa.cfg.core.flow.checked, row.source) || row.kind == 95 && !range_fixed_verified(ssa.cfg.core.flow.checked, row.source)) return false;
-				var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
+				var receiver = lazy_receiver_type(ssa.cfg.core.flow.checked, row.source);
 				int kind = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, receiver, 0).type);
 				if (kind < 1 || kind > 10) return false;
 				if (row.kind == 94) needed[kind - 1] = true;

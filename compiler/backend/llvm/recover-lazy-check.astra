@@ -93,12 +93,12 @@ bool recover_lazy_frame(void* value, void* entry, void* layout, CheckedIndex che
 
 bool recover_lazy_frames_verified(RecoverSsa ssa, RecoverLazyRuntime runtime, void* layout, void*[] entries, void*[] slots, void*[] addresses, void*[] fixed) {
 	int count = ssa.cfg.core.count;
-	if (len(runtime.sources) != count || len(runtime.bases) != count || len(runtime.counters) != count || len(runtime.totals) != count) return false;
+	if (len(runtime.sources) != count || len(runtime.bases) != count || len(runtime.counters) != count || len(runtime.totals) != count || len(runtime.backings) != count || len(runtime.capacities) != count) return false;
 	int roots = 0; int at = 0;
 	while (at < count) {
 		if (ssa.cfg.core.nodes[at].value.kind == 99) roots = roots + 1;
 		else {
-			if (runtime.sources[at] != null || runtime.bases[at] != null || runtime.counters[at] != null || runtime.totals[at] != null) return false;
+			if (runtime.sources[at] != null || runtime.bases[at] != null || runtime.counters[at] != null || runtime.totals[at] != null || runtime.backings[at] != null || runtime.capacities[at] != null) return false;
 		}
 		at = at + 1;
 	}
@@ -107,10 +107,12 @@ bool recover_lazy_frames_verified(RecoverSsa ssa, RecoverLazyRuntime runtime, vo
 	while (at < count) {
 		var row = ssa.cfg.core.nodes[at].value;
 		if (row.kind == 99) {
-			var base = recover_lazy_base(ssa.cfg.core.flow.checked, range_query_receiver(ssa.cfg.core.flow.checked, row.source));
-			if (!recover_lazy_frame(runtime.counters[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)) || !recover_lazy_frame(runtime.totals[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, row.type) || LLVMGetNextInstruction(runtime.counters[at]) != runtime.totals[at]) return false;
+			var base = recover_lazy_base(ssa.cfg.core.flow.checked, lazy_receiver_type(ssa.cfg.core.flow.checked, row.source));
+			if (!recover_lazy_frame(runtime.counters[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)) || !recover_lazy_frame(runtime.totals[at], entries[row.function - 1], layout, ssa.cfg.core.flow.checked, recover_lazy_total_type(ssa.cfg.core.flow.checked, row)) || LLVMGetNextInstruction(runtime.counters[at]) != runtime.totals[at]) return false;
 			int initialize = recover_cfg_lazy_initialize(ssa.cfg, at + 1);
 			if (!ssa.data.reachable[initialize - 1] && (runtime.sources[at] != null || runtime.bases[at] != null)) return false;
+			bool materialized = row.c > 0 && ssa.data.reachable[initialize-1];
+			if (materialized && (runtime.backings[at] == null || runtime.capacities[at] == null) || !materialized && (runtime.backings[at] != null || runtime.capacities[at] != null)) return false;
 			frames[used] = runtime.counters[at]; frames[used + 1] = runtime.totals[at]; used = used + 2;
 		}
 		at = at + 1;
@@ -119,7 +121,7 @@ bool recover_lazy_frames_verified(RecoverSsa ssa, RecoverLazyRuntime runtime, vo
 	return recover_array_backings_distinct(frames, slots, addresses) && recover_array_backings_distinct(frames, fixed, none);
 }
 
-int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, RecoverLazyRuntime runtime, void* layout, void* module, void* physical, void* operation, void*[] blocks, void*[] values, void*[] locals, void*[] addresses) throws Error {
+int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, RecoverLazyRuntime runtime, void* layout, void* module, void* buffer_function, void* physical, void* operation, void*[] blocks, void*[] values, void*[] locals, void*[] addresses) throws Error {
 	var row = ssa.cfg.core.nodes[block.origin - 1].value; int op = block.opcode;
 	var cursor = new RecoverLazyCursor(physical, layout); var term = LLVMGetBasicBlockTerminator(physical);
 	if (op == 96 || op == 97 || op == 98) {
@@ -155,12 +157,12 @@ int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, Recove
 		if (operation != values[row.b]) return 0;
 		return cursor.finish(term, block, values[row.b], blocks);
 	}
-	int root = block.origin; if (op == 100) root = row.c;
+	int root = block.origin; if (op == 100 || op == 115) root = row.c;
 	if (op == 102) {
 		var stage = ssa.cfg.core.nodes[row.c - 1].value; root = stage.c; void* expected = null;
 		if (row.symbol.index == stage.symbol.index) expected = values[stage.a];
 		else {
-			var type = range_query_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c); void* carrier = runtime.sources[root - 1]; int depth = 0;
+			var type = lazy_receiver_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[root - 1].value.source); var target = recover_lazy_stage_type(ssa.cfg.core.flow.data, ssa.cfg.core.flow.checked, row.c); void* carrier = runtime.sources[root - 1]; int depth = 0;
 			while (type.index != target.index && depth < 8) {
 				carrier = cursor.extract(carrier, 0); type = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type; depth = depth + 1;
 			}
@@ -172,8 +174,9 @@ int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, Recove
 		if (expected == null || values[block.origin] != expected || operation != term) return 0;
 		return cursor.finish(term, block, null, blocks);
 	}
-	var consumer = ssa.cfg.core.nodes[root - 1].value; var sequence = range_query_receiver(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
+	var consumer = ssa.cfg.core.nodes[root - 1].value; var sequence = lazy_receiver_type(ssa.cfg.core.flow.checked, consumer.source); var base = recover_lazy_base(ssa.cfg.core.flow.checked, sequence);
 	var counter = runtime.counters[root - 1]; var total = runtime.totals[root - 1]; var integer = LLVMGetAllocatedType(counter); var sum_type = LLVMGetAllocatedType(total); bool array = checked_kind(ssa.cfg.core.flow.checked, base) == 40;
+	bool collected = consumer.c > 0;
 	if (op == 103) {
 		void* aggregate = null; if (row.a > 0) aggregate = values[row.a]; else {
 			aggregate = recover_lazy_symbol_checked(cursor, ssa, row.symbol, locals, addresses);
@@ -189,13 +192,49 @@ int recover_lazy_instruction_verified(RecoverSsa ssa, RecoverBlock block, Recove
 		if (initialized == null || cleared == null || operation != cleared) return 0;
 		return cursor.finish(term, block, null, blocks);
 	}
+	if (op == 115) {
+		var aggregate = runtime.bases[root-1]; if (!collected || aggregate == null) return 0; void* capacity = null;
+		if (array) capacity = cursor.extract(aggregate, 1);
+		else {
+			var arguments = new void*[4]; int at = 0;
+			while (at < 3) {
+				arguments[at] = cursor.extract(aggregate, at);
+				at = at+1;
+			}
+			arguments[3] = LLVMConstInt(integer, 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, base)) arguments[3] = cursor.extract(aggregate, 3);
+			capacity = cursor.take(45); if (capacity == null) return 0;
+			int kind = checked_kind(ssa.cfg.core.flow.checked, recover_lazy_counter_type(ssa.cfg.core.flow.checked, base)); var function = LLVMGetCalledValue(capacity);
+			if (!recover_range_count_verified(function, kind, module) || !recover_llvm_call(capacity, function, 4, 8)) return 0;
+			at = 0; while (at < 4) {
+				if (arguments[at] == null || LLVMGetArgOperand(capacity, at) != arguments[at]) return 0;
+				at = at+1;
+			}
+		}
+		var backing = cursor.take(45); var output = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, consumer.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, output); int bytes = 1; if (kind != 13) bytes = type_width(kind)/8;
+		if (capacity == null || backing == null || capacity != runtime.capacities[root-1] || backing != runtime.backings[root-1] || backing != operation || !recover_llvm_call(backing, buffer_function, 2, 8) || LLVMGetArgOperand(backing, 0) != capacity || !recover_llvm_bits(LLVMGetArgOperand(backing, 1), 64, bytes as u64)) return 0;
+		var value = values[block.origin]; if (value == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, consumer.type, LLVMTypeOf(value)) || !cursor.field(value, 0, 2, backing) || !cursor.field(value, 1, 2, capacity)) return 0;
+		return cursor.finish(term, block, null, blocks);
+	}
 	if (op == 108) {
+		if (collected) {
+			var index = cursor.load(total); var address = cursor.take(29); if (index == null || address == null || LLVMTypeOf(index) != sum_type || LLVMGetNumOperands(address) != 2 || LLVMGetOperand(address, 0) != runtime.backings[root-1] || LLVMGetOperand(address, 1) != index || LLVMGEPGetNoWrapFlags(address) != 0) return 0;
+			var output = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, consumer.type, 0).type;
+			if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, output, LLVMGetGEPSourceElementType(address))) return 0;
+			var stored = cursor.store(values[block.a], address); var added = cursor.binary(8, index, LLVMConstInt(sum_type, 1, 0)); var advanced = cursor.store(added, total);
+			if (stored == null || advanced == null || operation != advanced) return 0;
+			return cursor.finish(term, block, null, blocks);
+		}
 		var previous = cursor.load(total); int opcode = 8; if (checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 11 || checked_kind(ssa.cfg.core.flow.checked, consumer.type) == 12) opcode = 9;
 		var added = cursor.binary(opcode, previous, values[block.a]); var stored = cursor.store(added, total);
 		if (stored == null || stored != operation) return 0;
 		return cursor.finish(term, block, null, blocks);
 	}
 	if (op == 109) {
+		if (collected) {
+			var length = cursor.load(total); var backing = cursor.extract(values[consumer.c], 0); var value = values[root];
+			if (length == null || backing == null || value == null || operation != value || LLVMTypeOf(length) != sum_type || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, consumer.type, LLVMTypeOf(value)) || !cursor.field(value, 0, 2, backing) || !cursor.field(value, 1, 2, length)) return 0;
+			return cursor.finish(term, block, null, blocks);
+		}
 		var loaded = cursor.load(total); if (loaded == null || operation != loaded || values[root] != loaded || LLVMTypeOf(loaded) != sum_type) return 0;
 		return cursor.finish(term, block, null, blocks);
 	}

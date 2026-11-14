@@ -29,6 +29,7 @@ bool lambda_scalar(CheckedIndex index, TypeId type) {
 }
 
 bool lambda_source_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index > 0 && node.index < len(index.uses) && index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) return syntax_comprehension_verified(index.bindings.program.arena, node);
 	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.LambdaExpressionSyntax() || !checked_modern_source(index, node)) return false;
 	var data = index.bindings.program.arena.lambda_expression(node); if (data.f_binding.index < 1 || data.f_arrow.index < 1 || data.f_expression.index < 1) return false;
 	var whole = index.bindings.program.arena.header(node).span; var binding = index.bindings.program.arena.token_span(data.f_binding); var arrow = index.bindings.program.arena.token_span(data.f_arrow); var body = index.bindings.program.arena.header(data.f_expression).span;
@@ -156,25 +157,50 @@ TypeId checked_lambda(CheckedIndex index, SyntaxNodeId node, TypeId input, int d
 		TypeEdge capture = {type = type, flags = capture_flags}; edges[at + 2] = capture; at = at + 1;
 	}
 	int throwing = 0; if (facts.throwing) throwing = 1;
-	var type = index.types.intern(38, parameter, throwing, edges); var use = index.uses[node.index]; use.flags = flags; use.deferred = 0; index.uses[node.index] = use;
+	var type = index.types.intern(38, parameter, throwing, edges);
+	// A comprehension's public use is its owned buffer. Its finite callable
+	// has the genuine source binder as nominal identity, without a fake AST.
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) return type;
+	var use = index.uses[node.index]; use.flags = flags; use.deferred = 0; index.uses[node.index] = use;
 	return index.record(node, type, flags);
+}
+
+TypeId lambda_callable_type(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses)) return no_type();
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.LambdaExpressionSyntax()) return index.uses[node.index].type;
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.ComprehensionExpressionSyntax()) return no_type();
+	var parameter = index.node_symbols[node.index]; if (parameter.index < 1) return no_type(); int at = 1;
+	while (at <= index.types.count && at <= 8000000) {
+		var type = type_id(at); var row = index.types.row(type);
+		if (row.kind == 38 && row.nominal.index == parameter.index && index.types.inline_callable_type(type)) return type;
+		at = at+1;
+	}
+	return no_type();
+}
+
+SyntaxTokenId lambda_arrow(CheckedIndex index, SyntaxNodeId node) {
+	if (index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) return index.bindings.program.arena.comprehension_expression(node).f_arrow;
+	return index.bindings.program.arena.lambda_expression(node).f_arrow;
 }
 
 bool lambda_verified(CheckedIndex index, SyntaxNodeId node) {
 	if (node.index < 1 || node.index >= len(index.uses)) return false;
-	var use = index.uses[node.index]; if (!index.types.inline_callable_type(use.type) || use.deferred != 0) return false;
+	var use = index.uses[node.index]; var callable = lambda_callable_type(index, node); if (!index.types.inline_callable_type(callable)) return false;
+	bool comprehension = index.bindings.program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax();
+	if (!comprehension && use.deferred != 0 || comprehension && (use.deferred != 19 || use.flags != 4 || checked_kind(index, use.type) != 22)) return false;
 	var facts = lambda_facts(index, node); if (!facts.valid) return false;
-	var shape = index.types.row(use.type); var parameter = index.node_symbols[node.index]; var body = index.bindings.program.arena.get_node_expression(node);
+	var shape = index.types.row(callable); var parameter = index.node_symbols[node.index]; var body = index.bindings.program.arena.get_node_expression(node);
 	int throwing = 0; if (facts.throwing) throwing = 1;
-	if (shape.nominal.index != parameter.index || shape.count != facts.count + 2 || shape.extent != throwing || index.types.argument(index.types, use.type, 0).type.index != index.symbol_types[parameter.index].index || index.types.argument(index.types, use.type, 1).type.index != index.uses[body.index].type.index) return false;
+	if (shape.nominal.index != parameter.index || shape.count != facts.count + 2 || shape.extent != throwing || index.types.argument(index.types, callable, 0).type.index != index.symbol_types[parameter.index].index || index.types.argument(index.types, callable, 1).type.index != index.uses[body.index].type.index) return false;
 	int flags = 0; int at = 0;
 	while (at < facts.count) {
 		var type = index.symbol_types[facts.captures[at].index]; int capture_flags = 0; if (!lambda_scalar(index, type)) {
 			capture_flags = 2;
 			flags = 2;
 		}
-		var actual = index.types.argument(index.types, use.type, at + 2); if (actual.type.index != type.index || actual.flags != capture_flags) return false;
+		var actual = index.types.argument(index.types, callable, at + 2); if (actual.type.index != type.index || actual.flags != capture_flags) return false;
 		at = at + 1;
 	}
+	if (comprehension) return index.types.argument(index.types, use.type, 0).type.index == index.uses[body.index].type.index && index.types.argument(index.types, use.type, 0).flags == 0 && index.types.inline_callable_flags(callable) == flags;
 	return use.flags == flags;
 }

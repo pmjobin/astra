@@ -162,6 +162,7 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 	int reached = recover_ssa_dominance_order(blocks, count, entries, post, rank, limits, loops, dfs_parent, work);
 	if (reached < 1) return false;
 	var parent = new int[count + 1];
+	var join_next = new int[count + 1];
 	// Finished negative postorder ranks already have reverse-postorder order.
 	// Their common offset is irrelevant; no separate rank assignment scan.
 	int i = 0;
@@ -174,18 +175,32 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 	// separately so a loop in one function cannot rescan every other function.
 	f = 0;
 	while (f < len(entries)) {
+		int join_head = 0; int join_tail = 0;
 		bool changed = true; bool initial = true;
 		while (changed) {
 			changed = false; bool unknown = false;
-			i = limits[f + 1] - 1;
-			while (i >= limits[f]) {
+			i = limits[f + 1] - 1; int next_join = join_head;
+			while (initial && i >= limits[f] || !initial && next_join > 0) {
 				if (!work.take()) return false;
-				int node = post[i]; i = i - 1;
+				int node = next_join;
+				if (initial) {
+					node = post[i];
+					i = i-1;
+				}
+				else {
+					next_join = join_next[node];
+				}
 				if (parent[node] == node) continue;
-				int candidate = 0; int edge = incoming[node];
+				int candidate = 0; int edge = incoming[node]; int first_predecessor = 0; bool joined = false;
 				while (edge > 0) {
 					if (!work.take()) return false;
 					int predecessor = (edge - 1) / 2 + 1; edge = links[edge];
+					if (initial && rank[predecessor] != 0) {
+						if (first_predecessor == 0) first_predecessor = predecessor;
+						else {
+							if (first_predecessor != predecessor) joined = true;
+						}
+					}
 					if (parent[predecessor] == 0) {
 						unknown = true;
 						continue;
@@ -216,6 +231,17 @@ bool recover_ssa_build_dominance(RecoverBlock[] blocks, int count, int[] entries
 					}
 				}
 				if (candidate == 0 || rank[candidate] >= rank[node]) return false;
+				// A node with one distinct reachable predecessor always has
+				// that predecessor as its immediate dominator. Revisit only
+				// genuine joins; their updated ancestor chains include the
+				// unchanged straight paths without rescanning those paths.
+				if (initial && joined) {
+					if (join_tail == 0) join_head = node;
+					else {
+						join_next[join_tail] = node;
+					}
+					join_tail = node;
+				}
 				if (parent[node] != candidate) {
 					parent[node] = candidate;
 					changed = true;
@@ -338,7 +364,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 			else {
 				type = cfg.core.nodes[row.origin - 1].value.type;
 				if (recover_error_new_kind(row.opcode)) channel = 1;
-				if ((row.opcode == 113 || row.opcode == 94 || row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
+				if ((row.opcode == 109 || row.opcode == 115 || row.opcode == 113 || row.opcode == 94 || row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
 			}
 		}
 	} RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
@@ -537,7 +563,7 @@ bool recover_ssa_verify_details(RecoverSsa ssa, int[] detail) {
 		owners.positions[b - 1] = owner_position;
 		owners.blocks[owners.starts[row.function - 1] + owner_position] = b;
 		if (!recover_ssa_block_facts(ssa.cfg, b, locals, owners)) return recover_ssa_refuse(work, detail);
-		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || ssa.cfg.core.nodes[row.origin - 1].value.kind == 80) || row.opcode == 11 || row.opcode == 67 || row.opcode == 71 || row.opcode == 85 || row.opcode == 44)) {
+		if (row.origin > 0 && (row.opcode == 22 || row.opcode == 27 || row.opcode == 4 || row.opcode == 69 || row.opcode == 62 && (ssa.cfg.core.nodes[row.origin - 1].value.kind == 77 || ssa.cfg.core.nodes[row.origin - 1].value.kind == 80) || row.opcode == 11 || row.opcode == 67 || row.opcode == 71 || row.opcode == 85 || row.opcode == 109 || row.opcode == 44)) {
 			if (consumers[row.origin] == 0) consumers[row.origin] = b;
 			else {
 				consumers[row.origin] = -1;

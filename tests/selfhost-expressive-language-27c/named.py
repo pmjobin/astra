@@ -996,6 +996,120 @@ extern(C) int format_allocations_since();
 extern(C) f32 format_f32(int selector);
 extern(C) f64 format_f64(int selector);
 '''
+COLLECTION_OBSERVE = '''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+extern(C) int watched_frees();
+extern(C) int visit(int value);
+extern(C) int visits();
+'''
+COLLECTION_CASES = [
+	('comprehension-squares', COLLECTION_OBSERVE+'''int main() {
+	var values = [for (var i in 0..100) => visit(i*i)];
+	if (len(values) != 100 || visits() != 100 || allocation_calls() != 1 || allocation_bytes() != 400) return 1;
+	int at = 0; while (at < 100) { if (values[at] != at*at) return 2; at = at+1; }
+	return 42;
+}
+''', COLLECTION_OBSERVE+'''int main() {
+	owned int[] values = new int[100]; int at = 0;
+	while (at < 100) { values[at] = visit(at*at); at = at+1; }
+	if (len(values) != 100 || visits() != 100 || allocation_calls() != 1 || allocation_bytes() != 400) return 1;
+	at = 0; while (at < 100) { if (values[at] != at*at) return 2; at = at+1; }
+	return 42;
+}
+''', False),
+	('collection-filter-order', COLLECTION_OBSERVE+TICKS+'''int main() {
+	int bias = 3; reset_trace(); var pipeline = (0..5).map(i => tick(i+1)+bias).filter(x => tick(x)>5).map(y => y*y); bias = 100;
+	if (trace() != 0 || allocation_calls() != 0) return 1;
+	var values = pipeline.collect_array();
+	if (len(values) != 3 || values[0] != 36 || values[1] != 49 || values[2] != 64 || trace() != 1425364758 || allocation_calls() != 1 || allocation_bytes() != 20) return 2;
+	return 42;
+}
+''', COLLECTION_OBSERVE+TICKS+'''int main() {
+	int bias = 3; reset_trace(); int captured = bias; bias = 100;
+	if (trace() != 0 || allocation_calls() != 0) return 1;
+	// C0's explicit storage oracle carries a separate logical used count.
+	// The final buffer has source-count capacity, just as the new collector.
+	owned int[] values = new int[5]; int used = 0; int at = 0;
+	while (at < 5) { int mapped = tick(at+1)+captured; if (tick(mapped)>5) { values[used] = mapped*mapped; used = used+1; } at = at+1; }
+	if (used != 3 || values[0] != 36 || values[1] != 49 || values[2] != 64 || trace() != 1425364758 || allocation_calls() != 1 || allocation_bytes() != 20) return 2;
+	return 42;
+}
+''', False),
+	('collection-scalar-widths', COLLECTION_OBSERVE+'''int main() {
+	i8[3] input = {-128,0,127}; var narrow = input.iter().map(x => x+(1 as i8)).collect_array();
+	if (len(narrow) != 3 || narrow[0] != -127 || narrow[1] != 1 || narrow[2] != -128) return 1;
+	int[3] flags = {1,0,1}; var selected = flags.iter().map(bit => bit != 0).filter(flag => flag).collect_array(); if (len(selected) != 2 || !selected[0] || !selected[1]) return 2;
+	f64[3] floats = {1.0d,2.0d,3.0d}; var squares = floats.iter().map(value => value*value).collect_array(); if (len(squares) != 3 || squares[0] != 1.0d || squares[1] != 4.0d || squares[2] != 9.0d) return 3;
+	if (allocation_calls() != 3 || allocation_bytes() != 30) return 4;
+	return 42;
+}
+''', COLLECTION_OBSERVE+'''int main() {
+	i8[3] input = {-128,0,127}; owned i8[] narrow = new i8[3]; int at = 0; while (at < 3) { narrow[at] = input[at]+(1 as i8); at = at+1; }
+	if (len(narrow) != 3 || narrow[0] != -127 || narrow[1] != 1 || narrow[2] != -128) return 1;
+	// C0 rejects owned bool arrays; bytes provide an explicit one-byte
+	// representation oracle with the same logical values and allocation cost.
+	u8[3] flags = {1,0,1}; owned u8[] selected = new u8[3]; int used = 0; at = 0; while (at < 3) { if (flags[at] != 0) { selected[used] = flags[at]; used = used+1; } at = at+1; } if (used != 2 || selected[0] != 1 || selected[1] != 1) return 2;
+	f64[3] floats = {1.0d,2.0d,3.0d}; owned f64[] squares = new f64[3]; at = 0; while (at < 3) { squares[at] = floats[at]*floats[at]; at = at+1; } if (len(squares) != 3 || squares[0] != 1.0d || squares[1] != 4.0d || squares[2] != 9.0d) return 3;
+	if (allocation_calls() != 3 || allocation_bytes() != 30) return 4;
+	return 42;
+}
+''', False),
+	('collection-callback-retirement', COLLECTION_OBSERVE+TICKS+ITEM+'''int probe(int value) throws Error { int ignored = tick(value+1); if (value == 2) { throw new Error("collector stop"); } return value; }
+int attempt(bool comprehension) {
+	try {
+		var item = new Item(42);
+		if (comprehension) { var values = [for (var i in 0..13) => probe(i)]; return 1; }
+		else { var values = (0..13).map(i => probe(i)).collect_array(); return 2; }
+	} catch (Error error) { return 42; }
+}
+int main() {
+	reset_trace(); if (attempt(false) != 42 || trace() != 123 || drops() != 1 || drop_sum() != 42 || watched_frees() != 1) return 3;
+	reset_trace(); if (attempt(true) != 42 || trace() != 123 || drops() != 2 || drop_sum() != 84 || watched_frees() != 2) return 4;
+	return 42;
+}
+''', COLLECTION_OBSERVE+TICKS+ITEM+'''int probe(int value) throws Error { int ignored = tick(value+1); if (value == 2) { throw new Error("collector stop"); } return value; }
+int attempt(bool comprehension) {
+	try { var item = new Item(42); owned int[] values = new int[13]; int at = 0; while (at < 13) { values[at] = probe(at); at = at+1; } return 1; }
+	catch (Error error) { return 42; }
+}
+int main() {
+	reset_trace(); if (attempt(false) != 42 || trace() != 123 || drops() != 1 || drop_sum() != 42 || watched_frees() != 1) return 3;
+	reset_trace(); if (attempt(true) != 42 || trace() != 123 || drops() != 2 || drop_sum() != 84 || watched_frees() != 2) return 4;
+	return 42;
+}
+''', True),
+	('comprehension-owned-return', COLLECTION_OBSERVE+'''owned int[] make() { return [for (var i in (20..=80).step_by(5)) => i]; }
+int main() {
+	var values = make(); if (len(values) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int at = 0; while (at < 13) { if (values[at] != 20+at*5) return 2; at = at+1; }
+	values = [for (var j in 0..13) => j+20];
+	if (len(values) != 13 || values[0] != 20 || values[12] != 32 || allocation_calls() != 2 || allocation_bytes() != 104 || watched_frees() != 1) return 3;
+	return 42;
+}
+''', COLLECTION_OBSERVE+'''owned int[] make() { owned int[] values = new int[13]; int at = 0; while (at < 13) { values[at] = 20+at*5; at = at+1; } return move values; }
+owned int[] other() { owned int[] values = new int[13]; int at = 0; while (at < 13) { values[at] = at+20; at = at+1; } return move values; }
+int main() {
+	var values = make(); if (len(values) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int at = 0; while (at < 13) { if (values[at] != 20+at*5) return 2; at = at+1; }
+	values = other();
+	if (len(values) != 13 || values[0] != 20 || values[12] != 32 || allocation_calls() != 2 || allocation_bytes() != 104 || watched_frees() != 1) return 3;
+	return 42;
+}
+''', False),
+]
+COLLECTION_NEGATIVE = [
+	('comprehension-runtime-bound', 'int main() { int count = 13; var data = [for (var i in 0..count) => i]; return 42; }'),
+	('comprehension-count-limit', 'int main() { var data = [for (var i in 0..1048577) => i]; return 42; }'),
+	('comprehension-zero-stride', 'int main() { var data = [for (var i in (0..13).step_by(0)) => i]; return 42; }'),
+	('comprehension-owned-element', 'class Item { init() {} } int main() { var data = [for (var i in 0..13) => new Item()]; return 42; }'),
+	('comprehension-fixed-context', 'int main() { int[13] data = [for (var i in 0..13) => i]; return 42; }'),
+	('comprehension-unqualified-filter', 'int main() { var data = [for (var i in 0..13) if (i>0) => i]; return 42; }'),
+	('collection-callback-owner-move', 'int take(owned int[] data) { return len(data); } int main() { owned int[] data = new int[13]; var output = (0..13).map(i => take(move data)).collect_array(); return 42; }'),
+	('collection-capture-owner-replacement', 'int main() { owned int[] data = new int[13]; var pipeline = data.iter().map(i => i+1); data = new int[13]; var result = pipeline.collect_array(); return 42; }'),
+	('collection-lazy-escape', 'owned int[] bad() { owned int[] data = new int[13]; return data.iter().map(i => i+1); } int main() { return 42; }'),
+	('collection-borrow-result', 'borrowed int[] bad() { return (0..13).map(i => i+1).collect_array(); } int main() { return 42; }'),
+	('collection-copy-owner', 'int main() { var data = (0..13).map(i => i+1).collect_array(); var copy = data; return 42; }'),
+]
 FORMAT_CASES = [
 	('format-sink-scalars', FORMAT_OBSERVE+'''int main() {
 		try {
@@ -1149,7 +1263,7 @@ def main():
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
-	p.add_argument('--feature', choices=('named', 'match', 'range', 'format'), default='named')
+	p.add_argument('--feature', choices=('named', 'match', 'range', 'format', 'collection'), default='named')
 	a = p.parse_args()
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
@@ -1170,12 +1284,12 @@ def main():
 		log = (runtime/name/'stderr').read_bytes()
 		assert all(m in log for m in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
 	bridge = runtime/'observe.c'
-	bridge.write_text('#include <stdint.h>\n#include <string.h>\nstatic int seen, retired, sum;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\nfloat format_f32(int selector) { uint32_t bits = selector == 1 ? UINT32_C(3217031168) : UINT32_C(2143289344); float value; memcpy(&value, &bits, sizeof value); return value; }\ndouble format_f64(int selector) { uint64_t bits = selector == 1 ? UINT64_C(4607182418800017408) : UINT64_C(9218868437227405312); double value; memcpy(&value, &bits, sizeof value); return value; }\n')
+	bridge.write_text('#include <stdint.h>\n#include <string.h>\nstatic int seen, retired, sum, visited;\nstatic unsigned order;\nint tick(int v) { seen = seen*10+v; return v; }\nint trace(void) { return seen; }\nvoid reset_trace(void) { seen = 0; }\nvoid note_drop(int v) { ++retired; sum += v; order = order*100+v; }\nint drops(void) { return retired; }\nint drop_sum(void) { return sum; }\nint drop_order(void) { return order; }\nvoid reset_drops(void) { retired = 0; sum = 0; order = 0; }\nint c_sum(int first, int last) { return first+last; }\nint visit(int value) { ++visited; return value; }\nint visits(void) { return visited; }\nfloat format_f32(int selector) { uint32_t bits = selector == 1 ? UINT32_C(3217031168) : UINT32_C(2143289344); float value; memcpy(&value, &bits, sizeof value); return value; }\ndouble format_f64(int selector) { uint64_t bits = selector == 1 ? UINT64_C(4607182418800017408) : UINT64_C(9218868437227405312); double value; memcpy(&value, &bits, sizeof value); return value; }\n')
 	inputs[str(bridge)] = sha(bridge); bridge_object = build/'observe.o'
 	run('C-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', bridge, '-o', bridge_object])
 	objects = [*providers, str(bridge_object)]
 	allocation_source = runtime/'allocation-observer.c'
-	allocation_source.write_text('#include <stddef.h>\nvoid *__real_calloc(size_t, size_t);\nvoid *__real_malloc(size_t);\nvoid *__real_realloc(void *, size_t);\nstatic int calls, bytes, total, mark;\nvoid *__wrap_calloc(size_t count, size_t size) { ++calls; ++total; bytes += (int)(count*size); return __real_calloc(count,size); }\nvoid *__wrap_malloc(size_t size) { ++total; return __real_malloc(size); }\nvoid *__wrap_realloc(void *pointer, size_t size) { ++total; return __real_realloc(pointer,size); }\nint allocation_calls(void) { return calls; }\nint allocation_bytes(void) { return bytes; }\nvoid format_allocation_mark(void) { mark = total; }\nint format_allocations_since(void) { return total-mark; }\n')
+	allocation_source.write_text('#include <stddef.h>\nvoid *__real_calloc(size_t, size_t);\nvoid *__real_malloc(size_t);\nvoid *__real_realloc(void *, size_t);\nvoid __real_free(void *);\nstatic int calls, bytes, total, mark, frees;\nstatic void *watched[32];\nvoid *__wrap_calloc(size_t count, size_t size) { ++calls; ++total; bytes += (int)(count*size); void *result = __real_calloc(count,size); if (count*size==52) { for (int i=0; i<32; ++i) { if (!watched[i]) { watched[i]=result; break; } } } return result; }\nvoid *__wrap_malloc(size_t size) { ++total; return __real_malloc(size); }\nvoid *__wrap_realloc(void *pointer, size_t size) { ++total; return __real_realloc(pointer,size); }\nvoid __wrap_free(void *pointer) { if (pointer) { for (int i=0; i<32; ++i) { if (pointer==watched[i]) { ++frees; watched[i]=NULL; break; } } } __real_free(pointer); }\nint allocation_calls(void) { return calls; }\nint allocation_bytes(void) { return bytes; }\nint watched_frees(void) { return frees; }\nvoid format_allocation_mark(void) { mark = total; }\nint format_allocations_since(void) { return total-mark; }\n')
 	inputs[str(allocation_source)] = sha(allocation_source); allocation_object = build/'allocation-observer.o'
 	run('C-allocation-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', allocation_source, '-o', allocation_object])
 	cases = [r for r in CASES if not a.case or r[0] in a.case]
@@ -1190,6 +1304,9 @@ def main():
 	if a.feature == 'format':
 		cases = [r for r in FORMAT_CASES if not a.case or r[0] in a.case]
 		negatives = FORMAT_NEGATIVE
+	if a.feature == 'collection':
+		cases = [r for r in COLLECTION_CASES if not a.case or r[0] in a.case]
+		negatives = COLLECTION_NEGATIVE
 	assert cases and (not a.case or set(a.case) == {r[0] for r in cases})
 	for name, modern, expanded, errors in cases:
 		source = runtime/(name+'.astra'); source.write_text('language astra27b;\n'+modern)
@@ -1201,7 +1318,7 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-', 'collection-', 'comprehension-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', '-Wl,--wrap=free', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])
@@ -1209,7 +1326,7 @@ def main():
 		else:
 			run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
 		run(name+'-C0-native', [reference], 42); products[str(reference)] = sha(reference)
-		if a.feature == 'format': memory(name+'-C0-memory', [reference], 42)
+		if a.feature in ('format', 'collection'): memory(name+'-C0-memory', [reference], 42)
 		if a.oracle_only: continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o'); target = build/(name+'-'+mode)
