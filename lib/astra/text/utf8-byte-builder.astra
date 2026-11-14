@@ -60,4 +60,28 @@ class Utf8ByteBuilder {
 		var message = utf8_message(exact);
 		return move message;
 	}
+
+	// Counted text appends directly into the provided destination. In contrast
+	// to assembling a temporary byte fragment, this needs no scratch buffer.
+	bool append_text(string fragment) {
+		int incoming = fragment.byte_length;
+		if (incoming < 0 || incoming > 2147483647 - this.used) return false;
+		if (incoming == 0) return true;
+		int required = this.used + incoming;
+		if (required > len(this.backing)) {
+			int target = len(this.backing); if (target == 0) target = 1;
+			while (target < required) {
+				if (target > 1073741823) target = required;
+				else {
+					target = target * 2;
+				}
+			}
+			if (!this.reserve(target)) return false;
+		}
+		int at = 0;
+		while (at < incoming) {
+			this.backing[this.used + at] = astra_host_text_byte(fragment, at) as u8; at = at + 1;
+		}
+		this.used = required; return true;
+	}
 }

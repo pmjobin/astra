@@ -192,6 +192,32 @@ void expressive_lambda_syntax() throws Error {
 	var missing = expressive_program("language astra27b; int main() { return apply(i => ); }"); assert_that(missing.failed());
 }
 
+void expressive_interpolation_syntax() throws Error {
+	var program = expressive_program("language astra27b; int main() { format_into(builder, $\"{{offset}} {offset}, count {size(1, 2)}; \\u00e9\"); format_text($\"{42}\"); format_text($\"\"); return 42; }");
+	assert_that(!program.failed() && syntax_program_languages_verified(program)); int plans = 0; int at = 1;
+	while (at <= program.arena.node_count) {
+		SyntaxNodeId node = {index = at};
+		if (program.arena.kind(node) == SyntaxKind.InterpolationExpressionSyntax()) {
+			assert_that(syntax_interpolation_verified(program.arena, node)); var original = program.arena.interpolation_expression(node);
+			SyntaxListId absent = {index = 0}; var changed = original; changed.f_parts = absent; program.arena.replace_interpolation_expression(node, changed);
+			assert_that(!syntax_interpolation_verified(program.arena, node)); program.arena.replace_interpolation_expression(node, original); assert_that(syntax_interpolation_verified(program.arena, node));
+			if (plans == 0) {
+				var text = program.arena.payload_message(program.arena.token_at(original.f_parts, 0));
+				assert_that(text.text == "{offset} ");
+				assert_that(program.arena.list_count(original.f_arguments) == 2);
+			}
+			plans = plans + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(plans == 3);
+	var legacy = expressive_program("language legacy27a; int main() { format_text($\"value {42}\"); return 42; }"); assert_that(legacy.failed());
+	var unclosed = expressive_program("language astra27b; int main() { format_text($\"value {42\"); return 42; }"); assert_that(unclosed.failed());
+	var empty = expressive_program("language astra27b; int main() { format_text($\"value {}\"); return 42; }"); assert_that(empty.failed());
+	var brace = expressive_program("language astra27b; int main() { format_text($\"value }\"); return 42; }"); assert_that(brace.failed());
+	var nested = expressive_program("language astra27b; int main() { format_text($\"{format_text($\"nested\")}\"); return 42; }"); assert_that(nested.failed());
+}
+
 int main() {
 	try {
 		expressive_argument_labels();
@@ -199,6 +225,7 @@ int main() {
 		expressive_range_tokens();
 		expressive_compound_receivers();
 		expressive_lambda_syntax();
+		expressive_interpolation_syntax();
 		return 42;
 	} catch (Error error) {
 		return 1;

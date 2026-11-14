@@ -294,6 +294,9 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (index.field_effects && kind == SyntaxKind.MatchExpressionSyntax()) return checked_enum_match_expression(index, node, expected, depth);
+	if (kind == SyntaxKind.InterpolationExpressionSyntax()) {
+		index.fail(index.bindings.program.arena.header(node).span, "interpolation is an immediate format_into/format_text argument and cannot escape as a value"); return no_type();
+	}
 	if (kind == SyntaxKind.LambdaExpressionSyntax()) {
 		if (lambda_verified(index, node)) return index.uses[node.index].type;
 		index.fail(index.bindings.program.arena.header(node).span, "lambda requires a scalar input context from a finite iterator operation"); return no_type();
@@ -676,6 +679,7 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (formatting_action(index, node) != 0) return checked_formatting_call(index, node, depth);
 	if (lazy_call_action(index, node) != 0) {
 		var result = checked_lazy_call(index, node, depth);
 		if (result.index != 0 || index.failed()) return result;

@@ -24,5 +24,10 @@ int main() {
 	assert_that(stride.index > 0 && types.integer_stride_type(stride) && !types.integer_range_type(stride) && !types.integer_stride_type(range) && !types.integer_stride_type(closure));
 	assert_that(types.unary(37, type_id(13), 0).index == 0 && types.unary(37, type_id(12), 0).index == 0 && types.unary(37, type_id(1), 1).index == 0);
 	assert_that(types.intern(37, type_symbol(0), 0, owned_channels).index == 0 && types.valid());
+	var format_edges = new TypeEdge[2]; format_edges[0] = integer; TypeEdge text_edge = {type = type_id(15), flags = 2}; format_edges[1] = text_edge;
+	var plan = types.intern(41, type_symbol(0), 0, format_edges); assert_that(plan.index > 0 && types.format_plan_type(plan) && types.valid());
+	text_edge.flags = 4; format_edges[1] = text_edge; assert_that(types.intern(41, type_symbol(0), 0, format_edges).index == 0);
+	format_edges[1] = integer; format_edges[0] = changed; assert_that(types.intern(41, type_symbol(0), 0, format_edges).index == 0);
+	assert_that(types.intern(41, type_symbol(1), 0, none).index == 0 && types.intern(41, type_symbol(0), 1, none).index == 0);
 	return 42;
 }

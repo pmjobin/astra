@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Interpolation is an immediate typed argument plan. It has no storable source
+// type, implicit text conversion, runtime reflection or callable dispatch.
+int formatting_action(CheckedIndex index, SyntaxNodeId node) {
+	if (index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || !checked_modern_source(index, node)) return 0;
+	var token = index.bindings.program.arena.get_token_identifier(node);
+	if (checked_target(index, node, token).index != 0 || index.bindings.program.arena.get_token_receiver(node).index != 0 || index.bindings.program.arena.get_node_receiver_place(node).index != 0) return 0;
+	if (index.bindings.program.arena.token_is(token, "format_into")) return 1;
+	if (index.bindings.program.arena.token_is(token, "format_text")) return 2;
+	return 0;
+}
+
+SymbolId formatting_function(CheckedIndex index, string name) {
+	var result = type_symbol(0); int at = 1;
+	while (at <= index.bindings.symbol_count) {
+		var declaration = index.bindings.symbol(type_symbol(at));
+		if (declaration.kind == 1 && declaration.owner.index == 0 && index.bindings.program.arena.token_is(declaration.token, name)) {
+			if (result.index != 0 || index.symbol_signatures[at].index < 1 || index.symbol_signatures[at].index > index.signature_count || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(declaration.node)) != 0) return type_symbol(0);
+			result = type_symbol(at);
+		}
+		at = at + 1;
+	}
+	return result;
+}
+
+bool formatting_body(CheckedIndex index, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(symbol); var node = declaration.node;
+	return declaration.kind == 1 && declaration.owner.index == 0 && index.bindings.program.arena.get_node_body(node).index > 0 && index.bindings.program.arena.get_token_extern_keyword(node).index == 0 && index.bindings.program.arena.get_token_export_keyword(node).index == 0 && index.bindings.program.arena.get_token_async_keyword(node).index == 0 && index.bindings.program.arena.get_node_foreign_policy(node).index == 0 && index.bindings.program.arena.get_node_foreign_member(node).index == 0 && index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_parameters(node)) == 0;
+}
+
+TypeId formatting_builder_type(CheckedIndex index) {
+	var function = formatting_function(index, "astra_format_text_fragment"); if (!formatting_body(index, function)) return no_type();
+	var signature = index.signatures[index.symbol_signatures[function.index].index - 1]; if (signature.flags != 0 || signature.dispatch != 0 || signature.error.index != 0 || index.types.row(signature.callable).count != 3) return no_type();
+	var result = index.types.argument(index.types, signature.callable, 0); var builder = index.types.argument(index.types, signature.callable, 1); var text = index.types.argument(index.types, signature.callable, 2);
+	if (result.type.index != 13 || result.flags != 0 || builder.flags != 0 || checked_kind(index, builder.type) != 31 || text.type.index != 15 || text.flags != 0) return no_type();
+	var declaration = index.bindings.symbol(index.types.row(builder.type).nominal);
+	if (!index.bindings.program.arena.token_is(declaration.token, "Utf8ByteBuilder")) return no_type();
+	return builder.type;
+}
+
+TypeId formatting_message_type(CheckedIndex index) {
+	var function = formatting_function(index, "utf8_message"); if (function.index == 0) return no_type();
+	var declaration = index.bindings.symbol(function); if (!index.bindings.program.arena.get_bool_utf8_factory(declaration.node)) return no_type();
+	var signature = index.signatures[index.symbol_signatures[function.index].index - 1]; var result = index.types.argument(index.types, signature.callable, 0);
+	if (result.flags != 4 || checked_kind(index, result.type) != 31) return no_type();
+	var message = index.bindings.symbol(index.types.row(result.type).nominal); if (!index.bindings.program.arena.token_is(message.token, "Utf8Message")) return no_type();
+	return result.type;
+}
+
+int formatting_scalar_action(CheckedIndex index, TypeId type) {
+	int kind = checked_kind(index, type);
+	if (kind == 1 || kind == 2 || kind == 4) return 1;
+	if (kind == 3 || kind == 5 || kind == 6) return 2;
+	if (kind == 7 || kind == 9) return 3;
+	if (kind == 8 || kind == 10) return 4;
+	if (kind == 13) return 5;
+	if (kind == 11) return 6;
+	if (kind == 12) return 7;
+	if (kind == 15) return 8;
+	if (kind == 31 && type.index == formatting_message_type(index).index) return 9;
+	return 0;
+}
+
+string formatting_scalar_name(int action) {
+	if (action == 1) return "append_int"; if (action == 2) return "append_u32";
+	if (action == 3) return "append_i64"; if (action == 4) return "append_u64";
+	if (action == 5) return "append_bool"; if (action == 6) return "astra_format_f32_bits";
+	if (action == 7) return "astra_format_f64_bits"; if (action == 9) return "astra_format_message_fragment";
+	return "astra_format_text_fragment";
+}
+
+TypeId formatting_scalar_parameter(CheckedIndex index, int action) {
+	if (action == 1) return type_id(1); if (action == 2 || action == 6) return type_id(6);
+	if (action == 3) return type_id(7); if (action == 4 || action == 7) return type_id(8);
+	if (action == 5) return type_id(13); if (action == 9) return formatting_message_type(index); return type_id(15);
+}
+
+bool formatting_scalar_signature(CheckedIndex index, int action, TypeId builder) {
+	var function = formatting_function(index, formatting_scalar_name(action)); if (!formatting_body(index, function)) return false;
+	var signature = index.signatures[index.symbol_signatures[function.index].index - 1]; if (signature.flags != 0 || signature.dispatch != 0 || signature.error.index != 0 || index.types.row(signature.callable).count != 3) return false;
+	var result = index.types.argument(index.types, signature.callable, 0); var sink = index.types.argument(index.types, signature.callable, 1); var value = index.types.argument(index.types, signature.callable, 2);
+	return result.type.index == 13 && result.flags == 0 && sink.type.index == builder.index && sink.flags == 0 && value.type.index == formatting_scalar_parameter(index, action).index && value.flags == 0;
+}
+
+SyntaxNodeId formatting_plan(CheckedIndex index, SyntaxNodeId call) {
+	int action = formatting_action(index, call); if (action == 0 || !lazy_positional_shape(index, call, 3 - action)) return syntax_no_node();
+	var argument = index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_arguments(call), 2 - action);
+	if (index.bindings.program.arena.kind(argument) != SyntaxKind.InterpolationExpressionSyntax()) return syntax_no_node();
+	return argument;
+}
+
+TypeId formatting_operand_type(CheckedIndex index, SyntaxNodeId node) {
+	var use = index.uses[node.index]; if (use.type.index > 0) return use.type;
+	if (use.deferred == 12 && recover_type_message(index, node).index > 0) return type_id(15);
+	return no_type();
+}
+
+bool formatting_text_operand(CheckedIndex index, SyntaxNodeId node, int action) {
+	if (action != 8 && action != 9) return true;
+	var source = checked_effect_unwrap(index, node); var kind = index.bindings.program.arena.kind(source);
+	if (kind == SyntaxKind.NameExpressionSyntax()) return true;
+	return action == 8 && (kind == SyntaxKind.TextLiteralExpressionSyntax() || kind == SyntaxKind.FieldAccessExpressionSyntax());
+}
+
+bool formatting_plan_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!syntax_interpolation_verified(index.bindings.program.arena, node) || !index.types.format_plan_type(index.uses[node.index].type) || index.uses[node.index].deferred != 0) return false;
+	var arguments = index.bindings.program.arena.interpolation_expression(node).f_arguments; var shape = index.types.row(index.uses[node.index].type); int at = 0; int flags = 0;
+	if (shape.count != index.bindings.program.arena.list_count(arguments)) return false;
+	while (at < shape.count) {
+		var source = index.bindings.program.arena.node_at(arguments, at); var value = index.uses[source.index]; var type = formatting_operand_type(index, source); int action = formatting_scalar_action(index, type);
+		var edge = index.types.argument(index.types, index.uses[node.index].type, at); int expected = 0; if (action == 8 || action == 9) expected = 2;
+		if (action == 0 || !formatting_text_operand(index, source, action) || value.deferred != 0 && value.deferred != 17 && value.deferred != 19 && !(value.deferred == 12 && value.type.index == 0 && type.index == 15) || action != 9 && value.flags != 0 || action == 9 && value.flags != 0 && value.flags != 2 && value.flags != 4 || edge.type.index != type.index || edge.flags != expected) return false;
+		flags = flags | expected; at = at + 1;
+	}
+	return index.uses[node.index].flags == flags;
+}
+
+bool formatting_owned_runtime(CheckedIndex index, TypeId builder, TypeId message) {
+	var create = formatting_function(index, "astra_format_builder"); var finish = formatting_function(index, "astra_format_finish");
+	var drop = formatting_function(index, "astra_format_builder_drop"); var failure = formatting_function(index, "astra_format_failure");
+	if (message.index == 0 || !formatting_body(index, create) || !formatting_body(index, finish) || !formatting_body(index, drop) || !formatting_body(index, failure)) return false;
+	var created = index.signatures[index.symbol_signatures[create.index].index - 1]; var finished = index.signatures[index.symbol_signatures[finish.index].index - 1];
+	var dropped = index.signatures[index.symbol_signatures[drop.index].index - 1]; var failed = index.signatures[index.symbol_signatures[failure.index].index - 1];
+	if (created.flags != 4 || finished.flags != 68 || dropped.flags != 0 || failed.flags != 4 || created.dispatch != 0 || finished.dispatch != 0 || dropped.dispatch != 0 || failed.dispatch != 0 || created.error.index != 0 || dropped.error.index != 0 || failed.error.index != 0 || !checked_effect_signature_verified(index, finished)) return false;
+	if (index.types.row(created.callable).count != 1 || index.types.row(finished.callable).count != 2 || index.types.row(dropped.callable).count != 2 || index.types.row(failed.callable).count != 1) return false;
+	var create_result = index.types.argument(index.types, created.callable, 0); var finish_result = index.types.argument(index.types, finished.callable, 0);
+	var finish_sink = index.types.argument(index.types, finished.callable, 1); var drop_result = index.types.argument(index.types, dropped.callable, 0); var drop_sink = index.types.argument(index.types, dropped.callable, 1); var failure_result = index.types.argument(index.types, failed.callable, 0);
+	if (create_result.type.index != builder.index || create_result.flags != 4 || finish_result.type.index != message.index || finish_result.flags != 4 || finish_sink.type.index != builder.index || finish_sink.flags != 0 || drop_result.type.index != 14 || drop_result.flags != 0 || drop_sink.type.index != builder.index || drop_sink.flags != 4 || failure_result.flags != 4 || checked_kind(index, failure_result.type) != 31 || checked_kind(index, finished.error) != 31) return false;
+	var root = checked_effect_root(index); var failure_class = index.types.row(failure_result.type).nominal; var declaration = index.bindings.symbol(failure_class);
+	return checked_effect_subtype(index, failure_class, root) && checked_effect_subtype(index, index.types.row(finished.error).nominal, root) && index.bindings.program.arena.token_is(declaration.token, "FormatError");
+}
+
+bool formatting_call_verified(CheckedIndex index, SyntaxNodeId node) {
+	int action = formatting_action(index, node); var plan = formatting_plan(index, node); var builder = formatting_builder_type(index);
+	if (action == 0 || plan.index == 0 || builder.index == 0 || !syntax_call_labels_verified(index.bindings.program.arena, node) || !formatting_plan_verified(index, plan) || !formatting_scalar_signature(index, 8, builder)) return false;
+	var data = index.bindings.program.arena.interpolation_expression(plan); int at = 0; bool message_used = action == 2;
+	while (at < index.bindings.program.arena.list_count(data.f_arguments)) {
+		var operand = index.bindings.program.arena.node_at(data.f_arguments, at); int scalar = formatting_scalar_action(index, formatting_operand_type(index, operand));
+		if (!formatting_scalar_signature(index, scalar, builder)) return false; if (scalar == 9) message_used = true; at = at + 1;
+	}
+	if (message_used && !recover_utf8_factory_source(index, formatting_function(index, "utf8_message"))) return false;
+	var use = index.uses[node.index]; if (use.deferred != 19) return false;
+	if (action == 1) {
+		var sink = index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_arguments(node), 0);
+		return index.bindings.program.arena.kind(sink) == SyntaxKind.NameExpressionSyntax() && index.uses[sink.index].type.index == builder.index && use.type.index == 13 && use.flags == 0;
+	}
+	var message = formatting_message_type(index);
+	return use.type.index == message.index && use.flags == 4 && formatting_owned_runtime(index, builder, message);
+}
+
+TypeId checked_formatting_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	int action = formatting_action(index, node); var plan = formatting_plan(index, node); var builder = formatting_builder_type(index);
+	if (plan.index == 0 || builder.index == 0 || !syntax_interpolation_verified(index.bindings.program.arena, plan)) {
+		index.fail(index.bindings.program.arena.header(node).span, "formatting requires its typed runtime, positional arguments and one immediate interpolation"); return no_type();
+	}
+	if (action == 1) {
+		var sink = index.bindings.program.arena.node_at(index.bindings.program.arena.get_list_arguments(node), 0); var type = checked_expression(index, sink, builder, depth + 1);
+		if (type.index != builder.index || index.bindings.program.arena.kind(sink) != SyntaxKind.NameExpressionSyntax()) {
+			index.fail(index.bindings.program.arena.header(sink).span, "format_into requires a stable named borrowed Utf8ByteBuilder"); return no_type();
+		}
+	}
+	var data = index.bindings.program.arena.interpolation_expression(plan); int count = index.bindings.program.arena.list_count(data.f_arguments); var edges = new TypeEdge[count]; int at = 0; int flags = 0;
+	while (at < count && !index.failed()) {
+		var operand = index.bindings.program.arena.node_at(data.f_arguments, at); var checked_type = checked_expression(index, operand, no_type(), depth + 1); var type = formatting_operand_type(index, operand); int scalar = formatting_scalar_action(index, type);
+		if (checked_type.index != type.index && !(checked_type.index == 0 && type.index == 15 && index.uses[operand.index].deferred == 12) || scalar == 0 || !formatting_text_operand(index, operand, scalar) || !formatting_scalar_signature(index, scalar, builder) || index.uses[operand.index].deferred != 0 && index.uses[operand.index].deferred != 17 && index.uses[operand.index].deferred != 19 && !(index.uses[operand.index].deferred == 12 && index.uses[operand.index].type.index == 0 && type.index == 15) || scalar != 9 && index.uses[operand.index].flags != 0) {
+			index.fail(index.bindings.program.arena.header(operand).span, "interpolation operand requires a copied scalar or a supported borrowed text representation"); return no_type();
+		}
+		int capture_flags = 0; if (scalar == 8 || scalar == 9) capture_flags = 2;
+		TypeEdge edge = {type = type, flags = capture_flags}; edges[at] = edge; flags = flags | capture_flags; at = at + 1;
+	}
+	if (index.failed()) return no_type(); var type = index.types.intern(41, type_symbol(0), 0, edges); var recorded = index.record(plan, type, flags); if (recorded.index == 0) return no_type();
+	if (action == 2 && !formatting_owned_runtime(index, builder, formatting_message_type(index))) {
+		index.fail(index.bindings.program.arena.header(node).span, "format_text requires the explicit owned Utf8Message builder, finish, retirement and Error domain"); return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 19; if (action == 2) use.flags = 4; index.uses[node.index] = use;
+	if (action == 1) return type_id(13); return formatting_message_type(index);
+}

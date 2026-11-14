@@ -2260,12 +2260,15 @@ class BindingIndex {
 				this.push(this.program.arena.get_node_expression(node), scope, 0);
 				this.push(this.program.arena.get_node_target(node), scope, 0);
 			}
-			case SyntaxKind.LambdaExpressionSyntax(): {
-				this.push(this.program.arena.get_node_expression(node), scope, 0);
-			}
 			case SyntaxKind.MatchExpressionSyntax(): {
 				this.push_list(this.program.arena.get_list_arms(node), scope);
 				this.push(this.program.arena.get_node_scrutinee(node), scope, 0);
+			}
+			case SyntaxKind.LambdaExpressionSyntax(): {
+				this.push(this.program.arena.get_node_expression(node), scope, 0);
+			}
+			case SyntaxKind.InterpolationExpressionSyntax(): {
+				this.push_list(this.program.arena.get_list_arguments(node), scope);
 			}
 			else: {
 				assert_that(false);

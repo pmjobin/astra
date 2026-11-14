@@ -1588,6 +1588,19 @@ class SyntaxObservation {
 	}
 
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.InterpolationExpressionSyntax()) {
+			var data = arena.interpolation_expression(arg_expression); var output = new Utf8ByteBuilder(); source_append_text(output, "(interpolation"); int at = 0;
+			while (at < arena.list_count(data.f_parts)) {
+				var part = arena.payload_message(arena.token_at(data.f_parts, at)); source_append_text(output, " "); syntax_write_hex(output, part.text);
+				if (at < arena.list_count(data.f_arguments)) {
+					var body = this.format_expression(arena, arena.node_at(data.f_arguments, at));
+					source_append_text(output, " ");
+					source_append_text(output, body.text);
+				}
+				at = at + 1;
+			}
+			source_append_text(output, ")"); var result = output.snapshot(); return move result;
+		}
 		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.LambdaExpressionSyntax()) {
 			var data = arena.lambda_expression(arg_expression); var body = this.format_expression(arena, data.f_expression);
 			var output = new Utf8ByteBuilder(); source_append_text(output, "(lambda "); arena.write_token(data.f_binding, output); source_append_text(output, " => "); source_append_text(output, body.text); source_append_text(output, ")");

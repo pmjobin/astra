@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent helper bodies and call operands, reconstructed from the actual
+// typed source site. No emitter routine or stored validation bit is consulted.
+void* recover_format_function(RecoverSsa ssa, void*[] functions, string name) {
+	var symbol = formatting_function(ssa.cfg.core.flow.checked, name); if (symbol.index < 1 || symbol.index >= len(ssa.cfg.core.flow.data.symbols)) return null;
+	int ordinal = ssa.cfg.core.flow.data.symbols[symbol.index]; if (ordinal < 1 || ordinal > len(functions)) return null; return functions[ordinal - 1];
+}
+
+bool recover_format_call(void* call, void* function, void*[] arguments) {
+	if (!recover_llvm_call(call, function, len(arguments), 8) || !recover_llvm_native_attributes(call, len(arguments)) || LLVMHasMetadata(call) != 0) return false;
+	int at = 0; while (at < len(arguments)) {
+		if (LLVMGetArgOperand(call, at) != arguments[at]) return false;
+		at = at + 1;
+	} return true;
+}
+
+bool recover_format_literal(void* call, void* module, string expected) {
+	var pointer = LLVMGetArgOperand(call, 1); var count = LLVMGetArgOperand(call, 2);
+	if (LLVMIsConstant(pointer) == 0 || LLVMIsAConstantInt(count) == null || !recover_shared_pointer(LLVMTypeOf(pointer)) || !recover_llvm_bits(count, 32, expected.byte_length as u64)) return false;
+	var handles = llvm12_handles(); if (handles == null) return false;
+	llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, count);
+	var value = LLVMConstStructInContext(LLVMGetModuleContext(module), llvm12_handle_offset(handles, 0), 2, 0); bool valid = llvm17_text_literal_matches(value, expected) == 1;
+	llvm12_handles_dispose(handles); return valid;
+}
+
+bool recover_format_signature(RecoverSsa ssa, RecoverNode row, void* function, void* module, bool owned_text) throws Error {
+	int offset = recover_format_offset(row); int count = row.count - offset;
+	if (!recover_llvm_helper_signature(function, count + 1) || LLVMGetGlobalParent(function) != module || !recover_shared_pointer(LLVMTypeOf(LLVMGetParam(function, 0)))) return false;
+	var result = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	if (owned_text) {
+		if (!recover_shared_pointer(result)) return false;
+	}
+	else {
+		if (!recover_llvm_scalar_type(ssa.cfg.core.flow.checked, type_id(13), result)) return false;
+	}
+	int at = 0;
+	while (at < count) {
+		int child = ssa.cfg.core.flow.data.edges[row.first + offset + at]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+		var type = formatting_scalar_parameter(ssa.cfg.core.flow.checked, action);
+		if (!recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(LLVMGetParam(function, at + 1)))) return false; at = at + 1;
+	}
+	return true;
+}
+
+bool recover_format_into_verified(RecoverSsa ssa, int origin, void* function, void* module, void* layout, void*[] functions) throws Error {
+	var row = ssa.cfg.core.nodes[origin - 1].value; int offset = recover_format_offset(row); int count = row.count - offset;
+	if (!formatting_call_verified(ssa.cfg.core.flow.checked, row.source) || !recover_format_signature(ssa, row, function, module, false)) return false;
+	var name = llvm_name("astra.format.into.", origin); if (llvm13_named(function, name.text) != 1) return false;
+	var bodies = recover_llvm_helper_blocks(function, count * 2 + 4); if (len(bodies) != count * 2 + 4) return false;
+	int success = len(bodies) - 2; int failure = len(bodies) - 1; var cursor = new RecoverLazyCursor(bodies[0], layout); void* finite = null; int at = 0;
+	while (at < count) {
+		int child = ssa.cfg.core.flow.data.edges[row.first + offset + at]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+		if (action == 6 || action == 7) {
+			var input = LLVMGetParam(function, at + 1); var mask = LLVMConstInt(LLVMTypeOf(input), recover_format_float_mask(action), 0); var exponent = cursor.binary(23, input, mask); var valid = cursor.compare(33, exponent, mask);
+			if (finite == null) finite = valid; else {
+				finite = cursor.binary(23, finite, valid);
+			}
+		}
+		at = at + 1;
+	}
+	var entry_term = LLVMGetBasicBlockTerminator(bodies[0]); if (!cursor.valid || cursor.cursor != entry_term || LLVMHasMetadata(entry_term) != 0) return false;
+	if (finite == null) {
+		if (!recover_llvm_jump(entry_term, bodies[1])) return false;
+	}
+	else {
+		if (!recover_llvm_split(entry_term, finite, bodies[1], bodies[failure])) return false;
+	}
+	var plan = formatting_plan(ssa.cfg.core.flow.checked, row.source); var parts = ssa.cfg.core.flow.checked.bindings.program.arena.interpolation_expression(plan).f_parts;
+	at = 0;
+	while (at < count * 2 + 1) {
+		var body = new RecoverLazyCursor(bodies[at + 1], layout); var term = LLVMGetBasicBlockTerminator(bodies[at + 1]); bool literal = at % 2 == 0; bool text = literal; void* callee = null; void* value = null;
+		if (literal) callee = recover_format_function(ssa, functions, "astra_format_text_fragment");
+		else {
+			int child = ssa.cfg.core.flow.data.edges[row.first + offset + at / 2]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+			callee = recover_format_function(ssa, functions, formatting_scalar_name(action)); value = LLVMGetParam(function, at / 2 + 1); text = action == 8;
+		}
+		int parameters = 2; if (text) parameters = 3; var arguments = new void*[parameters]; arguments[0] = LLVMGetParam(function, 0);
+		if (!literal) {
+			if (text) {
+				arguments[1] = body.extract(value, 0);
+				arguments[2] = body.extract(value, 1);
+			}
+			else {
+				arguments[1] = value;
+			}
+		}
+		var call = body.take(45); if (call == null || callee == null) return false;
+		if (literal) {
+			if (!recover_llvm_call(call, callee, 3, 8) || LLVMGetArgOperand(call, 0) != arguments[0] || !recover_llvm_native_attributes(call, 3)) return false;
+			var payload = ssa.cfg.core.flow.checked.bindings.program.arena.payload_message(ssa.cfg.core.flow.checked.bindings.program.arena.token_at(parts, at / 2)); if (!recover_format_literal(call, module, payload.text)) return false;
+		} else {
+			if (!recover_format_call(call, callee, arguments)) return false;
+		}
+		void* next = bodies[success]; if (at + 1 < count * 2 + 1) next = bodies[at + 2];
+		if (!body.valid || body.cursor != term || LLVMHasMetadata(term) != 0 || !recover_llvm_split(term, call, next, bodies[failure])) return false; at = at + 1;
+	}
+	var done = recover_llvm_body(bodies[success], 1); var refused = recover_llvm_body(bodies[failure], 1); if (len(done) != 1 || len(refused) != 1) return false;
+	var boolean = LLVMGetReturnType(LLVMGlobalGetValueType(function));
+	return LLVMHasMetadata(done[0]) == 0 && LLVMHasMetadata(refused[0]) == 0 && recover_llvm_return(done[0], LLVMConstInt(boolean, 1, 0)) && recover_llvm_return(refused[0], LLVMConstInt(boolean, 0, 0));
+}
+
+bool recover_format_text_verified(RecoverSsa ssa, int origin, void* function, void* into, void* module, void*[] functions) throws Error {
+	var row = ssa.cfg.core.nodes[origin - 1].value; if (row.kind != 113 || !recover_format_signature(ssa, row, function, module, true)) return false;
+	var name = llvm_name("astra.format.text.", origin); if (llvm13_named(function, name.text) != 1) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3); if (len(blocks) != 3) return false;
+	var entry = recover_llvm_body(blocks[0], 3); var finish = recover_llvm_body(blocks[1], 3); var failure = recover_llvm_body(blocks[2], 3);
+	if (len(entry) != 3 || len(finish) != 3 || len(failure) != 3) return false;
+	int at = 0; while (at < 3) {
+		if (LLVMHasMetadata(entry[at]) != 0 || LLVMHasMetadata(finish[at]) != 0 || LLVMHasMetadata(failure[at]) != 0) return false;
+		at = at + 1;
+	}
+	var none = new void*[0]; if (!recover_format_call(entry[0], recover_format_function(ssa, functions, "astra_format_builder"), none)) return false;
+	var arguments = new void*[LLVMCountParams(function)]; arguments[0] = entry[0]; at = 1;
+	while (at < len(arguments)) {
+		arguments[at] = LLVMGetParam(function, at);
+		at = at + 1;
+	}
+	if (!recover_format_call(entry[1], into, arguments) || !recover_llvm_split(entry[2], entry[1], blocks[1], blocks[2])) return false;
+	var finished = new void*[2]; finished[0] = LLVMGetParam(function, 0); finished[1] = entry[0]; var dropped = new void*[1]; dropped[0] = entry[0];
+	var drop = recover_format_function(ssa, functions, "astra_format_builder_drop");
+	return recover_format_call(finish[0], recover_format_function(ssa, functions, "astra_format_finish"), finished) && recover_format_call(finish[1], drop, dropped) && recover_llvm_return(finish[2], finish[0]) && recover_format_call(failure[0], drop, dropped) && recover_format_call(failure[1], recover_format_function(ssa, functions, "astra_format_failure"), none) && recover_llvm_return(failure[2], failure[1]);
+}
+
+bool recover_format_runtime_verified(RecoverSsa ssa, RecoverFormatRuntime runtime, void* module, void* layout, void*[] functions) throws Error {
+	if (len(runtime.into) != ssa.cfg.core.count || len(runtime.text) != ssa.cfg.core.count) return false; int at = 0;
+	while (at < ssa.cfg.core.count) {
+		var row = ssa.cfg.core.nodes[at].value;
+		if (row.kind == 112 || row.kind == 113) {
+			if (!recover_format_into_verified(ssa, at + 1, runtime.into[at], module, layout, functions)) return false;
+			if (row.kind == 113) {
+				if (!recover_format_text_verified(ssa, at + 1, runtime.text[at], runtime.into[at], module, functions)) return false;
+			}
+			else {
+				if (runtime.text[at] != null) return false;
+			}
+		} else {
+			if (runtime.into[at] != null || runtime.text[at] != null) return false;
+		}
+		at = at + 1;
+	}
+	return true;
+}
+
+void* recover_format_cast_checked(RecoverLazyCursor cursor, CheckedIndex checked, TypeId source, void* value, void* target) {
+	if (value == null || target == null || !recover_storage_llvm_type(checked, source, LLVMTypeOf(value))) return null;
+	if (LLVMTypeOf(value) == target) return value;
+	int action = formatting_scalar_action(checked, source); bool floating = action == 6 || action == 7; bool signed_value = type_signed(checked_kind(checked, source));
+	if (LLVMIsConstant(value) != 0) {
+		if (floating) return LLVMConstBitCast(value, target);
+		if (LLVMIsAConstantInt(value) == null) return null;
+		int width = LLVMGetIntTypeWidth(LLVMTypeOf(value)); int target_width = LLVMGetIntTypeWidth(target); u64 bits = LLVMConstIntGetZExtValue(value);
+		if (signed_value && width < 64 && (bits & (1 as u64 << (width - 1))) != 0) bits = bits | (18446744073709551615 << width);
+		if (target_width < 64) bits = bits & ((1 as u64 << target_width) - 1); return LLVMConstInt(target, bits, 0);
+	}
+	int opcode = 31; if (signed_value) opcode = 32; if (floating) opcode = 41;
+	var converted = cursor.take(opcode); if (converted == null || LLVMGetNumOperands(converted) != 1 || LLVMGetOperand(converted, 0) != value || LLVMTypeOf(converted) != target || opcode == 31 && LLVMGetNNeg(converted) != 0) return null;
+	return converted;
+}
+
+int recover_format_site_verified(RecoverSsa ssa, RecoverBlock block, RecoverFormatRuntime runtime, void* layout, void* physical, void* operation, void*[] blocks, void*[] values, void*[] slots) {
+	var row = ssa.cfg.core.nodes[block.origin - 1].value; int offset = recover_format_offset(row); int count = row.count - offset; var cursor = new RecoverLazyCursor(physical, layout);
+	void* function = runtime.into[block.origin - 1]; if (row.kind == 113) function = runtime.text[block.origin - 1]; if (function == null) return 0;
+	var arguments = new void*[count + 1];
+	if (row.kind == 112) arguments[0] = values[ssa.cfg.core.flow.data.edges[row.first]];
+	else {
+		arguments[0] = slots[block.origin - 1];
+	}
+	int at = 0;
+	while (at < count) {
+		int child = ssa.cfg.core.flow.data.edges[row.first + offset + at]; var source = ssa.cfg.core.nodes[child - 1].value.type;
+		arguments[at + 1] = recover_format_cast_checked(cursor, ssa.cfg.core.flow.checked, source, values[child], LLVMTypeOf(LLVMGetParam(function, at + 1))); if (arguments[at + 1] == null) return 0; at = at + 1;
+	}
+	var call = cursor.take(45); if (call == null || operation != call || !recover_format_call(call, function, arguments)) return 0;
+	var term = LLVMGetBasicBlockTerminator(physical);
+	if (row.kind == 112) {
+		if (values[block.origin] != call) return 0; return cursor.finish(term, block, null, blocks);
+	}
+	if (row.kind != 113 || values[ssa.cfg.core.count + block.origin] != call) return 0;
+	var success = cursor.compare(32, call, LLVMConstNull(LLVMTypeOf(call))); if (success == null) return 0;
+	return cursor.finish(term, block, success, blocks);
+}

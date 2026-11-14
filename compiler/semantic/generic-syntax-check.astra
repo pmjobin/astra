@@ -337,16 +337,26 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_scrutinee, second_data.f_scrutinee)) return false;
 			if (!generic_check_list(index, plan, first_data.f_arms, second_data.f_arms)) return false;
 		}
-		case SyntaxKind.LambdaExpressionSyntax(): {
-			var first_data = index.bindings.program.arena.lambda_expression(original);
-			var second_data = index.bindings.program.arena.lambda_expression(concrete);
-			if (first_data.f_binding.index != second_data.f_binding.index || first_data.f_arrow.index != second_data.f_arrow.index || !generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
-		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			var first_data = index.bindings.program.arena.match_expression(original);
 			var second_data = index.bindings.program.arena.match_expression(concrete);
 			if (!generic_check_child(index, plan, first_data.f_scrutinee, second_data.f_scrutinee)) return false;
 			if (!generic_check_list(index, plan, first_data.f_arms, second_data.f_arms)) return false;
+		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.lambda_expression(original);
+			var second_data = index.bindings.program.arena.lambda_expression(concrete);
+			if (first_data.f_binding.index != second_data.f_binding.index) return false;
+			if (first_data.f_arrow.index != second_data.f_arrow.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+		}
+		case SyntaxKind.InterpolationExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.interpolation_expression(original);
+			var second_data = index.bindings.program.arena.interpolation_expression(concrete);
+			if (first_data.f_begin.index != second_data.f_begin.index) return false;
+			if (first_data.f_parts.index != second_data.f_parts.index) return false;
+			if (!generic_check_list(index, plan, first_data.f_arguments, second_data.f_arguments)) return false;
+			if (first_data.f_end.index != second_data.f_end.index) return false;
 		}
 		case SyntaxKind.EnumArmSyntax(): {
 			var first_data = index.bindings.program.arena.enum_arm(original);

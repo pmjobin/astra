@@ -816,6 +816,14 @@ class SyntaxProjection {
 			this.token(arena, "semicolon", data.f_semicolon);
 			return;
 		}
+		if (kind == SyntaxKind.InterpolationExpressionSyntax()) {
+			var data = arena.interpolation_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "begin", data.f_begin); this.tokens(arena, "parts", data.f_parts, false);
+			this.nodes(arena, "arguments", "ExpressionSyntax", data.f_arguments, false); this.token(arena, "end", data.f_end); return;
+		}
 		if (kind == SyntaxKind.LambdaExpressionSyntax()) {
 			var data = arena.lambda_expression(node);
 			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
@@ -1494,6 +1502,7 @@ string syntax_kind_name(SyntaxKind kind) {
 		}
 		case SyntaxKind.MatchExpressionSyntax(): { return "MatchExpressionSyntax"; }
 		case SyntaxKind.LambdaExpressionSyntax(): { return "LambdaExpressionSyntax"; }
+		case SyntaxKind.InterpolationExpressionSyntax(): { return "InterpolationExpressionSyntax"; }
 		case SyntaxKind.MatchStatementSyntax(): {
 			return "MatchStatementSyntax";
 		}

@@ -6983,7 +6983,28 @@ class SyntaxParser {
 		return arena.add_record_expression(data, span, 1);
 	}
 
+	SyntaxNodeId parse_interpolation(SyntaxArena arena, int depth) throws Error {
+		var begin = this.current; if (!this.advance(arena)) return syntax_no_node();
+		var parts = arena.new_list(-1); var arguments = arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax())); int expression_depth = 0;
+		while (this.error_message.text == "") {
+			var part = this.expect(arena, TokenKind.INTERPOLATION_PART(), "expected interpolation text fragment"); if (part.index == 0) return syntax_no_node();
+			arena.append_token(parts, part);
+			if (this.token_kind(arena, this.current) == TokenKind.INTERPOLATION_END()) break;
+			if (arena.list_count(arguments) == 64) {
+				this.fail(arena, this.token_span(arena, this.current), "interpolation supports at most 64 operands"); return syntax_no_node();
+			}
+			var open = this.expect(arena, TokenKind.OPEN_BRACE(), "expected '{' before interpolation operand"); if (open.index == 0) return syntax_no_node();
+			var expression = this.parse_expression(arena, 0, depth + 1); if (expression.index == 0) return syntax_no_node();
+			var close = this.expect(arena, TokenKind.CLOSE_BRACE(), "expected '}' after interpolation operand"); if (close.index == 0) return syntax_no_node();
+			arena.append_node(arguments, expression); expression_depth = syntax_max(expression_depth, arena.header(expression).depth);
+		}
+		var end = this.expect(arena, TokenKind.INTERPOLATION_END(), "expected closing interpolation quote"); if (end.index == 0) return syntax_no_node();
+		InterpolationExpressionSyntaxData data = {f_begin = begin, f_parts = parts, f_arguments = arguments, f_end = end};
+		return this.bounded(arena, arena.add_interpolation_expression(data, syntax_cover(arena.token_span(begin), arena.token_span(end)), expression_depth + 1), arena.token_span(begin));
+	}
+
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.INTERPOLATION_START()) return this.parse_interpolation(arena, arg_recursion_depth);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.FAT_ARROW())) {
 			var binding = this.current; if (!this.advance(arena)) return syntax_no_node();
 			var arrow = this.current; if (!this.advance(arena)) return syntax_no_node();

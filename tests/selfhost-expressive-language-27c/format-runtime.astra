@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Independent fixed IEEE encodings/expected text, including signed zero and
+// subnormals. Typed interpolation and its private bitcasts qualify separately.
+bool format_check32(u32 bits, string expected) throws Error {
+	var builder = new Utf8ByteBuilder(); if (!builder.reserve(64) || !astra_format_f32_bits(builder, bits)) return false;
+	var text = builder.snapshot(); return text.text == expected;
+}
+
+bool format_check64(u64 bits, string expected) throws Error {
+	var builder = new Utf8ByteBuilder(); if (!builder.reserve(64) || !astra_format_f64_bits(builder, bits)) return false;
+	var text = builder.snapshot(); return text.text == expected;
+}
+
+int main() {
+	try {
+		if (!format_check32(0, "0x0.0p+0") || !format_check32(2147483648, "-0x0.0p+0") || !format_check32(1065353216, "0x1.0p+0") || !format_check32(3212836864, "-0x1.0p+0")) return 1;
+		if (!format_check32(1, "0x0.000002p-126") || !format_check32(8388607, "0x0.fffffep-126") || !format_check32(8388608, "0x1.0p-126") || !format_check32(2139095039, "0x1.fffffep+127")) return 2;
+		if (!format_check64(0, "0x0.0p+0") || !format_check64(9223372036854775808, "-0x0.0p+0") || !format_check64(4607182418800017408, "0x1.0p+0") || !format_check64(13830554455654793216, "-0x1.0p+0")) return 3;
+		if (!format_check64(1, "0x0.0000000000001p-1022") || !format_check64(4503599627370495, "0x0.fffffffffffffp-1022") || !format_check64(4503599627370496, "0x1.0p-1022") || !format_check64(9218868437227405311, "0x1.fffffffffffffp+1023")) return 4;
+		var untouched = new Utf8ByteBuilder();
+		if (astra_format_f32_bits(untouched, 2139095040) || astra_format_f32_bits(untouched, 2143289344) || astra_format_f64_bits(untouched, 9218868437227405312) || astra_format_f64_bits(untouched, 9221120237041090560) || untouched.byte_count() != 0) return 5;
+		var builder = astra_format_builder(); if (!builder.reserve(256)) return 6;
+		if (!astra_format_text_fragment(builder, "\u00e9\0 ") || !append_int(builder, -2147483648) || !astra_format_text_fragment(builder, ",") || !append_u32(builder, 4294967295) || !astra_format_text_fragment(builder, ",") || !append_i64(builder, -9223372036854775808) || !astra_format_text_fragment(builder, ",") || !append_u64(builder, 18446744073709551615) || !astra_format_text_fragment(builder, ",") || !append_bool(builder, true)) return 7;
+		var text = astra_format_finish(builder);
+		if (text.text != "\u00e9\0 -2147483648,4294967295,-9223372036854775808,18446744073709551615,true") return 8;
+		astra_format_builder_drop(move builder);
+		return 42;
+	} catch (Error error) { return 9; }
+}

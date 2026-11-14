@@ -81,6 +81,7 @@ class RecoverLlvm {
 	void* error_owner_function;
 	void* class_snapshot;
 	void* utf8_function;
+	owned RecoverFormatRuntime format_runtime;
 	owned RecoverLazyRuntime lazy_runtime;
 	owned void*[] range_steps;
 	owned void*[] range_queries;
@@ -132,6 +133,7 @@ class RecoverLlvm {
 		this.snapshot_initialize_function = null;
 		this.class_snapshot = null;
 		this.utf8_function = null;
+		var format_runtime = new RecoverFormatRuntime(ssa.cfg.core.count); this.format_runtime = move format_runtime;
 		var lazy_runtime = new RecoverLazyRuntime(ssa.cfg.core.count); this.lazy_runtime = move lazy_runtime;
 		this.range_steps = new void*[10];
 		this.range_queries = new void*[20];
@@ -867,6 +869,7 @@ class RecoverLlvm {
 			}
 			n = n + 1;
 		}
+		this.lazy_frames(ssa);
 		int b = 0;
 		while (b < len(this.blocks)) {
 			var row = ssa.cfg.blocks[b];
@@ -1147,10 +1150,133 @@ class RecoverLlvm {
 		var branch = LLVMBuildCondBr(this.builder, result.operation, this.blocks[block.next - 1], this.blocks[block.other - 1]); return result;
 	}
 
+	void* formatting_cast(RecoverSsa ssa, TypeId source, void* value) {
+		int action = formatting_scalar_action(ssa.cfg.core.flow.checked, source); var target = this.scalar(ssa.cfg.core.flow.checked, formatting_scalar_parameter(ssa.cfg.core.flow.checked, action));
+		if (LLVMTypeOf(value) == target) return value;
+		if (action == 6 || action == 7) return LLVMBuildBitCast(this.builder, value, target, this.empty);
+		if (type_signed(checked_kind(ssa.cfg.core.flow.checked, source))) return LLVMBuildSExt(this.builder, value, target, this.empty);
+		return LLVMBuildZExt(this.builder, value, target, this.empty);
+	}
+
+	void* formatting_runtime_function(RecoverSsa ssa, string name) {
+		var symbol = formatting_function(ssa.cfg.core.flow.checked, name); return this.functions[ssa.cfg.core.flow.data.symbols[symbol.index] - 1];
+	}
+
+	void formatting_into(RecoverSsa ssa, int origin, void* function) throws Error {
+		var row = ssa.cfg.core.nodes[origin - 1].value; int offset = recover_format_offset(row); int count = row.count - offset;
+		var plan = formatting_plan(ssa.cfg.core.flow.checked, row.source); var parts = ssa.cfg.core.flow.checked.bindings.program.arena.interpolation_expression(plan).f_parts;
+		var entry = llvm12_block(this.context, function, "entry"); var writes = new void*[count * 2 + 1]; int at = 0;
+		while (at < len(writes)) {
+			writes[at] = llvm12_block(this.context, function, "write");
+			at = at + 1;
+		}
+		var success = llvm12_block(this.context, function, "done"); var failure = llvm12_block(this.context, function, "failed");
+		LLVMPositionBuilderAtEnd(this.builder, entry); void* finite = null; at = 0;
+		while (at < count) {
+			int child = ssa.cfg.core.flow.data.edges[row.first + offset + at]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+			if (action == 6 || action == 7) {
+				var input = LLVMGetParam(function, at + 1); var mask = LLVMConstInt(LLVMTypeOf(input), recover_format_float_mask(action), 0);
+				var exponent = LLVMBuildAnd(this.builder, input, mask, this.empty); var valid = LLVMBuildICmp(this.builder, 33, exponent, mask, this.empty);
+				if (finite == null) finite = valid; else {
+					finite = LLVMBuildAnd(this.builder, finite, valid, this.empty);
+				}
+			}
+			at = at + 1;
+		}
+		if (finite == null) {
+			var jump = LLVMBuildBr(this.builder, writes[0]);
+		}
+		else {
+			var split = LLVMBuildCondBr(this.builder, finite, writes[0], failure);
+		}
+		at = 0;
+		while (at < len(writes)) {
+			LLVMPositionBuilderAtEnd(this.builder, writes[at]); void* callee = null; void* value = null; bool text = at % 2 == 0;
+			if (text) {
+				var payload = ssa.cfg.core.flow.checked.bindings.program.arena.payload_message(ssa.cfg.core.flow.checked.bindings.program.arena.token_at(parts, at / 2)); value = llvm17_text_literal(this.module, payload.text);
+				callee = this.formatting_runtime_function(ssa, "astra_format_text_fragment");
+			} else {
+				int child = ssa.cfg.core.flow.data.edges[row.first + offset + at / 2]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+				callee = this.formatting_runtime_function(ssa, formatting_scalar_name(action)); value = LLVMGetParam(function, at / 2 + 1); text = action == 8;
+			}
+			int parameters = 2; if (text) parameters = 3; var arguments = new void*[parameters]; arguments[0] = LLVMGetParam(function, 0);
+			if (text) {
+				arguments[1] = LLVMBuildExtractValue(this.builder, value, 0, this.empty);
+				arguments[2] = LLVMBuildExtractValue(this.builder, value, 1, this.empty);
+			}
+			else {
+				arguments[1] = value;
+			}
+			var appended = this.call(callee, arguments, true); void* next = success; if (at + 1 < len(writes)) next = writes[at + 1];
+			var split = LLVMBuildCondBr(this.builder, appended, next, failure); at = at + 1;
+		}
+		LLVMPositionBuilderAtEnd(this.builder, success); var completed = LLVMBuildRet(this.builder, LLVMConstInt(this.boolean, 1, 0));
+		LLVMPositionBuilderAtEnd(this.builder, failure); var refused = LLVMBuildRet(this.builder, LLVMConstInt(this.boolean, 0, 0));
+	}
+
+	void formatting_text(RecoverSsa ssa, int origin, void* function) {
+		var entry = llvm12_block(this.context, function, "entry"); var finish = llvm12_block(this.context, function, "finish"); var failure = llvm12_block(this.context, function, "failed");
+		LLVMPositionBuilderAtEnd(this.builder, entry); var none = new void*[0]; var builder = this.call(this.formatting_runtime_function(ssa, "astra_format_builder"), none, true);
+		var arguments = new void*[LLVMCountParams(function)]; arguments[0] = builder; int at = 1;
+		while (at < len(arguments)) {
+			arguments[at] = LLVMGetParam(function, at);
+			at = at + 1;
+		}
+		var appended = this.call(this.format_runtime.into[origin - 1], arguments, true); var split = LLVMBuildCondBr(this.builder, appended, finish, failure);
+		LLVMPositionBuilderAtEnd(this.builder, finish); var finish_arguments = new void*[2]; finish_arguments[0] = LLVMGetParam(function, 0); finish_arguments[1] = builder;
+		var error = this.call(this.formatting_runtime_function(ssa, "astra_format_finish"), finish_arguments, true); var drop_arguments = new void*[1]; drop_arguments[0] = builder;
+		var retired = this.call(this.formatting_runtime_function(ssa, "astra_format_builder_drop"), drop_arguments, true); var result = LLVMBuildRet(this.builder, error);
+		LLVMPositionBuilderAtEnd(this.builder, failure); var aborted = this.call(this.formatting_runtime_function(ssa, "astra_format_builder_drop"), drop_arguments, true);
+		var formatting_error = this.call(this.formatting_runtime_function(ssa, "astra_format_failure"), none, true); var refused = LLVMBuildRet(this.builder, formatting_error);
+	}
+
+	void formatting_helpers(RecoverSsa ssa) throws Error {
+		int at = 0;
+		while (at < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 112 || row.kind == 113) {
+				int offset = recover_format_offset(row); int count = row.count - offset; var parameters = new void*[count + 1]; parameters[0] = this.pointer; int argument = 0;
+				while (argument < count) {
+					int child = ssa.cfg.core.flow.data.edges[row.first + offset + argument]; int action = formatting_scalar_action(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type);
+					parameters[argument + 1] = this.scalar(ssa.cfg.core.flow.checked, formatting_scalar_parameter(ssa.cfg.core.flow.checked, action)); argument = argument + 1;
+				}
+				var name = llvm_name("astra.format.into.", at + 1); var into = this.function(name.text, this.boolean, parameters, true); this.format_runtime.into[at] = into; this.formatting_into(ssa, at + 1, into);
+				if (row.kind == 113) {
+					var text_name = llvm_name("astra.format.text.", at + 1); var text = this.function(text_name.text, this.pointer, parameters, true); this.format_runtime.text[at] = text; this.formatting_text(ssa, at + 1, text);
+				}
+			}
+			at = at + 1;
+		}
+	}
+
+	RecoverOwnerInstruction formatting_instruction(RecoverSsa ssa, RecoverBlock block) {
+		var row = ssa.cfg.core.nodes[block.origin - 1].value; int offset = recover_format_offset(row); int count = row.count - offset; var arguments = new void*[count + 1];
+		if (row.kind == 112) arguments[0] = this.values[ssa.cfg.core.flow.data.edges[row.first]];
+		else {
+			arguments[0] = this.slots[block.origin - 1];
+		}
+		int at = 0;
+		while (at < count) {
+			int child = ssa.cfg.core.flow.data.edges[row.first + offset + at]; arguments[at + 1] = this.formatting_cast(ssa, ssa.cfg.core.nodes[child - 1].value.type, this.values[child]); at = at + 1;
+		}
+		void* function = this.format_runtime.into[block.origin - 1]; if (row.kind == 113) function = this.format_runtime.text[block.origin - 1]; var operation = this.call(function, arguments, true);
+		RecoverOwnerInstruction result = {value = operation, operation = operation};
+		if (row.kind == 113) {
+			result.value = null; this.values[ssa.cfg.core.count + block.origin] = operation; var successful = LLVMBuildICmp(this.builder, 32, operation, LLVMConstNull(this.pointer), this.empty);
+			var split = LLVMBuildCondBr(this.builder, successful, this.blocks[block.next - 1], this.blocks[block.other - 1]);
+		}
+		return result;
+	}
+
 	void emit_block(RecoverSsa ssa, int id) throws Error {
 		this.emitted[id - 1] = true; var block = ssa.cfg.blocks[id - 1]; LLVMPositionBuilderAtEnd(this.builder, this.blocks[id - 1]);
 		int op = block.opcode; SyntaxNodeId absent = {index = 0}; RecoverNode row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 		void* value = null; void* operation = null;
+		if (op == 112 || op == 113) {
+			var lowered = this.formatting_instruction(ssa, block);
+			value = lowered.value;
+			operation = lowered.operation;
+		}
 		if (op >= 96 && op <= 110) {
 			var lowered = this.lazy_instruction(ssa, block); value = lowered.value; operation = lowered.operation;
 		}
@@ -2249,9 +2375,9 @@ class RecoverLlvm {
 		this.pointer = LLVMPointerTypeInContext(this.context, 0); this.integer = LLVMIntTypeInContext(this.context, 32); this.wide = LLVMIntTypeInContext(this.context, 64); this.boolean = LLVMIntTypeInContext(this.context, 1);
 		var text_fields = new void*[2]; text_fields[0] = this.pointer; text_fields[1] = this.integer; this.text = this.structure(text_fields); var object_fields = new void*[4]; object_fields[0] = this.pointer; object_fields[1] = this.pointer; object_fields[2] = this.pointer; object_fields[3] = this.integer; this.payload = this.structure(object_fields); var descriptor_fields = new void*[3]; descriptor_fields[0] = this.pointer; descriptor_fields[1] = this.pointer; descriptor_fields[2] = this.pointer; this.descriptor = this.structure(descriptor_fields); var origin_fields = new void*[4]; origin_fields[0] = this.pointer; origin_fields[1] = this.integer; origin_fields[2] = this.integer; origin_fields[3] = this.integer; this.origin_type = this.structure(origin_fields);
 		this.basic_helpers(); this.object_helpers(); this.compare_helpers(); this.buffer_function = recover_buffer_helper(this.context, this.module, this.builder, this.handles, this.allocate_function, this.trap_function); this.error_owner_function = recover_error_owner_helper(this.context, this.module, this.builder, this.handles, this.destroy_function); this.class_helpers(ssa); this.array_helpers(ssa); this.declarations(ssa);
-		this.lazy_frames(ssa);
 		this.enum_helpers(ssa);
 		this.range_materialization_helpers(ssa);
+		this.formatting_helpers(ssa);
 		this.class_finalizers(ssa);
 		this.retain_library_functions(ssa);
 		var order = new int[ssa.cfg.block_count];
@@ -2690,6 +2816,7 @@ class RecoverLlvm {
 		} else {
 			if (this.utf8_function != null) return false;
 		}
+		if (!recover_format_runtime_verified(ssa, this.format_runtime, this.module, this.layout, this.functions)) return false;
 		if (!this.range_materialization_verified(ssa) || !this.range_steps_verified(ssa) || !this.range_queries_verified(ssa) || !this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.float_integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
 		bool initialize_needed = false; int initialize = 0;
 		while (initialize < ssa.cfg.core.count) {
@@ -2752,6 +2879,11 @@ class RecoverLlvm {
 			if (this.range_counts[materialization] != null) helper_count = helper_count + 1;
 			if (this.range_fills[materialization] != null) helper_count = helper_count + 1;
 			materialization = materialization + 1;
+		}
+		int format_at = helper_count; int format_count = 0;
+		while (format_count < ssa.cfg.core.count) {
+			if (this.format_runtime.into[format_count] != null) helper_count = helper_count + 1;
+			if (this.format_runtime.text[format_count] != null) helper_count = helper_count + 1; format_count = format_count + 1;
 		}
 		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
 		if (initialize_needed) helpers[initialize_at] = this.snapshot_initialize_function;
@@ -2837,6 +2969,17 @@ class RecoverLlvm {
 			}
 			array = array + 1;
 		}
+		format_count = 0;
+		while (format_count < ssa.cfg.core.count) {
+			if (this.format_runtime.into[format_count] != null) {
+				helpers[format_at] = this.format_runtime.into[format_count];
+				format_at = format_at + 1;
+			}
+			if (this.format_runtime.text[format_count] != null) {
+				helpers[format_at] = this.format_runtime.text[format_count];
+				format_at = format_at + 1;
+			} format_count = format_count + 1;
+		}
 		foreign = 1;
 		while (foreign < len(this.foreign_functions)) {
 			if (this.foreign_functions[foreign] != null) {
@@ -2897,7 +3040,7 @@ class RecoverLlvm {
 			clone = this.shared_runtime.clone;
 			borrow = this.shared_runtime.borrow;
 		}
-		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.intrinsic_shared, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage, this.lazy_runtime);
+		return recover_llvm_check(ssa, this.owner, this.module, this.layout, this.payload, this.free_function, this.construct_function, this.message_function, this.destroy_function, this.subtype_function, this.equal_function, this.origins, this.functions, this.entries, this.blocks, this.values, this.slots, this.locals, this.descriptors, this.payloads, this.destroyers, this.tables, this.operations, this.buffer_function, this.allocate_function, this.owner_addresses, this.owner_armed, this.owner_initial_values, this.owner_initial_flags, this.error_owner_function, this.class_payloads, this.class_destroyers, this.class_snapshot, acquire, clone, borrow, this.shared_runtime.downgrade, this.shared_runtime.weak_clone, this.shared_runtime.upgrade, this.intrinsic_shared, this.shared_drops, this.foreign_functions, this.utf8_function, this.integer_functions, this.fixed_backings, this.index_functions, this.slice_functions, this.snapshot_initialize_function, this.slot_functions, this.record_storage, this.lazy_runtime, this.format_runtime);
 	}
 
 	void write(RecoverSsa ssa, string path) throws Error {

@@ -79,8 +79,16 @@ bool recover_heap_witness(RecoverFlow flow, RecoverHeapIndex index, int id, bool
 		int local = index.initializers[row.symbol.index];
 		return local > 0 && recover_heap_witness(flow, index, flow.data.nodes[local - 1].a, seen, work, depth + 1);
 	}
-	if (row.kind == 4) {
-		int callee = flow.data.symbols[row.symbol.index];
+	if (row.kind == 4 || row.kind == 113) {
+		int callee = 0;
+		if (row.kind == 113) {
+			var finish = formatting_function(flow.checked, "astra_format_finish");
+			if (finish.index < 1 || finish.index >= len(flow.data.symbols)) return false;
+			callee = flow.data.symbols[finish.index];
+		}
+		else {
+			callee = flow.data.symbols[row.symbol.index];
+		}
 		if (callee < 1 || callee > flow.data.function_count) return false;
 		int n = index.first_returns[callee - 1];
 		while (n > 0) {

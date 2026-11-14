@@ -312,7 +312,7 @@ int recover_ssa_definition(RecoverCfg cfg, int block) {
 	if (row.opcode == 39) return row.owner;
 	if (row.opcode == 30) return row.origin;
 	if (row.opcode == 109) return row.origin;
-	if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) return cfg.core.count + row.origin;
+	if ((row.opcode == 4 || row.opcode == 113) && cfg.core.nodes[row.origin - 1].conditional) return cfg.core.count + row.origin;
 	if (recover_value_kind(row.opcode) && cfg.core.nodes[row.origin - 1].value.type.index != 14) return row.origin;
 	return 0;
 }
@@ -330,7 +330,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 			type = cfg.core.flow.checked.symbol_types[root.index];
 		}
 		else {
-			if (row.opcode == 4 && cfg.core.nodes[row.origin - 1].conditional) {
+			if ((row.opcode == 4 || row.opcode == 113) && cfg.core.nodes[row.origin - 1].conditional) {
 				channel = 2;
 				edge = row.other;
 				type = cfg.core.nodes[row.origin - 1].error;
@@ -338,7 +338,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 			else {
 				type = cfg.core.nodes[row.origin - 1].value.type;
 				if (recover_error_new_kind(row.opcode)) channel = 1;
-				if ((row.opcode == 94 || row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
+				if ((row.opcode == 113 || row.opcode == 94 || row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
 			}
 		}
 	} RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
@@ -415,7 +415,7 @@ bool recover_ssa_owner(RecoverSsaData data, RecoverCfg cfg, int value, RecoverWo
 		while (p < 2) {
 			int target = block.next; int carried = block.carry; if (p == 1) {
 				target = block.other;
-				if (block.opcode == 4) carried = cfg.core.count + block.origin;
+				if (block.opcode == 4 || block.opcode == 113) carried = cfg.core.count + block.origin;
 			}
 			if (target > 0) {
 				bool next_live = live;
@@ -603,7 +603,7 @@ bool recover_ssa_verify_details(RecoverSsa ssa, int[] detail) {
 			if (!recover_ssa_use(ssa.data, ssa.cfg, source.c, b, work) || guard < 1 || guard > ssa.cfg.block_count || !recover_ssa_dominates(guard, b, work)) return recover_ssa_refuse(work, detail);
 		}
 		if (row.opcode == 62 && !recover_ssa_short_inputs(ssa, b, phi_head, phi_next, work)) return recover_ssa_refuse(work, detail);
-		if (row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || recover_constructor_kind(row.opcode) || row.opcode == 14 || row.opcode == 19 || row.opcode == 50 || row.opcode == 56 || row.opcode == 57 || row.opcode == 69 || row.opcode == 70 || row.opcode == 71) {
+		if (row.opcode == 112 || row.opcode == 113 || row.opcode == 4 || row.opcode == 5 || row.opcode == 8 || recover_constructor_kind(row.opcode) || row.opcode == 14 || row.opcode == 19 || row.opcode == 50 || row.opcode == 56 || row.opcode == 57 || row.opcode == 69 || row.opcode == 70 || row.opcode == 71) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; int i = 0;
 			while (i < source.count) {
 				if (!recover_ssa_use(ssa.data, ssa.cfg, ssa.cfg.core.flow.data.edges[source.first + i], b, work)) return recover_ssa_refuse(work, detail);

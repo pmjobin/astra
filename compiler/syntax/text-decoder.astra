@@ -23,6 +23,13 @@ class TextLiteralDecoder {
 	}
 
 	owned Utf8Message decode(int start) throws Error {
+		var result = this.decode_part(start, false);
+		return move result;
+	}
+
+	// Fragment decoding shares every ordinary escape and UTF-8 rule. The
+	// opening hole/closing quote stays unconsumed for the scanner's delimiter.
+	owned Utf8Message decode_part(int start, bool fragment) throws Error {
 		var output = new Utf8ByteBuilder();
 		var backing = shared_clone(this.source);
 		int length = syntax_length(shared_borrow(backing));
@@ -30,8 +37,18 @@ class TextLiteralDecoder {
 			int value = syntax_byte(shared_borrow(backing), this.offset);
 			this.offset = this.offset + 1;
 			if (value == 34) {
+				if (fragment) this.offset = this.offset - 1;
 				var result = output.snapshot();
 				return move result;
+			}
+			if (fragment && (value == 123 || value == 125)) {
+				if (syntax_byte(shared_borrow(backing), this.offset) == value) this.offset = this.offset + 1;
+				else {
+					if (value == 123) {
+						this.offset = this.offset - 1; var result = output.snapshot(); return move result;
+					}
+					this.fail(this.offset - 1, this.offset, "single '}' in interpolation text requires '}}'"); break;
+				}
 			}
 			if (value == 10 || value == 13 || value == 0) {
 				this.fail(start, this.offset, "physical newline or NUL in string literal");

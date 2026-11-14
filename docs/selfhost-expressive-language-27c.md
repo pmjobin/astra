@@ -827,3 +827,90 @@ current-source acceptance under the unchanged 8M SSA budget, lazy native and
 corruption proof, typed interpolation, comprehensions, qualified source migration
 and final safety/ABI qualification. Original 27-B remains PARTIAL, its original
 prepublication G5 remains PENDING, and 27-C post-delivery G7 remains separate.
+
+SSA16 completes the corrected mutation suite: native exit 42 in 1.052 seconds
+and strict returning Valgrind in 38.207 seconds, with zero live bytes, errors or
+suppressions (selfhost27c-ssa16). This includes the five-reduction lazy CFG/SSA
+specimen and restored positive controls. It remains a focused source/SSA
+consumer, not an Astra compiler-source generation or lazy native target proof.
+
+Interpolation syntax appends token codes 97 through 99 and AST kind 99, without
+renumbering legacy tokens or Lambda kind 98. One bounded scanner state retains
+ordinary string escaping, doubled literal braces, exact hole boundaries and
+fork state. Plans admit at most 64 operands; nested interpolation is explicitly
+refused in this initial syntax. A separate source consumer scans immutable
+bytes and checks every fragment payload and hole boundary without invoking the
+parser. Syntax11 passes native exit 42 and strict returning memory
+(selfhost27c-syntax11). Syntax9/10 preserve C0 refusals for an unbound enum-call
+comparison and owned-token rebinding; the implementation uses copied enum facts
+and fresh per-iteration tokens. No C0 rule or binary changed.
+
+The live authored schema now records Lambda and Interpolation families. Existing
+binding, effect, deferred and specialization generators reproduce their walks;
+lambda construction omits execution of its deferred body. All four generator
+checks pass. Historical schema/parser cohorts and embedded reference bytes are
+unchanged; the current extension does not rewrite their qualification claims.
+
+Formatting library helpers pass native O0/O2 and strict zero-live-byte memory
+under both C0 and the authenticated dev8 Astra producer
+(selfhost27c-format-runtime1 and selfhost27c-format-runtime-astra1). Independent
+fixed fixtures cover decimal integer extrema, bool, UTF-8 and embedded NUL,
+f32/f64 signed zero, normals, subnormals and maximum finite encodings. Finite
+floating output is exact hexadecimal, with one leading hexadecimal digit,
+at least one fractional digit, trimmed trailing fractional zeroes, explicit
+binary exponent sign and IEEE subnormal exponents -126/-1022. Nonfinite bit
+patterns return false before appending. This helper proof is separate from the
+new syntax, typed-site bitcasts and complete formatting consumer qualification.
+
+The formatting candidate uses internal type 41 for immediate plans only;
+source cannot store or return a plan. All scalar/text operands evaluate in
+written order before helper writes. format_into borrows a named builder and
+returns bool. It prechecks all floating operands before its first append;
+size failure preserves any preceding successful appends. Borrowed strings are
+copied into the sink as counted bytes; format_text's finish validates UTF-8.
+Named Utf8Message operands borrow their source-verified readonly snapshot;
+unsupported temporary or escaping borrowed representations fail closed.
+The sink path has no separate plan or heap scratch; destination growth follows
+Utf8ByteBuilder's explicit reserve/growth contract. The owned path creates a
+builder and an owned Utf8Message, discards its builder on both finish and
+failure, and preserves InvalidUtf8 or FormatError through the existing Error
+ABI. It does not promise one allocation. Existing allocation exhaustion remains
+the fatal allocation boundary. This recovered subset is synchronous and adds
+no cancellation point or conversion of cancellation into a catchable Error.
+
+Private LLVM formatting helper candidates have independent signature, exact
+fragment, conversion, precheck, branch, call, retirement and output-slot checks.
+Heap-origin proof follows the actual finish function's source returns. Checked
+format_text sites enter the same fresh-owner and reverse abort accounting as
+other checked results, including failure in a later named argument. The new
+LLVM declarations were checked against the preserved LLVM23.1.4 Core.h; the
+existing constant-bitcast declaration is reused. No C bridge, LLVM version,
+public ABI or E25-A-v1 pin changed. Native formatting-site and corruption proofs
+remain pending. Semantic12 preserves an invalid fixture attempting access to a
+private TypeTable field; Semantic13 instead corrupts the public recorded plan
+type while preserving the private type table. Its focused build is pending.
+
+Whole current compiler-source C0 semantic preflights19 and21 pass in 76.278 and
+75.718 seconds. Earlier preflights17/18 retain a Core field-borrow refusal (the
+first attempted edit did not match the formatted code); preflight20 retains an
+accidentally duplicated LLVM declaration, removed before building. These failed
+attempts confer no acceptance credit. Four independently authored expanded lazy
+oracles now execute correctly (selfhost27c-lazy-oracles1): capture snapshots and
+callback order, borrowed array observations, narrow integer wrap and strict
+floating left-fold precision, and callback Error cleanup. Their Astra O0/O2
+execution and physical corruption checks await the development compiler.
+
+Dev9 builds from c40da5af5f1e67ceba561b95b91af323c373da18 in 3790.648 seconds;
+its C0-built optimized executable SHA-256 is
+3941f5445deeaa2b3069b9b21796aa6ae2b2a8dd012859134ce2adc54010b311.
+Actual named range collection/foreach, borrowed/nested/fixed-root slices and
+stride/foreach targets pass O0/O2, independent C0-expanded results, strict
+returning compiler/target memory, LLVM verification and 31 semantic negatives
+(selfhost27c-ranges-dev9-1). The first lazy native target is refused by real LLVM
+verification: lazy_frames appended allocas after an existing entry terminator.
+The corrected candidate emits those private frames inside declarations before
+entry branches. The refusal is retained (selfhost27c-lazy-dev9-1); no lazy native
+PASS is inferred. Format-plan type controls, including preserved closure/range
+identities and invalid channels, separately pass C0 O0/O2 and strict memory
+(selfhost27c-types4). Neither build nor these focused receipts establish final
+milestone acceptance or same-source Stage3 convergence.

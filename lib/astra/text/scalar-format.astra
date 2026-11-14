@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Decimal ASCII; no locale, platform adapter, heap scratch or floating conversion.
+// Decimal integers and exact finite hexadecimal floating text. No locale,
+// varargs, heap scratch or hidden text ownership.
 bool append_u32(Utf8ByteBuilder builder, u32 value) {
 	u8[10] digits = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	int start = 10;
@@ -73,3 +74,74 @@ bool append_i64(Utf8ByteBuilder builder, i64 value) {
 	}
 	return builder.append_bytes(slice(digits, start, 20 - start));
 }
+
+bool astra_format_text_fragment(Utf8ByteBuilder builder, string value) { return builder.append_text(value); }
+
+bool astra_format_message_fragment(Utf8ByteBuilder builder, Utf8Message value) { return builder.append_text(value.text); }
+
+// IEEE encoding is supplied by a private, physically checked bitcast at the
+// typed interpolation site. One stack buffer and one append preserve -0,
+// subnormals and extrema without decimal rounding or a C formatting adapter.
+bool astra_format_hex(Utf8ByteBuilder builder, u64 fraction, int exponent, bool negative, bool normal, int digits) {
+	if (digits != 6 && digits != 13) return false;
+	u8[32] bytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; int used = 0;
+	if (negative) {
+		bytes[used] = 45;
+		used = used + 1;
+	}
+	bytes[used] = 48; bytes[used + 1] = 120; bytes[used + 2] = 48; if (normal) bytes[used + 2] = 49;
+	bytes[used + 3] = 46; used = used + 4; int first = used; int at = 0;
+	while (at < digits) {
+		int nibble = ((fraction >> ((digits - at - 1) * 4)) & 15) as int; int character = 48 + nibble; if (nibble >= 10) character = 87 + nibble;
+		bytes[used] = character as u8; used = used + 1; at = at + 1;
+	}
+	while (used > first + 1 && bytes[used - 1] == 48) used = used - 1;
+	bytes[used] = 112; used = used + 1; u32 remaining = exponent as u32;
+	if (exponent < 0) {
+		bytes[used] = 45;
+		remaining = 0 - remaining;
+	}
+	else {
+		bytes[used] = 43;
+	}
+	used = used + 1; int end = used; u32 magnitude = remaining;
+	while (magnitude >= 10) {
+		end = end + 1;
+		magnitude = magnitude / 10;
+	}
+	int cursor = end;
+	while (true) {
+		bytes[cursor] = (48 + remaining % 10) as u8; if (cursor == used) break; cursor = cursor - 1; remaining = remaining / 10;
+	}
+	return builder.append_bytes(slice(bytes, 0, end + 1));
+}
+
+bool astra_format_f32_bits(Utf8ByteBuilder builder, u32 bits) {
+	int encoded = ((bits >> 23) & 255) as int; if (encoded == 255) return false;
+	u64 fraction = ((bits & 8388607) as u64) << 1; int exponent = encoded - 127;
+	if (encoded == 0) {
+		exponent = -126;
+		if (fraction == 0) exponent = 0;
+	}
+	return astra_format_hex(builder, fraction, exponent, (bits >> 31) != 0, encoded != 0, 6);
+}
+
+bool astra_format_f64_bits(Utf8ByteBuilder builder, u64 bits) {
+	int encoded = ((bits >> 52) & 2047) as int; if (encoded == 2047) return false;
+	u64 fraction = bits & 4503599627370495; int exponent = encoded - 1023;
+	if (encoded == 0) {
+		exponent = -1022;
+		if (fraction == 0) exponent = 0;
+	}
+	return astra_format_hex(builder, fraction, exponent, (bits >> 63) != 0, encoded != 0, 13);
+}
+
+class FormatError : Error { init() : base("formatting failed: nonfinite number or text size overflow") {} }
+
+owned Utf8ByteBuilder astra_format_builder() { var result = new Utf8ByteBuilder(); return move result; }
+
+owned Utf8Message astra_format_finish(Utf8ByteBuilder builder) throws InvalidUtf8 { var result = builder.snapshot(); return move result; }
+
+void astra_format_builder_drop(owned Utf8ByteBuilder builder) {}
+
+owned FormatError astra_format_failure() { var result = new FormatError(); return move result; }

@@ -19,7 +19,7 @@ def generate():
 			if field in ('foreign_member', 'foreign_channels'): continue
 			# Callable bodies are visited with their own bound, never with the
 			# ambient callable's error/handler/catch context.
-			if name in ('ClassDeclarationSyntax', 'StructDeclarationSyntax', 'EnumDeclarationSyntax', 'FunctionDeclarationSyntax', 'LifecycleDeclarationSyntax', 'TryStatementSyntax'): continue
+			if name in ('ClassDeclarationSyntax', 'StructDeclarationSyntax', 'EnumDeclarationSyntax', 'FunctionDeclarationSyntax', 'LifecycleDeclarationSyntax', 'TryStatementSyntax', 'LambdaExpressionSyntax'): continue
 			if field in ('vector', 'subscript') and name == 'VectorExtractExpressionSyntax': continue
 			if typ.rstrip('?') in model:
 				lines.append('\t\t\tchecked_effect_source_visit(index, source, index.bindings.program.arena.get_node_'+field+'(node), depth);')

@@ -64,6 +64,7 @@ bool recover_child_with_bindings(RecoverFlowData flow, CheckedIndex checked, Rec
 	seen[child - 1] = true; var row = flow.nodes[child - 1];
 	if (row.source.index != source.index || row.function != function || row.handler != handler || row.caught != caught || row.first < 0 || row.count < 0 || row.first > flow.edge_count - row.count) return false;
 	var kind = checked.bindings.program.arena.kind(source);
+	if (row.kind == 112 || row.kind == 113) return row.type.index == types.types[source.index].index && recover_formatting_source(flow, checked, types, row, seen, edges, bindings, depth);
 	if (row.kind >= 96 && row.kind <= 102) {
 		if (row.kind != 100 && row.kind != 101 && row.type.index != types.types[source.index].index) return false;
 		return recover_lazy_source(flow, checked, types, child, function, handler, caught, seen, edges, bindings, depth);

@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Only evaluated operands enter Flow. The immediate plan has no runtime
+// object, storage, owner, hidden operand evaluation or deferred callback.
+RecoverNode recover_build_formatting(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode input, int depth) {
+	var row = input; int action = formatting_action(checked, row.source); row.kind = 111 + action; row.token = checked.bindings.program.arena.get_token_identifier(row.source);
+	var plan = formatting_plan(checked, row.source); var arguments = checked.bindings.program.arena.interpolation_expression(plan).f_arguments;
+	int offset = 0; if (action == 1) offset = 1;
+	int count = checked.bindings.program.arena.list_count(arguments) + offset; var children = new int[count];
+	if (offset == 1) children[0] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(row.source), 0), row.function, row.handler, row.caught, depth + 1);
+	int at = offset;
+	while (at < count && flow.status == 0) {
+		children[at] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, at - offset), row.function, row.handler, row.caught, depth + 1); at = at + 1;
+	}
+	row.first = flow.edge_count; row.count = count; at = 0;
+	while (at < count && flow.status == 0) {
+		int added = flow.edge(children[at]); at = at + 1;
+	}
+	return row;
+}
+
+bool recover_formatting_source(RecoverFlowData flow, CheckedIndex checked, RecoverTypes types, RecoverNode row, bool[] seen, bool[] edges, u8[] bindings, int depth) {
+	if (row.kind != 112 && row.kind != 113 || row.a != 0 || row.b != 0 || row.c != 0 || row.symbol.index != 0 || checked.bindings.program.arena.kind(row.source) != SyntaxKind.CallExpressionSyntax() || row.token.index != checked.bindings.program.arena.get_token_identifier(row.source).index || !formatting_call_verified(checked, row.source) || row.kind != 111 + formatting_action(checked, row.source)) return false;
+	var plan = formatting_plan(checked, row.source); var arguments = checked.bindings.program.arena.interpolation_expression(plan).f_arguments; int offset = 0; if (row.kind == 112) offset = 1;
+	if (row.count != checked.bindings.program.arena.list_count(arguments) + offset) return false;
+	int at = 0; var work = new int[1]; work[0] = 8000000;
+	while (at < row.count) {
+		int position = row.first + at; if (edges[position]) return false; edges[position] = true;
+		var source = syntax_no_node(); if (at < offset) source = checked.bindings.program.arena.node_at(checked.bindings.program.arena.get_list_arguments(row.source), 0);
+		else {
+			source = checked.bindings.program.arena.node_at(arguments, at - offset);
+		}
+		int child = flow.edges[position];
+		if (!recover_child_with_bindings(flow, checked, types, child, source, row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;
+		int kind = checked_kind(checked, flow.nodes[child - 1].type);
+		if (kind == 31 || kind == 15) {
+			var root = recover_borrow_argument_root(flow, checked, child); int actual = recover_owner_unwrap(flow, child); if (actual < 1 || actual > flow.node_count) return false;
+			if (root.index == 0 && flow.nodes[actual - 1].kind == 6 && recover_error_borrow_binding(checked, flow.nodes[actual - 1].symbol)) root = flow.nodes[actual - 1].symbol;
+			if (root.index == 0 && !(kind == 15 && flow.nodes[actual - 1].kind == 1)) return false;
+			if (root.index > 0) {
+				int other = at + 1;
+				while (other < row.count) {
+					if (!recover_borrow_preserved(flow, flow.edges[row.first + other], root, work, 0)) return false; other = other + 1;
+				}
+			}
+		}
+		at = at + 1;
+	}
+	return true;
+}

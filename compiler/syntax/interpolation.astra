@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Reconstruct the fragment/hole boundaries from immutable source and a fresh
+// scanner. Neither parser metadata nor a cached formatting plan is authority.
+bool syntax_interpolation_token(SyntaxArena arena, SyntaxSourceId source, SyntaxTokenId stored, Token actual) throws Error {
+	if (stored.index < 1 || stored.index > arena.token_count) return false;
+	var kind = arena.token_kind(stored); var actual_kind = actual.kind(); if (kind != actual_kind) return false;
+	var span = arena.token_span(stored); var payload = arena.payload_message(stored);
+	return span.source.index == source.index && span.start == actual.span.start && span.end == actual.span.end && arena.token_is(stored, actual.spelling.text) && payload.text == actual.payload.text;
+}
+
+bool syntax_interpolation_verified(SyntaxArena arena, SyntaxNodeId node) {
+	if (node.index < 1 || node.index > arena.node_count || arena.kind(node) != SyntaxKind.InterpolationExpressionSyntax()) return false;
+	var data = arena.interpolation_expression(node); var span = arena.header(node).span; int count = arena.list_count(data.f_arguments);
+	if (count < 0 || count > 64 || arena.list_count(data.f_parts) != count + 1 || syntax_source_language_profile(arena, span.source) != 1) return false;
+	try {
+		var backing = arena.source(span.source); if (!source_valid_span(shared_borrow(backing), span.start, span.end)) return false;
+		var scanner = lexer(move backing); int remaining = 8000000; bool found = false;
+		while (remaining > 0) {
+			remaining = remaining - 1; var token = scanner.next_token(); if (scanner.failed || token.kind() == TokenKind.EOF()) return false;
+			if (token.span.start == span.start) {
+				if (token.kind() != TokenKind.INTERPOLATION_START() || !syntax_interpolation_token(arena, span.source, data.f_begin, token)) return false;
+				found = true; break;
+			}
+			if (token.span.end > span.start) return false;
+		}
+		if (!found) return false;
+		int at = 0;
+		while (at <= count) {
+			var part = scanner.next_token(); if (scanner.failed || part.kind() != TokenKind.INTERPOLATION_PART() || !syntax_interpolation_token(arena, span.source, arena.token_at(data.f_parts, at), part)) return false;
+			if (at == count) {
+				var end = scanner.next_token(); return !scanner.failed && end.kind() == TokenKind.INTERPOLATION_END() && end.span.end == span.end && syntax_interpolation_token(arena, span.source, data.f_end, end);
+			}
+			var open = scanner.next_token(); if (scanner.failed || open.kind() != TokenKind.OPEN_BRACE()) return false;
+			var expression = arena.header(arena.node_at(data.f_arguments, at)).span;
+			if (expression.source.index != span.source.index || expression.start < open.span.end || expression.end <= expression.start || expression.end > span.end) return false;
+			var first = scanner.next_token(); if (scanner.failed || first.kind() == TokenKind.EOF() || first.span.start != expression.start) return false;
+			int end_offset = first.span.end;
+			while (end_offset < expression.end) {
+				if (remaining == 0) return false; remaining = remaining - 1;
+				var next = scanner.next_token(); if (scanner.failed || next.kind() == TokenKind.EOF()) return false; end_offset = next.span.end;
+			}
+			if (end_offset != expression.end) return false;
+			var close = scanner.next_token(); if (scanner.failed || close.kind() != TokenKind.CLOSE_BRACE()) return false;
+			at = at + 1;
+		}
+		return false;
+	} catch (Error error) { return false; }
+}

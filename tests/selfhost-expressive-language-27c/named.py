@@ -865,6 +865,97 @@ int main() {
 }
 ''', False),
 ]
+RANGE_CASES.extend([
+	('lazy-capture-order', TICKS+'''extern(C) int allocation_calls();
+int main() {
+	reset_trace(); int bias = 3;
+	var values = (0..5).map(i => tick(i+1)+bias).filter(x => tick(x)>5).map(x => x*x);
+	bias = 100;
+	if (trace() != 0 || allocation_calls() != 0) return 1;
+	if (values.sum() != 149 || trace() != 1425364758 || allocation_calls() != 0) return 2;
+	reset_trace();
+	if (values.sum() != 149 || trace() != 1425364758 || allocation_calls() != 0) return 3;
+	return 42;
+}
+''', TICKS+'''extern(C) int allocation_calls();
+int main() {
+	reset_trace(); int bias = 3; int captured = bias; bias = 100;
+	if (trace() != 0 || allocation_calls() != 0) return 1;
+	int pass = 0;
+	while (pass < 2) {
+		reset_trace(); int total = 0; int i = 0;
+		while (i < 5) { int mapped = tick(i+1)+captured; bool accepted = tick(mapped)>5; if (accepted) total = total+mapped*mapped; i = i+1; }
+		if (total != 149 || trace() != 1425364758 || allocation_calls() != 0) return 2;
+		pass = pass+1;
+	}
+	return 42;
+}
+''', False),
+	('lazy-borrowed-array', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int reduce(borrowed int[] data) { return data.iter().filter(x => tick(x+3)>3).map(x => x*x).sum(); }
+int main() {
+	var data = new int[6]; int at = 0; while (at < 6) { data[at] = at-2; at = at+1; }
+	var deferred = data.iter().filter(x => tick(x+3)>3).map(x => x*x);
+	data[5] = 4; if (trace() != 0) return 1;
+	if (deferred.sum() != 21 || trace() != 123457 || allocation_calls() != 1 || allocation_bytes() != 24) return 2;
+	reset_trace(); if (reduce(data) != 21 || trace() != 123457 || allocation_calls() != 1) return 3;
+	return 42;
+}
+''', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+int reduce(borrowed int[] data) {
+	int total = 0; int at = 0; while (at < len(data)) { int value = data[at]; if (tick(value+3)>3) total = total+value*value; at = at+1; } return total;
+}
+int main() {
+	var data = new int[6]; int at = 0; while (at < 6) { data[at] = at-2; at = at+1; }
+	data[5] = 4; if (trace() != 0) return 1;
+	if (reduce(data) != 21 || trace() != 123457 || allocation_calls() != 1 || allocation_bytes() != 24) return 2;
+	reset_trace(); if (reduce(data) != 21 || trace() != 123457 || allocation_calls() != 1) return 3; return 42;
+}
+''', False),
+	('lazy-width-and-float', '''extern(C) int allocation_calls();
+int main() {
+	i8 first = -128; i8 last = 127; if ((first..=last).step_by(127).map(x => x).sum() != -3) return 1;
+	u64 top = 18446744073709551615; u64 bottom = top-10;
+	if ((bottom..=top).step_by(5).map(x => x as u8).sum() != 238) return 2;
+	if ((0..3).map(i => i==0 ? 16777216.0f : i==1 ? 1.0f : -16777216.0f).sum() != 0.0f) return 3;
+	if ((0..5).map(i => (i as f64)*0.5d).filter(x => x>=1.0d).sum() != 4.5d) return 4;
+	if (allocation_calls() != 0) return 5; return 42;
+}
+''', '''extern(C) int allocation_calls();
+int main() {
+	i8 current = -128; i8 small = 0; int at = 0;
+	while (at < 3) { small = small+current; at = at+1; if (at < 3) current = current+127; }
+	if (small != -3) return 1;
+	u8 narrow = 0; u64 top = 18446744073709551615; u64 value = top-10; at = 0;
+	while (at < 3) { narrow = narrow+(value as u8); at = at+1; if (at < 3) value = value+5; }
+	if (narrow != 238) return 2;
+	f32 rounded = 0.0f; rounded = rounded+16777216.0f; rounded = rounded+1.0f; rounded = rounded-16777216.0f;
+	if (rounded != 0.0f) return 3;
+	f64 total = 0.0d; at = 0; while (at < 5) { f64 item = (at as f64)*0.5d; if (item>=1.0d) total = total+item; at = at+1; }
+	if (total != 4.5d || allocation_calls() != 0) return 4; return 42;
+}
+''', False),
+	('lazy-callback-cleanup', TICKS+ITEM+'''int probe(int value) throws Error {
+	int ignored = tick(value+1); if (value == 2) { throw new Error("callback stop"); } return value;
+}
+int main() {
+	reset_trace(); var deferred = (0..5).map(i => probe(i)); if (trace() != 0) return 1;
+	try { var item = new Item(42); int value = deferred.sum(); return 2; }
+	catch (Error error) { if (trace() == 123 && drops() == 1 && drop_sum() == 42) return 42; } return 3;
+}
+''', TICKS+ITEM+'''int probe(int value) throws Error {
+	int ignored = tick(value+1); if (value == 2) { throw new Error("callback stop"); } return value;
+}
+int main() {
+	reset_trace(); if (trace() != 0) return 1;
+	try { var item = new Item(42); int total = 0; int i = 0; while (i < 5) { total = total+probe(i); i = i+1; } return 2; }
+	catch (Error error) { if (trace() == 123 && drops() == 1 && drop_sum() == 42) return 42; } return 3;
+}
+''', True),
+])
+
 RANGE_NEGATIVE = [
 	('range-fixed-dynamic', 'int main() { int end = 80; int[13] values = (20..=end).step_by(5).collect_fixed(); return 42; }'),
 	('range-fixed-count', 'int main() { int[12] values = (20..=80).step_by(5).collect_fixed(); return 42; }'),
@@ -952,7 +1043,7 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith('lazy-'); allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])

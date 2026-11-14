@@ -260,6 +260,29 @@ void expressive_lazy_flow() throws Error {
 	var guarded = recover_flow_lower(move throwing, 8192); assert_that(guarded.data.status == 0 && recover_flow_verify(guarded));
 }
 
+void expressive_formatting_types() throws Error {
+	var checked = expressive_checked("language astra27b; class Utf8ByteBuilder { init() {} } bool astra_format_text_fragment(Utf8ByteBuilder builder, string value) { return true; } bool append_int(Utf8ByteBuilder builder, int value) { return true; } bool append_bool(Utf8ByteBuilder builder, bool value) { return true; } int main() { var builder = new Utf8ByteBuilder(); if (format_into(builder, $\"offset {20}, ready {true}, text {\"bytes\"}\")) return 42; return 1; }");
+	int plans = 0; int calls = 0; int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.InterpolationExpressionSyntax()) {
+			assert_that(formatting_plan_verified(checked, node)); var use = checked.uses[at]; var shape = checked.types.row(use.type);
+			assert_that(shape.kind == 41 && shape.count == 3 && use.flags == 2 && !recover_copy_channel(checked, use.type, use.flags, false));
+			var wrong_edges = new TypeEdge[1]; TypeEdge edge = {type = type_id(1), flags = 0}; wrong_edges[0] = edge;
+			var wrong_type = checked.types.intern(41, type_symbol(0), 0, wrong_edges); var changed = use; changed.type = wrong_type; checked.uses[at] = changed;
+			assert_that(checked.types.format_plan_type(wrong_type) && !formatting_plan_verified(checked, node)); checked.uses[at] = use;
+			assert_that(formatting_plan_verified(checked, node)); plans = plans + 1;
+		}
+		if (formatting_action(checked, node) != 0) {
+			assert_that(formatting_call_verified(checked, node)); var use = checked.uses[at]; var changed = use; changed.flags = 4; checked.uses[at] = changed;
+			assert_that(!formatting_call_verified(checked, node)); checked.uses[at] = use; assert_that(formatting_call_verified(checked, node)); calls = calls + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(plans == 1 && calls == 1); var effect = checked_effect_source_verify(checked); assert_that(effect.status == 0);
+	var flow = recover_flow_lower(move checked, 8192); assert_that(flow.data.status == 0 && recover_flow_verify(flow));
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -293,6 +316,7 @@ int main(string[] args) {
 		expressive_lazy_types();
 		expressive_lazy_effects();
 		expressive_lazy_flow();
+		expressive_formatting_types();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

@@ -461,10 +461,6 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_target(node), depth);
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_expression(node), depth);
 		}
-		case SyntaxKind.LambdaExpressionSyntax(): {
-			// Construction does not execute the body. Finite callable admission
-			// and each consuming traversal must independently consume its effects.
-		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			checked_effect_source_visit(index, source, index.bindings.program.arena.get_node_scrutinee(node), depth);
 			var list_arms = index.bindings.program.arena.get_list_arms(node);
@@ -472,6 +468,16 @@ void checked_effect_source_children(CheckedIndex index, CheckedEffectSource sour
 			while (at_arms < index.bindings.program.arena.list_count(list_arms)) {
 				checked_effect_source_visit(index, source, index.bindings.program.arena.node_at(list_arms, at_arms), depth);
 				at_arms = at_arms + 1;
+			}
+		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+		}
+		case SyntaxKind.InterpolationExpressionSyntax(): {
+			var list_arguments = index.bindings.program.arena.get_list_arguments(node);
+			int at_arguments = 0;
+			while (at_arguments < index.bindings.program.arena.list_count(list_arguments)) {
+				checked_effect_source_visit(index, source, index.bindings.program.arena.node_at(list_arguments, at_arguments), depth);
+				at_arguments = at_arguments + 1;
 			}
 		}
 		else: { assert_that(false); }

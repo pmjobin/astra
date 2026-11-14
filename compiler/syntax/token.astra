@@ -97,7 +97,10 @@ enum TokenKind {
 	QUESTION,
 	COMPOUND_ASSIGNMENT,
 	RANGE,
-	RANGE_INCLUSIVE
+	RANGE_INCLUSIVE,
+	INTERPOLATION_START,
+	INTERPOLATION_PART,
+	INTERPOLATION_END
 }
 
 string token_kind_name(TokenKind kind) {
@@ -199,6 +202,9 @@ string token_kind_name(TokenKind kind) {
 		case TokenKind.COMPOUND_ASSIGNMENT(): { return "COMPOUND_ASSIGNMENT"; }
 		case TokenKind.RANGE(): { return "RANGE"; }
 		case TokenKind.RANGE_INCLUSIVE(): { return "RANGE_INCLUSIVE"; }
+		case TokenKind.INTERPOLATION_END(): { return "INTERPOLATION_END"; }
+		case TokenKind.INTERPOLATION_PART(): { return "INTERPOLATION_PART"; }
+		case TokenKind.INTERPOLATION_START(): { return "INTERPOLATION_START"; }
 	}
 }
 
@@ -393,6 +399,9 @@ int token_kind_code(TokenKind kind) {
 		case TokenKind.COMPOUND_ASSIGNMENT(): { return 94; }
 		case TokenKind.RANGE(): { return 95; }
 		case TokenKind.RANGE_INCLUSIVE(): { return 96; }
+		case TokenKind.INTERPOLATION_END(): { return 99; }
+		case TokenKind.INTERPOLATION_PART(): { return 98; }
+		case TokenKind.INTERPOLATION_START(): { return 97; }
 	}
 }
 
@@ -494,6 +503,9 @@ TokenKind token_kind_from_code(int code) {
 	if (code == 94) return TokenKind.COMPOUND_ASSIGNMENT();
 	if (code == 95) return TokenKind.RANGE();
 	if (code == 96) return TokenKind.RANGE_INCLUSIVE();
+	if (code == 99) return TokenKind.INTERPOLATION_END();
+	if (code == 98) return TokenKind.INTERPOLATION_PART();
+	if (code == 97) return TokenKind.INTERPOLATION_START();
 	assert_that(false);
 	return TokenKind.EOF();
 }

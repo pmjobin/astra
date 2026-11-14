@@ -142,6 +142,7 @@ enum SyntaxKind {
 	CompoundAssignmentSyntax,
 	MatchExpressionSyntax,
 	LambdaExpressionSyntax,
+	InterpolationExpressionSyntax,
 }
 
 int syntax_kind_code(SyntaxKind kind) {
@@ -430,6 +431,7 @@ int syntax_kind_code(SyntaxKind kind) {
 		case SyntaxKind.CompoundAssignmentSyntax(): { return 96; }
 		case SyntaxKind.MatchExpressionSyntax(): { return 97; }
 		case SyntaxKind.LambdaExpressionSyntax(): { return 98; }
+		case SyntaxKind.InterpolationExpressionSyntax(): { return 99; }
 
 	}
 }
@@ -719,6 +721,7 @@ SyntaxKind syntax_kind_from_code(int code) {
 	if (code == 96) return SyntaxKind.CompoundAssignmentSyntax();
 	if (code == 97) return SyntaxKind.MatchExpressionSyntax();
 	if (code == 98) return SyntaxKind.LambdaExpressionSyntax();
+	if (code == 99) return SyntaxKind.InterpolationExpressionSyntax();
 	assert_that(false);
 	return SyntaxKind.AddressOfExpressionSyntax();
 }
@@ -1012,6 +1015,7 @@ bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 		case SyntaxKind.CompoundAssignmentSyntax(): { return expected == SyntaxKind.StatementSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.MatchExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.LambdaExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
+		case SyntaxKind.InterpolationExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 
 	}
 }
@@ -1723,4 +1727,11 @@ struct LambdaExpressionSyntaxData {
 	SyntaxTokenId f_binding;
 	SyntaxTokenId f_arrow;
 	SyntaxNodeId f_expression;
+}
+
+struct InterpolationExpressionSyntaxData {
+	SyntaxTokenId f_begin;
+	SyntaxListId f_parts;
+	SyntaxListId f_arguments;
+	SyntaxTokenId f_end;
 }

@@ -213,7 +213,28 @@ class TypeTable {
 		return result;
 	}
 
+	bool format_plan_edge(TypeEdge edge) {
+		if (!this.valid_id(edge.type)) return false; int kind = this.row(edge.type).kind;
+		if (type_numeric(kind) || kind == 13) return edge.flags == 0;
+		return (kind == 15 || kind == 31) && edge.flags == 2;
+	}
+
+	bool format_plan_type(TypeId type) {
+		if (!this.valid_id(type)) return false; var row = this.row(type);
+		if (row.kind != 41 || row.nominal.index != 0 || row.extent != 0 || row.count < 0 || row.count > 64 || row.first < 0 || row.first > this.edge_count - row.count) return false;
+		int at = 0; while (at < row.count) {
+			var edge = this.edges[row.first + at]; if (edge.type.index >= type.index || !this.format_plan_edge(edge)) return false; at = at + 1;
+		} return true;
+	}
+
 	TypeId intern(int kind, SymbolId nominal, int extent, TypeEdge[] args) {
+		if (kind == 41) {
+			if (nominal.index != 0 || extent != 0 || len(args) > 64) return no_type(); int at = 0;
+			while (at < len(args)) {
+				if (!this.format_plan_edge(args[at])) return no_type();
+				at = at + 1;
+			}
+		}
 		if (kind == 39) {
 			if (nominal.index != 0 || extent < 1 || extent > 2 || len(args) != 2 || !this.inline_callable_type(args[1].type)) return no_type();
 			var input = this.lazy_element(args[0].type, 1);
@@ -326,6 +347,7 @@ class TypeTable {
 		int i = 1;
 		while (i <= this.count) {
 			var row = this.row(type_id(i));
+			if (row.kind == 41 && !this.format_plan_type(type_id(i))) return false;
 			if (row.kind == 38 && !this.inline_callable_type(type_id(i))) return false;
 			if ((row.kind == 39 || row.kind == 40) && this.lazy_element(type_id(i), 0).index == 0) return false;
 			if (row.kind <= 0 || row.depth > 128 || row.first < 0 || row.count < 0 || row.first > this.edge_count - row.count) {

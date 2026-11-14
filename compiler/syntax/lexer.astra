@@ -12,6 +12,8 @@ class Lexer {
 	private int comments_used;
 	private int header_state;
 	private bool modern_profile;
+	private int interpolation_state;
+	private int interpolation_braces;
 	int error_start;
 	int error_end;
 	owned Utf8Message error_message;
@@ -23,6 +25,7 @@ class Lexer {
 		this.comments_used = 0;
 		this.header_state = 0;
 		this.modern_profile = false;
+		this.interpolation_state = 0; this.interpolation_braces = 0;
 		this.error_start = 0;
 		this.error_end = 0;
 		this.error_message = move empty;
@@ -85,6 +88,7 @@ class Lexer {
 		result.error_end = this.error_end;
 		result.header_state = this.header_state;
 		result.modern_profile = this.modern_profile;
+		result.interpolation_state = this.interpolation_state; result.interpolation_braces = this.interpolation_braces;
 		return move result;
 	}
 
@@ -154,6 +158,24 @@ class Lexer {
 	}
 
 	owned Token next_token() throws Error {
+		if (!this.failed && this.interpolation_state == 1) {
+			int start = this.offset; var retained = shared_clone(this.source); var empty = syntax_text("");
+			var decoder = new TextLiteralDecoder(move retained, this.offset, move empty); var payload = decoder.decode_part(start, true); this.offset = decoder.offset;
+			if (decoder.error_message.text != "") {
+				this.fail(decoder.error_start, decoder.error_end, decoder.error_message.text); var stopped = this.stopped(); return move stopped;
+			}
+			this.interpolation_state = 2; var result = this.token(TokenKind.INTERPOLATION_PART(), start, move payload); return move result;
+		}
+		if (!this.failed && this.interpolation_state == 2) {
+			int start = this.offset; int value = this.byte_at(start); var empty = syntax_text("");
+			if (value == 34) {
+				this.offset = this.offset + 1; this.interpolation_state = 0; var result = this.token(TokenKind.INTERPOLATION_END(), start, move empty); return move result;
+			}
+			if (value == 123) {
+				this.offset = this.offset + 1; this.interpolation_state = 3; this.interpolation_braces = 0; var result = this.token(TokenKind.OPEN_BRACE(), start, move empty); return move result;
+			}
+			this.fail(start, start, "unterminated interpolation");
+		}
 		if (this.failed || !this.skip_trivia()) {
 			var result = this.stopped();
 			return move result;
@@ -161,10 +183,29 @@ class Lexer {
 		int start = this.offset;
 		int value = this.byte_at(this.offset);
 		if (value < 0) {
+			if (this.interpolation_state == 3) this.fail(start, start, "unterminated interpolation operand");
 			var result = this.stopped();
 			return move result;
 		}
 		this.offset = this.offset + 1;
+		if (this.modern_profile && value == 36 && this.byte_at(this.offset) == 34) {
+			if (this.interpolation_state != 0) {
+				this.fail(start, this.offset + 1, "nested interpolation is outside the bounded initial syntax"); var result = this.stopped(); return move result;
+			}
+			this.offset = this.offset + 1; this.interpolation_state = 1; var empty = syntax_text(""); var result = this.token(TokenKind.INTERPOLATION_START(), start, move empty); return move result;
+		}
+		if (this.interpolation_state == 3 && value == 125) {
+			if (this.interpolation_braces == 0) this.interpolation_state = 1;
+			else {
+				this.interpolation_braces = this.interpolation_braces - 1;
+			}
+		}
+		if (this.interpolation_state == 3 && value == 123) {
+			if (this.interpolation_braces == 256) {
+				this.fail(start, this.offset, "interpolation operand brace depth exceeds 256"); var result = this.stopped(); return move result;
+			}
+			this.interpolation_braces = this.interpolation_braces + 1;
+		}
 		if (value == 34) {
 			var retained = shared_clone(this.source);
 			var initial = syntax_text("");

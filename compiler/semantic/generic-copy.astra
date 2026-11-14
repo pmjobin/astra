@@ -235,16 +235,21 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_arms = generic_copy_list(index, plan, data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()), depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_match_statement(data, header.span, header.depth);
 		}
-		case SyntaxKind.LambdaExpressionSyntax(): {
-			var data = index.bindings.program.arena.lambda_expression(original);
-			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
-			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_lambda_expression(data, header.span, header.depth);
-		}
 		case SyntaxKind.MatchExpressionSyntax(): {
 			var data = index.bindings.program.arena.match_expression(original);
 			data.f_scrutinee = generic_copy_node(index, plan, data.f_scrutinee, depth + 1);
 			data.f_arms = generic_copy_list(index, plan, data.f_arms, syntax_kind_code(SyntaxKind.EnumArmSyntax()), depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_match_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.LambdaExpressionSyntax(): {
+			var data = index.bindings.program.arena.lambda_expression(original);
+			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_lambda_expression(data, header.span, header.depth);
+		}
+		case SyntaxKind.InterpolationExpressionSyntax(): {
+			var data = index.bindings.program.arena.interpolation_expression(original);
+			data.f_arguments = generic_copy_list(index, plan, data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()), depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_interpolation_expression(data, header.span, header.depth);
 		}
 		case SyntaxKind.EnumArmSyntax(): {
 			var data = index.bindings.program.arena.enum_arm(original);

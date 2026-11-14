@@ -85,6 +85,16 @@ void checked_effect_source_visit(CheckedIndex index, CheckedEffectSource source,
 		}
 		source.caught = caught; return;
 	}
+	if (kind == SyntaxKind.CallExpressionSyntax() && formatting_action(index, node) != 0) {
+		if (!formatting_call_verified(index, node)) {
+			source.fail(node, 1);
+			return;
+		}
+		if (formatting_action(index, node) == 2 && !checked_effect_covered(index, source, source.root)) {
+			source.fail(node, 4);
+			return;
+		}
+	}
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		if (lazy_call_action(index, node) == 4 && lazy_call_verified(index, node)) lazy_effects_visit(index, source, range_query_receiver(index, node), 0);
 		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));

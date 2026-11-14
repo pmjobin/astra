@@ -67,7 +67,7 @@ bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, 
 			}
 		} else {
 			int action = checked_shared_action(checked, initializer);
-			producer = range_collect_verified(checked, initializer) || action == 1 || action == 2 || action == 4 || action == 5 || action == 6;
+			producer = formatting_action(checked, initializer) == 2 && formatting_call_verified(checked, initializer) || range_collect_verified(checked, initializer) || action == 1 || action == 2 || action == 4 || action == 5 || action == 6;
 		}
 	}
 	return ((checked.symbol_flags[symbol.index] & 4) != 0) == producer;
