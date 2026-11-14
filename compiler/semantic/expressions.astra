@@ -505,6 +505,7 @@ TypeId checked_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, in
 	var right_node = index.bindings.program.arena.get_node_right(node);
 	var token = index.bindings.program.arena.get_token_operator_token(node);
 	var op = index.bindings.program.arena.token_message(token);
+	if (op.text == ".." || op.text == "..=") return checked_range_binary(index, node, expected, depth + 1);
 	bool logical = index.bindings.program.arena.kind(node) == SyntaxKind.ShortCircuitExpressionSyntax();
 	bool comparison = op.text == "==" || op.text == "!=" || op.text == "<" || op.text == ">" || op.text == "<=" || op.text == ">=";
 	bool equality = op.text == "==" || op.text == "!=";

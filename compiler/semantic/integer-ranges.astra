@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A range is a copyable bound pair plus an inclusive bit, never an allocation.
+bool range_type_verified(TypeTable types, TypeId type) {
+	return types.integer_range_type(type);
+}
+
+TypeId checked_range_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	if (!checked_modern_source(index, node)) return index.defer(node, 15);
+	var left_node = index.bindings.program.arena.get_node_left(node);
+	var right_node = index.bindings.program.arena.get_node_right(node);
+	var context = no_type();
+	if (range_type_verified(index.types, expected)) context = index.types.argument(index.types, expected, 0).type;
+	if (context.index == 0) context = checked_context(index, left_node, depth + 1);
+	if (context.index == 0) context = checked_context(index, right_node, depth + 1);
+	var left = checked_expression(index, left_node, context, depth + 1);
+	var right = checked_expression(index, right_node, left, depth + 1);
+	if (left.index == 0 || right.index == 0) return index.defer(node, 15);
+	if (left.index != right.index || !type_integer(checked_kind(index, left)) || index.uses[left_node.index].flags != 0 || index.uses[right_node.index].flags != 0) {
+		index.fail(index.bindings.program.arena.header(node).span, "range bounds require one exact concrete integer type");
+		return no_type();
+	}
+	return index.types.unary(35, left, 0);
+}
+
+bool range_source_verified(SyntaxArena arena, SyntaxNodeId node) {
+	var token = arena.get_token_operator_token(node);
+	var whole = arena.header(node).span;
+	var left = arena.header(arena.get_node_left(node)).span;
+	var right = arena.header(arena.get_node_right(node)).span;
+	var operator_span = arena.token_span(token);
+	if (whole.source.index != left.source.index || whole.source.index != right.source.index || whole.source.index != operator_span.source.index || whole.start != left.start || whole.end != right.end || left.end > operator_span.start || operator_span.end > right.start) return false;
+	try {
+		var backing = arena.source(whole.source);
+		if (!source_valid_span(shared_borrow(backing), left.end, right.start)) return false;
+		var bytes = source_bytes(shared_borrow(backing), left.end, right.start);
+		var buffer = source_buffer("<integer-range-operator-proof>", move bytes, false);
+		var retained = shared_acquire(move buffer);
+		// An unselected fragment lexer intentionally keeps the original dot
+		// tokens, proving adjacency without trusting the new range token kind.
+		var scanner = lexer(move retained);
+		var first = scanner.next_token(); var second = scanner.next_token();
+		if (scanner.failed || first.kind() != TokenKind.DOT() || second.kind() != TokenKind.DOT() || first.span.end != second.span.start || operator_span.start != left.end + first.span.start) return false;
+		int end = second.span.end;
+		if (arena.token_is(token, "..=")) {
+			var equal = scanner.next_token();
+			if (scanner.failed || equal.kind() != TokenKind.EQUAL() || equal.span.start != end) return false;
+			end = equal.span.end;
+		}
+		var eof = scanner.next_token();
+		return !scanner.failed && eof.kind() == TokenKind.EOF() && operator_span.end == left.end + end;
+	} catch (Error error) { return false; }
+}
+
+bool range_value_facts_verified(CheckedIndex index) {
+	int at = 1;
+	while (at < len(index.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (index.bindings.program.arena.kind(node) == SyntaxKind.BinaryExpressionSyntax()) {
+			var token = index.bindings.program.arena.get_token_operator_token(node);
+			bool inclusive = index.bindings.program.arena.token_is(token, "..=");
+			if (inclusive || index.bindings.program.arena.token_is(token, "..")) {
+				var use = index.uses[at];
+				if (!checked_modern_source(index, node) || !range_type_verified(index.types, use.type) || use.flags != 0 || use.deferred != 0 || !range_source_verified(index.bindings.program.arena, node)) return false;
+				var expected = TokenKind.RANGE(); if (inclusive) expected = TokenKind.RANGE_INCLUSIVE();
+				if (index.bindings.program.arena.token_kind(token) != expected) return false;
+				var element = index.types.argument(index.types, use.type, 0);
+				var left = index.bindings.program.arena.get_node_left(node);
+				var right = index.bindings.program.arena.get_node_right(node);
+				if (index.uses[left.index].type.index != element.type.index || index.uses[right.index].type.index != element.type.index || index.uses[left.index].flags != 0 || index.uses[right.index].flags != 0) return false;
+			}
+		}
+		at = at + 1;
+	}
+	return true;
+}

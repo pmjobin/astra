@@ -62,6 +62,7 @@ SymbolId type_symbol(int index) {
 
 // Kind 1..16: fixed canonical builtins. 20..28: structural constructors.
 // 30..33: exact nominal declarations/type parameters; 34: closed application.
+// 35: a copyable integer range, with one exact concrete integer element edge.
 class TypeOwner {
 	init() {
 	}
@@ -132,7 +133,17 @@ class TypeTable {
 		return this.edges[row.first + ordinal];
 	}
 
+	bool integer_range_type(TypeId type) {
+		if (!this.valid_id(type) || this.count > len(this.rows)) return false;
+		var row = this.row(type);
+		if (row.kind != 35 || row.nominal.index != 0 || row.extent != 0 || row.count != 1 || row.depth != 1 || row.first < 0 || row.first >= this.edge_count || row.first >= len(this.edges)) return false;
+		var element = this.edges[row.first];
+		return element.flags == 0 && this.valid_id(element.type) && element.type.index < type.index && type_integer(this.row(element.type).kind);
+	}
+
 	TypeId intern(int kind, SymbolId nominal, int extent, TypeEdge[] args) {
+		if (kind == 35 && (nominal.index != 0 || extent != 0 || len(args) != 1)) return no_type();
+		if (kind == 35 && (!this.valid_id(args[0].type) || args[0].flags != 0 || !type_integer(this.row(args[0].type).kind))) return no_type();
 		if (kind <= 16 && (kind < 1 || nominal.index != 0 || extent != 0 || len(args) != 0)) {
 			return no_type();
 		}
@@ -231,12 +242,14 @@ class TypeTable {
 			if (row.kind <= 0 || row.depth > 128 || row.first < 0 || row.count < 0 || row.first > this.edge_count - row.count) {
 				return false;
 			}
+			if (row.kind == 35 && (row.nominal.index != 0 || row.extent != 0 || row.count != 1 || row.depth != 1)) return false;
 			int a = 0;
 			while (a < row.count) {
 				var edge = this.edges[row.first + a];
 				if (edge.type.index <= 0 || edge.type.index >= i) {
 					return false;
 				}
+				if (row.kind == 35 && (edge.flags != 0 || !type_integer(this.row(edge.type).kind))) return false;
 				a = a + 1;
 			}
 			i = i + 1;

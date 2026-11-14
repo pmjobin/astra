@@ -155,6 +155,31 @@ void expressive_owning_patterns() throws Error {
 	assert_that(inspected == 1 && consumed == 1 && enum_value_facts_verified(checked) && checked.validate() && generic_verify(checked));
 }
 
+void expressive_range_values() throws Error {
+	var checked = expressive_checked("language astra27b; int main() { var interval = 20..=80; var other = (1+2)..(20-1); var unsigned = (0 as u64)..=18446744073709551615; return 42; }");
+	assert_that(range_value_facts_verified(checked));
+	int count = 0; int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (range_type_verified(checked.types, checked.uses[at].type) && checked.bindings.program.arena.kind(node) == SyntaxKind.BinaryExpressionSyntax()) {
+			count = count + 1;
+			var left = checked.bindings.program.arena.get_node_left(node);
+			var original = checked.uses[left.index]; var changed = original;
+			changed.type = type_id(13); checked.uses[left.index] = changed;
+			assert_that(!range_value_facts_verified(checked));
+			checked.uses[left.index] = original;
+			assert_that(range_value_facts_verified(checked));
+			var saved = checked.uses[at]; var owning = saved; owning.flags = 4;
+			checked.uses[at] = owning;
+			assert_that(!range_value_facts_verified(checked));
+			checked.uses[at] = saved;
+			assert_that(checked.types.valid() && range_value_facts_verified(checked));
+		}
+		at = at + 1;
+	}
+	assert_that(count == 3);
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -183,6 +208,7 @@ int main(string[] args) {
 		expressive_pattern_context();
 		expressive_constructor_match();
 		expressive_owning_patterns();
+		expressive_range_values();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

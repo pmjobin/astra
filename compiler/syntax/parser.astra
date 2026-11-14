@@ -6094,6 +6094,7 @@ class SyntaxParser {
 	}
 
 	int infix_binding_power(SyntaxArena arena, TokenKind arg_kind) throws Error {
+		if (this.modern() && (arg_kind == TokenKind.RANGE() || arg_kind == TokenKind.RANGE_INCLUSIVE())) return 8;
 		var tmp_1 = arg_kind;
 		if (tmp_1 == TokenKind.AS()) {
 			return 25;

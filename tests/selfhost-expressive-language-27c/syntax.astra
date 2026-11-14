@@ -123,10 +123,41 @@ void expressive_match_patterns() throws Error {
 	assert_that(legacy.failed());
 }
 
+void expressive_token_sequence(string text, string expected) throws Error {
+	var bytes = new u8[text.byte_length]; int at = 0;
+	while (at < len(bytes)) {
+		bytes[at] = astra_host_text_byte(text, at) as u8; at = at + 1;
+	}
+	var source = source_buffer("expressive-token-input", move bytes, false);
+	var retained = shared_acquire(move source);
+	var scanner = lexer(move retained); at = 0;
+	assert_that(expected.byte_length % 3 == 2);
+	while (at < expected.byte_length) {
+		int code = (astra_host_text_byte(expected, at)-48)*10+astra_host_text_byte(expected, at+1)-48;
+		var token = scanner.next_token();
+		assert_that(!scanner.failed && token_kind_code(token.kind()) == code);
+		if (token.kind() == TokenKind.RANGE()) assert_that(token.spelling.text == ".." && token.span.end - token.span.start == 2);
+		if (token.kind() == TokenKind.RANGE_INCLUSIVE()) assert_that(token.spelling.text == "..=" && token.span.end - token.span.start == 3);
+		at = at + 3;
+	}
+	var end = scanner.next_token(); assert_that(!scanner.failed && end.kind() == TokenKind.EOF());
+}
+
+void expressive_range_tokens() throws Error {
+	// Header tokens are identifiers, identifiers and semicolon in both profiles.
+	expressive_token_sequence("language astra27b; 20..80 20..=80", "01 01 69 24 95 24 24 96 24");
+	expressive_token_sequence("language astra27b; 1...2 value.field 1.0..2.0", "01 01 69 24 39 39 39 24 01 39 01 25 95 25");
+	expressive_token_sequence("language legacy27a; 20..=80", "01 01 69 24 39 39 70 24");
+	expressive_token_sequence("language astra27b; 0xff..=0x100 a<b", "01 01 69 24 96 24 01 83 01");
+	expressive_token_sequence("language astra27b; ....", "01 01 69 39 39 39 39");
+	assert_that(token_kind_from_code(94) == TokenKind.COMPOUND_ASSIGNMENT() && token_kind_from_code(95) == TokenKind.RANGE() && token_kind_from_code(96) == TokenKind.RANGE_INCLUSIVE());
+}
+
 int main() {
 	try {
 		expressive_argument_labels();
 		expressive_match_patterns();
+		expressive_range_tokens();
 		return 42;
 	} catch (Error error) {
 		return 1;

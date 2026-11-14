@@ -365,3 +365,35 @@ capture preflight was corrected; its failed receipt remains retained. The ssa3
 component is building consuming, inspecting, nested and throwing-arm controls
 with independent capture/publication/residual mutations. Native owning-sum
 targets, physical mutations, full host and ABI qualification remain pending.
+
+The ssa3 component now returns 42 and passes strict returning Valgrind, including
+the consuming, inspecting, nested and throwing-arm source paths and restored
+capture/publication/residual mutation controls. Product SHA-256 is
+`1b0a400ae62724d28de215d2bfd0cf4ae2f42b29e26d19cd1c319d56583bb0a4`.
+Independent Git-blob checks bind all 161 component inputs/recipes to `7abc179`;
+the original build-start revision remains unchanged in its receipt. The same
+audit binds semantic3's 115 inputs to `fb0a5ef` and ssa2's 161 to `0054bb3`.
+These passing compiler consumers do not substitute for actual owning-match
+LLVM/ELF target execution or the production host's qualification.
+
+The first range candidate appends token codes 95/96 for `..`/`..=` behind the
+modern selector. Earlier codes and legacy tokenization stay fixed, including
+runs of three or more dots. Syntax6 executes the numeric/member/ellipsis/legacy
+controls with native exit 42 and strict memory pass; product SHA-256 is
+`dd10130b881ec5a7c97c3e033b81c20803b37713efe63a4e215c13c4b5214a5e`.
+An earlier fixture incorrectly expected integer/float codes 25/26 rather than
+the preserved 24/25. Its native assertion and read-only GDB diagnosis remain
+retained; the corrected explicit expectations pass.
+
+Range construction uses the existing binary AST with a structural type 35 and
+one concrete integer element edge. It has no owner channel. Its current binding
+power is 8, below addition/multiplication and above shifts/comparisons; explicit
+parentheses disambiguate other endpoint operations. The independent source
+query reconstructs both endpoint types, flags and source ranges, then lexes the
+operator gap as original adjacent dots/equal rather than trusting the new token.
+Private type-table storage remains private, with a separate read-only query
+inside its owning Class. Full C0 source semantics passes after that correction
+(preflight 37, 65.656 seconds). The semantic5 source consumer is executing the
+typed range and metadata controls. Native range storage, iteration, slices,
+lazy callables, materialization and interpolation remain engineering work;
+this typing candidate grants none of those acceptance claims.

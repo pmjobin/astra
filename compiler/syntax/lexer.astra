@@ -278,6 +278,16 @@ class Lexer {
 
 	TokenKind operator_kind(int value) throws Error {
 		int next = this.byte_at(this.offset);
+		// Keep legacy tokenization and existing runs of three or more dots.
+		// In particular, the second dot of an ellipsis cannot start a range.
+		if (this.modern_profile && value == 46 && next == 46 && this.byte_at(this.offset + 1) != 46 && (this.offset < 2 || this.byte_at(this.offset - 2) != 46)) {
+			this.offset = this.offset + 1;
+			if (this.byte_at(this.offset) == 61) {
+				this.offset = this.offset + 1;
+				return TokenKind.RANGE_INCLUSIVE();
+			}
+			return TokenKind.RANGE();
+		}
 		if (this.modern_profile && value == 63) return TokenKind.QUESTION();
 		if (this.modern_profile && next == 61 && (value == 43 || value == 45 || value == 42 || value == 47 || value == 37 || value == 38 || value == 124 || value == 94)) {
 			this.offset = this.offset + 1;
