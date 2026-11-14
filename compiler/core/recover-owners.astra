@@ -48,10 +48,6 @@ int recover_owner_written_input(RecoverFlow flow, RecoverNode call, int ordinal)
 	if (call.kind == 99 && recover_owner_value(flow.checked, call)) {
 		if (ordinal == 0) return call.c; if (ordinal == 1) return call.b; return 0;
 	}
-	if (call.kind == 71) {
-		if (ordinal < 0 || ordinal >= call.count) return 0;
-		return flow.data.edges[call.first + ordinal];
-	}
 	int slot = checked_named_argument_slot(flow.checked, call.source, call.symbol, call.count, ordinal);
 	if (slot < 0 || slot >= call.count) return 0;
 	return flow.data.edges[call.first + slot];
@@ -371,7 +367,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				int preceding_input = parent.c;
 				if (parent.kind != 99) {
 					int preceding_slot = a-1;
-					if (parent.kind != 71) preceding_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a-1);
+					preceding_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a-1);
 					if (preceding_slot < 0 || preceding_slot >= parent.count) return false;
 					preceding_input = flow.data.edges[parent.first+preceding_slot];
 				}
@@ -384,7 +380,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 				int subtree = parent.b;
 				if (parent.kind != 99) {
 					int subtree_slot = a;
-					if (parent.kind != 71) subtree_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a);
+					subtree_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, a);
 					if (subtree_slot < 0 || subtree_slot >= parent.count) return false;
 					subtree = flow.data.edges[parent.first+subtree_slot];
 				}
@@ -397,7 +393,7 @@ bool recover_owners_verify(RecoverOwners plan, RecoverFlow flow) {
 							int reserve_input = parent.c;
 							if (parent.kind != 99) {
 								int reserve_slot = earlier;
-								if (parent.kind != 71) reserve_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, earlier);
+								reserve_slot = checked_named_argument_slot(flow.checked, parent.source, parent.symbol, parent.count, earlier);
 								if (reserve_slot < 0 || reserve_slot >= parent.count) return false;
 								reserve_input = flow.data.edges[parent.first+reserve_slot];
 							}

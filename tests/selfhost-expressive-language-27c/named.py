@@ -916,9 +916,9 @@ int main() {
 ''', False),
 	('lazy-width-and-float', '''extern(C) int allocation_calls();
 int main() {
-	i8 first = -128; i8 last = 127; if ((first..=last).step_by(127).map(x => x).sum() != -3) return 1;
+	i8 first = -128; i8 last = 127; if ((first..=last).step_by(127).map(x => x).sum() != (-3 as i8)) return 1;
 	u64 top = 18446744073709551615; u64 bottom = top-10;
-	if ((bottom..=top).step_by(5).map(x => x as u8).sum() != 238) return 2;
+	if ((bottom..=top).step_by(5).map(x => x as u8).sum() != (238 as u8)) return 2;
 	if ((0..3).map(i => i==0 ? 16777216.0f : i==1 ? 1.0f : -16777216.0f).sum() != 0.0f) return 3;
 	if ((0..5).map(i => (i as f64)*0.5d).filter(x => x>=1.0d).sum() != 4.5d) return 4;
 	if (allocation_calls() != 0) return 5; return 42;
@@ -1110,6 +1110,50 @@ COLLECTION_NEGATIVE = [
 	('collection-borrow-result', 'borrowed int[] bad() { return (0..13).map(i => i+1).collect_array(); } int main() { return 42; }'),
 	('collection-copy-owner', 'int main() { var data = (0..13).map(i => i+1).collect_array(); var copy = data; return 42; }'),
 ]
+NAMED_ENUM = 'enum Parcel { Data(owned int[] first, owned int[] second, int marker) }\n'
+ENUM_MARKER = TICKS+'''int mark(bool fail) throws Error { int observed = tick(9); if (fail) { throw new Error("enum operand failure"); } return 22; }
+'''
+CASES.extend([
+	('named-enum-order', TICKS+'''extern(C) int allocation_calls();
+enum Pair { Data(int first, int last) }
+int main() { reset_trace(); var pair = Pair.Data(last: tick(2), first: tick(4)); if (trace() != 24 || allocation_calls() != 0) return 1; match (pair) { case Pair.Data(first,last): { return first*10+last; } } }
+''', TICKS+'''extern(C) int allocation_calls();
+enum Pair { Data(int first, int last) }
+int main() { reset_trace(); int last = tick(2); int first = tick(4); var pair = Pair.Data(first,last); if (trace() != 24 || allocation_calls() != 0) return 1; match (pair) { case Pair.Data(left,right): { return left*10+right; } } }
+''', False),
+	('named-enum-mixed-tail', '''enum Mixed { Data(int first, bool enabled, f64 real) }
+int main() { var value = Mixed.Data(20, real: 22.0d, enabled: true); match (value) { case Mixed.Data(first,enabled,real): { if (enabled && first == 20 && real == 22.0d) return 42; return 1; } } }
+''', '''enum Mixed { Data(int first, bool enabled, f64 real) }
+int main() { var value = Mixed.Data(20,true,22.0d); match (value) { case Mixed.Data(first,enabled,real): { if (enabled && first == 20 && real == 22.0d) return 42; return 1; } } }
+''', False),
+	('named-enum-fresh-abort', COLLECTION_OBSERVE+ENUM_MARKER+NAMED_ENUM+'''int main() { try { var value = Parcel.Data(second: new int[13], first: new int[7], marker: mark(true)); return 1; } catch (Error error) { if (trace() == 9 && watched_frees() == 1) return 42; return 2; } }
+''', COLLECTION_OBSERVE+ENUM_MARKER+NAMED_ENUM+'''int main() { try { owned int[] second = new int[13]; owned int[] first = new int[7]; int marker = mark(true); var value = Parcel.Data(move first,move second,marker); return 1; } catch (Error error) { if (trace() == 9 && watched_frees() == 1) return 42; return 2; } }
+''', True),
+	('named-enum-reservation-abort', COLLECTION_OBSERVE+ENUM_MARKER+NAMED_ENUM+'''int attempt() {
+	owned int[] first = new int[7]; owned int[] second = new int[13];
+	try { var value = Parcel.Data(second: move second, first: move first, marker: mark(true)); return 1; }
+	catch (Error error) { if (trace() == 9 && len(first) == 7 && len(second) == 13 && watched_frees() == 0) return 42; return 2; }
+}
+int main() { int result = attempt(); if (result == 42 && watched_frees() == 1) return 42; return 3; }
+''', COLLECTION_OBSERVE+ENUM_MARKER+NAMED_ENUM+'''int attempt() {
+	owned int[] first = new int[7]; owned int[] second = new int[13];
+	try { int marker = mark(true); var value = Parcel.Data(move first,move second,marker); return 1; }
+	catch (Error error) { if (trace() == 9 && len(first) == 7 && len(second) == 13 && watched_frees() == 0) return 42; return 2; }
+}
+int main() { int result = attempt(); if (result == 42 && watched_frees() == 1) return 42; return 3; }
+''', True),
+	('named-enum-owned-success', COLLECTION_OBSERVE+NAMED_ENUM+'''int main() { var parcel = Parcel.Data(second: new int[13], first: new int[7], marker: 22); owned int[] values = match (move parcel) { case Parcel.Data(first,_,marker) => move first; }; if (len(values) == 7 && watched_frees() == 1) return 42; return 1; }
+''', COLLECTION_OBSERVE+NAMED_ENUM+'''owned int[] take(Parcel parcel) { match (move parcel) { case Parcel.Data(first,second,marker): { return move first; } } }
+int main() { owned int[] second = new int[13]; owned int[] first = new int[7]; var parcel = Parcel.Data(move first,move second,22); owned int[] values = take(move parcel); if (len(values) == 7 && watched_frees() == 1) return 42; return 1; }
+''', False),
+])
+NEGATIVE.extend([
+	('enum-unknown-label', 'enum E { Data(int first,int last) } int main() { var value = E.Data(first: 20, missing: 22); return 42; }'),
+	('enum-payload-wrong-type', 'enum E { Data(int first,bool ready) } int main() { var value = E.Data(ready: 20, first: true); return 42; }'),
+	('enum-owned-copy', NAMED_ENUM+'int main() { owned int[] first = new int[7]; var value = Parcel.Data(second: new int[13], first: first, marker: 22); return 42; }'),
+	('enum-positional-label-collision', 'enum E { Data(int first,int last) } int main() { var value = E.Data(20, first: 22); return 42; }'),
+])
+
 FORMAT_CASES = [
 	('format-sink-scalars', FORMAT_OBSERVE+'''int main() {
 		try {
@@ -1318,7 +1362,7 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-', 'collection-', 'comprehension-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', '-Wl,--wrap=free', allocation_object] if observed else []
+		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-', 'collection-', 'comprehension-', 'named-enum-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', '-Wl,--wrap=free', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
 			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])
@@ -1326,7 +1370,7 @@ def main():
 		else:
 			run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
 		run(name+'-C0-native', [reference], 42); products[str(reference)] = sha(reference)
-		if a.feature in ('format', 'collection'): memory(name+'-C0-memory', [reference], 42)
+		if a.feature in ('format', 'collection') or name.startswith('named-enum-'): memory(name+'-C0-memory', [reference], 42)
 		if a.oracle_only: continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o'); target = build/(name+'-'+mode)

@@ -24,7 +24,9 @@ class RecoverLazyCursor {
 		if (!this.valid || aggregate == null || LLVMGetTypeKind(LLVMTypeOf(aggregate)) != 10 || ordinal < 0 || ordinal >= LLVMCountStructElementTypes(LLVMTypeOf(aggregate))) {
 			this.valid = false; return null;
 		}
-		if (LLVMIsAInstruction(aggregate) == null) return LLVMGetAggregateElement(aggregate, ordinal);
+		// Function arguments are nonconstant aggregates too. They require the
+		// actual extract instruction, just like instruction-produced carriers.
+		if (LLVMIsConstant(aggregate) != 0) return LLVMGetAggregateElement(aggregate, ordinal);
 		var value = this.take(53); if (value == null) return null;
 		if (LLVMGetNumOperands(value) != 1 || !recover_llvm_extract(value, aggregate, ordinal)) this.valid = false;
 		return value;

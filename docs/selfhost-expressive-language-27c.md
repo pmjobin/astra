@@ -1133,3 +1133,69 @@ argument. SSA19's semantic preflight passes in 62.788 seconds and its focused
 build is in progress. That suite adds independent named-payload permutation,
 Flow child, fresh abort and reserved-owner restoration corruptions with restored
 controls. The original borrowing rule, C0 and all fixed verifier budgets remain.
+
+Dev11 completes from frozen 49d6ea1 source: compilation 3867.456 seconds,
+retained-IR verification 1.017, object generation 7.499 and link 0.335. Its actual
+C0-built executable SHA-256 is
+72ea34024ecd7642b5a421e8ff9cd233c5172fc88bab31c59af4683082e12758.
+The second read-only live-process receipt records 3479.64 CPU seconds and
+2695888 KiB RSS while compilation was active; final time records remain in the
+runtime. This product predates the formatter driver, named enum payload changes
+and aggregate-cursor correction described below. It is not a current-source or
+generation acceptance claim.
+
+All five collection specimens pass actual dev11 O0/O2 ELF execution, LLVM
+verification, their expanded C0 references, strict returning compiler/target
+memory and eleven semantic negatives (selfhost27c-collection-dev11-1). They
+cover ordered squares, captured filter order, actual narrow/Boolean/floating
+elements, checked callback retirement and owned return/replacement. Observers
+confirm one final buffer per materialization and no intermediate pipeline array.
+The exact thirteen-value 20-through-80 case remains separately attributed to
+its earlier actual native receipt.
+
+All four lazy specimens pass actual dev11 O0/O2, LLVM verification, C0 references
+and strict returning compiler/target memory. The first two are in
+selfhost27c-lazy-dev11-1; that leaf then retains an incorrectly typed i8 fixture
+refusal. Explicit i8/u8 expected values correct the fixture without changing the
+language rule; selfhost27c-lazy-dev11-2 passes the remaining width/floating and
+callback-cleanup cases and all 31 range negatives. Neither the failed leaf nor
+expanded references are relabelled as a whole-suite native PASS.
+
+The lazy physical lane passes four controls and independently refuses all four
+LLVM-valid overflow/fast-math/filter-edge/capture corruptions
+(selfhost27c-lazy-physical-dev11-1). Collection physical evidence spans three
+leaves: the first passes four controls and allocation-size, logical-length and
+hidden-pipeline-allocation corruptions; the second passes three controls and
+partial-retirement/hidden-comprehension-allocation corruptions; the third passes
+its control and borrowed-read flags corruption. Earlier observer assertions
+incorrectly assumed one free in a function with three, and a single inbounds
+flag bit in LLVM's implied flag set. Their failures remain recorded; corrected
+selectors identify the allocation temporary's actual free and preserve/check
+the full actual flags. All six mutations are LLVM-structurally accepted and
+independently refused with the sentinel intact. No corrupted target is executed.
+
+SSA19 completes: focused build 1587.746 seconds, native assertions 1.215 and
+strict returning memory 43.022 with zero live bytes, errors and suppressions.
+Its executable SHA-256 is
+d7a15527bc54fe95a77c894e027f2326541aab300a1e29d7829e482d294c0f1c.
+Named enum evaluation/permutation/owner corruption evidence is scoped to its
+actual Source-through-SSA consumers; new-constructor native and physical tests
+await the next full host.
+
+The first actual dev11 interpolation compilation correctly refuses its physical
+contract (selfhost27c-format-dev11-1); it grants no formatted-target credit.
+Read-only diagnostics identify a verifier error: a function's aggregate argument
+is neither constant nor instruction-produced. Both the shared extraction check
+and lazy cursor had incorrectly treated every noninstruction aggregate as a
+constant. They now query LLVMIsConstant and require actual extractvalue
+instructions for function arguments. Instruction identity, operands, indices,
+block consumption, metadata and inventory checks remain active.
+
+The existing owner-kernel recipe's --llvm-cursor lane extracts the exact
+production cursor and primitive with their actual C API declarations. It builds
+real LLVM aggregate function arguments, extract instructions and constants,
+accepts controls and refuses wrong ordinal, wrong argument and out-of-range
+corruptions. Both C0 O0/O2 native runs and strict returning memory pass with zero
+live bytes, errors and suppressions (selfhost27c-cursor-kernel3). Earlier missing
+declaration/dependency preflights remain recorded. This exact-kernel proof does
+not replace actual formatting-site, current complete-source or generation tests.

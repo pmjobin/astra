@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+extern(C) void LLVMShutdown();
+
+int main() {
+	var context = LLVMContextCreate(); var module = LLVMModuleCreateWithNameInContext(llvm12_empty(), context); var builder = LLVMCreateBuilderInContext(context); var handles = llvm12_handles();
+	var integer = LLVMIntTypeInContext(context, 32); var pointer = LLVMPointerTypeInContext(context, 0);
+	llvm12_handle_set(handles, 0, pointer); llvm12_handle_set(handles, 1, integer); var aggregate = LLVMStructTypeInContext(context, llvm12_handle_offset(handles, 0), 2, 0);
+	llvm12_handle_set(handles, 0, aggregate); var signature = LLVMFunctionType(integer, llvm12_handle_offset(handles, 0), 1, 0);
+	var function = llvm12_function(module, signature, "cursor.argument"); var other = llvm12_function(module, signature, "cursor.other"); var block = llvm12_block(context, function, "entry");
+	LLVMPositionBuilderAtEnd(builder, block); var argument = LLVMGetParam(function, 0); var first = LLVMBuildExtractValue(builder, argument, 0, llvm12_empty()); var second = LLVMBuildExtractValue(builder, argument, 1, llvm12_empty()); var term = LLVMBuildRet(builder, second);
+	assert_that(LLVMIsConstant(argument) == 0 && LLVMIsAInstruction(argument) == null && llvm12_verify(module) == 0);
+	{
+		var cursor = new RecoverLazyCursor(block, null);
+		assert_that(cursor.extract(argument, 0) == first && cursor.extract(argument, 1) == second && cursor.valid && cursor.cursor == term);
+		assert_that(recover_llvm_extract(first, argument, 0) && recover_llvm_extract(second, argument, 1));
+	}
+	{
+		var cursor = new RecoverLazyCursor(block, null); var wrong = cursor.extract(argument, 1); assert_that(!cursor.valid && !recover_llvm_extract(first, argument, 1));
+	}
+	{
+		var cursor = new RecoverLazyCursor(block, null); var wrong = cursor.extract(LLVMGetParam(other, 0), 0); assert_that(!cursor.valid);
+	}
+	{
+		var cursor = new RecoverLazyCursor(block, null); assert_that(cursor.extract(argument, 2) == null && !cursor.valid);
+	}
+	llvm12_handle_set(handles, 0, LLVMConstNull(pointer)); llvm12_handle_set(handles, 1, LLVMConstInt(integer, 7, 0)); var constant = LLVMConstStructInContext(context, llvm12_handle_offset(handles, 0), 2, 0);
+	{
+		var cursor = new RecoverLazyCursor(block, null); var selected = cursor.extract(constant, 1);
+		assert_that(LLVMIsConstant(constant) != 0 && selected == LLVMConstInt(integer, 7, 0) && cursor.valid && cursor.cursor == first && recover_llvm_extract(selected, constant, 1));
+	}
+	assert_that(llvm12_verify(module) == 0); llvm12_handles_dispose(handles); LLVMDisposeBuilder(builder); LLVMDisposeModule(module); LLVMContextDispose(context); LLVMShutdown(); return 42;
+}

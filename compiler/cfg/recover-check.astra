@@ -167,7 +167,7 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	int head = op;
 	if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69 || row.kind == 71) && row.count > 0) {
 		int last = row.count - 1;
-		if (row.kind == 4 || recover_constructor_kind(row.kind)) last = checked_named_argument_slot(cfg.core.flow.checked, row.source, row.symbol, row.count, last);
+		if (row.kind == 4 || row.kind == 71 || recover_constructor_kind(row.kind)) last = checked_named_argument_slot(cfg.core.flow.checked, row.source, row.symbol, row.count, last);
 		if (last < 0 || last >= row.count) return false;
 		head = cfg.regions[cfg.core.flow.data.edges[row.first + last] - 1].next;
 	}
@@ -180,7 +180,7 @@ bool recover_cfg_check_tree(RecoverCfg cfg, int id, int next, bool[] seen, bool[
 	if ((row.kind == 4 || recover_constructor_kind(row.kind) || row.kind == 19 || row.kind == 69 || row.kind == 71) && !recover_cfg_check_commit(cfg, head, id, op, seen)) return false; int i = row.count - 1;
 	while (i >= 0) {
 		int slot = i;
-		if (row.kind == 4 || row.kind == 50 || recover_constructor_kind(row.kind)) slot = checked_named_argument_slot(cfg.core.flow.checked, row.source, row.symbol, row.count, i);
+		if (row.kind == 4 || row.kind == 50 || row.kind == 71 || recover_constructor_kind(row.kind)) slot = checked_named_argument_slot(cfg.core.flow.checked, row.source, row.symbol, row.count, i);
 		if (slot < 0 || slot >= row.count) return false;
 		int child = cfg.core.flow.data.edges[row.first + slot];
 		if (i == 0 && row.kind == 4 && recover_static_method(cfg.core.flow.checked, row.symbol)) {

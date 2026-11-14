@@ -10,6 +10,7 @@ from support import execute,write,sha,output_path,tool_identity
 p=argparse.ArgumentParser(description=__doc__)
 for name in ('c0','build','runtime','link'):p.add_argument('--'+name,type=Path,required=True)
 p.add_argument('--c0-sha256',required=True)
+p.add_argument('--llvm-cursor',action='store_true',help='Select the exact production aggregate cursor and LLVM primitives')
 a=p.parse_args();c0=a.c0;assert sha(c0)==a.c0_sha256
 leaf=output_path(a.runtime,BASE/'runtime');build=output_path(a.build,BASE/'build');leaf.mkdir(exist_ok=False);build.mkdir(exist_ok=False)
 (leaf/'recipe.py.txt').write_bytes(Path(__file__).read_bytes())
@@ -38,16 +39,28 @@ kernel+=take('compiler/semantic/recover-foreign.astra','bool recover_value_kind(
 kernel+=take('compiler/backend/llvm/recover-check.astra','class RecoverLlvmIndex {','bool recover_llvm_call(')
 kernel+=take('compiler/backend/llvm/recover-module.astra','int recover_llvm_emission_order(','struct RecoverRecordStorage {')
 kernel+=take('tests/selfhost-compiler-complete/ssa-dominance.astra','bool dominance_oracle(','int main(')
+if a.llvm_cursor:
+	selected=[];origins={}
+	kernel=take('compiler/backend/llvm/recover-lazy-check.astra','class RecoverLazyCursor {','void* recover_lazy_symbol_checked(')
+	kernel+=take('compiler/backend/llvm/recover-check.astra','bool recover_llvm_extract(','bool recover_llvm_field(')
+	kernel+=take('compiler/backend/llvm/recover-helpers-check.astra','bool recover_llvm_jump(','bool recover_llvm_helper_signature(')
+	kernel+=take('compiler/backend/llvm/recover-range-check.astra','bool recover_range_counter_store(','int recover_range_loop_instruction(')
+	kernel+=take('compiler/cfg/recover-model.astra','struct RecoverBlock {','class RecoverCfg {')
 view=leaf/'production-kernel.astra';view.write_bytes(kernel);view.chmod(0o444)
 model=ROOT/'tests/selfhost-compiler-complete/ssa-owner-packs-model.astra';driver=ROOT/'tests/selfhost-expressive-language-27c/owner-kernel.astra'
+if a.llvm_cursor:driver=ROOT/'tests/selfhost-expressive-language-27c/cursor-kernel.astra'
 inputs=[view]
-for p in (model,driver):
+for p in ((driver,) if a.llvm_cursor else (model,driver)):
 	q=leaf/p.name;q.write_bytes(p.read_bytes());q.chmod(0o444);inputs.append(q);origins[str(p)]=sha(p)
 libmodel=ast.parse((ROOT/'tests/selfhost-typecore/build.py').read_text());libs=next(ast.literal_eval(n.value) for n in libmodel.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='LIBRARIES' for t in n.targets))
 origins[str(ROOT/'tests/selfhost-typecore/build.py')]=sha(ROOT/'tests/selfhost-typecore/build.py')
 for name in libs:
 	p=ROOT/('lib/astra/'+name+'.astra');q=leaf/'libraries'/(name+'.astra');q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(p.read_bytes());q.chmod(0o444);inputs.append(q);origins[str(p)]=sha(p)
-provider={p:h for p,h in json.loads(a.link.read_text())['objects'].items() if Path(p).name not in ('llvm-capi.o','arguments.o')};assert len(provider)==5 and all(sha(p)==h for p,h in provider.items())
+if a.llvm_cursor:
+	for name in ('capi','recover-capi','recover-shared-capi'):
+		p=ROOT/('compiler/backend/llvm/'+name+'.astra');q=leaf/(name+'.astra');q.write_bytes(p.read_bytes());q.chmod(0o444);inputs.append(q);origins[str(p)]=sha(p)
+manifest=json.loads(a.link.read_text());excluded=('arguments.o',) if a.llvm_cursor else ('llvm-capi.o','arguments.o')
+provider={p:h for p,h in manifest['objects'].items() if Path(p).name not in excluded};assert len(provider)==(6 if a.llvm_cursor else 5) and all(sha(p)==h for p,h in provider.items())
 commands=[]
 def run(name,argv,expected=0):
 	r=execute(argv,leaf/name,expected=expected,timeout=600,env=env);commands.append(dict(name=name,argv=list(map(str,argv)),result=r));write(leaf/'commands.json',commands);print(name,r['exit'],round(r['seconds'],3),flush=True);assert r['exit']==expected,(leaf/name/'stderr').read_text();return (leaf/name/'stdout').read_text()
@@ -58,11 +71,13 @@ for n,p in enumerate(origins):
 	source=leaf/('source-'+str(n)+'.astra');source.write_bytes(Path(p).read_bytes());source.chmod(0o444);full.extend(declarations(run('syntax-'+str(n),[c0,'--dump-syntax',source])))
 actual=declarations(run('syntax-kernel',[c0,'--dump-syntax',view]));assert actual and all(full.count(row)==1 for row in actual)
 identity=dict(c0_sha256=sha(c0),recipe_sha256=sha(__file__),tools=tools,recipe_inputs={str(recipe):sha(recipe),str(a.link):sha(a.link)},origins=origins,selected=selected,normalized_declarations=actual,actual_inputs={str(p):sha(p) for p in inputs},providers=provider,limitation='Exact helper kernels with existing minimal containers; no full source, native feature, compiler or ABI qualification. The enum predicate is a declared test stub; selected-sum paths are outside this kernel scope.')
+if a.llvm_cursor:identity['limitation']='Exact production aggregate cursor and primitive checks on actual LLVM arguments/constants/corruptions only; no complete compiler, formatting-site or milestone qualification.'
 write(leaf/'identity.json',identity)
 run('semantic-preflight',[c0,'--dump-semantics',*inputs])
 products={}
 for mode in ('O0','O2'):
 	target=build/('kernel-'+mode);links=[x for p in provider for x in ('--link-object',p)]
+	if a.llvm_cursor:links.extend(x for library in manifest['libraries'] for x in ('--link-library',library[2:]))
 	run(mode+'-build',[c0,'-'+mode,*inputs,*links,'-o',target]);run(mode+'-native',[target],42);run(mode+'-memory',['valgrind','--default-suppressions=no','--error-exitcode=99','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=all',target],42)
 	log=(leaf/(mode+'-memory')/'stderr').read_bytes();assert all(s in log for s in (b'ERROR SUMMARY: 0 errors',b'in use at exit: 0 bytes in 0 blocks',b'(suppressed: 0 from 0)'));products[mode]=dict(path=str(target),sha256=sha(target))
 assert all(sha(p)==h for p,h in {**identity['actual_inputs'],**provider,**tools}.items())

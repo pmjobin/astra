@@ -39,13 +39,18 @@ TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node, int depth) throw
 	var variant_declaration = index.bindings.symbol(variant);
 	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
 	var arguments = index.bindings.program.arena.get_list_arguments(node);
-	if (index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(arguments) != index.bindings.program.arena.list_count(fields) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0) {
+	if (index.bindings.program.arena.get_bool_signal_emission(node) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.list_count(arguments) != index.bindings.program.arena.list_count(fields) || !checked_prepare_named_arguments(index, node, variant, index.bindings.program.arena.list_count(arguments))) {
 		index.fail(index.bindings.program.arena.header(node).span, "enum construction requires exact declared payload fields and no type arguments");
 		return no_type();
 	}
 	int at = 0;
 	while (at < index.bindings.program.arena.list_count(fields) && !index.failed()) {
-		var field = index.bindings.program.arena.node_at(fields, at);
+		int slot = checked_named_argument_slot(index, node, variant, index.bindings.program.arena.list_count(arguments), at);
+		if (slot < 0 || slot >= index.bindings.program.arena.list_count(fields)) {
+			index.fail(index.bindings.program.arena.header(node).span, "enum payload label does not identify a unique declared field");
+			return no_type();
+		}
+		var field = index.bindings.program.arena.node_at(fields, slot);
 		var field_symbol = index.node_symbols[field.index];
 		var expected = index.symbol_types[field_symbol.index];
 		var input = index.bindings.program.arena.node_at(arguments, at);

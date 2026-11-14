@@ -109,7 +109,7 @@ bool recover_llvm_call(void* call, void* function, int count, int convention) {
 
 bool recover_llvm_extract(void* value, void* aggregate, int index) {
 	if (value == null || aggregate == null) return false;
-	if (LLVMIsAInstruction(aggregate) == null) return value == LLVMGetAggregateElement(aggregate, index);
+	if (LLVMIsConstant(aggregate) != 0) return value == LLVMGetAggregateElement(aggregate, index);
 	return LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && LLVMGetOperand(value, 0) == aggregate && llvm13_index(value, 0, index) == 1;
 }
 

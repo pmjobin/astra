@@ -15,7 +15,12 @@ RecoverNode recover_build_enum(RecoverFlowData flow, CheckedIndex checked, Recov
 			if (count > 0) {
 				var children = new int[count]; int at = 0;
 				while (at < count && flow.status == 0) {
-					children[at] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, at), row.function, row.handler, row.caught, depth + 1);
+					int slot = checked_named_argument_slot(checked, row.source, variant, count, at);
+					if (slot < 0 || slot >= count) {
+						flow.status = 4;
+						break;
+					}
+					children[slot] = recover_build_node(flow, checked, types, checked.bindings.program.arena.node_at(arguments, at), row.function, row.handler, row.caught, depth + 1);
 					at = at + 1;
 				}
 				row.first = flow.edge_count; row.count = count; at = 0;
@@ -115,7 +120,8 @@ bool recover_enum_source_with_bindings(RecoverFlowData flow, CheckedIndex checke
 		if (row.count != checked.bindings.program.arena.list_count(arguments)) return false;
 		int at = 0;
 		while (at < row.count) {
-			int edge = row.first + at;
+			int slot = checked_named_argument_slot(checked, row.source, row.symbol, row.count, at); if (slot < 0 || slot >= row.count) return false;
+			int edge = row.first + slot;
 			if (edges[edge]) return false;
 			edges[edge] = true;
 			if (!recover_child_with_bindings(flow, checked, types, flow.edges[edge], checked.bindings.program.arena.node_at(arguments, at), row.function, row.handler, row.caught, seen, edges, bindings, depth + 1)) return false;

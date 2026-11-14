@@ -69,10 +69,14 @@ int checked_named_argument_slot(CheckedIndex index, SyntaxNodeId node, SymbolId 
 	if (labelled == 0) return written;
 	if (written < 0 || written >= count || labelled > count || target.index < 1 || target.index > index.bindings.symbol_count) return -1;
 	var declaration = index.bindings.symbol(target);
-	if (declaration.kind != 1 && declaration.kind != 11 && declaration.kind != 12) return -1;
-	var parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
+	if (declaration.kind != 1 && declaration.kind != 11 && declaration.kind != 12 && declaration.kind != 13) return -1;
+	SyntaxListId parameters = {index = 0};
+	if (declaration.kind == 13) parameters = index.bindings.program.arena.get_list_fields(declaration.node);
+	else {
+		parameters = index.bindings.program.arena.get_list_parameters(declaration.node);
+	}
 	int offset = 0;
-	if (class_storage_initializing(index, target)) offset = 1;
+	if (declaration.kind != 13 && class_storage_initializing(index, target)) offset = 1;
 	var explicit_arguments = checked_call_written_arguments(index, node);
 	if (declaration.kind == 11) explicit_arguments = index.bindings.program.arena.get_list_arguments(node);
 	int explicit_count = index.bindings.program.arena.list_count(explicit_arguments);

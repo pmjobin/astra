@@ -22,7 +22,7 @@ def module(name, path):
 
 def main():
 	selection = argparse.ArgumentParser(add_help=False)
-	selection.add_argument('--feature', choices=('existing', 'format', 'lazy', 'collection', 'range'), default='existing')
+	selection.add_argument('--feature', choices=('existing', 'format', 'lazy', 'collection', 'range', 'enum'), default='existing')
 	options, remaining = selection.parse_known_args()
 	sys.argv = [sys.argv[0], *remaining]
 	prior = module('ownership_physical', PRIOR/'physical.py')
@@ -147,6 +147,33 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	assert prior.GDB.count(needle) == 1
 	prior.GDB = prior.GDB.replace(needle, mutations+needle)
 	extra = []
+	if options.feature == 'enum':
+		prior.COMPOUND = 'enum Pair { Data(int first,int last) } int main() { var pair = Pair.Data(last: 22,first: 20); match (pair) { case Pair.Data(first,last): { return first+last; } } }\n'
+		prior.INTRINSIC = '''[ExceptionRoot] class Error {
+	readonly string text;
+	init(string message) { this.text = message; }
+	virtual property string message { get { return this.text; } }
+}
+enum Parcel { Data(owned int[] first,owned int[] second,int marker) }
+int mark(bool fail) throws Error { if (fail) { throw new Error("stop"); } return 22; }
+int main() { try { var value = Parcel.Data(second: new int[13],first: new int[7],marker: mark(true)); return 1; } catch (Error error) { return 42; } }
+'''
+		prior.CASES = {
+			'named-enum-payload-slot': ('compound', 'main', 'named-enum-slot'),
+			'named-enum-fresh-retirement': ('intrinsic', 'main', 'named-enum-retirement'),
+		}
+		enum_mutations = '''  elif action=='named-enum-slot':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==28 and pointer('LLVMIsAConstantInt',operand(value,0)) and integer(operand(value,0))==20]
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,0);before=integer(old);set_operand(target,0,replacement(old,21));after=integer(operand(target,0));assert after==21
+  elif action=='named-enum-retirement':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='free']
+   assert len(candidates)==2,candidates
+   target=candidates[0];old=operand(target,0);before=dict(argument=old,retirements=len(candidates),selected=0)
+   set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
+'''
+		assert prior.GDB.count(needle) == 1
+		prior.GDB = prior.GDB.replace(needle, enum_mutations+needle)
 	if options.feature == 'range':
 		prior.COMPOUND = 'int main() { var values = (20..=80).step_by(5).collect_array(); return len(values); }\n'
 		prior.RECORD = 'int main() { int[13] values = (20..=80).step_by(5).collect_fixed(); return values[0]; }\n'
@@ -290,7 +317,16 @@ int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); retu
    target=candidates[0];old=operand(target,1);before=dict(logical_length=old)
    set_operand(target,1,replacement(old,13));after=dict(capacity_substituted=integer(operand(target,1)));assert after['capacity_substituted']==13
   elif action=='collection-retirement':
-   candidates=[value for block in body for value in instructions(block) if opcode(value)==45 and name(pointer('LLVMGetCalledValue',value))=='free']
+   candidates=[]
+   for block in body:
+    for value in instructions(block):
+     if opcode(value)!=45 or name(pointer('LLVMGetCalledValue',value))!='free':continue
+     argument=operand(value,0)
+     if not pointer('LLVMIsAInstruction',argument) or opcode(argument)!=53:continue
+     descriptor=operand(argument,0)
+     # The partial temporary has its actual allocation descriptor. Normal
+     # local cleanup instead loads the final descriptor from an owner slot.
+     if pointer('LLVMIsAInstruction',descriptor) and opcode(descriptor)==54:candidates.append(value)
    assert len(candidates)==1,candidates
    target=candidates[0];old=operand(target,0);before=dict(partial_buffer=old)
    set_operand(target,0,pointer('LLVMConstNull',pointer('LLVMTypeOf',old)));after=dict(is_null=number('(int)LLVMIsNull((void*)%d)'%operand(target,0)));assert after['is_null']
@@ -298,7 +334,7 @@ int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); retu
    candidates=[value for block in body for value in instructions(block) if opcode(value)==29 and pointer('LLVMIsAInstruction',operand(value,0)) and opcode(operand(value,0))==53]
    assert len(candidates)==1,candidates
    target=candidates[0];before=number('(unsigned)LLVMGEPGetNoWrapFlags((void*)%d)'%target);assert before==0
-   gdb.parse_and_eval('(void)LLVMGEPSetNoWrapFlags((void*)%d,1)'%target);after=number('(unsigned)LLVMGEPGetNoWrapFlags((void*)%d)'%target);assert after==1
+   gdb.parse_and_eval('(void)LLVMGEPSetNoWrapFlags((void*)%d,1)'%target);after=number('(unsigned)LLVMGEPGetNoWrapFlags((void*)%d)'%target);assert after&1 and after!=before
 '''
 		assert prior.GDB.count(needle) == 1
 		prior.GDB = prior.GDB.replace(needle, collection_mutations+needle)
@@ -384,7 +420,7 @@ int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); retu
 	result = json.loads((runtime/'result.json').read_text())
 	result['extension_inputs'] = identity
 	result['feature'] = options.feature
-	scopes = dict(existing='named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement', format='typed formatting fragments, finite prechecks, failure edges, owned output and retirement', lazy='integer/floating reduction flags, filter skip edges and captured values', collection='element allocation sizes, logical lengths, hidden intermediate allocations, partial retirement and borrowed reads', range='count limits, final advancement, allocation size/intermediates, inclusive bounds, checked slice bounds and fixed backing alignment')
+	scopes = dict(existing='named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement', format='typed formatting fragments, finite prechecks, failure edges, owned output and retirement', lazy='integer/floating reduction flags, filter skip edges and captured values', collection='element allocation sizes, logical lengths, hidden intermediate allocations, partial retirement and borrowed reads', range='count limits, final advancement, allocation size/intermediates, inclusive bounds, checked slice bounds and fixed backing alignment', enum='named enum payload storage slots and fresh-buffer retirement on later argument failure')
 	result['scope'] = 'Selected 27-C actual '+scopes[options.feature]+'. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
 	write(runtime/'result.json', result)
 

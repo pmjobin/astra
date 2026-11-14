@@ -303,6 +303,28 @@ void expressive_comprehension_types() throws Error {
 	assert_that(count == 3 && checked.validate() && generic_verify(checked));
 }
 
+void expressive_named_enum_arguments() throws Error {
+	var checked = expressive_checked("language astra27b; enum Pair { Data(int first, int last) } enum Mixed { Data(int first, bool enabled, f64 real) } int main() { var pair = Pair.Data(last: 22, first: 20); var mixed = Mixed.Data(20, real: 22.0d, enabled: true); return 42; }");
+	int at = 1; int count = 0;
+	while (at <= checked.bindings.program.arena.node_count) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_argument_names(node)) > 0) {
+			var target = checked_named_call_target(checked, node); int arity = checked.bindings.program.arena.list_count(checked.bindings.program.arena.get_list_arguments(node));
+			assert_that(checked.bindings.symbol(target).kind == 13 && checked_named_arguments_verified(checked, node, target, arity) && enum_constructor_verified(checked, node, target, checked.uses[node.index].type));
+			var original = checked.named_argument_lists[node.index]; var forged = checked.bindings.program.arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax())); int position = 0;
+			while (position < arity) {
+				checked.bindings.program.arena.append_node(forged, checked.bindings.program.arena.node_at(original, (position+1)%arity));
+				position = position+1;
+			}
+			checked.named_argument_lists[node.index] = forged;
+			assert_that(!checked_named_arguments_verified(checked, node, target, arity) && !enum_constructor_verified(checked, node, target, checked.uses[node.index].type));
+			checked.named_argument_lists[node.index] = original; assert_that(enum_constructor_verified(checked, node, target, checked.uses[node.index].type)); count = count+1;
+		}
+		at = at+1;
+	}
+	assert_that(count == 2 && generic_verify(checked));
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -338,6 +360,7 @@ int main(string[] args) {
 		expressive_lazy_flow();
 		expressive_formatting_types();
 		expressive_comprehension_types();
+		expressive_named_enum_arguments();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }
