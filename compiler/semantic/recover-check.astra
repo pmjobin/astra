@@ -6,6 +6,22 @@ bool recover_borrow_preserved(RecoverFlowData flow, int id, SymbolId receiver, i
 	work[0] = work[0] - 1; var row = flow.nodes[id - 1];
 	if (!recover_value_kind(row.kind) || row.kind == 69 || row.kind == 10 && row.symbol.index == receiver.index) return false;
 	if (row.kind == 82) return true;
+	if (row.kind == 80) {
+		if (row.b != 0 || row.c != 0 || row.count < 1 || row.first < 0 || row.first > flow.edge_count - row.count || !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1)) return false;
+		int at = 0;
+		while (at < row.count) {
+			int child = flow.edges[row.first + at];
+			if (child < 1 || child > flow.node_count || work[0] == 0) return false;
+			work[0] = work[0] - 1;
+			var arm = flow.nodes[child - 1];
+			// Arm c is parent identity, not another evaluated value. Preserve
+			// the receiver across every actual arm expression, including arms
+			// that a particular execution does not select.
+			if (arm.kind != 81 || arm.c != id || arm.b != 0 || arm.first != 0 || arm.count != 0 || arm.function != row.function || arm.handler != row.handler || arm.caught != row.caught || !recover_borrow_preserved(flow, arm.a, receiver, work, depth + 1)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
 	if (row.a != 0 && !recover_borrow_preserved(flow, row.a, receiver, work, depth + 1) || row.b != 0 && !recover_borrow_preserved(flow, row.b, receiver, work, depth + 1) || row.c != 0 && !recover_borrow_preserved(flow, row.c, receiver, work, depth + 1)) return false;
 	int i = 0;
 	while (i < row.count) {

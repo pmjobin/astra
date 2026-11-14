@@ -9,7 +9,7 @@ TypeId checked_enum_qualifier(CheckedIndex index, SyntaxNodeId node, SyntaxToken
 	if (selected.state_code != 1 || selected.target.index < 1 || selected.target.index > index.generic_symbols) return no_type();
 	var declaration = index.bindings.symbol(selected.target);
 	var type = index.symbol_types[selected.target.index];
-	if (declaration.kind != 5 || !enum_value_type_verified(index, type)) return no_type();
+	if (declaration.kind != 5 || !enum_storage_type_verified(index, type) || enum_storage_owned(index, type, 0) && !checked_modern_source(index, node)) return no_type();
 	return type;
 }
 
@@ -46,19 +46,34 @@ TypeId checked_enum_call(CheckedIndex index, SyntaxNodeId node, int depth) throw
 	int at = 0;
 	while (at < index.bindings.program.arena.list_count(fields) && !index.failed()) {
 		var field = index.bindings.program.arena.node_at(fields, at);
-		var expected = index.symbol_types[index.node_symbols[field.index].index];
+		var field_symbol = index.node_symbols[field.index];
+		var expected = index.symbol_types[field_symbol.index];
 		var input = index.bindings.program.arena.node_at(arguments, at);
 		var actual = checked_expression(index, input, expected, depth + 1);
 		checked_mismatch(index, index.bindings.program.arena.header(input).span, expected, actual, "enum payload");
-		if (index.uses[input.index].flags != 0) {
-			index.fail(index.bindings.program.arena.header(input).span, "copyable enum payload cannot consume an owner");
-			return no_type();
+		bool owning = index.symbol_flags[field_symbol.index] == 4 || enum_storage_owned(index, expected, 0);
+		if (owning) {
+			if (!enum_source_owner_value(index, input, expected, 0)) {
+				index.fail(index.bindings.program.arena.header(input).span, "owning enum payload requires an explicit move or owning producer");
+				return no_type();
+			}
+			int contract = checked_contract(index, input, 4);
+		} else {
+			if (index.uses[input.index].flags != 0) {
+				index.fail(index.bindings.program.arena.header(input).span, "copyable enum payload cannot consume an owner");
+				return no_type();
+			}
 		}
 		at = at + 1;
 	}
 	checked_complete_member(index, node, token, variant);
 	var use = index.uses[node.index];
-	use.flags = 0; use.deferred = 0; index.uses[node.index] = use;
+	use.flags = 0; use.deferred = 0;
+	if (enum_storage_owned(index, type, 0)) {
+		use.flags = 4;
+		use.deferred = 19;
+	}
+	index.uses[node.index] = use;
 	return type;
 }
 
@@ -118,8 +133,9 @@ bool checked_enum_match(CheckedIndex index, SyntaxNodeId node, TypeId result, in
 }
 
 bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type, SyntaxNodeId match_node, int depth) throws Error {
-	if (depth > 32 || !enum_value_type_verified(index, type)) return false;
+	if (depth > 32 || !enum_storage_type_verified(index, type)) return false;
 	index.pattern_matches[pattern.index] = match_node;
+	bool consuming = enum_match_consuming(index, match_node);
 	var data = index.bindings.program.arena.enum_arm(pattern);
 	var actual = checked_enum_qualifier(index, pattern, data.f_qualifier);
 	var variant = checked_enum_variant(index, type, data.f_variant);
@@ -151,8 +167,13 @@ bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type,
 		var expected = index.symbol_types[field_symbol.index];
 		var field_name = index.bindings.program.arena.get_token_field(binding);
 		if (field_name.index != 0) checked_complete_member(index, binding, field_name, field_symbol);
-		var binding_use = index.record(binding, expected, 0);
+		int flags = 0;
 		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
+		var binding_token = index.bindings.program.arena.get_token_binding(binding);
+		if (nested.index == 0 && binding_token.index != 0 && !index.bindings.program.arena.token_is(binding_token, "_") && (index.symbol_flags[field_symbol.index] == 4 || enum_storage_owned(index, expected, 0))) {
+			flags = 2; if (consuming) flags = 4;
+		}
+		var binding_use = index.record(binding, expected, flags);
 		if (nested.index != 0) {
 			if (!checked_enum_pattern(index, nested, expected, match_node, depth + 1)) {
 				if (!index.failed()) index.fail(index.bindings.program.arena.header(binding).span, "nested pattern requires a concrete enum payload");
@@ -165,7 +186,7 @@ bool checked_enum_pattern(CheckedIndex index, SyntaxNodeId pattern, TypeId type,
 			if (!index.bindings.program.arena.token_is(token, "_")) {
 				if (symbol.index < 1) return false;
 				index.symbol_types[symbol.index] = expected;
-				index.symbol_flags[symbol.index] = 0;
+				index.symbol_flags[symbol.index] = flags;
 			}
 		}
 		at = at + 1;
@@ -182,7 +203,11 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
 	var type = checked_expression(index, scrutinee, no_type(), depth + 1);
 	if (type.index == 0) return index.defer(node, 17);
-	if (checked_kind(index, type) != 32 || !enum_value_type_verified(index, type)) return index.defer(node, 17);
+	if (checked_kind(index, type) != 32 || !enum_storage_type_verified(index, type)) return index.defer(node, 17);
+	if (enum_storage_owned(index, type, 0) && !enum_match_consuming(index, node) && !enum_inspection_source(index, scrutinee, type)) {
+		index.fail(index.bindings.program.arena.header(scrutinee).span, "owning sum match requires a stable inspection binding or an explicit owning producer");
+		return no_type();
+	}
 	int count = enum_case_count(index, type, 0);
 	if (count < 1) {
 		index.fail(span, "finite nested pattern coverage exceeds 8192 cases or depth 32");
@@ -230,7 +255,7 @@ TypeId checked_enum_match_expression(CheckedIndex index, SyntaxNodeId node, Type
 		if (result.index == 0) result = value;
 		checked_mismatch(index, index.bindings.program.arena.header(data.f_expression).span, result, value, "match arm result");
 		var direct = flow_unwrap(index, data.f_expression);
-		bool arm_owner = (index.uses[direct.index].flags & 4) != 0;
+		bool arm_owner = enum_source_owner_value(index, direct, value, 0);
 		bool absent = index.bindings.program.arena.kind(direct) == SyntaxKind.NullPointerExpressionSyntax();
 		owning = owning && (arm_owner || absent);
 		producer = producer || arm_owner;

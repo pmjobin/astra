@@ -9,6 +9,10 @@ bool ownership_source_default(CheckedIndex checked, SyntaxNodeId node, TypeId ty
 	var source = checked.bindings.program.arena.header(node).span.source;
 	if (syntax_source_language_profile(checked.bindings.program.arena, source) != 1) return false;
 	int family = checked.types.row(type).kind;
+	if (family == 32) {
+		var kind = checked.bindings.program.arena.kind(node);
+		return (kind == SyntaxKind.FunctionDeclarationSyntax() || kind == SyntaxKind.ParameterSyntax() || kind == SyntaxKind.LocalDeclarationSyntax() || kind == SyntaxKind.InferredLocalDeclarationSyntax()) && enum_storage_owned(checked, type, 0);
+	}
 	if (family == 22 || family == 23 || family == 27 || family == 28) return true;
 	if (family == 33) {
 		try { return checked_parameter_capability(checked, type, "ExactHeapClass"); }
@@ -56,8 +60,11 @@ bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, 
 		var target = checked_target(checked, initializer, checked.bindings.program.arena.get_token_identifier(initializer));
 		if (target.index > 0) {
 			var callable = checked.symbol_types[target.index];
-			if (checked_kind(checked, callable) != 25) return false;
-			producer = (checked.types.argument(checked.types, callable, 0).flags & 4) != 0;
+			if (checked.bindings.symbol(target).kind == 13) producer = checked_kind(checked, type) == 32 && enum_storage_owned(checked, type, 0) && enum_constructor_verified(checked, initializer, target, type);
+			else {
+				if (checked_kind(checked, callable) != 25) return false;
+				producer = (checked.types.argument(checked.types, callable, 0).flags & 4) != 0;
+			}
 		} else {
 			int action = checked_shared_action(checked, initializer);
 			producer = action == 1 || action == 2 || action == 4 || action == 5 || action == 6;

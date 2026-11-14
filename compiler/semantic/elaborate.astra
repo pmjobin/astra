@@ -414,6 +414,13 @@ TypeId checked_declared(CheckedIndex index, BindingSymbol symbol, SyntaxNodeId t
 	if (type.index != 0) {
 		flags = flags | index.uses[type.index].flags;
 	}
+	if (index.field_effects && checked_modern_source(index, symbol.node) && checked_kind(index, resolved) == 32 && (symbol.kind == 7 || symbol.kind == 8)) {
+		if ((flags & 6) != 0) {
+			index.fail(index.bindings.program.arena.header(symbol.node).span, "enum ownership is intrinsic; explicit owned or borrowed sum declarations are not admitted");
+			return no_type();
+		}
+		if (enum_storage_owned(index, resolved, 0)) flags = flags | 4;
+	}
 	if (index.class_storage && symbol.kind == 6 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && checked_default_owner_type(index, resolved)) flags = flags | 4;
 	if (index.class_storage && symbol.kind == 7 && (flags & 6) == 0 && checked_modern_source(index, symbol.node) && (checked_kind(index, resolved) == 27 || checked_kind(index, resolved) == 28)) flags = flags | 2;
 	if (record_channel) flags = flags & ~4;
@@ -451,14 +458,16 @@ void checked_heads(CheckedIndex index) throws Error {
 		}
 		i = i + 1;
 	}
-	// Field/method signatures precede free signatures; bodies are separate.
+	// All payload fields precede signatures, so intrinsic sum ownership is
+	// independent of whether a function appears before its enum declaration.
+	// Member signatures still precede free signatures; bodies are separate.
 	int phase = 0;
-	while (phase < 2 && !index.failed()) {
+	while (phase < 3 && !index.failed()) {
 		i = 1;
 		while (i <= index.generic_symbols && !index.failed()) {
 			var symbol = index.bindings.symbol(type_symbol(i));
 			bool member = symbol.owner.index != 0;
-			if ((phase == 0 && member) || (phase == 1 && !member)) {
+			if (phase == 0) {
 				if (symbol.kind == 6 || symbol.kind == 14 || symbol.kind == 17) {
 					int context = 1;
 					if (symbol.kind == 6 && (index.bindings.program.arena.get_token_owned_keyword(symbol.node).index != 0 || checked_modern_source(index, symbol.node))) {
@@ -466,10 +475,8 @@ void checked_heads(CheckedIndex index) throws Error {
 					}
 					var resolved = checked_declared(index, symbol, index.bindings.program.arena.get_node_type_name(symbol.node), context);
 				}
-				if (symbol.kind == 1 || symbol.kind == 11 || symbol.kind == 12) {
-					checked_signature(index, type_symbol(i));
-				}
 			}
+			if ((phase == 1 && member || phase == 2 && !member) && (symbol.kind == 1 || symbol.kind == 11 || symbol.kind == 12)) checked_signature(index, type_symbol(i));
 			i = i + 1;
 		}
 		phase = phase + 1;
@@ -492,6 +499,13 @@ void checked_signature(CheckedIndex index, SymbolId id) throws Error {
 	int flags = checked_flags(index.bindings.program.arena, node);
 	if (return_node.index != 0) {
 		flags = flags | index.uses[return_node.index].flags;
+	}
+	if (index.field_effects && checked_modern_source(index, node) && checked_kind(index, result) == 32) {
+		if ((flags & 6) != 0) {
+			index.fail(index.bindings.program.arena.header(node).span, "enum result ownership is intrinsic; explicit sum qualifiers are not admitted");
+			return;
+		}
+		if (!index.bindings.program.arena.computed_is_c_import(node) && !index.bindings.program.arena.computed_is_c_export(node) && enum_storage_owned(index, result, 0)) flags = flags | 4;
 	}
 	if (index.class_storage && (flags & 6) == 0 && checked_modern_source(index, node) && !index.bindings.program.arena.computed_is_c_import(node) && !index.bindings.program.arena.computed_is_c_export(node) && checked_default_owner_type(index, result)) flags = flags | 4;
 	if (generic_record_channel(index, return_node, result)) flags = flags & ~4;

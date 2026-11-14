@@ -110,6 +110,50 @@ void expressive_pattern_context() throws Error {
 	assert_that(enum_match_expression_verified(checked, first) && enum_value_facts_verified(checked) && generic_verify(checked));
 }
 
+void expressive_constructor_match() throws Error {
+	var checked = expressive_checked("language astra27b; enum E { First, Last } class Box { int value; init(E mode) { this.value = match (mode) { case E.First() => 20; case E.Last() => 42; }; } } int main() { var box = new Box(E.Last()); return box.value; }");
+	var flow = recover_flow_lower(move checked, 8192);
+	assert_that(flow.data.status == 0 && recover_flow_verify(flow));
+	var invalid = expressive_checked("language astra27b; enum E { First, Last } class Box { int value; init() { this.value = 0; } } int consume(owned Box box) { return 42; } int main() { var box = new Box(); box.value = match (E.First()) { case E.First() => consume(move box); case E.Last() => 42; }; return 42; }");
+	var rejected = recover_flow_lower(move invalid, 8192);
+	assert_that(rejected.data.status != 0);
+}
+
+void expressive_owning_patterns() throws Error {
+	var checked = expressive_checked("language astra27b; enum Packet { Empty, Data(owned int[] data, int count) } owned int[] take(Packet value) => match (move value) { case Packet.Empty() => new int[0]; case Packet.Data(data, count) => move data; }; int inspect(Packet value) => match (value) { case Packet.Empty() => 0; case Packet.Data(data, count) => len(data)+count; }; int main() { var state = Packet.Data(new int[13],13); owned int[] values = take(move state); return len(values)+29; }");
+	int inspected = 0; int consumed = 0; int at = 1;
+	while (at <= checked.bindings.symbol_count) {
+		var symbol = type_symbol(at); var declaration = checked.bindings.symbol(symbol);
+		if (declaration.kind == 15 && checked.bindings.program.arena.kind(declaration.node) == SyntaxKind.EnumBindingSyntax() && checked.bindings.program.arena.token_is(declaration.token, "data")) {
+			var root = enum_pattern_match(checked, declaration.node);
+			assert_that(root.index > 0 && enum_match_expression_verified(checked, root));
+			int flags = checked.symbol_flags[at];
+			if (enum_match_consuming(checked, root)) {
+				assert_that(flags == 4); consumed = consumed + 1;
+				checked.symbol_flags[at] = 2;
+			} else {
+				assert_that(flags == 2); inspected = inspected + 1;
+				checked.symbol_flags[at] = 4;
+			}
+			assert_that(!enum_match_expression_verified(checked, root));
+			checked.symbol_flags[at] = flags;
+			assert_that(enum_match_expression_verified(checked, root));
+			var input = checked.bindings.program.arena.get_node_scrutinee(root);
+			if (enum_match_consuming(checked, root)) {
+				var original = checked.uses[input.index]; var changed = original; changed.flags = 0;
+				checked.uses[input.index] = changed;
+				assert_that(!enum_match_expression_verified(checked, root));
+				checked.uses[input.index] = original;
+				assert_that(enum_match_expression_verified(checked, root));
+			} else {
+				assert_that(checked.uses[input.index].flags == 4 && !enum_match_consuming(checked, root));
+			}
+		}
+		at = at + 1;
+	}
+	assert_that(inspected == 1 && consumed == 1 && enum_value_facts_verified(checked) && checked.validate() && generic_verify(checked));
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -136,6 +180,8 @@ int main(string[] args) {
 		}
 		expressive_enum_storage();
 		expressive_pattern_context();
+		expressive_constructor_match();
+		expressive_owning_patterns();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

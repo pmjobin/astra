@@ -625,6 +625,7 @@ int flowsem_source_flags(CheckedIndex checked, SyntaxNodeId node) {
 		var kind = checked.bindings.program.arena.kind(node);
 		if (kind == SyntaxKind.StructFieldDeclarationSyntax() && ownership_source_default(checked, node, checked.symbol_types[binding.index])) flags = flags | 4;
 		if (kind == SyntaxKind.ParameterSyntax() && syntax_source_language_profile(checked.bindings.program.arena, checked.bindings.program.arena.header(node).span.source) == 1 && (checked_kind(checked, checked.symbol_types[binding.index]) == 27 || checked_kind(checked, checked.symbol_types[binding.index]) == 28)) flags = flags | 2;
+		if (kind == SyntaxKind.ParameterSyntax() && checked.field_effects && checked_kind(checked, checked.symbol_types[binding.index]) == 32 && ownership_source_default(checked, node, checked.symbol_types[binding.index])) flags = flags | 4;
 	}
 	if (binding.index > 0 && generic_record_channel(checked, type, checked.symbol_types[binding.index])) flags = flags & ~4;
 	if (type.index != 0 && checked.bindings.program.arena.kind(type) == SyntaxKind.NonNullTypeSyntax()) {

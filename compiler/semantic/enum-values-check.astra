@@ -93,7 +93,7 @@ bool enum_storage_has_owner(CheckedIndex index, TypeId type, int depth) {
 }
 
 int enum_value_ordinal(CheckedIndex index, TypeId type, SymbolId variant) {
-	if (!enum_value_type_verified(index, type) || variant.index < 1 || variant.index > index.generic_symbols) return -1;
+	if (!enum_storage_type_verified(index, type) || variant.index < 1 || variant.index > index.generic_symbols) return -1;
 	var declaration = index.bindings.symbol(index.types.row(type).nominal);
 	var variants = index.bindings.program.arena.get_list_variants(declaration.node);
 	int at = 0;
@@ -105,7 +105,7 @@ int enum_value_ordinal(CheckedIndex index, TypeId type, SymbolId variant) {
 }
 
 bool enum_qualifier_verified(CheckedIndex index, SyntaxNodeId node, SyntaxTokenId token, TypeId type) {
-	if (token.index == 0 || !enum_value_type_verified(index, type)) return false;
+	if (token.index == 0 || !enum_storage_type_verified(index, type) || enum_storage_owned(index, type, 0) && !checked_modern_source(index, node)) return false;
 	try {
 		var scope = index.bindings.scope_for_node(node);
 		var name = index.bindings.program.arena.token_message(token);
@@ -117,6 +117,51 @@ bool enum_qualifier_verified(CheckedIndex index, SyntaxNodeId node, SyntaxTokenI
 }
 
 bool enum_constructor_verified(CheckedIndex index, SyntaxNodeId node, SymbolId variant, TypeId type) {
+	return enum_constructor_verified_depth(index, node, variant, type, 0);
+}
+
+// This is a source producer/contract query. Slot liveness, reservation, commit
+// and destruction remain independent Flow/Core/SSA/physical obligations.
+bool enum_source_owner_value(CheckedIndex index, SyntaxNodeId node, TypeId type, int depth) {
+	if (depth > 192 || node.index < 1 || node.index >= len(index.uses)) return false;
+	var use = index.uses[node.index];
+	if (use.type.index != type.index || use.flags != 4 || use.deferred != 0 && use.deferred != 19 && use.deferred != 17) return false;
+	var kind = index.bindings.program.arena.kind(node);
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return enum_source_owner_value(index, index.bindings.program.arena.get_node_expression(node), type, depth + 1);
+	if (use.deferred == 17 && kind != SyntaxKind.CallExpressionSyntax()) return false;
+	if (kind == SyntaxKind.MoveExpressionSyntax()) {
+		var symbol = checked_target(index, node, index.bindings.program.arena.get_token_source(node));
+		if (symbol.index < 1 || symbol.index >= len(index.symbol_types) || index.symbol_types[symbol.index].index != type.index || index.symbol_flags[symbol.index] != 4 || !index.bindings.accessible(symbol, index.bindings.scope_for_node(node)) || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_fields(node)) != 0) return false;
+		var declaration = index.bindings.symbol(symbol);
+		return declaration.kind == 7 || declaration.kind == 8 || declaration.kind == 15 && index.bindings.program.arena.kind(declaration.node) == SyntaxKind.EnumBindingSyntax();
+	}
+	if (kind == SyntaxKind.BufferAllocationSyntax()) return checked_kind(index, type) == 22 && recover_array_type(index, type);
+	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) return checked_kind(index, type) == 31;
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		var symbol = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (symbol.index < 1 || symbol.index >= len(index.symbol_signatures)) return false;
+		if (index.bindings.symbol(symbol).kind == 13) return enum_storage_owned(index, type, 0) && enum_constructor_verified_depth(index, node, symbol, type, depth + 1);
+		int ordinal = index.symbol_signatures[symbol.index].index;
+		if (ordinal < 1 || ordinal > index.signature_count) return false;
+		var signature = index.signatures[ordinal - 1];
+		var result = index.types.argument(index.types, signature.callable, 0);
+		return result.type.index == type.index && result.flags == 4 && (use.deferred != 17 || (signature.flags & 64) != 0) && ownership_result_source_verified(index, index.bindings.symbol(symbol).node, signature.callable);
+	}
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
+		var left = flow_unwrap(index, index.bindings.program.arena.get_node_left(node));
+		var right = flow_unwrap(index, index.bindings.program.arena.get_node_right(node));
+		bool left_owner = enum_source_owner_value(index, left, type, depth + 1);
+		bool right_owner = enum_source_owner_value(index, right, type, depth + 1);
+		bool left_absent = index.bindings.program.arena.kind(left) == SyntaxKind.NullPointerExpressionSyntax() && index.uses[left.index].type.index == type.index && checked_nullable(index, type);
+		bool right_absent = index.bindings.program.arena.kind(right) == SyntaxKind.NullPointerExpressionSyntax() && index.uses[right.index].type.index == type.index && checked_nullable(index, type);
+		return (left_owner || left_absent) && (right_owner || right_absent) && (left_owner || right_owner);
+	}
+	if (kind == SyntaxKind.MatchExpressionSyntax()) return enum_match_expression_verified(index, node);
+	return false;
+}
+
+bool enum_constructor_verified_depth(CheckedIndex index, SyntaxNodeId node, SymbolId variant, TypeId type, int depth) {
+	if (depth > 192) return false;
 	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || enum_value_ordinal(index, type, variant) < 0) return false;
 	var header = index.bindings.program.arena.header(node);
 	if (header.foreign_member.index != 0 || index.bindings.program.arena.list_count(header.foreign_channels) != 0) return false;
@@ -129,13 +174,21 @@ bool enum_constructor_verified(CheckedIndex index, SyntaxNodeId node, SymbolId v
 	while (at < index.bindings.program.arena.list_count(fields)) {
 		var field = index.bindings.program.arena.node_at(fields, at);
 		var input = index.bindings.program.arena.node_at(data.f_arguments, at);
-		if (input.index < 1 || input.index >= len(index.uses) || index.uses[input.index].flags != 0 || index.uses[input.index].type.index != index.symbol_types[index.node_symbols[field.index].index].index) return false;
+		var symbol = index.node_symbols[field.index]; var expected = index.symbol_types[symbol.index];
+		if (input.index < 1 || input.index >= len(index.uses) || index.uses[input.index].type.index != expected.index) return false;
+		bool owning = index.symbol_flags[symbol.index] == 4 || enum_storage_owned(index, expected, 0);
+		if (owning) {
+			if (!enum_source_owner_value(index, input, expected, depth + 1)) return false;
+		} else {
+			if (index.uses[input.index].flags != 0) return false;
+		}
 		at = at + 1;
 	}
 	if (data.f_member_operator.index != 0 && !index.bindings.program.arena.token_is(data.f_member_operator, ".")) return false;
 	var use = index.uses[node.index];
 	var member = index.bindings.symbol(variant);
-	return use.type.index == type.index && use.flags == 0 && use.deferred == 0 && generic_token_equal(index, data.f_identifier, member.token) && checked_target(index, node, data.f_identifier).index == variant.index && index.bindings.accessible(variant, index.bindings.scope_for_node(node)) && enum_qualifier_verified(index, node, data.f_receiver, type);
+	int flags = 0; if (enum_storage_owned(index, type, 0)) flags = 4;
+	return use.type.index == type.index && use.flags == flags && (use.deferred == 0 || flags == 4 && use.deferred == 19) && generic_token_equal(index, data.f_identifier, member.token) && checked_target(index, node, data.f_identifier).index == variant.index && index.bindings.accessible(variant, index.bindings.scope_for_node(node)) && enum_qualifier_verified(index, node, data.f_receiver, type);
 }
 
 bool enum_pattern_variant_verified(CheckedIndex index, SyntaxNodeId arm, SymbolId variant, TypeId type) {
@@ -241,6 +294,23 @@ SyntaxNodeId enum_pattern_match(CheckedIndex index, SyntaxNodeId pattern) {
 	return root;
 }
 
+bool enum_match_consuming(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.MatchExpressionSyntax()) return false;
+	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
+	if (scrutinee.index < 1 || scrutinee.index >= len(index.uses)) return false;
+	var type = index.uses[scrutinee.index].type;
+	return enum_storage_owned(index, type, 0) && enum_source_owner_value(index, scrutinee, type, 0);
+}
+
+bool enum_inspection_source(CheckedIndex index, SyntaxNodeId node, TypeId type) {
+	var source = flow_unwrap(index, node);
+	if (source.index < 1 || source.index >= len(index.uses) || index.bindings.program.arena.kind(source) != SyntaxKind.NameExpressionSyntax()) return false;
+	var symbol = checked_target(index, source, index.bindings.program.arena.get_token_identifier(source));
+	if (symbol.index < 1 || symbol.index >= len(index.symbol_types) || index.symbol_types[symbol.index].index != type.index || index.symbol_flags[symbol.index] != 4 && index.symbol_flags[symbol.index] != 2 || index.uses[source.index].flags != index.symbol_flags[symbol.index] || !index.bindings.accessible(symbol, index.bindings.scope_for_node(source))) return false;
+	var declaration = index.bindings.symbol(symbol);
+	return declaration.kind == 7 || declaration.kind == 8 || declaration.kind == 15 && index.bindings.program.arena.kind(declaration.node) == SyntaxKind.EnumBindingSyntax() && enum_pattern_match(index, declaration.node).index > 0;
+}
+
 int enum_projection_depth(CheckedIndex index, SyntaxNodeId pattern, SyntaxNodeId target, int depth) {
 	if (depth > 32 || pattern.index < 1 || target.index < 1) return -1;
 	if (pattern.index == target.index) return 0;
@@ -259,7 +329,7 @@ int enum_projection_depth(CheckedIndex index, SyntaxNodeId pattern, SyntaxNodeId
 }
 
 bool enum_pattern_verified(CheckedIndex index, SyntaxNodeId pattern, TypeId type, int depth) {
-	if (depth > 32 || pattern.index < 1 || pattern.index >= len(index.uses) || len(index.pattern_matches) != len(index.uses) || index.bindings.program.arena.kind(pattern) != SyntaxKind.EnumArmSyntax() || !enum_value_type_verified(index, type)) return false;
+	if (depth > 32 || pattern.index < 1 || pattern.index >= len(index.uses) || len(index.pattern_matches) != len(index.uses) || index.bindings.program.arena.kind(pattern) != SyntaxKind.EnumArmSyntax() || !enum_storage_type_verified(index, type)) return false;
 	var match_node = enum_pattern_match(index, pattern);
 	var variant = checked_target(index, pattern, index.bindings.program.arena.get_token_variant(pattern));
 	if (match_node.index == 0) return index.pattern_matches[pattern.index].index == 0 && index.bindings.program.arena.get_node_body(pattern).index != 0 && checked_payload_free_enum(index, type) && enum_arm_variant_verified(index, pattern, variant, type);
@@ -267,6 +337,7 @@ bool enum_pattern_verified(CheckedIndex index, SyntaxNodeId pattern, TypeId type
 	var variant_declaration = index.bindings.symbol(variant);
 	var fields = index.bindings.program.arena.get_list_fields(variant_declaration.node);
 	var bindings = index.bindings.program.arena.get_list_bindings(pattern);
+	bool consuming = enum_match_consuming(index, match_node);
 	int count = index.bindings.program.arena.list_count(fields);
 	if (count != index.bindings.program.arena.list_count(bindings)) return false;
 	int previous = index.bindings.program.arena.token_span(index.bindings.program.arena.get_token_variant(pattern)).end;
@@ -283,11 +354,16 @@ bool enum_pattern_verified(CheckedIndex index, SyntaxNodeId pattern, TypeId type
 		var field = index.bindings.program.arena.node_at(fields, slot);
 		var field_symbol = index.node_symbols[field.index];
 		var expected = index.symbol_types[field_symbol.index];
-		if (binding.index < 1 || binding.index >= len(index.uses) || index.uses[binding.index].type.index != expected.index || index.uses[binding.index].flags != 0 || index.uses[binding.index].deferred != 0 || !recover_span_contains(index.bindings.program.arena.header(pattern).span, index.bindings.program.arena.header(binding).span)) return false;
+		if (binding.index < 1 || binding.index >= len(index.uses) || index.uses[binding.index].type.index != expected.index || index.uses[binding.index].deferred != 0 || !recover_span_contains(index.bindings.program.arena.header(pattern).span, index.bindings.program.arena.header(binding).span)) return false;
 		var name = index.bindings.program.arena.get_token_field(binding);
 		if (name.index != 0 && checked_target(index, binding, name).index != field_symbol.index) return false;
 		var nested = index.bindings.program.arena.get_node_nested_pattern(binding);
 		var token = index.bindings.program.arena.get_token_binding(binding);
+		int flags = 0;
+		if (nested.index == 0 && token.index != 0 && !index.bindings.program.arena.token_is(token, "_") && (index.symbol_flags[field_symbol.index] == 4 || enum_storage_owned(index, expected, 0))) {
+			flags = 2; if (consuming) flags = 4;
+		}
+		if (index.uses[binding.index].flags != flags) return false;
 		if (nested.index != 0) {
 			var data = index.bindings.program.arena.enum_arm(nested);
 			if (token.index != 0 || data.f_body.index != 0 || data.f_expression.index != 0 || data.f_match_arrow.index != 0 || data.f_semicolon.index != 0 || !enum_pattern_verified(index, nested, expected, depth + 1)) return false;
@@ -298,7 +374,7 @@ bool enum_pattern_verified(CheckedIndex index, SyntaxNodeId pattern, TypeId type
 				if (symbol.index != 0) return false;
 			}
 			else {
-				if (symbol.index < 1 || symbol.index >= len(index.symbol_types) || index.symbol_types[symbol.index].index != expected.index || index.symbol_flags[symbol.index] != 0) return false;
+				if (symbol.index < 1 || symbol.index >= len(index.symbol_types) || index.symbol_types[symbol.index].index != expected.index || index.symbol_flags[symbol.index] != flags) return false;
 				var declaration = index.bindings.symbol(symbol);
 				if (declaration.kind != 15 || declaration.node.index != binding.index || declaration.token.index != token.index || declaration.scope.index != index.bindings.scope_for_node(pattern).index) return false;
 			}
@@ -448,7 +524,7 @@ bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
 	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
 	if (scrutinee.index < 1 || scrutinee.index >= len(index.uses)) return false;
 	var type = index.uses[scrutinee.index].type;
-	if (!enum_value_type_verified(index, type)) return false;
+	if (!enum_storage_type_verified(index, type) || enum_storage_owned(index, type, 0) && !enum_match_consuming(index, node) && !enum_inspection_source(index, scrutinee, type)) return false;
 	int count = enum_case_count(index, type, 0);
 	if (count < 1) return false;
 	var arms = index.bindings.program.arena.get_list_arms(node);
@@ -490,7 +566,7 @@ bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
 		if (value.type.index != use.type.index) return false;
 		if (use.flags == 4) {
 			var direct = flow_unwrap(index, data.f_expression);
-			bool arm_owner = (index.uses[direct.index].flags & 4) != 0;
+			bool arm_owner = enum_source_owner_value(index, direct, use.type, 0);
 			if (!arm_owner && index.bindings.program.arena.kind(direct) != SyntaxKind.NullPointerExpressionSyntax()) return false;
 			producer = producer || arm_owner;
 		}

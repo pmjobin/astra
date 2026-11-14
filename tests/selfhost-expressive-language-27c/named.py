@@ -176,6 +176,60 @@ MATCH_TAG = 'enum Mode { First, Middle, Last }\n'
 NESTED_TAG = 'enum Problem { NotFound, Decode(int code) }\nenum Result { Success(int value), Failure(Problem problem) }\n'
 OWNING_TAG = 'enum Packet { Empty, Data(owned int[] data, int count) }\n'
 MATCH_CASES = [
+	('match-enum-reservation', OWNING_TAG+'''int marker(bool fail) throws Error {
+	if (fail) { throw new Error("enum operand failure"); }
+	return 13;
+}
+Packet make(bool fail) throws Error {
+	owned int[] data = new int[13];
+	return Packet.Data(move data, marker(fail));
+}
+int inspect(Packet value) => match (move value) {
+	case Packet.Empty() => 1;
+	case Packet.Data(data, count) => len(data)+count+16;
+};
+int main() {
+	try { var failed = make(true); return 1; } catch (Error error) {}
+	try { return inspect(make(false)); } catch (Error error) { return 2; }
+}
+''', OWNING_TAG+'''int marker(bool fail) throws Error {
+	if (fail) { throw new Error("enum operand failure"); }
+	return 13;
+}
+Packet make(bool fail) throws Error {
+	owned int[] data = new int[13];
+	return Packet.Data(move data, marker(fail));
+}
+int inspect(Packet value) {
+	match (move value) {
+		case Packet.Empty(): { return 1; }
+		case Packet.Data(data, count): { return len(data)+count+16; }
+	}
+}
+int main() {
+	try { var failed = make(true); return 1; } catch (Error error) {}
+	try { return inspect(make(false)); } catch (Error error) { return 2; }
+}
+''', True),
+	('match-enum-reserved-read', OWNING_TAG+'''int inspect(Packet value) => match (move value) {
+	case Packet.Empty() => 1;
+	case Packet.Data(data, count) => len(data)+count+16;
+};
+int main() {
+	owned int[] data = new int[13];
+	return inspect(Packet.Data(move data, len(data)));
+}
+''', OWNING_TAG+'''int inspect(Packet value) {
+	match (move value) {
+		case Packet.Empty(): { return 1; }
+		case Packet.Data(data, count): { return len(data)+count+16; }
+	}
+}
+int main() {
+	owned int[] data = new int[13];
+	return inspect(Packet.Data(move data, len(data)));
+}
+''', False),
 	('match-consuming-payload', OWNING_TAG+'''owned int[] take(Packet value) => match (move value) {
 	case Packet.Empty() => new int[0];
 	case Packet.Data(data, count) => move data;
@@ -489,6 +543,8 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	('match-destination-moved', 'enum E { First, Last } class Box { int value; init() { this.value = 0; } } int consume(owned Box box) { return 42; } int main() { var box = new Box(); box.value = match (E.First()) { case E.First() => consume(move box); case E.Last() => 42; }; return 42; }'),
+	('match-owner-alias', ITEM+'enum E { Only } Item choose(owned Item value) { return match (E.Only()) { case E.Only() => value; }; } int main() { var item = choose(new Item(42)); return item.value; }'),
 	('match-payload-label', 'enum Pair { Data(int first, int second) } int main() { return match (Pair.Data(20,22)) { case Pair.Data(first=a, missing=b) => a+b; }; }'),
 	('match-payload-duplicate-label', 'enum Pair { Data(int first, int second) } int main() { return match (Pair.Data(20,22)) { case Pair.Data(first=a, first=b) => a+b; }; }'),
 	('match-inspection-move', OWNING_TAG+'owned int[] take(Packet value) { return match (value) { case Packet.Empty() => new int[0]; case Packet.Data(data, count) => move data; }; } int main() { return 42; }'),

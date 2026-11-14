@@ -267,3 +267,44 @@ sums, so these helpers do not grant owning-match implementation or native credit
 Full current C0 semantic admission passes in preflight 25 (64.344 seconds), after
 splitting a temporary field borrow from helper creation. The failed preflight
 24 remains preserved.
+
+The second focused semantic product, frozen at `92fcde8`, has SHA-256
+`8ebda4a62687c8daa2bfe485ae9422db6e23f2ae8420525f0ab328c0d7c50d8c`.
+Its native controls and strict memory pass, including labelled nested payloads.
+Actual source queries pass for the named constructor/method, labelled product,
+owned result/local/error matches and constructor initializer. Recovered Flow
+also passes for five of those six; constructor initialization exposes a further
+preservation-walk failure. Strict returning memory additionally passes while
+analysing the product and owned-error programs. These observations qualify the
+selected semantic/Flow consumers, not generated targets or a current full host.
+
+An exact Core map for that frozen O0 product identifies the first constructor
+refusal: arm metadata kind 81 is treated as an evaluated value. The current
+preservation walk checks the once-evaluated scrutinee and every real arm result,
+without traversing the arm's parent identity as an operand. A positive
+constructor and a negative arm that consumes the destination owner accompany
+the repair; their new native consumer execution remains pending.
+
+The current owning-pattern source batch checks all payload fields before
+signatures, derives intrinsic sum ownership independently of declaration order,
+and rejects redundant explicit sum qualifiers. Constructors and consuming
+patterns retain genuine owning producers and moves. Inspecting bindings retain
+borrowed channels. Match joins no longer treat a named owner as an acquisition.
+Separate Core relations account for constructor operands, their written-order
+move reservations and the consuming match's original root. Full current C0
+source semantics passes after this batch and the preservation repair (preflight
+28, 64.772 seconds); focused consumer semantics also passes.
+
+Two further C0-expanded references return 42 and pass strict target memory for
+a reserved buffer read before constructor commit and a later throwing operand.
+The first authored throwing reference omitted a catch for its successful-call
+branch; that failed source/receipt remains preserved beside the corrected run.
+The older development product independently refuses the named-owner alias join.
+
+Owning-sum native storage remains deliberately closed. Scoped payload
+publication, selected-root commit, residual/discard cleanup and exception exits
+still need connected CFG/SSA/physical proof. In particular, a fresh owning
+temporary must survive a later operand failure until it is committed or cleaned
+up. Do not enable owning storage or broaden ordinary call admission before that
+path is implemented and tested. Typed source facts and Core relations alone
+grant no owning-match, full-host, ABI or milestone PASS.
