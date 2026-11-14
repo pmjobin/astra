@@ -37,8 +37,11 @@ RangeConstant range_constant(CheckedIndex index, SyntaxNodeId source, int depth)
 	if (!type_integer(kind) || index.uses[source.index].flags != 0) return absent;
 	var syntax = index.bindings.program.arena.kind(source); var result = absent;
 	if (syntax == SyntaxKind.ParenthesizedExpressionSyntax() || syntax == SyntaxKind.ConversionExpressionSyntax()) {
-		var child = index.bindings.program.arena.get_node_expression(source);
+		var child = syntax_no_node();
 		if (syntax == SyntaxKind.ConversionExpressionSyntax()) child = index.bindings.program.arena.get_node_operand(source);
+		else {
+			child = index.bindings.program.arena.get_node_expression(source);
+		}
 		result = range_constant(index, child, depth + 1);
 		int source_kind = checked_kind(index, index.uses[child.index].type);
 		if (syntax == SyntaxKind.ConversionExpressionSyntax() && type_integer(source_kind) && type_signed(source_kind) && type_width(source_kind) < type_width(kind) && (result.bits & (1 as u64 << (type_width(source_kind)-1))) != 0) result.bits = result.bits | ~((1 as u64 << type_width(source_kind))-1);

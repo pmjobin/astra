@@ -49,7 +49,9 @@ bool recover_owner_source_with_bindings(RecoverFlowData flow, CheckedIndex check
 	if (row.kind == 14) {
 		if (kind != SyntaxKind.CallExpressionSyntax() || row.a != 0 || row.type.index != 1 || row.symbol.index != 0 || !checked_flow_intrinsic(checked, source) || row.count != 1) return false;
 		var arguments = checked_call_arguments(checked, source); if (checked.bindings.program.arena.list_count(arguments) != 1 || edges[row.first]) return false; edges[row.first] = true;
-		if (!recover_child_with_bindings(flow, checked, types, flow.edges[row.first], checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, bindings, depth + 1)) return false; var child = flow.nodes[flow.edges[row.first] - 1]; return recover_array_type(checked, child.type) && (child.kind == 2 || child.kind == 17);
+		if (!recover_child_with_bindings(flow, checked, types, flow.edges[row.first], checked.bindings.program.arena.node_at(arguments, 0), function, handler, caught, seen, edges, bindings, depth + 1)) return false;
+		var child = flow.nodes[flow.edges[row.first] - 1];
+		return recover_array_type(checked, child.type) && (child.kind == 2 || child.kind == 17 || child.kind == 56 && range_slice_verified(checked, child.source));
 	}
 	return false;
 }

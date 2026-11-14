@@ -450,13 +450,7 @@ bool recover_ssa_block_facts(RecoverCfg cfg, int block, int[] locals, RecoverSsa
 			}
 		}
 	}
-	if (row.opcode == 10) {
-		int place = cfg.core.owners.slots[row.origin - 1];
-		if (source.kind != 10 || place < 1 || place > len(index.moves) || index.reservations[row.origin - 1] != 0) return false;
-		index.reservations[row.origin - 1] = index.moves[place - 1] + 2;
-		index.moves[place - 1] = index.moves[place - 1] + 1;
-	}
-	return true;
+	return recover_ssa_index_reservation(index, cfg, block);
 }
 
 // Read-only proof diagnostics expose the first failing phase and item without

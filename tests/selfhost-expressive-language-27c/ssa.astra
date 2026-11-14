@@ -34,6 +34,54 @@ owned RecoverSsa expressive_ssa(string text) throws Error {
 
 void expressive_abort_count(RecoverOwners owners, int count) { owners.abort_count = count; }
 
+bool expressive_packed_slots(RecoverSsa ssa) {
+	var index = new RecoverSsaOwnerIndex(ssa.cfg); var work = new RecoverWork(8000000);
+	return recover_ssa_owner_index(index, ssa.cfg, work) && recover_ssa_packed_slots(ssa, index, work);
+}
+
+bool expressive_scalar_slots(RecoverSsa ssa) {
+	var index = new RecoverSsaOwnerIndex(ssa.cfg); var work = new RecoverWork(8000000);
+	if (!recover_ssa_owner_index(index, ssa.cfg, work)) return false;
+	int place = 1;
+	while (place <= ssa.cfg.core.flow.storage.count) {
+		if (!recover_ssa_slot(ssa, place, index, work)) return false;
+		place = place + 1;
+	}
+	return !work.exhausted;
+}
+
+void expressive_reservation_identity() throws Error {
+	var source = new Utf8ByteBuilder(); source_append_text(source, "language astra27b; int take(owned int[] values) { return len(values); } int main() { owned int[] values = new int[1]; int total = 0; ");
+	int at = 0;
+	while (at < 40) {
+		source_append_text(source, "total = total+take(move values); values = new int[1]; ");
+		at = at + 1;
+	}
+	source_append_text(source, "return total+2; }"); var text = source.snapshot(); var ssa = expressive_ssa(text.text);
+	assert_that(expressive_packed_slots(ssa) && expressive_scalar_slots(ssa));
+	int first = 0; int second = 0; at = 0;
+	while (at < ssa.cfg.block_count) {
+		var row = ssa.cfg.blocks[at];
+		if (row.opcode == 36) {
+			if (first == 0) first = at + 1;
+			else {
+				if (ssa.cfg.blocks[first - 1].b == row.b && ssa.cfg.blocks[first - 1].a != row.a) second = at + 1;
+			}
+		}
+		at = at + 1;
+	}
+	assert_that(first > 0 && second > 0);
+	var original = ssa.cfg.blocks[first - 1]; var changed = original; changed.a = ssa.cfg.blocks[second - 1].a;
+	ssa.cfg.blocks[first - 1] = changed;
+	assert_that(!expressive_packed_slots(ssa) && !expressive_scalar_slots(ssa));
+	ssa.cfg.blocks[first - 1] = original;
+	assert_that(expressive_packed_slots(ssa) && expressive_scalar_slots(ssa));
+	changed = original; changed.opcode = 37; ssa.cfg.blocks[first - 1] = changed;
+	assert_that(!expressive_packed_slots(ssa) && !expressive_scalar_slots(ssa));
+	ssa.cfg.blocks[first - 1] = original;
+	assert_that(recover_ssa_verify(ssa));
+}
+
 void expressive_abort_mutations(RecoverSsa ssa, int count) {
 	assert_that(ssa.cfg.core.owners.abort_count == count);
 	int at = 0;
@@ -109,7 +157,8 @@ void expressive_ranges() throws Error {
 		if (original.kind == 12) receiver = range_receiver_type(ssa.cfg.core.flow.checked, original.source);
 		if (original.kind == 12 && range_type_verified(ssa.cfg.core.flow.checked.types, receiver)) {
 			bounds = bounds + 1;
-			var changed = original; changed.token = ssa.cfg.core.flow.checked.bindings.program.arena.get_token_identifier(original.source);
+			var changed = original; changed.token.index = 0;
+			assert_that(original.token.index != changed.token.index);
 			ssa.cfg.core.flow.data.nodes[at] = changed;
 			assert_that(!recover_flow_verify(ssa.cfg.core.flow));
 			ssa.cfg.core.flow.data.nodes[at] = original;
@@ -256,6 +305,7 @@ int main(string[] args) {
 			var text = output.snapshot(); println(text.text);
 			if (valid) return 42; return 7;
 		}
+		expressive_reservation_identity();
 		expressive_ranges();
 		expressive_range_iteration();
 		expressive_range_stride();

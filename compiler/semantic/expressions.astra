@@ -294,6 +294,10 @@ TypeId checked_expression(CheckedIndex index, SyntaxNodeId node, TypeId expected
 TypeId checked_expression_inner(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	var kind = index.bindings.program.arena.kind(node);
 	if (index.field_effects && kind == SyntaxKind.MatchExpressionSyntax()) return checked_enum_match_expression(index, node, expected, depth);
+	if (kind == SyntaxKind.LambdaExpressionSyntax()) {
+		if (lambda_verified(index, node)) return index.uses[node.index].type;
+		index.fail(index.bindings.program.arena.header(node).span, "lambda requires a scalar input context from a finite iterator operation"); return no_type();
+	}
 	if (index.field_effects && range_fixed_call(index, node)) return checked_range_fixed(index, node, expected, depth);
 	if (index.field_effects && kind == SyntaxKind.Utf8FactoryExpressionSyntax()) return checked_utf8_expression(index, node);
 	if (index.field_effects && kind == SyntaxKind.ArrayInitializerSyntax()) return checked_fixed_numeric_initializer(index, node, expected, depth);
@@ -672,6 +676,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (lazy_call_action(index, node) != 0) {
+		var result = checked_lazy_call(index, node, depth);
+		if (result.index != 0 || index.failed()) return result;
+	}
 	if (range_collect_call(index, node)) {
 		var result = checked_range_collect(index, node, depth);
 		if (result.index != 0 || index.failed()) return result;

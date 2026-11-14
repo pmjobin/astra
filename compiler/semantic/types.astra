@@ -149,7 +149,86 @@ class TypeTable {
 		return element.flags == 0 && this.valid_id(element.type) && element.type.index < type.index && type_integer(this.row(element.type).kind);
 	}
 
+	bool inline_callable_edge(TypeEdge edge, int position) {
+		if (!this.valid_id(edge.type)) return false;
+		int kind = this.row(edge.type).kind;
+		if (edge.flags == 0 && (type_numeric(kind) || kind == 13)) return true;
+		if (position < 2 || edge.flags != 2 || kind != 21 && kind != 22) return false;
+		var shape = this.row(edge.type);
+		if (shape.nominal.index != 0 || shape.count != 1 || kind == 21 && shape.extent < 1 || kind == 22 && shape.extent != 0 || shape.first < 0 || shape.first >= this.edge_count) return false;
+		var element = this.edges[shape.first];
+		return element.flags == 0 && this.valid_id(element.type) && (type_numeric(this.row(element.type).kind) || this.row(element.type).kind == 13);
+	}
+
+	bool inline_callable_type(TypeId type) {
+		if (!this.valid_id(type) || this.count > len(this.rows)) return false;
+		var row = this.row(type);
+		if (row.kind != 38 || row.nominal.index < 1 || row.extent < 0 || row.extent > 1 || row.count < 2 || row.count > 10 || row.first < 0 || row.first > this.edge_count - row.count) return false;
+		int at = 0;
+		while (at < row.count) {
+			var edge = this.edges[row.first + at]; if (edge.type.index >= type.index || !this.inline_callable_edge(edge, at)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+
+	int inline_callable_flags(TypeId type) {
+		if (!this.inline_callable_type(type)) return -1;
+		var row = this.row(type); int at = 2; int flags = 0;
+		while (at < row.count) {
+			flags = flags | this.edges[row.first + at].flags;
+			at = at + 1;
+		}
+		return flags;
+	}
+
+	int lazy_flags(TypeId type) {
+		if (!this.valid_id(type)) return -1;
+		var row = this.row(type);
+		if (row.kind == 36 || row.kind == 37) return 0;
+		if (row.kind == 40) return 2;
+		if (row.kind != 39 || row.count != 2 || row.first < 0 || row.first > this.edge_count - 2) return -1;
+		return this.edges[row.first].flags | this.edges[row.first + 1].flags;
+	}
+
+	TypeId lazy_element(TypeId type, int depth) {
+		if (depth > 8 || !this.valid_id(type) || this.count > len(this.rows)) return no_type();
+		var row = this.row(type);
+		if (this.integer_range_type(type) || this.integer_stride_type(type)) return this.edges[row.first].type;
+		if (row.kind == 40) {
+			if (row.nominal.index < 1 || row.extent != 0 || row.count != 1 || row.first < 0 || row.first >= this.edge_count) return no_type();
+			var edge = this.edges[row.first]; if (!this.valid_id(edge.type) || edge.type.index >= type.index || edge.flags != 0 || !type_numeric(this.row(edge.type).kind) && this.row(edge.type).kind != 13) return no_type();
+			return edge.type;
+		}
+		if (row.kind != 39 || row.nominal.index != 0 || row.extent < 1 || row.extent > 2 || row.count != 2 || row.first < 0 || row.first > this.edge_count - 2) return no_type();
+		var source = this.edges[row.first]; var callback = this.edges[row.first + 1];
+		if (source.type.index >= type.index || callback.type.index >= type.index || source.flags != this.lazy_flags(source.type) || callback.flags != this.inline_callable_flags(callback.type) || source.flags != 0 && source.flags != 2 || callback.flags != 0 && callback.flags != 2) return no_type();
+		var callable = this.row(callback.type);
+		var input = this.lazy_element(source.type, depth + 1); if (input.index == 0 || this.edges[callable.first].type.index != input.index) return no_type();
+		var result = this.edges[callable.first + 1].type;
+		if (row.extent == 2) {
+			if (this.row(result).kind != 13) return no_type();
+			return input;
+		}
+		return result;
+	}
+
 	TypeId intern(int kind, SymbolId nominal, int extent, TypeEdge[] args) {
+		if (kind == 39) {
+			if (nominal.index != 0 || extent < 1 || extent > 2 || len(args) != 2 || !this.inline_callable_type(args[1].type)) return no_type();
+			var input = this.lazy_element(args[0].type, 1);
+			var callable = this.row(args[1].type); var parameter = this.edges[callable.first]; var result = this.edges[callable.first + 1];
+			if (input.index == 0 || args[0].flags != this.lazy_flags(args[0].type) || args[1].flags != this.inline_callable_flags(args[1].type) || parameter.type.index != input.index || extent == 2 && this.row(result.type).kind != 13) return no_type();
+		}
+		if (kind == 40 && (nominal.index < 1 || extent != 0 || len(args) != 1 || !this.valid_id(args[0].type) || args[0].flags != 0 || !type_numeric(this.row(args[0].type).kind) && this.row(args[0].type).kind != 13)) return no_type();
+		if (kind == 38) {
+			if (nominal.index < 1 || extent < 0 || extent > 1 || len(args) < 2 || len(args) > 10) return no_type();
+			int at = 0;
+			while (at < len(args)) {
+				if (!this.inline_callable_edge(args[at], at)) return no_type();
+				at = at + 1;
+			}
+		}
 		if ((kind == 36 || kind == 37) && (nominal.index != 0 || extent != 0 || len(args) != 1)) return no_type();
 		if ((kind == 36 || kind == 37) && (!this.valid_id(args[0].type) || args[0].flags != 0 || !type_integer(this.row(args[0].type).kind))) return no_type();
 		if (kind <= 16 && (kind < 1 || nominal.index != 0 || extent != 0 || len(args) != 0)) {
@@ -247,6 +326,8 @@ class TypeTable {
 		int i = 1;
 		while (i <= this.count) {
 			var row = this.row(type_id(i));
+			if (row.kind == 38 && !this.inline_callable_type(type_id(i))) return false;
+			if ((row.kind == 39 || row.kind == 40) && this.lazy_element(type_id(i), 0).index == 0) return false;
 			if (row.kind <= 0 || row.depth > 128 || row.first < 0 || row.count < 0 || row.first > this.edge_count - row.count) {
 				return false;
 			}

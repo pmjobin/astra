@@ -363,7 +363,7 @@ void checked_name(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int d
 		source_append_text(output, type_builtin_name(row.kind));
 		return;
 	}
-	if (row.nominal.index != 0) {
+	if (row.nominal.index != 0 && row.kind >= 30 && row.kind <= 34) {
 		var symbol = index.bindings.symbol(row.nominal);
 		int name_id = symbol.canonical;
 		if (row.kind == 33) {
@@ -397,6 +397,9 @@ void checked_name(CheckedIndex index, TypeId type, Utf8ByteBuilder output, int d
 			source_append_text(output, "Range");
 		}
 		if (row.kind == 37) source_append_text(output, "RangeSequence");
+		if (row.kind == 38) source_append_text(output, "InlineCallable");
+		if (row.kind == 39) source_append_text(output, "LazySequence");
+		if (row.kind == 40) source_append_text(output, "BorrowedIterator");
 	}
 	bool bracket = row.kind >= 25 || row.kind == 34;
 	if (bracket) {

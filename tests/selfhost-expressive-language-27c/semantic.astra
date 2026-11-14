@@ -197,6 +197,45 @@ void expressive_checked_closure_preserved() throws Error {
 	assert_that(count == 1 && checked.validate());
 }
 
+void expressive_lazy_types() throws Error {
+	var checked = expressive_checked("language astra27b; int square(int value) { return value*value; } int main() { int bias = 3; owned int[] data = new int[10]; var values = (0..10).map(i => square(i)+bias).filter(x => x>5); var views = data.iter().filter(x => x>0).map(x => x*x); var indexed = (0..3).map(i => data[i]+bias); return values.sum()+views.sum()+indexed.sum(); }");
+	int lambdas = 0; int captures = 0; int iterators = 0; int operations = 0; int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.LambdaExpressionSyntax()) {
+			assert_that(lambda_verified(checked, node)); lambdas = lambdas + 1; var facts = lambda_facts(checked, node); captures = captures + facts.count;
+			var saved = checked.uses[at]; var changed = saved; changed.flags = 4; checked.uses[at] = changed;
+			assert_that(!lambda_verified(checked, node)); checked.uses[at] = saved;
+			var parameter = checked.node_symbols[at]; int flags = checked.symbol_flags[parameter.index]; checked.symbol_flags[parameter.index] = 4;
+			assert_that(!lambda_verified(checked, node)); checked.symbol_flags[parameter.index] = flags;
+			assert_that(lambda_verified(checked, node));
+		}
+		if (lazy_call_action(checked, node) != 0) {
+			assert_that(lazy_call_verified(checked, node)); operations = operations + 1;
+			if (lazy_call_action(checked, node) == 1) iterators = iterators + 1;
+			var saved = checked.uses[at]; var changed = saved; changed.flags = 4; checked.uses[at] = changed;
+			assert_that(!lazy_call_verified(checked, node)); checked.uses[at] = saved;
+			assert_that(lazy_call_verified(checked, node));
+		}
+		at = at + 1;
+	}
+	assert_that(lambdas == 5 && captures == 3 && iterators == 1 && operations == 9 && checked.validate() && generic_verify(checked));
+}
+
+void expressive_lazy_effects() throws Error {
+	var checked = expressive_checked("language astra27b; [ExceptionRoot] class Error { readonly string text; init(string message) { this.text=message; } virtual property string message { get { return this.text; } } } int risky(int value) throws Error { if (value == 1) { throw new Error(\"callback failure\"); } return value; } int main() { var deferred = (0..3).map(i => risky(i)); try { return deferred.sum(); } catch (Error error) { return 42; } }");
+	var effect = checked_effect_source_verify(checked); assert_that(effect.status == 0);
+	int throwing = 0; int at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.LambdaExpressionSyntax()) {
+			assert_that(lambda_verified(checked, node) && checked.types.row(checked.uses[at].type).extent == 1); throwing = throwing + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(throwing == 1);
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
@@ -227,6 +266,8 @@ int main(string[] args) {
 		expressive_owning_patterns();
 		expressive_checked_closure_preserved();
 		expressive_range_values();
+		expressive_lazy_types();
+		expressive_lazy_effects();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

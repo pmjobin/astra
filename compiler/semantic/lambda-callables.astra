@@ -1,0 +1,179 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Finite inline callables have copied scalar parameters/results and at most
+// eight scalar or rooted numeric-view captures. Analysis allocates compiler
+// metadata only; it does not introduce a runtime closure allocation.
+class LambdaFacts {
+	owned SymbolId[] captures;
+	int count;
+	int remaining;
+	bool valid;
+	bool throwing;
+
+	init() {
+		this.captures = new SymbolId[8]; this.count = 0; this.remaining = 256; this.valid = true; this.throwing = false;
+	}
+
+	bool capture(SymbolId symbol) {
+		int at = 0;
+		while (at < this.count) {
+			if (this.captures[at].index == symbol.index) return true;
+			at = at + 1;
+		}
+		if (this.count == len(this.captures)) return false;
+		this.captures[this.count] = symbol; this.count = this.count + 1; return true;
+	}
+}
+
+bool lambda_scalar(CheckedIndex index, TypeId type) {
+	int kind = checked_kind(index, type); return type_numeric(kind) || kind == 13;
+}
+
+bool lambda_source_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.LambdaExpressionSyntax() || !checked_modern_source(index, node)) return false;
+	var data = index.bindings.program.arena.lambda_expression(node); if (data.f_binding.index < 1 || data.f_arrow.index < 1 || data.f_expression.index < 1) return false;
+	var whole = index.bindings.program.arena.header(node).span; var binding = index.bindings.program.arena.token_span(data.f_binding); var arrow = index.bindings.program.arena.token_span(data.f_arrow); var body = index.bindings.program.arena.header(data.f_expression).span;
+	if (whole.source.index != binding.source.index || whole.source.index != arrow.source.index || whole.source.index != body.source.index || whole.start != binding.start || whole.end != body.end || binding.end > arrow.start || arrow.end > body.start || index.bindings.program.arena.token_kind(data.f_binding) != TokenKind.IDENTIFIER() || index.bindings.program.arena.token_kind(data.f_arrow) != TokenKind.FAT_ARROW()) return false;
+	try {
+		var backing = index.bindings.program.arena.source(whole.source); if (!source_valid_span(shared_borrow(backing), whole.start, body.start)) return false;
+		var bytes = source_bytes(shared_borrow(backing), whole.start, body.start); var buffer = source_buffer("<lambda-prefix-proof>", move bytes, false); var retained = shared_acquire(move buffer); var scanner = lexer(move retained);
+		var name = scanner.next_token(); var equal = scanner.next_token(); var greater = scanner.next_token(); var eof = scanner.next_token();
+		return !scanner.failed && name.kind() == TokenKind.IDENTIFIER() && name.span.start == 0 && name.span.end + whole.start == binding.end && index.bindings.program.arena.token_is(data.f_binding, name.spelling.text) && equal.kind() == TokenKind.EQUAL() && greater.kind() == TokenKind.GREATER() && equal.span.end == greater.span.start && equal.span.start + whole.start == arrow.start && greater.span.end + whole.start == arrow.end && eof.kind() == TokenKind.EOF();
+	} catch (Error error) { return false; }
+}
+
+bool lambda_capture_type(CheckedIndex index, SymbolId symbol) {
+	if (symbol.index < 1 || symbol.index > index.bindings.symbol_count) return false;
+	var declaration = index.bindings.symbol(symbol); if (declaration.kind != 7 && declaration.kind != 8 && declaration.kind != 15) return false;
+	var type = index.symbol_types[symbol.index]; int flags = index.symbol_flags[symbol.index];
+	if (lambda_scalar(index, type)) return flags == 0;
+	int kind = checked_kind(index, type);
+	if (kind != 22 && kind != 21 || kind == 21 && !recover_storage_fixed(index, type) || kind == 22 && flags != 0 && flags != 2 && flags != 4 || kind == 21 && flags != 0) return false;
+	var element = index.types.argument(index.types, type, 0);
+	return element.flags == 0 && lambda_scalar(index, element.type);
+}
+
+bool lambda_name_target_verified(CheckedIndex index, SyntaxNodeId node, SymbolId target) {
+	if (target.index < 1 || target.index > index.bindings.symbol_count) return false;
+	var token = index.bindings.program.arena.get_token_identifier(node); if (token.index < 1) return false;
+	var span = index.bindings.program.arena.token_span(token); var whole = index.bindings.program.arena.header(node).span;
+	if (span.source.index != whole.source.index || span.start != whole.start || span.end != whole.end) return false;
+	try {
+		var name = index.bindings.program.arena.token_message(token); var scope = index.bindings.scope_for_node(node);
+		if (scope.index < 1) return false;
+		var resolved = index.bindings.resolve(scope, node, token, name.text, 2);
+		return resolved.state_code == 1 && resolved.target.index == target.index && index.bindings.accessible(target, scope);
+	} catch (Error error) { return false; }
+}
+
+bool lambda_body_facts(CheckedIndex index, SyntaxNodeId node, SymbolId parameter, LambdaFacts facts, int depth) {
+	if (depth > 32 || node.index < 1 || node.index >= len(index.uses) || facts.remaining == 0) return false;
+	facts.remaining = facts.remaining - 1;
+	var kind = index.bindings.program.arena.kind(node); var use = index.uses[node.index];
+	if (kind == SyntaxKind.NameExpressionSyntax()) {
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
+		if (!lambda_name_target_verified(index, node, target) || use.type.index != index.symbol_types[target.index].index || use.flags != index.symbol_flags[target.index]) return false;
+		if (target.index == parameter.index) return use.type.index == index.symbol_types[parameter.index].index && use.flags == 0;
+		return lambda_capture_type(index, target) && facts.capture(target);
+	}
+	if (!lambda_scalar(index, use.type) || use.flags != 0) return false;
+	if (kind == SyntaxKind.IntegerLiteralExpressionSyntax() || kind == SyntaxKind.FloatLiteralExpressionSyntax() || kind == SyntaxKind.BooleanLiteralExpressionSyntax()) return true;
+	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return lambda_body_facts(index, index.bindings.program.arena.get_node_expression(node), parameter, facts, depth + 1);
+	if (kind == SyntaxKind.PrefixExpressionSyntax()) {
+		var operation = index.bindings.program.arena.get_token_operator_token(node);
+		if (!index.bindings.program.arena.token_is(operation, "+") && !index.bindings.program.arena.token_is(operation, "-") && !index.bindings.program.arena.token_is(operation, "!") && !index.bindings.program.arena.token_is(operation, "~")) return false;
+		// Literal sign checking intentionally leaves the child literal's use
+		// absent. The parent's exact checked scalar type supplies its domain.
+		var operand = index.bindings.program.arena.get_node_operand(node); var literal = operand; int wrappers = 0;
+		while (index.bindings.program.arena.kind(literal) == SyntaxKind.ParenthesizedExpressionSyntax() && wrappers < 32) {
+			literal = index.bindings.program.arena.get_node_expression(literal);
+			wrappers = wrappers + 1;
+		}
+		if (wrappers == 32) return false;
+		if (index.bindings.program.arena.kind(literal) == SyntaxKind.IntegerLiteralExpressionSyntax() && (index.bindings.program.arena.token_is(operation, "+") || index.bindings.program.arena.token_is(operation, "-"))) return true;
+		return lambda_body_facts(index, operand, parameter, facts, depth + 1);
+	}
+	if (kind == SyntaxKind.ConversionExpressionSyntax()) return lambda_body_facts(index, index.bindings.program.arena.get_node_operand(node), parameter, facts, depth + 1);
+	if (kind == SyntaxKind.BinaryExpressionSyntax() || kind == SyntaxKind.ShortCircuitExpressionSyntax()) return lambda_body_facts(index, index.bindings.program.arena.get_node_left(node), parameter, facts, depth + 1) && lambda_body_facts(index, index.bindings.program.arena.get_node_right(node), parameter, facts, depth + 1);
+	if (kind == SyntaxKind.ConditionalExpressionSyntax()) return lambda_body_facts(index, index.bindings.program.arena.get_node_condition(node), parameter, facts, depth + 1) && lambda_body_facts(index, index.bindings.program.arena.get_node_left(node), parameter, facts, depth + 1) && lambda_body_facts(index, index.bindings.program.arena.get_node_right(node), parameter, facts, depth + 1);
+	if (kind == SyntaxKind.IndexExpressionSyntax()) {
+		var container = index.bindings.program.arena.get_node_container(node); if (index.bindings.program.arena.kind(container) != SyntaxKind.NameExpressionSyntax()) return false;
+		return lambda_body_facts(index, container, parameter, facts, depth + 1) && lambda_body_facts(index, index.bindings.program.arena.get_node_subscript(node), parameter, facts, depth + 1);
+	}
+	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		if (index.bindings.program.arena.get_node_receiver_place(node).index != 0) return false;
+		var target = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)); if (target.index < 1 || index.bindings.symbol(target).kind != 1) return false;
+		if (index.bindings.program.arena.get_token_receiver(node).index != 0 && !recover_namespace_call_source(index, node, target)) return false;
+		int ordinal = index.symbol_signatures[target.index].index; if (ordinal < 1 || ordinal > index.signature_count) return false;
+		var signature = index.signatures[ordinal - 1]; if (!checked_effect_signature_verified(index, signature) || signature.dispatch != 0 || (signature.flags & ~(8 | 16 | 64)) != 0) return false;
+		int at = 0; int channels = index.types.row(signature.callable).count;
+		while (at < channels) {
+			var channel = index.types.argument(index.types, signature.callable, at); if (channel.flags != 0 || !lambda_scalar(index, channel.type)) return false; at = at + 1;
+		}
+		if ((signature.flags & 64) != 0) facts.throwing = true;
+		var arguments = index.bindings.program.arena.get_list_arguments(node); at = 0;
+		while (at < index.bindings.program.arena.list_count(arguments)) {
+			if (!lambda_body_facts(index, index.bindings.program.arena.node_at(arguments, at), parameter, facts, depth + 1)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
+	return false;
+}
+
+owned LambdaFacts lambda_facts(CheckedIndex index, SyntaxNodeId node) {
+	var facts = new LambdaFacts(); facts.valid = false;
+	if (!lambda_source_verified(index, node)) return move facts;
+	var parameter = index.node_symbols[node.index]; if (parameter.index < 1 || parameter.index > index.bindings.symbol_count) return move facts;
+	var declaration = index.bindings.symbol(parameter);
+	if (declaration.kind != 15 || declaration.node.index != node.index || declaration.token.index != index.bindings.program.arena.get_token_binding(node).index || declaration.scope.index != index.bindings.scope_for_node(node).index || index.symbol_flags[parameter.index] != 0 || !lambda_scalar(index, index.symbol_types[parameter.index])) return move facts;
+	facts.valid = lambda_body_facts(index, index.bindings.program.arena.get_node_expression(node), parameter, facts, 0);
+	return move facts;
+}
+
+TypeId checked_lambda(CheckedIndex index, SyntaxNodeId node, TypeId input, int depth) throws Error {
+	if (!lambda_source_verified(index, node) || !lambda_scalar(index, input)) {
+		index.fail(index.bindings.program.arena.header(node).span, "inline callable requires one copied scalar input and exact lambda source"); return no_type();
+	}
+	var parameter = index.node_symbols[node.index];
+	if (parameter.index < 1 || parameter.index > index.bindings.symbol_count || index.bindings.symbol(parameter).kind != 15 || index.symbol_types[parameter.index].index != 0 && index.symbol_types[parameter.index].index != input.index) {
+		index.fail(index.bindings.program.arena.header(node).span, "inline callable has no unique lexical scalar parameter"); return no_type();
+	}
+	index.symbol_types[parameter.index] = input; index.symbol_flags[parameter.index] = 0;
+	var body = index.bindings.program.arena.get_node_expression(node); var result = checked_expression(index, body, no_type(), depth + 1);
+	var facts = lambda_facts(index, node);
+	if (!lambda_scalar(index, result) || !facts.valid) {
+		index.fail(index.bindings.program.arena.header(node).span, "inline callable exceeds the finite scalar/capture/effect subset"); return no_type();
+	}
+	var edges = new TypeEdge[facts.count + 2]; TypeEdge parameter_edge = {type = input, flags = 0}; TypeEdge result_edge = {type = result, flags = 0}; edges[0] = parameter_edge; edges[1] = result_edge;
+	int flags = 0; int at = 0;
+	while (at < facts.count) {
+		var type = index.symbol_types[facts.captures[at].index]; int capture_flags = 0;
+		if (!lambda_scalar(index, type)) {
+			capture_flags = 2;
+			flags = 2;
+		}
+		TypeEdge capture = {type = type, flags = capture_flags}; edges[at + 2] = capture; at = at + 1;
+	}
+	int throwing = 0; if (facts.throwing) throwing = 1;
+	var type = index.types.intern(38, parameter, throwing, edges); var use = index.uses[node.index]; use.flags = flags; use.deferred = 0; index.uses[node.index] = use;
+	return index.record(node, type, flags);
+}
+
+bool lambda_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses)) return false;
+	var use = index.uses[node.index]; if (!index.types.inline_callable_type(use.type) || use.deferred != 0) return false;
+	var facts = lambda_facts(index, node); if (!facts.valid) return false;
+	var shape = index.types.row(use.type); var parameter = index.node_symbols[node.index]; var body = index.bindings.program.arena.get_node_expression(node);
+	int throwing = 0; if (facts.throwing) throwing = 1;
+	if (shape.nominal.index != parameter.index || shape.count != facts.count + 2 || shape.extent != throwing || index.types.argument(index.types, use.type, 0).type.index != index.symbol_types[parameter.index].index || index.types.argument(index.types, use.type, 1).type.index != index.uses[body.index].type.index) return false;
+	int flags = 0; int at = 0;
+	while (at < facts.count) {
+		var type = index.symbol_types[facts.captures[at].index]; int capture_flags = 0; if (!lambda_scalar(index, type)) {
+			capture_flags = 2;
+			flags = 2;
+		}
+		var actual = index.types.argument(index.types, use.type, at + 2); if (actual.type.index != type.index || actual.flags != capture_flags) return false;
+		at = at + 1;
+	}
+	return use.flags == flags;
+}

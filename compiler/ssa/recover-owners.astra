@@ -7,6 +7,7 @@ class RecoverSsaOwnerIndex {
 	owned int[] positions;
 	owned int[] blocks;
 	owned int[] reservations;
+	owned int[] reservation_blocks;
 	owned int[] moves;
 	owned int[] shortcuts;
 	// A fresh SSA verifier sets this only after its complete physical scan.
@@ -18,10 +19,22 @@ class RecoverSsaOwnerIndex {
 		this.positions = new int[cfg.block_count];
 		this.blocks = new int[cfg.block_count];
 		this.reservations = new int[cfg.core.count];
+		this.reservation_blocks = new int[cfg.core.count];
 		this.moves = new int[cfg.core.flow.storage.count];
 		this.shortcuts = new int[cfg.block_count + 1];
 		this.reservations_ready = false;
 	}
+}
+
+bool recover_ssa_index_reservation(RecoverSsaOwnerIndex index, RecoverCfg cfg, int block) {
+	var row = cfg.blocks[block - 1]; if (row.opcode != 10) return true;
+	if (row.origin < 1 || row.origin > cfg.core.count || cfg.core.nodes[row.origin - 1].value.kind != 10) return false;
+	int place = cfg.core.owners.slots[row.origin - 1];
+	if (place < 1 || place > len(index.moves) || index.reservations[row.origin - 1] != 0 || cfg.regions[row.origin - 1].operation != block) return false;
+	index.reservations[row.origin - 1] = index.moves[place - 1] + 2;
+	index.moves[place - 1] = index.moves[place - 1] + 1;
+	index.reservation_blocks[row.origin - 1] = block;
+	return true;
 }
 
 void recover_ssa_owner_shortcut(RecoverSsaOwnerIndex index, RecoverCfg cfg, int b) {
@@ -70,20 +83,10 @@ bool recover_ssa_owner_index(RecoverSsaOwnerIndex index, RecoverCfg cfg, Recover
 		index.positions[b] = position;
 		index.blocks[index.starts[f] + position] = b + 1;
 		recover_ssa_owner_shortcut(index, cfg, b);
+		if (!index.reservations_ready && !recover_ssa_index_reservation(index, cfg, b + 1)) return false;
 		b = b + 1;
 	}
 	if (!index.reservations_ready) {
-		int n = 0;
-		while (n < cfg.core.count) {
-			if (!work.take()) return false;
-			int place = cfg.core.owners.slots[n];
-			if (place != 0) {
-				if (place < 1 || place > len(index.moves)) return false;
-				index.reservations[n] = index.moves[place - 1] + 2;
-				index.moves[place - 1] = index.moves[place - 1] + 1;
-			}
-			n = n + 1;
-		}
 		index.reservations_ready = true;
 	}
 	return true;

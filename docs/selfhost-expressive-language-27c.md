@@ -700,3 +700,45 @@ also pass strict returning zero-byte, zero-error, zero-suppression Valgrind
 (selfhost27c-range-oracle-memory2). They remain reference evidence. Dev7's actual
 C0 argv/executable and mapped LLVM23.1.4 bytes are independently authenticated
 while running (independent-live.json); observed RSS was 2,509,300 KiB, one thread.
+
+Dev7 completed from frozen `2842b8d5953864b30351e376b082a7a4f31df089`,
+with actual C0 build time 3667.374 seconds and product SHA-256
+`25739d4981059e2b2d555d3fb42147b9b7ba7d87fcfb0b7382e18ee25623f509`.
+The 15 actual match cases in selfhost27c-match-dev7 pass native O0/O2, separately
+authored C0 expansions, LLVM verification and strict returning compiler/target
+Valgrind with zero live bytes/errors/suppressions. All 18 semantic negatives are
+rejected. This qualifies those specimens, not complete current-host or milestone
+acceptance. The product predates the already documented compound receiver fix.
+
+The optimized exact-dev5 full-source diagnostic independently reports SSA phase
+7, zero remaining work, exhausted. Its first-refusal run takes 1206.094 seconds;
+no object is published and no limit is increased. The older O0 diagnostic times
+out at its explicit 7200-second budget; both outcomes remain preserved. A second
+bounded optimized diagnostic measures entry/exit work for the packed slot proof.
+The candidate splits exact reservation identity into a path walk ending at its
+matching commit/abort, then packs dead/live/reserved slot liveness in three bits.
+Both walks use the same fresh physical index and 8M budget. A 40-reservation
+source specimen compares the packed proof against the retained scalar reference,
+including wrong-reservation and incorrect-restore corruptions. Qualification is
+pending in ssa13; the optimization has no performance or safety PASS yet.
+
+The ssa12 default range mutation fails because compound field projection already
+uses its field name as the identifier: the mutation copied the original token.
+The corrected specimen asserts a different token before requiring refusal.
+Actual CLI source-to-SSA specimens separately pass for owned range collection,
+stride and foreach (selfhost27c-ssa12-cases1). Fixed collection refuses at a
+parenthesized-expression getter applied before a conversion check; slice length
+and call specimens reach an older len-source restriction to names/Class fields.
+The candidate selects the correct conversion operand first and admits only a
+source-verified range slice in the len consumer. Their corrected results remain
+pending; failed fixtures are not credited as physical verifier failures or PASS.
+
+Callable typing candidates use finite internal kinds 38 (inline scalar callable),
+39 (at most eight map/filter stages) and 40 (rooted borrowed numeric iterator).
+Captured scalar values and rooted numeric views are distinct channels. Effects
+are checked at consumption; construction does not execute callback bodies.
+Semantic7/8 preserve C0 source-borrow refusals. Semantic9 passes source preflight
+but its C0 SSA construction fails on a struct-valued loop-condition temporary;
+the candidate reads the channel count before the loop. Semantic10 and ssa13 are
+focused builds in progress. No callable/capture runtime or pipeline execution,
+interpolation, comprehension or migration acceptance is claimed by this code.
