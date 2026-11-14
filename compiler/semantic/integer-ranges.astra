@@ -82,8 +82,13 @@ bool range_field_source(SyntaxArena arena, SyntaxNodeId node) {
 	var field = arena.get_token_field_name(node);
 	var whole = arena.header(node).span;
 	var aggregate = arena.get_node_aggregate(node);
-	var receiver = arena.token_span(arena.get_token_identifier(node));
+	var receiver = syntax_empty_span();
 	if (aggregate.index > 0) receiver = arena.header(aggregate).span;
+	else {
+		var identifier = arena.get_token_identifier(node); if (identifier.index < 1) return false;
+		receiver = arena.token_span(identifier);
+	}
+	if (field.index < 1) return false;
 	var member = arena.token_span(field);
 	if (whole.source.index != receiver.source.index || whole.source.index != member.source.index || whole.start != receiver.start || whole.end != member.end || receiver.end > member.start) return false;
 	try {
@@ -167,9 +172,15 @@ TypeId checked_range_query(CheckedIndex index, SyntaxNodeId node, int depth) thr
 }
 
 bool range_query_source(SyntaxArena arena, SyntaxNodeId node) {
-	var whole = arena.header(node).span; var receiver = arena.token_span(arena.get_token_receiver(node));
+	var whole = arena.header(node).span; var receiver = syntax_empty_span();
 	var aggregate = arena.get_node_receiver_place(node); if (aggregate.index > 0) receiver = arena.header(aggregate).span;
-	var token = arena.get_token_identifier(node); var method = arena.token_span(token); var opening = arena.token_span(arena.get_token_open_paren(node)); var closing = arena.token_span(arena.get_token_close_paren(node));
+	else {
+		var identifier = arena.get_token_receiver(node); if (identifier.index < 1) return false;
+		receiver = arena.token_span(identifier);
+	}
+	var token = arena.get_token_identifier(node); var open = arena.get_token_open_paren(node); var close = arena.get_token_close_paren(node);
+	if (token.index < 1 || open.index < 1 || close.index < 1) return false;
+	var method = arena.token_span(token); var opening = arena.token_span(open); var closing = arena.token_span(close);
 	if (whole.source.index != receiver.source.index || whole.source.index != method.source.index || whole.source.index != opening.source.index || whole.source.index != closing.source.index || whole.start != receiver.start || whole.end != closing.end || receiver.end > method.start || method.end > opening.start || opening.end > closing.start || !syntax_call_labels_verified(arena, node)) return false;
 	try {
 		var backing = arena.source(whole.source); if (!source_valid_span(shared_borrow(backing), receiver.end, opening.start)) return false;

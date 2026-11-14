@@ -101,7 +101,7 @@ void expressive_owning_match() throws Error {
 }
 
 void expressive_ranges() throws Error {
-	var ssa = expressive_ssa("language astra27b; Range<int> interval(int first, int last) { return first..=last; } int measure(Range<int> value) { if (value.is_empty()) return 0; if (!value.contains(value.start)) return 1; return value.end-value.start; } int main() { var values = interval(20,62); var copied = values; values = 30..72; return measure(values)+measure(copied)-42; }");
+	var ssa = expressive_ssa("language astra27b; Range<int> interval(int first, int last) { return first..=last; } int measure(Range<int> value) { if (value.is_empty()) return 0; if (!value.contains(value.start)) return 1; return value.end-value.start; } int main() { var values = interval(20,62); var copied = values; values = 30..72; return measure(values)+measure(copied)-42+(20..80).start-20; }");
 	int bounds = 0; int ranges = 0; int queries = 0; int at = 0;
 	while (at < ssa.cfg.core.flow.data.node_count) {
 		var original = ssa.cfg.core.flow.data.nodes[at];
@@ -133,7 +133,7 @@ void expressive_ranges() throws Error {
 		}
 		at = at + 1;
 	}
-	assert_that(bounds == 3 && ranges == 2 && queries == 2);
+	assert_that(bounds == 4 && ranges == 3 && queries == 2);
 }
 
 void expressive_range_iteration() throws Error {

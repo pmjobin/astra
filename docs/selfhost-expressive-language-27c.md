@@ -670,3 +670,16 @@ library packages were isolated in selfhost27c-format1. Extracted formatter SHA
 `246ec58a8816ba81299a6694dd1239903ee761b25d98f36130c1b9e0c3ba0fcb`
 matches the existing qualification. The guarded C entry point passes with those
 explicit PATH/library routes; no system installation or tool pin is changed.
+
+Focused ssa11 compiles in 1476.516 seconds but its native consumer refuses with
+an arena assertion before reaching the known malformed collection specimen.
+The first bounded debugger stop reports `id.index > 0` in token-span lookup,
+called by `range_query_source`, `range_step_verified` and `recover_build_node`.
+The source proof read the absent named receiver token before replacing its span
+with the real compound receiver. The correction selects the expression receiver
+first, otherwise requires a nonzero named token. The same ordering correction
+applies to compound start/end field proof, with an added actual `(20..80).start`
+source-to-SSA specimen. Missing method/open/close tokens now return false before
+token-span lookup. No failed native consumer is granted stride/slice/collection
+credit. The dev7 build was already frozen before this correction; it can qualify
+owning match and direct range loops but cannot qualify compound range methods.
