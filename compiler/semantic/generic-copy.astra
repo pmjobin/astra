@@ -251,6 +251,12 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_arguments = generic_copy_list(index, plan, data.f_arguments, syntax_kind_code(SyntaxKind.ExpressionSyntax()), depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_interpolation_expression(data, header.span, header.depth);
 		}
+		case SyntaxKind.ComprehensionExpressionSyntax(): {
+			var data = index.bindings.program.arena.comprehension_expression(original);
+			data.f_collection = generic_copy_node(index, plan, data.f_collection, depth + 1);
+			data.f_expression = generic_copy_node(index, plan, data.f_expression, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_comprehension_expression(data, header.span, header.depth);
+		}
 		case SyntaxKind.EnumArmSyntax(): {
 			var data = index.bindings.program.arena.enum_arm(original);
 			data.f_type_arguments = generic_copy_list(index, plan, data.f_type_arguments, syntax_kind_code(SyntaxKind.TypeNameSyntax()), depth + 1);

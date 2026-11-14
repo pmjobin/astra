@@ -143,6 +143,7 @@ enum SyntaxKind {
 	MatchExpressionSyntax,
 	LambdaExpressionSyntax,
 	InterpolationExpressionSyntax,
+	ComprehensionExpressionSyntax,
 }
 
 int syntax_kind_code(SyntaxKind kind) {
@@ -432,6 +433,7 @@ int syntax_kind_code(SyntaxKind kind) {
 		case SyntaxKind.MatchExpressionSyntax(): { return 97; }
 		case SyntaxKind.LambdaExpressionSyntax(): { return 98; }
 		case SyntaxKind.InterpolationExpressionSyntax(): { return 99; }
+		case SyntaxKind.ComprehensionExpressionSyntax(): { return 100; }
 
 	}
 }
@@ -722,6 +724,7 @@ SyntaxKind syntax_kind_from_code(int code) {
 	if (code == 97) return SyntaxKind.MatchExpressionSyntax();
 	if (code == 98) return SyntaxKind.LambdaExpressionSyntax();
 	if (code == 99) return SyntaxKind.InterpolationExpressionSyntax();
+	if (code == 100) return SyntaxKind.ComprehensionExpressionSyntax();
 	assert_that(false);
 	return SyntaxKind.AddressOfExpressionSyntax();
 }
@@ -1016,6 +1019,7 @@ bool syntax_kind_accepts(SyntaxKind actual, SyntaxKind expected) {
 		case SyntaxKind.MatchExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.LambdaExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 		case SyntaxKind.InterpolationExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
+		case SyntaxKind.ComprehensionExpressionSyntax(): { return expected == SyntaxKind.ExpressionSyntax() || expected == SyntaxKind.SyntaxNode(); }
 
 	}
 }
@@ -1734,4 +1738,18 @@ struct InterpolationExpressionSyntaxData {
 	SyntaxListId f_parts;
 	SyntaxListId f_arguments;
 	SyntaxTokenId f_end;
+}
+
+struct ComprehensionExpressionSyntaxData {
+	SyntaxTokenId f_open;
+	SyntaxTokenId f_keyword;
+	SyntaxTokenId f_open_paren;
+	SyntaxTokenId f_var_keyword;
+	SyntaxTokenId f_binding;
+	SyntaxTokenId f_in_keyword;
+	SyntaxNodeId f_collection;
+	SyntaxTokenId f_close_paren;
+	SyntaxTokenId f_arrow;
+	SyntaxNodeId f_expression;
+	SyntaxTokenId f_close;
 }

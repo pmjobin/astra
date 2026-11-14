@@ -358,6 +358,21 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_list(index, plan, first_data.f_arguments, second_data.f_arguments)) return false;
 			if (first_data.f_end.index != second_data.f_end.index) return false;
 		}
+		case SyntaxKind.ComprehensionExpressionSyntax(): {
+			var first_data = index.bindings.program.arena.comprehension_expression(original);
+			var second_data = index.bindings.program.arena.comprehension_expression(concrete);
+			if (first_data.f_open.index != second_data.f_open.index) return false;
+			if (first_data.f_keyword.index != second_data.f_keyword.index) return false;
+			if (first_data.f_open_paren.index != second_data.f_open_paren.index) return false;
+			if (first_data.f_var_keyword.index != second_data.f_var_keyword.index) return false;
+			if (first_data.f_binding.index != second_data.f_binding.index) return false;
+			if (first_data.f_in_keyword.index != second_data.f_in_keyword.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_collection, second_data.f_collection)) return false;
+			if (first_data.f_close_paren.index != second_data.f_close_paren.index) return false;
+			if (first_data.f_arrow.index != second_data.f_arrow.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_expression, second_data.f_expression)) return false;
+			if (first_data.f_close.index != second_data.f_close.index) return false;
+		}
 		case SyntaxKind.EnumArmSyntax(): {
 			var first_data = index.bindings.program.arena.enum_arm(original);
 			var second_data = index.bindings.program.arena.enum_arm(concrete);

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Collection bounds use the outer scope; the body gets its own immutable binder.
+void expressive_comprehension_binding() throws Error {
+	string text = "language astra27b; int main() { int i = 3; var values = [for (var i in 0..i) => i*i]; int after = i; return 42; }";
+	var bytes = new u8[text.byte_length]; int at = 0;
+	while (at < len(bytes)) {
+		bytes[at] = astra_host_text_byte(text, at) as u8;
+		at = at+1;
+	}
+	var buffer = source_buffer("comprehension-binding-input", move bytes, false); var retained = shared_acquire(move buffer);
+	var entries = new Vector<SourceEntry>(1); var entry = new SourceEntry(move retained); assert_that(entries.append(move entry)); var sources = source_set(move entries); var program = syntax_program(move sources); assert_that(!program.failed());
+	var bindings = binding_index(move program, 0); assert_that(!bindings.failed());
+	SymbolId outer = {index = 0}; SymbolId parameter = {index = 0}; at = 1;
+	while (at <= bindings.symbol_count) {
+		SymbolId symbol = {index = at}; var declaration = bindings.symbol(symbol);
+		if (bindings.program.arena.token_is(declaration.token, "i")) {
+			if (declaration.kind == 8) outer = symbol;
+			if (declaration.kind == 15) {
+				assert_that(bindings.program.arena.kind(declaration.node) == SyntaxKind.ComprehensionExpressionSyntax());
+				parameter = symbol;
+			}
+		}
+		at = at+1;
+	}
+	assert_that(outer.index > 0 && parameter.index > 0 && outer.index != parameter.index); int outer_reads = 0; int parameter_reads = 0; at = 1;
+	while (at <= bindings.reference_count) {
+		var reference = bindings.reference(at);
+		if (reference.target.index == outer.index) outer_reads = outer_reads+1;
+		if (reference.target.index == parameter.index) parameter_reads = parameter_reads+1;
+		at = at+1;
+	}
+	assert_that(outer_reads == 2 && parameter_reads == 2);
+}
+
+int main() {
+	try { expressive_comprehension_binding(); return 42; }
+	catch (Error error) { return 1; }
+}

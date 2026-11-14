@@ -946,3 +946,28 @@ and lazy qualification remain pending; no generation acceptance is inferred
 from this observation. Comprehensions, source migration and final qualification
 are still outstanding. The historical exception and release reservations above
 remain unchanged.
+
+Comprehension syntax now appends AST kind 100 for
+`[for (var i in range) => expression]`, retaining distinct source collection
+and element expressions. A fresh lexer verifies every header token and both
+expression boundaries independently. The optional filtered spelling is refused
+until separately qualified. The binder's body scope is distinct from the outer
+scope used to evaluate its collection. Existing generated walks reproduce the
+new schema; no historical schema cohort is rewritten.
+
+Syntax12 passes unchanged-C0 native exit 42 and strict returning memory, with
+zero live bytes, errors and suppressions. It checks positive syntax, malformed
+and legacy refusals, forged arrow/collection metadata with restored controls,
+and sixteen allocate/rewind repetitions for each new syntax family. That work
+also fixes a discovered omission: lambda/interpolation payload counters were
+absent from parser checkpoints. All three counters now rewind with the arena's
+node counter. Whole-current-source C0 semantic preflight22 passes in 82.062
+seconds. Comprehension typing/materialization and its native ownership proof
+are not established by these syntax receipts.
+
+The genuine Astra dev10 attempt stops after 1281.888 seconds at SSA verification,
+before emitting an object. Its exact frozen source and actual producer remain
+attributed to 221da1f and dev9 respectively. A separate read-only first-refusal
+trace is in progress on those same inputs; no increased budget or acceptance
+claim is used. This is an internal engineering failure to fix, with the failed
+receipt preserved, rather than a historical-loss stop or a publication result.

@@ -1588,6 +1588,10 @@ class SyntaxObservation {
 	}
 
 	owned Utf8Message format_expression(SyntaxArena arena, SyntaxNodeId arg_expression) throws Error {
+		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.ComprehensionExpressionSyntax()) {
+			var data = arena.comprehension_expression(arg_expression); var collection = this.format_expression(arena, data.f_collection); var body = this.format_expression(arena, data.f_expression);
+			var output = new Utf8ByteBuilder(); source_append_text(output, "(materializing-comprehension "); arena.write_token(data.f_binding, output); source_append_text(output, " in "); source_append_text(output, collection.text); source_append_text(output, " => "); source_append_text(output, body.text); source_append_text(output, ")"); var result = output.snapshot(); return move result;
+		}
 		if (arg_expression.index != 0 && arena.kind(arg_expression) == SyntaxKind.InterpolationExpressionSyntax()) {
 			var data = arena.interpolation_expression(arg_expression); var output = new Utf8ByteBuilder(); source_append_text(output, "(interpolation"); int at = 0;
 			while (at < arena.list_count(data.f_parts)) {

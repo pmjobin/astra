@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Fresh source tokens establish the bracket/header/body boundary independently
+// of the parser. Element typing and the materialization bound are later proofs.
+bool syntax_comprehension_token(SyntaxArena arena, SyntaxSourceId source, SyntaxTokenId stored, Token actual, TokenKind expected) throws Error {
+	if (stored.index < 1 || stored.index > arena.token_count) return false;
+	var kind = arena.token_kind(stored); var actual_kind = actual.kind();
+	var span = arena.token_span(stored);
+	return kind == expected && actual_kind == expected && span.source.index == source.index && span.start == actual.span.start && span.end == actual.span.end && arena.token_is(stored, actual.spelling.text);
+}
+
+bool syntax_comprehension_expression(Lexer scanner, SyntaxSpan span, int[] work) throws Error {
+	if (span.start < 0 || span.end <= span.start || work[0] == 0) return false;
+	work[0] = work[0] - 1;
+	var first = scanner.next_token(); if (scanner.failed || first.kind() == TokenKind.EOF() || first.span.start != span.start) return false;
+	int end = first.span.end;
+	while (end < span.end) {
+		if (work[0] == 0) return false; work[0] = work[0] - 1;
+		var token = scanner.next_token(); if (scanner.failed || token.kind() == TokenKind.EOF()) return false; end = token.span.end;
+	}
+	return end == span.end;
+}
+
+bool syntax_comprehension_verified(SyntaxArena arena, SyntaxNodeId node) {
+	if (node.index < 1 || node.index > arena.node_count || arena.kind(node) != SyntaxKind.ComprehensionExpressionSyntax()) return false;
+	var data = arena.comprehension_expression(node); var span = arena.header(node).span;
+	if (syntax_source_language_profile(arena, span.source) != 1) return false;
+	if (data.f_collection.index < 1 || data.f_collection.index > arena.node_count || data.f_expression.index < 1 || data.f_expression.index > arena.node_count || !syntax_kind_accepts(arena.kind(data.f_collection), SyntaxKind.ExpressionSyntax()) || !syntax_kind_accepts(arena.kind(data.f_expression), SyntaxKind.ExpressionSyntax())) return false;
+	var collection = arena.header(data.f_collection).span; var expression = arena.header(data.f_expression).span;
+	if (collection.source.index != span.source.index || expression.source.index != span.source.index || collection.end > expression.start || collection.start <= span.start || expression.end >= span.end) return false;
+	try {
+		var backing = arena.source(span.source); if (!source_valid_span(shared_borrow(backing), span.start, span.end)) return false;
+		var scanner = lexer(move backing); var work = new int[1]; work[0] = 8000000; bool found = false;
+		while (work[0] > 0) {
+			work[0] = work[0] - 1; var token = scanner.next_token(); if (scanner.failed || token.kind() == TokenKind.EOF()) return false;
+			if (token.span.start == span.start) {
+				if (!syntax_comprehension_token(arena, span.source, data.f_open, token, TokenKind.OPEN_BRACKET())) return false;
+				found = true; break;
+			}
+			if (token.span.end > span.start) return false;
+		}
+		if (!found) return false;
+		var keyword = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_keyword, keyword, TokenKind.FOR())) return false;
+		var open = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_open_paren, open, TokenKind.OPEN_PAREN())) return false;
+		var variable = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_var_keyword, variable, TokenKind.VAR())) return false;
+		var binding = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_binding, binding, TokenKind.IDENTIFIER())) return false;
+		var inside = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_in_keyword, inside, TokenKind.IDENTIFIER()) || !arena.token_is(data.f_in_keyword, "in")) return false;
+		if (!syntax_comprehension_expression(scanner, collection, work)) return false;
+		var close = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_close_paren, close, TokenKind.CLOSE_PAREN())) return false;
+		var arrow = scanner.next_token(); if (!syntax_comprehension_token(arena, span.source, data.f_arrow, arrow, TokenKind.FAT_ARROW())) return false;
+		if (!syntax_comprehension_expression(scanner, expression, work)) return false;
+		var end = scanner.next_token(); return !scanner.failed && end.span.end == span.end && syntax_comprehension_token(arena, span.source, data.f_close, end, TokenKind.CLOSE_BRACKET());
+	} catch (Error error) { return false; }
+}

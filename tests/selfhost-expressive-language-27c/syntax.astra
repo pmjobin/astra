@@ -218,6 +218,56 @@ void expressive_interpolation_syntax() throws Error {
 	var nested = expressive_program("language astra27b; int main() { format_text($\"{format_text($\"nested\")}\"); return 42; }"); assert_that(nested.failed());
 }
 
+void expressive_comprehension_syntax() throws Error {
+	var program = expressive_program("language astra27b; int main() { var values = [for (var i in 0..100) => i*i]; var nested = [for (var j in (20..=80).step_by(5)) => j+1]; return 42; }");
+	assert_that(!program.failed()); int count = 0; int at = 1;
+	while (at <= program.arena.node_count) {
+		SyntaxNodeId node = {index = at};
+		if (program.arena.kind(node) == SyntaxKind.ComprehensionExpressionSyntax()) {
+			assert_that(syntax_kind_code(program.arena.kind(node)) == 100 && syntax_comprehension_verified(program.arena, node));
+			var original = program.arena.comprehension_expression(node); var changed = original; changed.f_arrow = original.f_in_keyword;
+			program.arena.replace_comprehension_expression(node, changed); assert_that(!syntax_comprehension_verified(program.arena, node));
+			program.arena.replace_comprehension_expression(node, original); assert_that(syntax_comprehension_verified(program.arena, node));
+			changed = original; changed.f_collection = original.f_expression; program.arena.replace_comprehension_expression(node, changed); assert_that(!syntax_comprehension_verified(program.arena, node));
+			program.arena.replace_comprehension_expression(node, original); assert_that(syntax_comprehension_verified(program.arena, node)); count = count + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(count == 2); var projection = syntax_projection(program); var observation = syntax_program_dump(program); assert_that(projection.text.byte_length > 0 && observation.text.byte_length > 0);
+	var legacy = expressive_program("language legacy27a; int main() { var values = [for (var i in 0..3) => i]; return 42; }"); assert_that(legacy.failed());
+	var missing_binding = expressive_program("language astra27b; int main() { var values = [for (var in 0..3) => 1]; return 42; }"); assert_that(missing_binding.failed());
+	var missing_element = expressive_program("language astra27b; int main() { var values = [for (var i in 0..3) => ]; return 42; }"); assert_that(missing_element.failed());
+	var missing_close = expressive_program("language astra27b; int main() { var values = [for (var i in 0..3) => i; return 42; }"); assert_that(missing_close.failed());
+	var unqualified_filter = expressive_program("language astra27b; int main() { var values = [for (var i in 0..3) if (i>0) => i]; return 42; }"); assert_that(unqualified_filter.failed());
+}
+
+void expressive_checkpoint_extensions() throws Error {
+	var program = expressive_program("language astra27b; int main() { apply(i => i+1); format_text($\"value {42}\"); var data = [for (var i in 0..3) => i*i]; return 42; }"); assert_that(!program.failed());
+	int count = program.arena.node_count; int at = 1; int families = 0;
+	while (at <= count) {
+		SyntaxNodeId node = {index = at}; var kind = program.arena.kind(node);
+		if (kind == SyntaxKind.LambdaExpressionSyntax() || kind == SyntaxKind.InterpolationExpressionSyntax() || kind == SyntaxKind.ComprehensionExpressionSyntax()) {
+			var header = program.arena.header(node); int attempt = 0;
+			while (attempt < 16) {
+				var before = program.arena.checkpoint(); var added = syntax_no_node();
+				if (kind == SyntaxKind.LambdaExpressionSyntax()) added = program.arena.add_lambda_expression(program.arena.lambda_expression(node), header.span, header.depth);
+				if (kind == SyntaxKind.InterpolationExpressionSyntax()) added = program.arena.add_interpolation_expression(program.arena.interpolation_expression(node), header.span, header.depth);
+				if (kind == SyntaxKind.ComprehensionExpressionSyntax()) added = program.arena.add_comprehension_expression(program.arena.comprehension_expression(node), header.span, header.depth);
+				var during = program.arena.checkpoint(); assert_that(added.index == count+1 && during.used == before.used+1);
+				if (kind == SyntaxKind.LambdaExpressionSyntax()) assert_that(during.lambda_expression_used == before.lambda_expression_used+1);
+				if (kind == SyntaxKind.InterpolationExpressionSyntax()) assert_that(during.interpolation_expression_used == before.interpolation_expression_used+1);
+				if (kind == SyntaxKind.ComprehensionExpressionSyntax()) assert_that(during.comprehension_expression_used == before.comprehension_expression_used+1);
+				program.arena.rewind(before); var after = program.arena.checkpoint();
+				assert_that(after.used == before.used && after.lambda_expression_used == before.lambda_expression_used && after.interpolation_expression_used == before.interpolation_expression_used && after.comprehension_expression_used == before.comprehension_expression_used && program.arena.node_count == count);
+				attempt = attempt+1;
+			}
+			families = families+1;
+		}
+		at = at+1;
+	}
+	assert_that(families == 3);
+}
+
 int main() {
 	try {
 		expressive_argument_labels();
@@ -226,6 +276,8 @@ int main() {
 		expressive_compound_receivers();
 		expressive_lambda_syntax();
 		expressive_interpolation_syntax();
+		expressive_comprehension_syntax();
+		expressive_checkpoint_extensions();
 		return 42;
 	} catch (Error error) {
 		return 1;

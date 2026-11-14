@@ -6983,6 +6983,26 @@ class SyntaxParser {
 		return arena.add_record_expression(data, span, 1);
 	}
 
+	SyntaxNodeId parse_comprehension(SyntaxArena arena, int depth) throws Error {
+		var open = this.expect(arena, TokenKind.OPEN_BRACKET(), "expected '[' before comprehension"); if (open.index == 0) return syntax_no_node();
+		var keyword = this.expect(arena, TokenKind.FOR(), "comprehension requires 'for'"); if (keyword.index == 0) return syntax_no_node();
+		var open_paren = this.expect(arena, TokenKind.OPEN_PAREN(), "expected '(' after comprehension 'for'"); if (open_paren.index == 0) return syntax_no_node();
+		var var_keyword = this.expect(arena, TokenKind.VAR(), "comprehension requires 'var'"); if (var_keyword.index == 0) return syntax_no_node();
+		var binding = this.expect(arena, TokenKind.IDENTIFIER(), "expected comprehension binding"); if (binding.index == 0) return syntax_no_node();
+		var in_keyword = this.expect(arena, TokenKind.IDENTIFIER(), "expected 'in' after comprehension binding"); if (in_keyword.index == 0) return syntax_no_node();
+		if (!arena.token_is(in_keyword, "in")) {
+			this.fail(arena, arena.token_span(in_keyword), "expected 'in' after comprehension binding");
+			return syntax_no_node();
+		}
+		var collection = this.parse_expression(arena, 0, depth + 1); if (collection.index == 0) return syntax_no_node();
+		var close_paren = this.expect(arena, TokenKind.CLOSE_PAREN(), "expected ')' after comprehension collection"); if (close_paren.index == 0) return syntax_no_node();
+		var arrow = this.expect(arena, TokenKind.FAT_ARROW(), "expected '=>' before comprehension element"); if (arrow.index == 0) return syntax_no_node();
+		var expression = this.parse_expression(arena, 0, depth + 1); if (expression.index == 0) return syntax_no_node();
+		var close = this.expect(arena, TokenKind.CLOSE_BRACKET(), "expected ']' after comprehension element"); if (close.index == 0) return syntax_no_node();
+		ComprehensionExpressionSyntaxData data = {f_open = open, f_keyword = keyword, f_open_paren = open_paren, f_var_keyword = var_keyword, f_binding = binding, f_in_keyword = in_keyword, f_collection = collection, f_close_paren = close_paren, f_arrow = arrow, f_expression = expression, f_close = close};
+		return this.bounded(arena, arena.add_comprehension_expression(data, syntax_cover(arena.token_span(open), arena.token_span(close)), syntax_max(arena.header(collection).depth, arena.header(expression).depth) + 1), arena.token_span(open));
+	}
+
 	SyntaxNodeId parse_interpolation(SyntaxArena arena, int depth) throws Error {
 		var begin = this.current; if (!this.advance(arena)) return syntax_no_node();
 		var parts = arena.new_list(-1); var arguments = arena.new_list(syntax_kind_code(SyntaxKind.ExpressionSyntax())); int expression_depth = 0;
@@ -7004,6 +7024,7 @@ class SyntaxParser {
 	}
 
 	SyntaxNodeId parse_primary_or_prefix(SyntaxArena arena, int arg_recursion_depth) throws Error {
+		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.OPEN_BRACKET() && this.next_is(arena, TokenKind.FOR())) return this.parse_comprehension(arena, arg_recursion_depth);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.INTERPOLATION_START()) return this.parse_interpolation(arena, arg_recursion_depth);
 		if (this.modern() && this.token_kind(arena, this.current) == TokenKind.IDENTIFIER() && this.next_is(arena, TokenKind.FAT_ARROW())) {
 			var binding = this.current; if (!this.advance(arena)) return syntax_no_node();

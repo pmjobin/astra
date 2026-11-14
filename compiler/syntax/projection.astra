@@ -816,6 +816,24 @@ class SyntaxProjection {
 			this.token(arena, "semicolon", data.f_semicolon);
 			return;
 		}
+		if (kind == SyntaxKind.ComprehensionExpressionSyntax()) {
+			var data = arena.comprehension_expression(node);
+			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
+			this.boolean("module_internal", arena.get_bool_module_internal(node));
+			this.nodes(arena, "foreign_channels", "ForeignPolicySyntax", arena.get_list_foreign_channels(node), false);
+			this.token(arena, "open", data.f_open);
+			this.token(arena, "keyword", data.f_keyword);
+			this.token(arena, "open_paren", data.f_open_paren);
+			this.token(arena, "var_keyword", data.f_var_keyword);
+			this.token(arena, "binding", data.f_binding);
+			this.token(arena, "in_keyword", data.f_in_keyword);
+			this.edge("collection", "ExpressionSyntax", data.f_collection);
+			this.token(arena, "close_paren", data.f_close_paren);
+			this.token(arena, "arrow", data.f_arrow);
+			this.edge("expression", "ExpressionSyntax", data.f_expression);
+			this.token(arena, "close", data.f_close);
+			return;
+		}
 		if (kind == SyntaxKind.InterpolationExpressionSyntax()) {
 			var data = arena.interpolation_expression(node);
 			this.edge("foreign_member", "ForeignPolicySyntax", arena.get_node_foreign_member(node));
@@ -1503,6 +1521,7 @@ string syntax_kind_name(SyntaxKind kind) {
 		case SyntaxKind.MatchExpressionSyntax(): { return "MatchExpressionSyntax"; }
 		case SyntaxKind.LambdaExpressionSyntax(): { return "LambdaExpressionSyntax"; }
 		case SyntaxKind.InterpolationExpressionSyntax(): { return "InterpolationExpressionSyntax"; }
+		case SyntaxKind.ComprehensionExpressionSyntax(): { return "ComprehensionExpressionSyntax"; }
 		case SyntaxKind.MatchStatementSyntax(): {
 			return "MatchStatementSyntax";
 		}
