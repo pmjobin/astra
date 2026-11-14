@@ -22,7 +22,7 @@ def module(name, path):
 
 def main():
 	selection = argparse.ArgumentParser(add_help=False)
-	selection.add_argument('--feature', choices=('existing', 'format', 'lazy', 'collection'), default='existing')
+	selection.add_argument('--feature', choices=('existing', 'format', 'lazy', 'collection', 'range'), default='existing')
 	options, remaining = selection.parse_known_args()
 	sys.argv = [sys.argv[0], *remaining]
 	prior = module('ownership_physical', PRIOR/'physical.py')
@@ -147,6 +147,56 @@ int main() { try { return eat(values: new int[13], marker: marker(true)); } catc
 	assert prior.GDB.count(needle) == 1
 	prior.GDB = prior.GDB.replace(needle, mutations+needle)
 	extra = []
+	if options.feature == 'range':
+		prior.COMPOUND = 'int main() { var values = (20..=80).step_by(5).collect_array(); return len(values); }\n'
+		prior.RECORD = 'int main() { int[13] values = (20..=80).step_by(5).collect_fixed(); return values[0]; }\n'
+		prior.PARAMETER = 'int main() { var values = new int[32]; return len(values[2..15]); }\n'
+		prior.BOX = 'int main() { return (20..=80).contains(80) ? 42 : 1; }\n'
+		prior.CASES = {
+			'range-count-limit': ('compound', '@prefix:astra.range.count.', 'range-count-limit'),
+			'range-final-advance': ('compound', '@prefix:astra.range.fill.', 'range-final-advance'),
+			'range-final-allocation-size': ('compound', 'main', 'collection-element-size'),
+			'range-hidden-intermediate': ('compound', 'main', 'collection-extra-allocation'),
+			'range-inclusive-bound': ('box', '@prefix:astra.range.query.', 'range-inclusive-bound'),
+			'range-slice-bounds': ('parameter', '@prefix:astra.e25a.slice.', 'range-slice-bounds'),
+			'range-fixed-backing-alignment': ('record', 'main', 'range-fixed-alignment'),
+		}
+		lookup = ''' if requested.startswith('@prefix:'):
+  function=pointer('LLVMGetFirstFunction',module);matches=[];budget=8192
+  while function and budget:
+   if name(function).startswith(requested[8:]) and blocks(function):matches.append(function)
+   function=pointer('LLVMGetNextFunction',function);budget-=1
+  assert len(matches)==1,matches
+  return matches[0]
+'''
+		assert prior.GDB.count('def function_for(module,requested):\n') == 1
+		prior.GDB = prior.GDB.replace('def function_for(module,requested):\n', 'def function_for(module,requested):\n'+lookup)
+		range_mutations = '''  elif action=='range-count-limit':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==10 and pointer('LLVMIsAConstantInt',operand(value,0)) and integer(operand(value,0))==2147483647]
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,0);before=integer(old);set_operand(target,0,replacement(old,2147483646));after=integer(operand(target,0));assert after==2147483646
+  elif action=='range-final-advance':
+   target=pointer('LLVMGetBasicBlockTerminator',body[2]);assert opcode(target)==71
+   before=[number('(void*)LLVMGetSuccessor((void*)%d,%d)'%(target,n)) for n in (0,1)];assert before[0]!=before[1]
+   for n in (0,1):gdb.parse_and_eval('(void)LLVMSetSuccessor((void*)%d,%d,(void*)%d)'%(target,n,before[1-n]))
+   after=[number('(void*)LLVMGetSuccessor((void*)%d,%d)'%(target,n)) for n in (0,1)];assert after==before[::-1]
+  elif action=='range-inclusive-bound':
+   candidates=[value for block in body for value in instructions(block) if opcode(value)==42 and number('(int)LLVMGetICmpPredicate((void*)%d)'%value)==41]
+   assert len(candidates)==1,candidates
+   target=candidates[0];old=operand(target,1);before=dict(end_parameter=old);assert old==number('(void*)LLVMGetParam((void*)%d,1)'%function)
+   changed=number('(void*)LLVMGetParam((void*)%d,0)'%function);set_operand(target,1,changed);after=dict(start_parameter=operand(target,1));assert after['start_parameter']==changed
+  elif action=='range-slice-bounds':
+   target=instructions(body[0])[5];assert opcode(target)==42 and number('(int)LLVMGetICmpPredicate((void*)%d)'%target)==41
+   old=operand(target,1);before=dict(remaining_capacity=old);assert opcode(old)==10
+   length=number('(void*)LLVMGetParam((void*)%d,3)'%function);set_operand(target,1,length);after=dict(length_compared_with_itself=operand(target,0)==operand(target,1));assert after['length_compared_with_itself']
+  elif action=='range-fixed-alignment':
+   candidates=[value for value in instructions(body[0]) if opcode(value)==26 and pointer('LLVMIsAConstantInt',operand(value,0)) and integer(operand(value,0))==13]
+   assert len(candidates)==1,candidates
+   target=candidates[0];before=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert before==4
+   gdb.parse_and_eval('(void)LLVMSetAlignment((void*)%d,8)'%target);after=number('(unsigned)LLVMGetAlignment((void*)%d)'%target);assert after==8
+'''
+		assert prior.GDB.count(needle) == 1
+		prior.GDB = prior.GDB.replace(needle, range_mutations+needle)
 	if options.feature == 'lazy':
 		prior.COMPOUND = 'int main() { return (0..13).map(i => i+7).sum(); }\n'
 		prior.CONDITIONAL = 'int main() { return (0..13).map(i => i+7).filter(x => x>10).sum(); }\n'
@@ -178,7 +228,7 @@ int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); retu
 			'comprehension-hidden-intermediate': ('record', 'main', 'collection-extra-allocation'),
 			'collection-borrowed-read-flags': ('parameter', 'main', 'collection-read-flags'),
 		}
-	if options.feature in ('lazy', 'collection'):
+	if options.feature in ('lazy', 'collection', 'range'):
 		collection_mutations = '''  elif action in ('lazy-overflow-flag','lazy-fast-math','lazy-capture'):
    candidates=[]
    for block in body:
@@ -334,7 +384,7 @@ int main() { try { var values = (0..13).map(i => probe(i)).collect_array(); retu
 	result = json.loads((runtime/'result.json').read_text())
 	result['extension_inputs'] = identity
 	result['feature'] = options.feature
-	scopes = dict(existing='named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement', format='typed formatting fragments, finite prechecks, failure edges, owned output and retirement', lazy='integer/floating reduction flags, filter skip edges and captured values', collection='element allocation sizes, logical lengths, hidden intermediate allocations, partial retirement and borrowed reads')
+	scopes = dict(existing='named ABI operands, match phi values, nested tag tests, enum stores/layout and fresh temporary retirement', format='typed formatting fragments, finite prechecks, failure edges, owned output and retirement', lazy='integer/floating reduction flags, filter skip edges and captured values', collection='element allocation sizes, logical lengths, hidden intermediate allocations, partial retirement and borrowed reads', range='count limits, final advancement, allocation size/intermediates, inclusive bounds, checked slice bounds and fixed backing alignment')
 	result['scope'] = 'Selected 27-C actual '+scopes[options.feature]+'. The unchanged 27-B driver observes structural LLVM acceptance and independent physical refusal with preserved sentinels. No complete milestone, source, owner or memory credit.'
 	write(runtime/'result.json', result)
 

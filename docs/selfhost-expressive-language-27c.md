@@ -1106,3 +1106,30 @@ current-source C0 semantic preflight24 passes in 78.717 seconds before the
 small multiline-preservation addition; the focused formatter5 preflight covers
 that addition. Full current generation, native feature and ABI qualification
 remain required before migration or final acceptance.
+
+The existing physical adapter now supplies seven range specimens. Actual dev9
+accepts four unchanged controls; LLVM structurally accepts all seven process-local
+corruptions, while the independent physical consumer refuses each with its output
+sentinel intact (selfhost27c-range-physical-dev9-1): count ceiling, final advance,
+element allocation size, hidden extra allocation, inclusive upper bound, checked
+slice length bound and fixed backing alignment. These are attributed to dev9's
+actual source/product, with no final-current-compiler or memory credit.
+
+Named enum payload constructors are being completed through the existing label
+permutation. Declared payload fields select canonical storage slots while typing,
+Flow construction, CFG traversal and owner abort reconstruction retain written
+evaluation order. The independent enum source consumer validates the same
+original labels and child identities. No enum tag, layout or public ABI changes.
+Five separately expanded C0 references pass native execution and strict returning
+memory (selfhost27c-named-enum-oracles1): scalar evaluation order without heap,
+mixed positional/labelled scalar widths, fresh-buffer abort, restored original
+owners after failure and successful owning payload transfer. New-construct
+native acceptance remains pending.
+
+SSA18 retains a refused test alias to an owned CheckedIndex child; its snapshot
+also preceded the completing guarded format pass, so it provides no current
+qualification. The corrected test passes that child only as a temporary borrowed
+argument. SSA19's semantic preflight passes in 62.788 seconds and its focused
+build is in progress. That suite adds independent named-payload permutation,
+Flow child, fresh abort and reserved-owner restoration corruptions with restored
+controls. The original borrowing rule, C0 and all fixed verifier budgets remain.
