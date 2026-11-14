@@ -607,6 +607,40 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-stride', TICKS+'''RangeSequence<int> interval(int first, int last, int stride) { return (first..=last).step_by(stride); }
+int total(RangeSequence<int> sequence) { int sum = 0; foreach (var item in sequence) { sum = sum+item; } return sum; }
+int main() {
+	reset_trace(); var sequence = ((tick(1)+19)..=(tick(2)+78)).step_by(tick(3)+2);
+	int count = 0; int first = 0; int last = 0;
+	foreach (var item in sequence) { if (count == 0) first = item; last = item; count = count+1; }
+	if (count != 13 || first != 20 || last != 80 || total(sequence) != 650 || trace() != 123) return 1;
+	if (total(interval(20,80,5)) != 650) return 2;
+	u64 limit = 18446744073709551615; u64 begin = limit-6; u64 stride = 4;
+	int near = 0; foreach (var item in (begin..=limit).step_by(stride)) { if (near == 0 && item != begin || near == 1 && item != limit-2) return 3; near = near+1; }
+	if (near != 2) return 4;
+	int minimum = -2147483648; int maximum = 2147483647; int crossing = 0;
+	foreach (var item in (minimum..=maximum).step_by(maximum)) { if (crossing == 0 && item != minimum || crossing == 1 && item != -1 || crossing == 2 && item != maximum-1) return 5; crossing = crossing+1; }
+	if (crossing != 3) return 6;
+	return 42;
+}
+''', TICKS+'''struct Sequence { int first; int last; bool inclusive; int stride; }
+Sequence interval(int first, int last, int stride) { Sequence result = {first = first, last = last, inclusive = true, stride = stride}; return result; }
+int total(Sequence sequence) { int sum = 0; int item = sequence.first; while (item <= sequence.last) { sum = sum+item; if (item == sequence.last || (sequence.last as u32)-(item as u32) < sequence.stride as u32) break; item = item+sequence.stride; } return sum; }
+int main() {
+	reset_trace(); int begin = tick(1)+19; int end = tick(2)+78; int stride = tick(3)+2; var sequence = interval(begin,end,stride);
+	int count = 0; int first = 0; int last = 0; int item = sequence.first;
+	while (item <= sequence.last) { if (count == 0) first = item; last = item; count = count+1; if (item == sequence.last || sequence.last-item < sequence.stride) break; item = item+sequence.stride; }
+	if (count != 13 || first != 20 || last != 80 || total(sequence) != 650 || trace() != 123) return 1;
+	if (total(interval(20,80,5)) != 650) return 2;
+	u64 limit = 18446744073709551615; u64 start = limit-6; u64 step = 4; u64 current = start;
+	int near = 0; while (current <= limit) { if (near == 0 && current != start || near == 1 && current != limit-2) return 3; near = near+1; if (current == limit || limit-current < step) break; current = current+step; }
+	if (near != 2) return 4;
+	int minimum = -2147483648; int maximum = 2147483647; int crossing = 0; item = minimum;
+	while (item <= maximum) { if (crossing == 0 && item != minimum || crossing == 1 && item != -1 || crossing == 2 && item != maximum-1) return 5; crossing = crossing+1; if (item == maximum || (maximum as u32)-(item as u32) < maximum as u32) break; item = item+maximum; }
+	if (crossing != 3) return 6;
+	return 42;
+}
+''', False),
 	('range-foreach', TICKS+'''int main() {
 	reset_trace(); int total = 0;
 	foreach (var item in tick(2)..=tick(4)) { total = total+item; }
@@ -694,6 +728,11 @@ int main() {
 ''', False),
 ]
 RANGE_NEGATIVE = [
+	('range-stride-zero', 'int main() { var sequence = (0..10).step_by(0); return 42; }'),
+	('range-stride-negative', 'int main() { var sequence = (0..10).step_by(-1); return 42; }'),
+	('range-stride-float', 'int main() { var sequence = (0..10).step_by(1.0); return 42; }'),
+	('range-stride-label', 'int main() { var sequence = (0..10).step_by(stride: 1); return 42; }'),
+	('range-foreach-address', 'int main() { foreach (var item in 0..3) { int* address = &item; } return 42; }'),
 	('range-foreach-write', 'int main() { foreach (var item in 0..3) { item = 2; } return 42; }'),
 	('range-foreach-escape', 'int main() { foreach (var item in 0..3) {} return item; }'),
 	('range-mixed', 'int main() { var value = 0..true; return 42; }'),

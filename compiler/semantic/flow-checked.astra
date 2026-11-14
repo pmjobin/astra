@@ -69,6 +69,10 @@ TypeId checked_flow_expression(CheckedIndex index, SyntaxNodeId node, TypeId exp
 		}
 		var type = index.symbol_types[symbol.index];
 		if (kind == SyntaxKind.AddressOfExpressionSyntax()) {
+			if (range_foreach_binding(index, symbol)) {
+				index.fail(index.bindings.program.arena.header(node).span, "foreach binding has no writable or escaping address");
+				return no_type();
+			}
 			if (type.index == 0) {
 				return index.defer(node, 15);
 			}

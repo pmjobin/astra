@@ -149,7 +149,7 @@ bool flow_verify(borrowed FlowGraph graph, CheckedIndex checked, int[] class_ori
 		if (event.operation == 3 || event.operation == 4 || event.operation == 13 || event.operation == 5 || event.operation == 6 || event.operation == 15 || event.operation == 2) {
 			SymbolId symbol = type_symbol(0);
 			if (event.operation == 3) {
-				bool range_query = kind == SyntaxKind.CallExpressionSyntax() && range_query_verified(checked, event.node) && checked.bindings.program.arena.get_node_receiver_place(event.node).index == 0;
+				bool range_query = kind == SyntaxKind.CallExpressionSyntax() && (range_query_verified(checked, event.node) || range_step_verified(checked, event.node)) && checked.bindings.program.arena.get_node_receiver_place(event.node).index == 0;
 				bool range_field = kind == SyntaxKind.FieldAccessExpressionSyntax() && range_field_verified(checked, event.node) && checked.bindings.program.arena.get_node_aggregate(event.node).index == 0;
 				if (!range_query && !range_field && kind != SyntaxKind.NameExpressionSyntax() && kind != SyntaxKind.AddressOfExpressionSyntax() && !(kind == SyntaxKind.MoveExpressionSyntax() && generic_record_move(checked, event.node))) {
 					return false;

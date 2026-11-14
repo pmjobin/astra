@@ -671,6 +671,10 @@ TypeId checked_call(CheckedIndex index, SyntaxNodeId node, int depth) throws Err
 }
 
 TypeId checked_call_inner(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (range_step_call(index, node)) {
+		var result = checked_range_step(index, node, depth);
+		if (result.index != 0 || index.failed()) return result;
+	}
 	if (range_query_action(index, node) != 0) {
 		var result = checked_range_query(index, node, depth);
 		if (result.index != 0 || index.failed()) return result;

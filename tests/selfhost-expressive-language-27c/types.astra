@@ -20,5 +20,9 @@ int main() {
 	assert_that(types.intern(36, type_symbol(1), 0, channels).index == 0);
 	var owned_channels = new TypeEdge[1]; var changed = integer; changed.flags = 4; owned_channels[0] = changed;
 	assert_that(types.intern(36, type_symbol(0), 0, owned_channels).index == 0 && types.valid());
+	var stride = types.unary(37, type_id(1), 0);
+	assert_that(stride.index > 0 && types.integer_stride_type(stride) && !types.integer_range_type(stride) && !types.integer_stride_type(range) && !types.integer_stride_type(closure));
+	assert_that(types.unary(37, type_id(13), 0).index == 0 && types.unary(37, type_id(12), 0).index == 0 && types.unary(37, type_id(1), 1).index == 0);
+	assert_that(types.intern(37, type_symbol(0), 0, owned_channels).index == 0 && types.valid());
 	return 42;
 }

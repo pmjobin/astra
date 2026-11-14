@@ -258,7 +258,7 @@ bool recover_llvm_function_verified(RecoverSsa ssa, void* layout, void*[] functi
 				var parameter = ssa.cfg.core.flow.checked.bindings.program.arena.node_at(parameters, p);
 				if (ssa.cfg.core.flow.checked.node_symbols[parameter.index].index == slot.symbol.index) source = p;
 				p = p + 1;
-			} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 32) allocation_count = allocation_count + 1; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 15) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
+			} if (source < 0 || !recover_llvm_group(ssa.cfg.core.flow.checked, slot.type, locals[slot.symbol.index], function, plan.groups[source])) return false; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 32) allocation_count = allocation_count + 1; if (checked_kind(ssa.cfg.core.flow.checked, slot.type) == 37 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, slot.type) == 15) allocation_count = allocation_count + recover_abi_group_count(ssa.cfg.core.flow.checked, slot.type, slot.flags);
 		} else {
 			int candidate = index.declarations[slot.symbol.index];
 			var local = ssa.cfg.core.nodes[candidate - 1].value;
@@ -329,6 +329,17 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 		instruction_count = recover_range_loop_instruction(ssa, block, layout, physical, operation, values[row.a], owner_addresses[row.symbol.index], locals[row.symbol.index], LLVMGetGlobalParent(functions[row.function - 1]));
 		if (instruction_count == 0) return 0;
 	}
+	if (op == 93) {
+		var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = locals[row.symbol.index]; int loaded = 0;
+		if (row.a > 0) aggregate = values[row.a];
+		else { if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+				aggregate = LLVMGetFirstInstruction(physical);
+				if (aggregate == null || LLVMGetInstructionOpcode(aggregate) != 27 || LLVMGetOperand(aggregate, 0) != owner_addresses[row.symbol.index] || LLVMGetAlignment(aggregate) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(aggregate)) || LLVMGetVolatile(aggregate) != 0 || LLVMGetOrdering(aggregate) != 0 || LLVMHasMetadata(aggregate) != 0) return 0;
+				loaded = 1;
+			} }
+		int introduced = recover_range_step_instruction(ssa, row, values[block.origin], aggregate, values[row.b], physical, LLVMGetGlobalParent(functions[row.function - 1]));
+		if (introduced == 0) return 0; instruction_count = introduced + loaded;
+	}
 	if (op == 88) {
 		var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = locals[row.symbol.index]; int loaded = 0;
 		if (row.a > 0) aggregate = values[row.a];
@@ -395,7 +406,7 @@ int recover_llvm_value_instructions(RecoverSsa ssa, void* layout, void* equal_fu
 			int child = ssa.cfg.core.flow.data.edges[row.first + i];
 			var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1);
 			if (checked_kind(ssa.cfg.core.flow.checked, channel.type) == 32) instruction_count = instruction_count + 1;
-			if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 15) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
+			if ((checked_kind(ssa.cfg.core.flow.checked, channel.type) == 37 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 36 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 30 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 22 || checked_kind(ssa.cfg.core.flow.checked, channel.type) == 15) && LLVMIsAInstruction(values[child]) != null) instruction_count = instruction_count + recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 			i = i + 1;
 		}
 		if (!recover_llvm_native_attributes(operation, LLVMGetNumArgOperands(operation))) return 0;
@@ -507,7 +518,7 @@ int recover_llvm_owner_instructions(RecoverSsa ssa, void* layout, void* payload,
 		var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; int i = 0;
 		while (i < row.count) {
 			int child = ssa.cfg.core.flow.data.edges[row.first + i]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type); int at = plan.groups[i + 1];
-			if (kind == 36 || kind == 22 || kind == 30 || kind == 15) {
+			if (kind == 37 || kind == 36 || kind == 22 || kind == 30 || kind == 15) {
 				int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags); int field = 0;
 				while (field < count) {
 					if (!recover_llvm_extract(LLVMGetArgOperand(operation, at + field), values[child], field)) return 0;
@@ -685,7 +696,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 0;
-	if (op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
+	if (op == 93 || op >= 89 && op <= 92 || op == 88 || op == 2 || op == 10 || op == 3 || op == 15 || op == 4 || op == 54 || op == 55 || op == 56 || op == 57 || op == 58 || op == 61 || op == 64 || op == 76 || op == 51 || op == 52 || op == 53 || op == 62 || op == 50 || op == 8 || op == 12 || op == 75 || op == 79 || op == 69 || op == 70 || op == 68) instruction_count = recover_llvm_value_instructions(ssa, layout, equal_function, functions, blocks, values, locals, operations, owner_addresses, foreign_functions, utf8_function, integer_functions, fixed_backings, index_functions, slice_functions, slot_functions, record_storage, b);
 	else {
 		instruction_count = recover_llvm_owner_instructions(ssa, layout, payload, free_function, origins, functions, blocks, values, slots, locals, descriptors, payloads, operations, buffer_function, allocate_function, owner_addresses, owner_armed, error_owner_function, class_payloads, class_destroyers, class_snapshot, shared_acquire, shared_clone, shared_borrow, shared_downgrade, weak_clone, weak_upgrade, intrinsic_shared, shared_drops, record_storage, b);
 	}
@@ -702,7 +713,7 @@ bool recover_llvm_block_verified(RecoverSsa ssa, void* layout, void* payload, vo
 			var type = ssa.cfg.core.nodes[child - 1].value.type;
 			int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 			int at = plan.groups[i];
-			if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
+			if (kind == 37 || kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 				var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 				int field = 0;
 				while (field < count) {

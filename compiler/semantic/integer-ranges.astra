@@ -4,6 +4,14 @@ bool range_type_verified(TypeTable types, TypeId type) {
 	return types.integer_range_type(type);
 }
 
+bool range_stride_type_verified(TypeTable types, TypeId type) {
+	return types.integer_stride_type(type);
+}
+
+bool range_sequence_type_verified(TypeTable types, TypeId type) {
+	return types.integer_range_type(type) || types.integer_stride_type(type);
+}
+
 TypeId checked_range_binary(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
 	if (!checked_modern_source(index, node)) return index.defer(node, 15);
 	var left_node = index.bindings.program.arena.get_node_left(node);
@@ -184,4 +192,63 @@ bool range_query_verified(CheckedIndex index, SyntaxNodeId node) {
 		if (use.type.index != index.types.argument(index.types, type, 0).type.index || use.flags != 0 || use.deferred != 0) return false;
 	}
 	return true;
+}
+
+bool range_step_call(CheckedIndex index, SyntaxNodeId node) {
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "step_by");
+}
+
+TypeId checked_range_step(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (!range_step_call(index, node)) return no_type();
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node); var type = no_type();
+	if (receiver.index > 0) type = checked_expression(index, receiver, no_type(), depth + 1);
+	else {
+		type = range_query_receiver(index, node);
+	}
+	if (!range_type_verified(index.types, type)) return no_type();
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.list_count(arguments) != 1 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node)) {
+		index.fail(index.bindings.program.arena.header(node).span, "step_by requires one positional concrete integer stride"); return no_type();
+	}
+	var argument = index.bindings.program.arena.node_at(arguments, 0); var expected = index.types.argument(index.types, type, 0).type;
+	var actual = checked_expression(index, argument, expected, depth + 1);
+	checked_mismatch(index, index.bindings.program.arena.header(argument).span, expected, actual, "integer stride");
+	if (index.uses[argument.index].flags != 0) {
+		index.fail(index.bindings.program.arena.header(argument).span, "stride requires a copied integer");
+		return no_type();
+	}
+	if (!range_step_literal_positive(index.bindings.program.arena, argument)) {
+		index.fail(index.bindings.program.arena.header(argument).span, "step_by requires a positive stride");
+		return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 0; use.deferred = 0; index.uses[node.index] = use;
+	return index.types.unary(37, expected, 0);
+}
+
+// Nonliteral strides are checked by a verified fatal guard at execution.
+// Literal zero and negative literals are diagnosed before native emission.
+bool range_step_literal_positive(SyntaxArena arena, SyntaxNodeId node) {
+	var current = node; int depth = 0;
+	while (current.index > 0 && arena.kind(current) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 128) {
+		current = arena.get_node_expression(current);
+		depth = depth + 1;
+	}
+	if (depth == 128) return false;
+	if (arena.kind(current) == SyntaxKind.PrefixExpressionSyntax() && arena.token_is(arena.get_token_operator_token(current), "-")) {
+		var operand = arena.get_node_operand(current);
+		if (arena.kind(operand) == SyntaxKind.IntegerLiteralExpressionSyntax()) return false;
+	}
+	if (arena.kind(current) != SyntaxKind.IntegerLiteralExpressionSyntax()) return true;
+	try { var text = arena.token_message(arena.get_token_literal(current)); var magnitude = syntax_integer_magnitude(text.text, 18446744073709551615, true); return magnitude.valid && magnitude.value > 0; }
+	catch (Error error) { return false; }
+}
+
+bool range_step_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!range_step_call(index, node)) return false;
+	var receiver = range_query_receiver(index, node); var use = index.uses[node.index];
+	if (!range_type_verified(index.types, receiver) || !range_stride_type_verified(index.types, use.type) || use.flags != 0 || use.deferred != 0 || index.types.argument(index.types, receiver, 0).type.index != index.types.argument(index.types, use.type, 0).type.index || checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index != 0 || !range_query_source(index.bindings.program.arena, node)) return false;
+	var arguments = index.bindings.program.arena.get_list_arguments(node);
+	if (index.bindings.program.arena.list_count(arguments) != 1 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node)) return false;
+	var argument = index.bindings.program.arena.node_at(arguments, 0); var input = index.uses[argument.index];
+	return input.type.index == index.types.argument(index.types, receiver, 0).type.index && input.flags == 0 && input.deferred == 0 && range_step_literal_positive(index.bindings.program.arena, argument);
 }

@@ -507,3 +507,40 @@ candidate. Its actual C0 executable and mapped LLVM hashes were independently
 observed. Measured selected build-process RSS was 5,464,288 KiB with 45,952,016 KiB
 available; compilation processes each have one thread. This is bounded independent
 process work, not a claim that C0 compiles one program in parallel.
+
+The focused ssa7 query consumer at 3640643 passes C0 O0 compilation (1433.257
+seconds), native execution (42) and strict returning Valgrind (32.150 seconds,
+zero live bytes/errors/suppressions). Product SHA-256 is
+`44f715205d02c726b3d407e48136428dd14e7428f4e596736c0f85b75ee0e852`;
+162 exact input/recipe hashes have independent Git-blob bindings. It validates
+actual source-to-SSA queries and their altered receiver facts. Its `--source`
+mode is now executing the exact frozen dev5 input graph to identify that earlier
+host failure; this diagnostic result remains pending, without a work-limit change.
+
+Stride uses distinct type 37, displayed as modern-only `RangeSequence<T>` with
+one exact concrete integer edge. Declared user types retain lookup precedence.
+The type-table query preserves type 35 CheckedClosure and type 36 Range. Types3
+executes the actual production constructors/shape consumers, including invalid
+flags, element and extent controls; native 42 and strict returning zero-byte,
+zero-error, zero-suppression Valgrind pass. Product SHA-256 is
+`d26e627f81dce8f3d919291b7862b685aa055d77dd8118d31a82936fc24d7573`.
+
+The stride candidate implements positional `.step_by(step)` on a range. Step
+has the exact endpoint integer type; literal zero/negative steps diagnose, and
+other zero/negative values enter a verified fatal runtime guard at construction.
+The copied native sequence carrier has bounds, inclusive bit and step. Private
+function parameter groups flatten its four scalars. No array is constructed.
+Loop advancement tests current < end and unsigned (end-current) >= step before
+adding; subtract/add have no LLVM overflow promises. This handles intervals
+crossing signed zero and unsigned MAX without advancing beyond the end. Source
+foreach bindings also refuse a writable/escaping address. Helper signatures,
+complete guard bodies, actual calls, copied fields, arithmetic flags and module
+inventories have independent consumers. Full current C0 source semantics passes
+(range-preflight6, 71.177 seconds); focused ssa9 semantic preflight passes in
+57.848 seconds and native lowering execution is still pending. Native LLVM/ELF
+stride, array materialization and pipeline qualification remain pending.
+
+Separately authored C0 expanded foreach and stride programs return 42. They
+check lexical bounds/step evaluation, thirteen values 20 through 80, sum 650,
+nested loops, empty ranges, break/continue and signed/unsigned endpoint guards
+(selfhost27c-range-oracles2). These are references, not new-syntax product credit.

@@ -4,7 +4,7 @@
 void checked_range_foreach(CheckedIndex index, SyntaxNodeId node, TypeId result, int depth) throws Error {
 	var collection = index.bindings.program.arena.get_node_collection(node);
 	var type = checked_expression(index, collection, no_type(), depth + 1);
-	if (!checked_modern_source(index, node) || !range_type_verified(index.types, type) || index.uses[collection.index].flags != 0) {
+	if (!checked_modern_source(index, node) || !range_sequence_type_verified(index.types, type) || index.uses[collection.index].flags != 0) {
 		index.fail(index.bindings.program.arena.header(node).span, "foreach requires an admitted lazy integer sequence"); return;
 	}
 	var binding = index.node_symbols[node.index];
@@ -42,5 +42,5 @@ bool range_foreach_binding(CheckedIndex index, SymbolId binding) {
 	var declaration = index.bindings.symbol(binding); var node = declaration.node;
 	if (declaration.kind != 15 || index.bindings.program.arena.kind(node) != SyntaxKind.ForeachStatementSyntax() || !checked_modern_source(index, node) || index.node_symbols[node.index].index != binding.index || index.symbol_flags[binding.index] != 0 || declaration.token.index != index.bindings.program.arena.get_token_binding(node).index || declaration.scope.index != index.bindings.scope_for_node(node).index || !range_foreach_source(index.bindings.program.arena, node)) return false;
 	var collection = index.bindings.program.arena.get_node_collection(node); var use = index.uses[collection.index];
-	return range_type_verified(index.types, use.type) && use.flags == 0 && use.deferred == 0 && index.symbol_types[binding.index].index == index.types.argument(index.types, use.type, 0).type.index && index.uses[node.index].type.index == 14 && index.uses[node.index].flags == 0;
+	return range_sequence_type_verified(index.types, use.type) && use.flags == 0 && use.deferred == 0 && index.symbol_types[binding.index].index == index.types.argument(index.types, use.type, 0).type.index && index.uses[node.index].type.index == 14 && index.uses[node.index].flags == 0;
 }

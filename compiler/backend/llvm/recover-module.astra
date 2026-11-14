@@ -81,6 +81,7 @@ class RecoverLlvm {
 	void* error_owner_function;
 	void* class_snapshot;
 	void* utf8_function;
+	owned void*[] range_steps;
 	owned void*[] range_queries;
 	owned void*[] integer_functions;
 	owned void*[] shift_functions;
@@ -128,6 +129,7 @@ class RecoverLlvm {
 		this.snapshot_initialize_function = null;
 		this.class_snapshot = null;
 		this.utf8_function = null;
+		this.range_steps = new void*[10];
 		this.range_queries = new void*[20];
 		this.integer_functions = new void*[20];
 		this.shift_functions = new void*[200];
@@ -267,9 +269,10 @@ class RecoverLlvm {
 			this.enum_carriers[type.index] = carrier;
 			return carrier;
 		}
-		if (kind == 36 && range_type_verified(checked.types, type)) {
-			var fields = new void*[3]; var element = this.scalar(checked, checked.types.argument(checked.types, type, 0).type);
-			fields[0] = element; fields[1] = element; fields[2] = this.boolean;
+		if ((kind == 36 || kind == 37) && range_sequence_type_verified(checked.types, type)) {
+			int count = 3; if (kind == 37) count = 4;
+			var fields = new void*[count]; var element = this.scalar(checked, checked.types.argument(checked.types, type, 0).type);
+			fields[0] = element; fields[1] = element; fields[2] = this.boolean; if (kind == 37) fields[3] = element;
 			return this.structure(fields);
 		}
 		if (kind == 14) return LLVMVoidTypeInContext(this.context); if (kind == 15 || kind == 22 || kind == 21) return this.text;
@@ -599,6 +602,18 @@ class RecoverLlvm {
 		}
 	}
 
+	void range_step_declare(CheckedIndex checked, TypeId type) throws Error {
+		var element = checked.types.argument(checked.types, type, 0).type; int kind = checked_kind(checked, element); int index = kind - 1;
+		if (this.range_steps[index] != null) return;
+		var integer = this.scalar(checked, element); var parameters = new void*[1]; parameters[0] = integer;
+		var name = llvm_name("astra.range.step.", kind); var function = this.function(name.text, integer, parameters, true); this.range_steps[index] = function;
+		var entry = llvm12_block(this.context, function, "step.guard"); var fatal = llvm12_block(this.context, function, "step.fatal"); var valid = llvm12_block(this.context, function, "step.valid");
+		LLVMPositionBuilderAtEnd(this.builder, entry); var step = LLVMGetParam(function, 0); int predicate = 32; if (type_signed(kind)) predicate = 41;
+		var invalid = LLVMBuildICmp(this.builder, predicate, step, LLVMConstNull(integer), this.empty); var split = LLVMBuildCondBr(this.builder, invalid, fatal, valid);
+		LLVMPositionBuilderAtEnd(this.builder, fatal); var none = new void*[0]; var trap = this.call(this.trap_function, none, false); var terminal = LLVMBuildUnreachable(this.builder);
+		LLVMPositionBuilderAtEnd(this.builder, valid); var returned = LLVMBuildRet(this.builder, step);
+	}
+
 	void range_query_declare(CheckedIndex checked, SyntaxNodeId source) throws Error {
 		var type = range_query_receiver(checked, source); int action = range_query_action(checked, source);
 		this.range_query_declare_type(checked, type, action);
@@ -645,6 +660,7 @@ class RecoverLlvm {
 		int n = 0;
 		while (n < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[n].value;
+			if (row.kind == 93) this.range_step_declare(ssa.cfg.core.flow.checked, row.type);
 			if (row.kind == 88) this.range_query_declare(ssa.cfg.core.flow.checked, row.source);
 			if (row.kind == 89) this.range_query_declare_type(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.a - 1].value.type, 2);
 			if (row.kind == 54) {
@@ -730,7 +746,7 @@ class RecoverLlvm {
 			}
 			var parameters = new void*[plan.parameters]; if (plan.success >= 0) parameters[plan.success] = this.pointer; int p = 0;
 			while (p < len(plan.groups)) { var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, p + 1); int at = plan.groups[p]; var type = this.scalar(ssa.cfg.core.flow.checked, channel.type); int kind = checked_kind(ssa.cfg.core.flow.checked, channel.type);
-				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 37 || kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					int count = recover_abi_group_count(ssa.cfg.core.flow.checked, channel.type, channel.flags);
 					int field = 0;
 					while (field < count) {
@@ -768,7 +784,7 @@ class RecoverLlvm {
 					value = this.load(carrier, value);
 					LLVMSetAlignment(value, LLVMABIAlignmentOfType(this.layout, carrier));
 				}
-				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 37 || kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					LLVMPositionBuilderAtEnd(this.builder, this.entries[slot.function - 1]);
 					value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, slot.type));
 					int field = 0;
@@ -1056,6 +1072,22 @@ class RecoverLlvm {
 			}
 		}
 		if (op == 3) value = this.binary(ssa, row);
+		if (op == 93) {
+			var receiver = range_query_receiver(ssa.cfg.core.flow.checked, row.source); void* aggregate = this.locals[row.symbol.index];
+			if (row.a > 0) aggregate = this.values[row.a];
+			else {
+				if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) aggregate = this.load(this.scalar(ssa.cfg.core.flow.checked, receiver), this.owner_addresses[row.symbol.index]);
+			}
+			var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+			var arguments = new void*[1]; arguments[0] = this.values[row.b]; var step = this.call(this.range_steps[kind - 1], arguments, true);
+			value = LLVMConstNull(this.scalar(ssa.cfg.core.flow.checked, row.type)); int field = 0;
+			while (field < 3) {
+				var input = LLVMBuildExtractValue(this.builder, aggregate, field, this.empty);
+				value = LLVMBuildInsertValue(this.builder, value, input, field, this.empty);
+				field = field + 1;
+			}
+			value = LLVMBuildInsertValue(this.builder, value, step, 3, this.empty);
+		}
 		if (op == 88) {
 			var type = range_query_receiver(ssa.cfg.core.flow.checked, row.source);
 			void* aggregate = this.locals[row.symbol.index];
@@ -1094,11 +1126,15 @@ class RecoverLlvm {
 				if (op == 91) {
 					var end = LLVMBuildExtractValue(this.builder, aggregate, 1, this.empty); int predicate = 36;
 					if (type_signed(checked_kind(ssa.cfg.core.flow.checked, element))) predicate = 40;
-					operation = LLVMBuildICmp(this.builder, predicate, current, end, this.empty);
+					var ordered = LLVMBuildICmp(this.builder, predicate, current, end, this.empty);
+					void* step = LLVMConstInt(integer, 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, type)) step = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
+					var distance = LLVMBuildSub(this.builder, end, current, this.empty); var room = LLVMBuildICmp(this.builder, 35, distance, step, this.empty);
+					operation = LLVMBuildAnd(this.builder, ordered, room, this.empty);
 					var branch = LLVMBuildCondBr(this.builder, operation, this.blocks[block.next - 1], this.blocks[block.other - 1]);
 				}
 				if (op == 92) {
-					var incremented = LLVMBuildAdd(this.builder, current, LLVMConstInt(integer, 1, 0), this.empty);
+					void* step = LLVMConstInt(integer, 1, 0); if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, type)) step = LLVMBuildExtractValue(this.builder, aggregate, 3, this.empty);
+					var incremented = LLVMBuildAdd(this.builder, current, step, this.empty);
 					operation = LLVMBuildStore(this.builder, incremented, address); LLVMSetAlignment(operation, LLVMABIAlignmentOfType(this.layout, integer));
 				}
 			}
@@ -1155,7 +1191,7 @@ class RecoverLlvm {
 				var type = ssa.cfg.core.nodes[child - 1].value.type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, type);
 				int at = plan.groups[i];
-				if (kind == 36 || kind == 30 || kind == 22 || kind == 15) {
+				if (kind == 37 || kind == 36 || kind == 30 || kind == 22 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[function.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 1); int fields = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags);
 					int field = 0;
 					while (field < fields) {
@@ -1306,7 +1342,7 @@ class RecoverLlvm {
 			var plan = new RecoverAbi(ssa.cfg.core.flow.checked, row.symbol); var arguments = new void*[plan.parameters]; arguments[plan.groups[0]] = value; int i = 0;
 			while (i < row.count) {
 				int child = ssa.cfg.core.flow.data.edges[row.first + i]; var type = ssa.cfg.core.nodes[child - 1].value.type; int kind = checked_kind(ssa.cfg.core.flow.checked, type); int at = plan.groups[i + 1];
-				if (kind == 36 || kind == 22 || kind == 30 || kind == 15) {
+				if (kind == 37 || kind == 36 || kind == 22 || kind == 30 || kind == 15) {
 					var signature = ssa.cfg.core.flow.checked.signatures[plan.signature.index - 1]; var channel = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, signature.callable, i + 2); int count = recover_abi_group_count(ssa.cfg.core.flow.checked, type, channel.flags); int field = 0;
 					while (field < count) {
 						arguments[at + field] = LLVMBuildExtractValue(this.builder, this.values[child], field, this.empty);
@@ -2204,13 +2240,36 @@ class RecoverLlvm {
 		return true;
 	}
 
+	bool range_steps_verified(RecoverSsa ssa) throws Error {
+		if (len(this.range_steps) != 10) return false; var needed = new bool[10]; int at = 0;
+		while (at < ssa.cfg.core.count) {
+			var row = ssa.cfg.core.nodes[at].value;
+			if (row.kind == 93) {
+				if (!range_stride_type_verified(ssa.cfg.core.flow.checked.types, row.type)) return false;
+				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, element); needed[kind - 1] = true;
+			}
+			at = at + 1;
+		}
+		at = 0; while (at < 10) {
+			if (needed[at]) {
+				var name = llvm_name("astra.range.step.", at + 1);
+				if (!recover_range_step_helper(this.range_steps[at], at + 1, name.text)) return false;
+			}
+			else {
+				if (this.range_steps[at] != null) return false;
+			}
+			at = at + 1;
+		}
+		return true;
+	}
+
 	bool range_queries_verified(RecoverSsa ssa) throws Error {
 		if (len(this.range_queries) != 20) return false; var needed = new bool[20]; int at = 0;
 		while (at < ssa.cfg.core.count) {
 			var row = ssa.cfg.core.nodes[at].value;
 			if (row.kind == 89) {
 				var type = ssa.cfg.core.nodes[row.a - 1].value.type;
-				if (!range_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
+				if (!range_sequence_type_verified(ssa.cfg.core.flow.checked.types, type)) return false;
 				var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
 				int kind = checked_kind(ssa.cfg.core.flow.checked, element); needed[(kind - 1) * 2 + 1] = true;
 			}
@@ -2385,7 +2444,7 @@ class RecoverLlvm {
 		} else {
 			if (this.utf8_function != null) return false;
 		}
-		if (!this.range_queries_verified(ssa) || !this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.float_integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
+		if (!this.range_steps_verified(ssa) || !this.range_queries_verified(ssa) || !this.integer_helpers_verified(ssa) || !this.shift_helpers_verified(ssa) || !this.float_integer_helpers_verified(ssa) || !this.array_helpers_verified(ssa)) return false;
 		bool initialize_needed = false; int initialize = 0;
 		while (initialize < ssa.cfg.core.count) {
 			if (ssa.cfg.core.nodes[initialize].value.kind == 65) initialize_needed = true;
@@ -2437,6 +2496,11 @@ class RecoverLlvm {
 			if (this.range_queries[range_query] != null) helper_count = helper_count + 1;
 			range_query = range_query + 1;
 		}
+		int step_at = helper_count; int range_step = 0;
+		while (range_step < 10) {
+			if (this.range_steps[range_step] != null) helper_count = helper_count + 1;
+			range_step = range_step + 1;
+		}
 		var helpers = new void*[helper_count + foreign_count]; helpers[0] = this.calloc_function; helpers[1] = this.free_function; helpers[2] = this.memcpy_function; helpers[3] = this.memcmp_function; helpers[4] = this.trap_function; helpers[5] = this.allocate_function; helpers[6] = this.construct_function; helpers[7] = this.message_function; helpers[8] = this.destroy_function; helpers[9] = this.subtype_function; helpers[10] = this.equal_function; helpers[11] = this.buffer_function; helpers[12] = this.error_owner_function; helpers[13] = this.snapshot_allocate_function; if (this.class_snapshot != null) helpers[14] = this.class_snapshot;
 		if (initialize_needed) helpers[initialize_at] = this.snapshot_initialize_function;
 		if (this.shared_runtime.context != null) {
@@ -2459,6 +2523,13 @@ class RecoverLlvm {
 			helpers[intrinsic_weak_start] = this.intrinsic_shared.downgrade; helpers[intrinsic_weak_start + 1] = this.intrinsic_shared.weak_clone; helpers[intrinsic_weak_start + 2] = this.intrinsic_shared.upgrade; helpers[intrinsic_weak_start + 3] = this.intrinsic_shared.weak_drop;
 		}
 		if (utf8_needed) helpers[utf8_at] = this.utf8_function;
+		range_step = 0; while (range_step < 10) {
+			if (this.range_steps[range_step] != null) {
+				helpers[step_at] = this.range_steps[range_step];
+				step_at = step_at + 1;
+			}
+			range_step = range_step + 1;
+		}
 		range_query = 0; while (range_query < 20) {
 			if (this.range_queries[range_query] != null) {
 				helpers[range_at] = this.range_queries[range_query];

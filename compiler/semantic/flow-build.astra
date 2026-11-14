@@ -65,7 +65,7 @@ void flow_slot(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origi
 	int code = checked_kind(checked, type);
 	var declaration = checked.bindings.symbol(symbol);
 	bool record = checked.semantic_flow && flowsem_record_shape(checked, type, 0);
-	if (type.index == 0 || (!record && ((row.owner && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type)) || (!row.owner && !type_numeric(code) && code != 13 && code != 15 && code != 16 && code != 20 && !range_type_verified(checked.types, type) && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type))))) {
+	if (type.index == 0 || (!record && ((row.owner && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type)) || (!row.owner && !type_numeric(code) && code != 13 && code != 15 && code != 16 && code != 20 && !range_sequence_type_verified(checked.types, type) && !flow_buffer_type(checked, type) && !flow_simple_class(checked, type))))) {
 		graph.defer(declaration.node, 7);
 	}
 	if (row.owner && code == 31 && (class_origins[symbol.index] & 12) != 0) {
@@ -225,10 +225,10 @@ int flow_temporary(borrowed FlowGraph graph, CheckedIndex checked, int[] class_o
 
 int flow_call(borrowed FlowGraph graph, CheckedIndex checked, int[] class_origins, SyntaxNodeId node, int region, int next, int depth) throws Error {
 	bool getter = class_getter_call_present(checked, node);
-	if (range_query_verified(checked, node)) {
+	if (range_query_verified(checked, node) || range_step_verified(checked, node)) {
 		int head = next;
 		var arguments = checked.bindings.program.arena.get_list_arguments(node);
-		if (range_query_action(checked, node) == 2) head = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, 0), region, head, 0, depth + 1);
+		if (range_step_verified(checked, node) || range_query_action(checked, node) == 2) head = flow_expression(graph, checked, class_origins, checked.bindings.program.arena.node_at(arguments, 0), region, head, 0, depth + 1);
 		var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
 		if (receiver.index > 0) head = flow_expression(graph, checked, class_origins, receiver, region, head, 0, depth + 1);
 		else {

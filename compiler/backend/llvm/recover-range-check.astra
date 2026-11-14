@@ -39,7 +39,7 @@ int recover_range_query_call(RecoverSsa ssa, RecoverNode row, void* call, void* 
 }
 
 int recover_range_call(RecoverSsa ssa, TypeId type, int action, void* call, void* aggregate, void* item, void* module) throws Error {
-	if (!range_type_verified(ssa.cfg.core.flow.checked.types, type) || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate)) || call == null || LLVMIsAInstruction(call) == null || LLVMGetInstructionOpcode(call) != 45) return 0;
+	if (!range_sequence_type_verified(ssa.cfg.core.flow.checked.types, type) || aggregate == null || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, type, LLVMTypeOf(aggregate)) || call == null || LLVMIsAInstruction(call) == null || LLVMGetInstructionOpcode(call) != 45) return 0;
 	if (action < 1 || action > 2) return 0;
 	int count = action + 2;
 	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, type, 0).type;
@@ -89,16 +89,83 @@ int recover_range_loop_instruction(RecoverSsa ssa, RecoverBlock block, void* lay
 		return introduced + 1;
 	}
 	if (block.opcode == 91) {
-		if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 42 || LLVMGetNumOperands(operation) != 2 || LLVMGetInstructionParent(operation) != physical || LLVMGetICmpSameSign(operation) != 0 || LLVMHasMetadata(operation) != 0) return 0;
+		if (operation == null || LLVMIsAInstruction(operation) == null || LLVMGetInstructionOpcode(operation) != 23 || LLVMGetNumOperands(operation) != 2 || LLVMGetInstructionParent(operation) != physical || LLVMHasMetadata(operation) != 0) return 0;
+		var ordered = LLVMGetOperand(operation, 0); var room = LLVMGetOperand(operation, 1);
+		if (LLVMIsAInstruction(ordered) == null || LLVMGetInstructionOpcode(ordered) != 42 || LLVMGetNumOperands(ordered) != 2 || LLVMGetInstructionParent(ordered) != physical || LLVMGetICmpSameSign(ordered) != 0 || LLVMHasMetadata(ordered) != 0 || LLVMIsAInstruction(room) == null || LLVMGetInstructionOpcode(room) != 42 || LLVMGetNumOperands(room) != 2 || LLVMGetInstructionParent(room) != physical || LLVMGetICmpSameSign(room) != 0 || LLVMHasMetadata(room) != 0) return 0;
 		int predicate = 36; if (type_signed(checked_kind(ssa.cfg.core.flow.checked, element))) predicate = 40;
-		var end = LLVMGetOperand(operation, 1);
-		if (!recover_llvm_compare(operation, predicate, current, end) || !recover_llvm_extract(end, aggregate, 1)) return 0;
-		if (LLVMIsAInstruction(aggregate) == null) return 3;
-		if (LLVMGetInstructionParent(end) != physical || LLVMHasMetadata(end) != 0) return 0;
-		return 4;
+		var end = LLVMGetOperand(ordered, 1); var distance = LLVMGetOperand(room, 0); var step = LLVMGetOperand(room, 1);
+		if (!recover_llvm_compare(ordered, predicate, current, end) || !recover_llvm_extract(end, aggregate, 1) || LLVMIsAInstruction(distance) == null || LLVMGetInstructionOpcode(distance) != 10 || LLVMGetNumOperands(distance) != 2 || LLVMGetOperand(distance, 0) != end || LLVMGetOperand(distance, 1) != current || LLVMGetInstructionParent(distance) != physical || LLVMGetNUW(distance) != 0 || LLVMGetNSW(distance) != 0 || LLVMHasMetadata(distance) != 0 || !recover_llvm_compare(room, 35, distance, step)) return 0;
+		int instructions = 6;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMGetInstructionParent(end) != physical || LLVMHasMetadata(end) != 0) return 0;
+			instructions = instructions + 1;
+		}
+		if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, type)) {
+			if (!recover_llvm_extract(step, aggregate, 3)) return 0;
+			if (LLVMIsAInstruction(aggregate) != null) {
+				if (LLVMGetInstructionParent(step) != physical || LLVMHasMetadata(step) != 0) return 0;
+				instructions = instructions + 1;
+			}
+		} else {
+			if (!recover_llvm_bits(step, type_width(checked_kind(ssa.cfg.core.flow.checked, element)), 1)) return 0;
+		}
+		return instructions;
 	}
 	if (block.opcode != 92 || !recover_range_counter_store(operation, address, layout, physical)) return 0;
 	var added = LLVMGetOperand(operation, 0);
-	if (LLVMIsAInstruction(added) == null || LLVMGetInstructionOpcode(added) != 8 || LLVMGetNumOperands(added) != 2 || LLVMGetInstructionParent(added) != physical || LLVMGetOperand(added, 0) != current || !recover_llvm_bits(LLVMGetOperand(added, 1), type_width(checked_kind(ssa.cfg.core.flow.checked, element)), 1) || LLVMGetNUW(added) != 0 || LLVMGetNSW(added) != 0 || LLVMHasMetadata(added) != 0) return 0;
-	return 4;
+	if (LLVMIsAInstruction(added) == null || LLVMGetInstructionOpcode(added) != 8 || LLVMGetNumOperands(added) != 2 || LLVMGetInstructionParent(added) != physical || LLVMGetOperand(added, 0) != current || LLVMGetNUW(added) != 0 || LLVMGetNSW(added) != 0 || LLVMHasMetadata(added) != 0) return 0;
+	var step = LLVMGetOperand(added, 1); int instructions = 4;
+	if (range_stride_type_verified(ssa.cfg.core.flow.checked.types, type)) {
+		if (!recover_llvm_extract(step, aggregate, 3)) return 0;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMGetInstructionParent(step) != physical || LLVMHasMetadata(step) != 0) return 0;
+			instructions = instructions + 1;
+		}
+	} else {
+		if (!recover_llvm_bits(step, type_width(checked_kind(ssa.cfg.core.flow.checked, element)), 1)) return 0;
+	}
+	return instructions;
+}
+
+bool recover_range_step_helper(void* function, int kind, string name) {
+	if (!type_integer(kind) || function == null || LLVMIsAFunction(function) == null || !recover_llvm_helper_signature(function, 1) || llvm13_named(function, name) != 1) return false;
+	var step = LLVMGetParam(function, 0); var type = LLVMTypeOf(step);
+	if (LLVMGetTypeKind(type) != 8 || LLVMGetIntTypeWidth(type) != type_width(kind) || LLVMGetReturnType(LLVMGlobalGetValueType(function)) != type) return false;
+	var blocks = recover_llvm_helper_blocks(function, 3); if (len(blocks) != 3) return false;
+	var entry = recover_llvm_body(blocks[0], 2); var fatal = recover_llvm_body(blocks[1], 2); var valid = recover_llvm_body(blocks[2], 1);
+	if (len(entry) != 2 || len(fatal) != 2 || len(valid) != 1 || LLVMGetInstructionOpcode(entry[0]) != 42 || LLVMGetNumOperands(entry[0]) != 2 || LLVMGetICmpSameSign(entry[0]) != 0) return false;
+	int predicate = 32; if (type_signed(kind)) predicate = 41;
+	if (!recover_llvm_compare(entry[0], predicate, step, LLVMGetOperand(entry[0], 1)) || !recover_llvm_bits(LLVMGetOperand(entry[0], 1), type_width(kind), 0) || !recover_llvm_split(entry[1], entry[0], blocks[1], blocks[2]) || !recover_llvm_return(valid[0], step)) return false;
+	if (LLVMGetInstructionOpcode(fatal[0]) != 45 || LLVMGetInstructionOpcode(fatal[1]) != 7) return false;
+	var trap = LLVMGetCalledValue(fatal[0]);
+	if (trap == null || LLVMIsAFunction(trap) == null || LLVMGetGlobalParent(trap) != LLVMGetGlobalParent(function) || !recover_llvm_external_verified(trap, 4) || !recover_llvm_call(fatal[0], trap, 0, 0) || !recover_llvm_native_attributes(fatal[0], 0)) return false;
+	return LLVMHasMetadata(entry[0]) == 0 && LLVMHasMetadata(entry[1]) == 0 && LLVMHasMetadata(fatal[0]) == 0 && LLVMHasMetadata(fatal[1]) == 0 && LLVMHasMetadata(valid[0]) == 0;
+}
+
+int recover_range_step_instruction(RecoverSsa ssa, RecoverNode row, void* value, void* aggregate, void* step, void* block, void* module) throws Error {
+	if (value == null || aggregate == null || !range_stride_type_verified(ssa.cfg.core.flow.checked.types, row.type) || !recover_storage_llvm_type(ssa.cfg.core.flow.checked, row.type, LLVMTypeOf(value)) || LLVMIsAInstruction(value) == null || LLVMGetInstructionOpcode(value) != 54 || llvm13_index(value, 0, 3) != 1 || LLVMGetInstructionParent(value) != block || LLVMHasMetadata(value) != 0) return 0;
+	var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0).type; int kind = checked_kind(ssa.cfg.core.flow.checked, element);
+	var guarded = LLVMGetOperand(value, 1);
+	if (LLVMIsAInstruction(guarded) == null || LLVMGetInstructionOpcode(guarded) != 45 || LLVMGetInstructionParent(guarded) != block || LLVMHasMetadata(guarded) != 0) return 0;
+	var function = LLVMGetCalledValue(guarded); var name = llvm_name("astra.range.step.", kind);
+	if (function == null || LLVMIsAFunction(function) == null || LLVMGetGlobalParent(function) != module || !recover_range_step_helper(function, kind, name.text) || !recover_llvm_call(guarded, function, 1, 8) || !recover_llvm_native_attributes(guarded, 1) || LLVMGetArgOperand(guarded, 0) != step) return 0;
+	void* current = LLVMGetOperand(value, 0); int field = 2; int instructions = 3; bool folded = false;
+	while (field >= 0) {
+		void* input = null;
+		if (LLVMIsAInstruction(current) != null) {
+			if (LLVMGetInstructionOpcode(current) != 54 || llvm13_index(current, 0, field) != 1 || LLVMGetInstructionParent(current) != block || LLVMHasMetadata(current) != 0) return 0;
+			input = LLVMGetOperand(current, 1); current = LLVMGetOperand(current, 0); instructions = instructions + 1;
+		} else {
+			input = LLVMGetAggregateElement(current, field);
+			folded = true;
+		}
+		if (!recover_llvm_extract(input, aggregate, field)) return 0;
+		if (LLVMIsAInstruction(aggregate) != null) {
+			if (LLVMGetInstructionParent(input) != block || LLVMHasMetadata(input) != 0) return 0;
+			instructions = instructions + 1;
+		}
+		field = field - 1;
+	}
+	if (!folded && LLVMIsNull(current) == 0) return 0;
+	return instructions;
 }
