@@ -25,7 +25,7 @@ bool recover_enum_variant_type(CheckedIndex checked, SymbolId variant, void* act
 	while (at < count) {
 		var field = checked.bindings.program.arena.node_at(fields, at);
 		var type = checked.symbol_types[checked.node_symbols[field.index].index];
-		if (!recover_llvm_scalar_type(checked, type, LLVMStructGetTypeAtIndex(actual, at))) return false;
+		if (!recover_storage_llvm_type(checked, type, LLVMStructGetTypeAtIndex(actual, at))) return false;
 		at = at + 1;
 	}
 	return true;

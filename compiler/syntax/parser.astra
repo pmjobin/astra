@@ -6190,6 +6190,12 @@ class SyntaxParser {
 					SyntaxNodeId tmp_8 = {index = 0};
 					return tmp_8;
 				}
+				if (this.modern() && (this.token_kind(arena, this.current) == TokenKind.OPEN_PAREN() || this.begins_generic_call(arena))) {
+					SyntaxTokenId receiver = {index = 0};
+					v_left_2 = this.parse_call(arena, v_member_7, arg_recursion_depth, receiver, v_dot_5, false, v_left_2);
+					if (v_left_2.index == 0) return v_left_2;
+					continue;
+				}
 				if (this.indexed_member_root(arena, v_left_2)) {
 					var tmp_9 = (this.token_kind(arena, this.current) == TokenKind.OPEN_PAREN());
 					if (!tmp_9) {

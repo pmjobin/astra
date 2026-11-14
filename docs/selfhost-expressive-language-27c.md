@@ -580,3 +580,30 @@ having a pointer/count pair. Full C0 source semantics passes (range-preflight7,
 actual native lowering/memory checks remain pending. The separately authored
 C0 slice oracle returns 42, including actual legacy fixed-array slice ABI and
 equivalent named-buffer reads (selfhost27c-range-oracles3).
+
+Development compiler dev6 completed from frozen 3640643: the authenticated C0
+producer emitted the retained LLVM IR, independently verified and linked as O2
+product SHA-256 `c11b49ffee0c974048894b353fd8af89cf7fb174f7da5930b0665be1059e164c`.
+This is a build receipt, not qualification of newer source. All sixteen named
+call/fresh owner cases now pass actual O0/O2 ELF execution, strict returning
+compiler and target Valgrind, LLVM verification and ten semantic refusals
+(selfhost27c-named-dev6). Native results agree with separately compiled C0 forms,
+including observed fresh-owner destruction order 2220 normally and 2022 on Error.
+
+The first dev6 owning-match case fails closed at the physical contract. A bounded
+read-only debugger stop identifies `enum_helpers_verified`, before the global
+function/block consumer. Independently printed unqualified helper IR shows the
+expected buffer retirement. The variant shape consumer incorrectly delegates a
+buffer payload to the scalar-only type query. The candidate now uses the existing
+storage type consumer, which checks pointer/count layout and nested enum shape;
+source enum admission remains the independently verified finite payload subset.
+This correction still requires a freshly built compiler and native/physical tests.
+
+The bounds query case passes actual O0/O2 execution and strict returning memory,
+but the domain case and focused ssa9 fail on the parser's old restriction against
+calls on a compound receiver. Focused ssa10 also stops before slice qualification
+because it includes that earlier stride test. The parser candidate now preserves
+the actual expression receiver in modern member calls. The legacy restriction is
+retained; a focused syntax test checks the three linked range/stride/collect calls,
+source starts, argument spans and the legacy refusal. New builds and qualification
+are pending. Failed runs and the original earlier receipts are preserved.

@@ -153,11 +153,31 @@ void expressive_range_tokens() throws Error {
 	assert_that(token_kind_from_code(94) == TokenKind.COMPOUND_ASSIGNMENT() && token_kind_from_code(95) == TokenKind.RANGE() && token_kind_from_code(96) == TokenKind.RANGE_INCLUSIVE());
 }
 
+void expressive_compound_receivers() throws Error {
+	var program = expressive_program("language astra27b; int main() { var values = (20..=80).step_by(5).collect_array(); if ((20..80).contains(42)) return 42; return 1; }");
+	assert_that(!program.failed() && syntax_program_languages_verified(program));
+	int calls = 0; int at = 1;
+	while (at <= program.arena.node_count) {
+		SyntaxNodeId node = {index = at};
+		if (program.arena.kind(node) == SyntaxKind.CallExpressionSyntax()) {
+			var receiver = program.arena.get_node_receiver_place(node);
+			assert_that(receiver.index > 0 && syntax_call_labels_verified(program.arena, node));
+			assert_that(program.arena.header(node).span.start == program.arena.header(receiver).span.start);
+			calls = calls + 1;
+		}
+		at = at + 1;
+	}
+	assert_that(calls == 3);
+	var legacy = expressive_program("language legacy27a; int main() { return (value).contains(42); }");
+	assert_that(legacy.failed());
+}
+
 int main() {
 	try {
 		expressive_argument_labels();
 		expressive_match_patterns();
 		expressive_range_tokens();
+		expressive_compound_receivers();
 		return 42;
 	} catch (Error error) {
 		return 1;
