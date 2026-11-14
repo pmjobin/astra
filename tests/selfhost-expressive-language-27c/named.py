@@ -607,6 +607,52 @@ Bounds interval(int first, int last) { Bounds result = {start = first, end = las
 int measure(Bounds value) { return value.end-value.start; }
 '''
 RANGE_CASES = [
+	('range-collect', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+owned int[] values() { return (tick(1)+19..=tick(2)+78).step_by(tick(3)+2).collect_array(); }
+int main() {
+	reset_trace(); var data = values();
+	if (trace() != 123 || len(data) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int index = 0; int total = 0;
+	while (index < len(data)) { if (data[index] != 20+index*5) return 2; total = total+data[index]; index = index+1; }
+	if (total != 650 || data[0] != 20 || data[12] != 80) return 3;
+	var vacant = (20..20).collect_array(); if (len(vacant) != 0 || allocation_calls() != 1) return 4;
+	u64 last = 18446744073709551615; var edge = (last..=last).collect_array();
+	if (len(edge) != 1 || edge[0] != last || allocation_calls() != 2 || allocation_bytes() != 60) return 5;
+	i64 first = -2; i64 end = 2; i64 step = 2; var crossed = (first..=end).step_by(step).collect_array();
+	if (len(crossed) != 3 || crossed[0] != first || crossed[1] != 0 || crossed[2] != end) return 6;
+	u8 zero = 0; u8 maximum = 255; var complete = (zero..=maximum).collect_array();
+	if (len(complete) != 256 || complete[0] != zero || complete[255] != maximum) return 7;
+	data = (20..=80).step_by(5).collect_array(); if (len(data) != 13 || data[12] != 80) return 8;
+	return 42;
+}
+''', TICKS+'''extern(C) int allocation_calls();
+extern(C) int allocation_bytes();
+owned int[] values() {
+	int first = tick(1)+19; int last = tick(2)+78; int step = tick(3)+2;
+	owned int[] result = new int[13]; int index = 0;
+	while (index < 13) { result[index] = first+index*step; index = index+1; }
+	return move result;
+}
+int main() {
+	reset_trace(); var data = values();
+	if (trace() != 123 || len(data) != 13 || allocation_calls() != 1 || allocation_bytes() != 52) return 1;
+	int index = 0; int total = 0;
+	while (index < len(data)) { if (data[index] != 20+index*5) return 2; total = total+data[index]; index = index+1; }
+	if (total != 650 || data[0] != 20 || data[12] != 80) return 3;
+	owned int[] vacant = new int[0]; if (len(vacant) != 0 || allocation_calls() != 1) return 4;
+	u64 last = 18446744073709551615; owned u64[] edge = new u64[1]; edge[0] = last;
+	if (len(edge) != 1 || edge[0] != last || allocation_calls() != 2 || allocation_bytes() != 60) return 5;
+	i64 first = -2; i64 end = 2; i64 step = 2; owned i64[] crossed = new i64[3]; index = 0;
+	while (index < 3) { crossed[index] = first+(index as i64)*step; index = index+1; }
+	if (len(crossed) != 3 || crossed[0] != first || crossed[1] != 0 || crossed[2] != end) return 6;
+	u8 zero = 0; u8 maximum = 255; owned u8[] complete = new u8[256]; index = 0;
+	while (index < 256) { complete[index] = index as u8; index = index+1; }
+	if (len(complete) != 256 || complete[0] != zero || complete[255] != maximum) return 7;
+	data = values(); if (len(data) != 13 || data[12] != 80) return 8;
+	return 42;
+}
+''', False),
 	('range-slices', TICKS+'''int read(borrowed int[] values) { return len(values)+values[0]; }
 int main() {
 	owned int[] data = new int[13]; data[0] = 20; data[12] = 22;
@@ -749,6 +795,9 @@ int main() {
 ''', False),
 ]
 RANGE_NEGATIVE = [
+	('range-collect-argument', 'int main() { var values = (20..80).collect_array(1); return 42; }'),
+	('range-collect-borrow-escape', 'borrowed int[] values() { return (20..80).collect_array(); } int main() { return 42; }'),
+	('range-collect-copy-owner', 'int main() { var values = (20..80).collect_array(); var copied = values; return 42; }'),
 	('range-slice-retain', 'int main() { owned int[] data = new int[13]; var view = data[0..3]; return len(view)+39; }'),
 	('range-slice-write', 'int main() { owned int[] data = new int[13]; data[0..3][0] = 42; return 42; }'),
 	('range-slice-inclusive', 'int main() { owned int[] data = new int[13]; return len(data[0..=3]); }'),
@@ -805,6 +854,10 @@ def main():
 	inputs[str(bridge)] = sha(bridge); bridge_object = build/'observe.o'
 	run('C-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', bridge, '-o', bridge_object])
 	objects = [*providers, str(bridge_object)]
+	allocation_source = runtime/'allocation-observer.c'
+	allocation_source.write_text('#include <stddef.h>\nvoid *__real_calloc(size_t, size_t);\nstatic int calls, bytes;\nvoid *__wrap_calloc(size_t count, size_t size) { ++calls; bytes += (int)(count*size); return __real_calloc(count,size); }\nint allocation_calls(void) { return calls; }\nint allocation_bytes(void) { return bytes; }\n')
+	inputs[str(allocation_source)] = sha(allocation_source); allocation_object = build/'allocation-observer.o'
+	run('C-allocation-observer', ['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', allocation_source, '-o', allocation_object])
 	cases = [r for r in CASES if not a.case or r[0] in a.case]
 	negatives = NEGATIVE
 	if a.feature == 'match':
@@ -823,13 +876,19 @@ def main():
 			extra.append(helper)
 		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
-		run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
+		observed = name == 'range-collect'; allocation_links = ['-Wl,--wrap=calloc', allocation_object] if observed else []
+		if observed:
+			oracle_object = build/(name+'-C0.o')
+			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])
+			run(name+'-C0-link', ['cc', '-no-pie', oracle_object, *objects, *allocation_links, '-o', reference])
+		else:
+			run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
 		run(name+'-C0-native', [reference], 42); products[str(reference)] = sha(reference)
 		if a.oracle_only: continue
 		for mode in ('O0', 'O2'):
 			obj = build/(name+'-'+mode+'.o'); target = build/(name+'-'+mode)
 			run(name+'-'+mode+'-compile', [a.compiler, '-c', '-'+mode, '-o', obj, source, *extra])
-			run(name+'-'+mode+'-link', ['cc', '-no-pie', obj, *objects, '-o', target])
+			run(name+'-'+mode+'-link', ['cc', '-no-pie', obj, *objects, *allocation_links, '-o', target])
 			elf = subprocess.check_output(['readelf', '-h', target], text=True)
 			assert 'ELF64' in elf and 'Advanced Micro Devices X86-64' in elf
 			run(name+'-'+mode+'-native', [target], 42); memory(name+'-'+mode+'-memory', [target], 42)

@@ -145,6 +145,7 @@ bool enum_source_owner_value(CheckedIndex index, SyntaxNodeId node, TypeId type,
 	if (kind == SyntaxKind.BufferAllocationSyntax()) return checked_kind(index, type) == 22 && recover_array_type(index, type);
 	if (kind == SyntaxKind.HeapObjectConstructionSyntax()) return checked_kind(index, type) == 31;
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
+		if (range_collect_verified(index, node)) return checked_kind(index, type) == 22;
 		var symbol = checked_target(index, node, index.bindings.program.arena.get_token_identifier(node));
 		if (symbol.index < 1 || symbol.index >= len(index.symbol_signatures)) return false;
 		if (index.bindings.symbol(symbol).kind == 13) return enum_storage_owned(index, type, 0) && enum_constructor_verified_depth(index, node, symbol, type, depth + 1);

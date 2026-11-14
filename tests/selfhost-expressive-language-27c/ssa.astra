@@ -17,6 +17,9 @@ owned RecoverSsa expressive_ssa(string text) throws Error {
 	var program = syntax_program(move sources);
 	var bindings = binding_index(move program, 0);
 	var checked = checked_build_effects_profile(move bindings, 0);
+	if (checked.failed()) {
+		var observation = checked_observation(checked); print(observation.text);
+	}
 	assert_that(!checked.failed() && checked.validate() && generic_verify(checked));
 	var flow = recover_flow_lower(move checked, 8192);
 	assert_that(flow.data.status == 0 && recover_flow_verify(flow));
@@ -186,13 +189,31 @@ void expressive_range_slices() throws Error {
 	assert_that(slices == 6);
 }
 
+void expressive_range_collect() throws Error {
+	var ssa = expressive_ssa("language astra27b; owned int[] values(int first, int last) { return (first..=last).step_by(5).collect_array(); } int marker(bool fail) throws Error { if (fail) throw new Error(\"collection operand failure\"); return 29; } int eat(owned int[] data, int marker) { return len(data)+marker; } int attempt(bool fail) { try { return eat(data: (20..=80).step_by(5).collect_array(), marker: marker(fail)); } catch (Error error) { return 42; } } int main() { var data = values(20,80); data = (20..=80).step_by(5).collect_array(); return len(data)+attempt(true)-13; }");
+	int collections = 0; int at = 0;
+	while (at < ssa.cfg.core.count) {
+		var original = ssa.cfg.core.nodes[at];
+		if (original.value.kind == 94) {
+			collections = collections + 1; var changed = original; changed.result_role = 1; ssa.cfg.core.nodes[at] = changed;
+			assert_that(!recover_core_verify(ssa.cfg.core)); ssa.cfg.core.nodes[at] = original;
+			assert_that(recover_ssa_verify(ssa));
+		}
+		at = at + 1;
+	}
+	assert_that(collections == 3); expressive_abort_mutations(ssa, 1);
+}
+
 int main(string[] args) {
 	try {
 		if (len(args) > 1) {
 			if (len(args) < 3 || args[1] != "--source") return 2;
 			var program = binding_load_program(args, 2); var bindings = binding_index(move program, 0);
 			var checked = checked_build_effects_profile(move bindings, 0);
-			if (checked.failed() || !checked.validate() || !generic_verify(checked)) return 3;
+			if (checked.failed()) {
+				var observation = checked_observation(checked); print(observation.text); return 3;
+			}
+			if (!checked.validate() || !generic_verify(checked)) return 3;
 			var flow = recover_flow_lower(move checked, 8192); if (flow.data.status != 0 || !recover_flow_verify(flow)) return 4;
 			var core = recover_core_lower(move flow); if (core.status != 0 || !recover_core_verify(core)) return 5;
 			var cfg = recover_cfg_lower(move core, 8192); if (cfg.status != 0 || !recover_cfg_verify(cfg)) return 6;
@@ -221,6 +242,7 @@ int main(string[] args) {
 		expressive_range_iteration();
 		expressive_range_stride();
 		expressive_range_slices();
+		expressive_range_collect();
 		var nested = expressive_ssa("language astra27b; class Item { int value; init(int value) { this.value = value; } } int marker(bool fail) throws Error { if (fail) { throw new Error(\"operand failure\"); } return 0; } owned Item forward(owned Item item, int marker) { return move item; } int eat(owned Item left, owned Item right, int marker) { return left.value+right.value+marker; } int attempt(bool fail) { try { return eat(right: new Item(22), left: forward(item: new Item(20), marker: marker(fail)), marker: 0); } catch (Error error) { return 42; } } int main() { return attempt(true); }");
 		expressive_abort_mutations(nested, 2);
 		var first = nested.cfg.core.owners.aborts[0]; var second = nested.cfg.core.owners.aborts[1];

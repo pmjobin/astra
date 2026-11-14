@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Count is checked before the single final buffer allocation. The fill loop
+// advances only when another output element exists, including at integer MAX.
+void* recover_range_count_helper(void* context, void* module, void* builder, void* handles, void* trap, int kind) throws Error {
+	var integer = LLVMIntTypeInContext(context, type_width(kind));
+	var boolean = LLVMIntTypeInContext(context, 1); var wide = LLVMIntTypeInContext(context, 64); var count_type = LLVMIntTypeInContext(context, 32); var empty = llvm12_empty();
+	llvm12_handle_set(handles, 0, integer); llvm12_handle_set(handles, 1, integer); llvm12_handle_set(handles, 2, boolean); llvm12_handle_set(handles, 3, integer);
+	var signature = LLVMFunctionType(count_type, llvm12_handle_offset(handles, 0), 4, 0);
+	var name = llvm_name("astra.range.count.", kind - 1); var function = llvm12_function(module, signature, name.text); LLVMSetLinkage(function, 8); LLVMSetFunctionCallConv(function, 8);
+	var entry = llvm12_block(context, function, "entry"); var bounds = llvm12_block(context, function, "bounds"); var vacant = llvm12_block(context, function, "empty"); var measure = llvm12_block(context, function, "measure"); var valid = llvm12_block(context, function, "valid"); var fatal = llvm12_block(context, function, "fatal");
+	var start = LLVMGetParam(function, 0); var end = LLVMGetParam(function, 1); var inclusive = LLVMGetParam(function, 2); var step = LLVMGetParam(function, 3);
+	LLVMPositionBuilderAtEnd(builder, entry); int invalid = 32; if (type_signed(kind)) invalid = 41;
+	var bad = LLVMBuildICmp(builder, invalid, step, LLVMConstNull(integer), empty); var branch = LLVMBuildCondBr(builder, bad, fatal, bounds);
+	LLVMPositionBuilderAtEnd(builder, bounds); int greater = 34; int at_least = 35; if (type_signed(kind)) {
+		greater = 38;
+		at_least = 39;
+	}
+	var reversed = LLVMBuildICmp(builder, greater, start, end, empty); var half_empty = LLVMBuildICmp(builder, at_least, start, end, empty); var absent = LLVMBuildSelect(builder, inclusive, reversed, half_empty, empty); branch = LLVMBuildCondBr(builder, absent, vacant, measure);
+	LLVMPositionBuilderAtEnd(builder, vacant); var no_values = LLVMBuildRet(builder, LLVMConstNull(count_type));
+	LLVMPositionBuilderAtEnd(builder, measure);
+	void* distance = LLVMBuildSub(builder, end, start, empty); void* stride = step;
+	if (type_width(kind) < 64) {
+		distance = LLVMBuildZExt(builder, distance, wide, empty);
+		stride = LLVMBuildZExt(builder, step, wide, empty);
+	}
+	var quotient = LLVMBuildUDiv(builder, distance, stride, empty); var remainder = LLVMBuildURem(builder, distance, stride, empty);
+	var partial = LLVMBuildICmp(builder, 33, remainder, LLVMConstNull(wide), empty); var extra_bit = LLVMBuildSelect(builder, inclusive, LLVMConstInt(boolean, 1, 0), partial, empty); var extra = LLVMBuildZExt(builder, extra_bit, wide, empty);
+	var limit = LLVMBuildSub(builder, LLVMConstInt(wide, 2147483647, 0), extra, empty); var fits = LLVMBuildICmp(builder, 37, quotient, limit, empty); branch = LLVMBuildCondBr(builder, fits, valid, fatal);
+	LLVMPositionBuilderAtEnd(builder, valid); var total = LLVMBuildAdd(builder, quotient, extra, empty); var narrowed = LLVMBuildTrunc(builder, total, count_type, empty); var result = LLVMBuildRet(builder, narrowed);
+	LLVMPositionBuilderAtEnd(builder, fatal); var call = LLVMBuildCall2(builder, LLVMGlobalGetValueType(trap), trap, llvm12_handle_offset(handles, 0), 0, empty); var stop = LLVMBuildUnreachable(builder);
+	return function;
+}
+
+void* recover_range_fill_helper(void* context, void* module, void* builder, void* handles, void* layout, int kind) throws Error {
+	var integer = LLVMIntTypeInContext(context, type_width(kind)); var count_type = LLVMIntTypeInContext(context, 32); var empty = llvm12_empty();
+	llvm12_handle_set(handles, 0, LLVMPointerTypeInContext(context, 0)); llvm12_handle_set(handles, 1, count_type); llvm12_handle_set(handles, 2, integer); llvm12_handle_set(handles, 3, integer);
+	var signature = LLVMFunctionType(LLVMVoidTypeInContext(context), llvm12_handle_offset(handles, 0), 4, 0); var name = llvm_name("astra.range.fill.", kind - 1); var function = llvm12_function(module, signature, name.text); LLVMSetLinkage(function, 8); LLVMSetFunctionCallConv(function, 8);
+	var entry = llvm12_block(context, function, "entry"); var header = llvm12_block(context, function, "header"); var body = llvm12_block(context, function, "body"); var advance = llvm12_block(context, function, "advance"); var done = llvm12_block(context, function, "done");
+	LLVMPositionBuilderAtEnd(builder, entry); var jump = LLVMBuildBr(builder, header);
+	LLVMPositionBuilderAtEnd(builder, header); var index = LLVMBuildPhi(builder, count_type, empty); var value = LLVMBuildPhi(builder, integer, empty); var more = LLVMBuildICmp(builder, 40, index, LLVMGetParam(function, 1), empty); var branch = LLVMBuildCondBr(builder, more, body, done);
+	LLVMPositionBuilderAtEnd(builder, body); llvm12_handle_set(handles, 0, index); var address = LLVMBuildGEP2(builder, integer, LLVMGetParam(function, 0), llvm12_handle_offset(handles, 0), 1, empty); LLVMGEPSetNoWrapFlags(address, 0);
+	var store = LLVMBuildStore(builder, value, address); LLVMSetAlignment(store, LLVMABIAlignmentOfType(layout, integer)); var next = LLVMBuildAdd(builder, index, LLVMConstInt(count_type, 1, 0), empty); var remaining = LLVMBuildICmp(builder, 40, next, LLVMGetParam(function, 1), empty); branch = LLVMBuildCondBr(builder, remaining, advance, done);
+	LLVMPositionBuilderAtEnd(builder, advance); var following = LLVMBuildAdd(builder, value, LLVMGetParam(function, 3), empty); jump = LLVMBuildBr(builder, header);
+	llvm12_handle_set(handles, 0, LLVMConstNull(count_type)); llvm12_handle_set(handles, 1, next); llvm12_handle_set(handles, 8, entry); llvm12_handle_set(handles, 9, advance); LLVMAddIncoming(index, llvm12_handle_offset(handles, 0), llvm12_handle_offset(handles, 8), 2);
+	llvm12_handle_set(handles, 0, LLVMGetParam(function, 2)); llvm12_handle_set(handles, 1, following); LLVMAddIncoming(value, llvm12_handle_offset(handles, 0), llvm12_handle_offset(handles, 8), 2);
+	LLVMPositionBuilderAtEnd(builder, done); var result = LLVMBuildRetVoid(builder);
+	return function;
+}

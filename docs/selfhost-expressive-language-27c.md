@@ -607,3 +607,34 @@ the actual expression receiver in modern member calls. The legacy restriction is
 retained; a focused syntax test checks the three linked range/stride/collect calls,
 source starts, argument spans and the legacy refusal. New builds and qualification
 are pending. Failed runs and the original earlier receipts are preserved.
+
+The compound-receiver syntax consumer now passes C0 O0 compilation (134.947
+seconds), native 42 and strict returning Valgrind (0.808 seconds), with zero live
+bytes, errors and suppressions. Product SHA-256 is
+`16b146431eb513bb907eb1582eede4e130345df3c4d9a9416f3787df2e971898`.
+The three chained/compound calls preserve their actual receiver nodes and source
+starts; legacy compound-call refusal remains tested.
+
+Explicit `.collect_array()` is now a connected source/Core/owner/native candidate
+for integer ranges and strides. The independently consumed source facts require
+an owned numeric buffer, no explicit arguments, exact receiver element identity
+and the existing default allocator/fatal size/allocation policy. Core operation
+94 participates in fresh-argument acquisition, reverse Error retirement, local
+replacement and owned function results. Count and fill helpers belong to the
+module's existing lifetime and complete helper inventory. Cardinality uses the
+endpoint-width difference, unsigned widened quotient/remainder and a checked
+INT_MAX-minus-extra limit before addition. Empty/reversed ranges return zero;
+full-width inclusive cardinalities cannot wrap into an accepted allocation.
+The fill loop allocates nothing and advances only before another element.
+Complete helper bodies, actual receiver fields/calls, one final buffer allocation,
+its element size and the returned descriptor are independently consumed.
+
+A separately authored C0 expansion and real calloc wrapper return 42 for thirteen
+values 20 through 80, lexical trace 123, total 650, an empty result, unsigned MAX,
+signed zero crossing, all 256 u8 values and owner replacement. It observes one
+52-byte allocation before the first thirteen values are read. This is oracle-only
+receipt selfhost27c-range-oracles4, not new-form materialization qualification.
+Full current C0 preflight8 found a temporary owned-field borrow overlapping an
+inner receiver query in the new verifier; that expression is split in the source
+candidate. Preflight8's refusal and bytes are retained. A new complete build and
+focused source/SSA/native/physical/memory qualification remain pending.

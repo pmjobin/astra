@@ -335,7 +335,7 @@ RecoverValue recover_ssa_expected(RecoverCfg cfg, int block) {
 			else {
 				type = cfg.core.nodes[row.origin - 1].value.type;
 				if (recover_error_new_kind(row.opcode)) channel = 1;
-				if ((row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
+				if ((row.opcode == 94 || row.opcode == 68 || row.opcode == 9 || row.opcode == 11 || row.opcode == 13 || row.opcode == 4 || row.opcode == 19 || row.opcode == 69 || row.opcode == 71 || row.opcode == 62 || row.opcode == 30) && cfg.core.nodes[row.origin - 1].result_role == 4) channel = 4;
 			}
 		}
 	} RecoverValue value = {function = row.function, block = block, type = type, channel = channel, edge = edge}; return value;
@@ -585,7 +585,7 @@ bool recover_ssa_verify_details(RecoverSsa ssa, int[] detail) {
 			}
 		}
 		if ((row.opcode == 31 || row.opcode == 32 || row.opcode == 34 || row.opcode == 23) && !recover_ssa_use(ssa.data, ssa.cfg, row.owner, b, work)) return recover_ssa_refuse(work, detail);
-		if (row.opcode == 2 || (row.opcode == 12 || row.opcode == 58 || row.opcode == 88 || row.opcode == 93) && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0 || row.opcode == 42 || row.opcode == 75 || row.opcode == 79 && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0) {
+		if (row.opcode == 2 || (row.opcode == 12 || row.opcode == 58 || row.opcode == 88 || row.opcode == 93 || row.opcode == 94) && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0 || row.opcode == 42 || row.opcode == 75 || row.opcode == 79 && ssa.cfg.core.nodes[row.origin - 1].value.symbol.index > 0) {
 			var source = ssa.cfg.core.nodes[row.origin - 1].value; var declaration = ssa.cfg.core.flow.checked.bindings.symbol(source.symbol);
 			if (declaration.kind == 8 || enum_scoped_binding(ssa.cfg.core.flow.checked, source.symbol) || range_foreach_binding(ssa.cfg.core.flow.checked, source.symbol)) {
 				int definition = locals[source.symbol.index];

@@ -475,6 +475,17 @@ int recover_llvm_owner_instructions(RecoverSsa ssa, void* layout, void* payload,
 	SyntaxNodeId absent = {index = 0}; var row = recover_empty(absent, 0, type_id(14), 0, 0); if (block.origin > 0) row = ssa.cfg.core.nodes[block.origin - 1].value;
 	int op = block.opcode;
 	int instruction_count = 1;
+	if (op == 94) {
+		void* aggregate = locals[row.symbol.index]; int loaded = 0;
+		if (row.a > 0) aggregate = values[row.a];
+		else { if (recover_mutable(ssa.cfg.core.flow.data, row.symbol)) {
+				aggregate = LLVMGetFirstInstruction(physical);
+				if (aggregate == null || LLVMGetInstructionOpcode(aggregate) != 27 || LLVMGetOperand(aggregate, 0) != owner_addresses[row.symbol.index] || LLVMGetAlignment(aggregate) != LLVMABIAlignmentOfType(layout, LLVMTypeOf(aggregate)) || LLVMGetVolatile(aggregate) != 0 || LLVMGetOrdering(aggregate) != 0 || LLVMHasMetadata(aggregate) != 0) return 0;
+				loaded = 1;
+			} }
+		int introduced = recover_range_collection_instruction(ssa, row, physical, operation, values[block.origin], aggregate, buffer_function, LLVMGetGlobalParent(functions[row.function - 1]), layout);
+		if (introduced == 0) return 0; instruction_count = introduced + loaded;
+	}
 	if (op == 9) {
 		instruction_count = 4; var element = ssa.cfg.core.flow.checked.types.argument(ssa.cfg.core.flow.checked.types, row.type, 0); int kind = checked_kind(ssa.cfg.core.flow.checked, element.type); int size = 1;
 		if (kind == 30) {

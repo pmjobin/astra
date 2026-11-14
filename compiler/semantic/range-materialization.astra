@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Materialization is explicit ownership under the existing default allocator.
+// Size/count and allocation failures retain the existing fatal buffer policy.
+bool range_collect_call(CheckedIndex index, SyntaxNodeId node) {
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_array");
+}
+
+TypeId checked_range_collect(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
+	if (!range_collect_call(index, node)) return no_type();
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node); var type = no_type();
+	if (receiver.index > 0) type = checked_expression(index, receiver, no_type(), depth + 1);
+	else {
+		type = range_query_receiver(index, node);
+	}
+	if (!range_sequence_type_verified(index.types, type)) return no_type();
+	if (index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node)) {
+		index.fail(index.bindings.program.arena.header(node).span, "collect_array requires no explicit arguments"); return no_type();
+	}
+	var use = index.uses[node.index]; use.flags = 4; use.deferred = 19; index.uses[node.index] = use;
+	return index.types.unary(22, index.types.argument(index.types, type, 0).type, 0);
+}
+
+bool range_collect_verified(CheckedIndex index, SyntaxNodeId node) {
+	if (!range_collect_call(index, node) || !range_query_source(index.bindings.program.arena, node)) return false;
+	var receiver = range_query_receiver(index, node); var use = index.uses[node.index];
+	if (!range_sequence_type_verified(index.types, receiver) || checked_kind(index, use.type) != 22 || use.flags != 4 || use.deferred != 19 || checked_target(index, node, index.bindings.program.arena.get_token_identifier(node)).index != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node)) return false;
+	var element = index.types.argument(index.types, receiver, 0); var actual = index.types.argument(index.types, use.type, 0);
+	return element.type.index == actual.type.index && element.flags == 0 && actual.flags == 0 && type_integer(checked_kind(index, element.type));
+}
