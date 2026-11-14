@@ -173,3 +173,36 @@ observed live process used producer SHA-256
 preserved LLVM library. Its eventual results must retain that source identity.
 No complete match, current-host, ABI, memory or milestone acceptance is granted
 by source admission or by these build observations.
+
+That Astra-built product completed with SHA-256
+`c36829ded71f6167db9800623b15d57e3ce77fd406a8eac05d31628bead73258`.
+Nine named positive programs have now passed O0/O2 execution and strict target
+and compiler memory checks on this product, including the written-order owner
+reservation regression and namespace calls. All ten named source negatives
+rejected with the output sentinel preserved. A separately selected physical
+mutation swaps declared ABI slots: LLVM accepts the mutated module, while the
+independent physical consumer rejects it. These results retain the development
+product's earlier source identity and do not qualify the current source graph.
+
+The remaining named method case exposed an original-method versus normalized
+receiver arity mismatch. Constructor-only and positional method controls pass;
+the current source uses the original written arguments when verifying the
+original method signature. The next host must execute this repair.
+
+The older development product admits scalar match expressions through SSA but
+rejects their physical projection, as expected from its earlier source. An
+owned-result match also exposed premature refusal of ownership obligation 19,
+before owner verification runs. The current source admits this specific pending
+owned obligation and retains the subsequent owner proof. Local owner admission
+now recognizes match results. Constructor initialization verification recursively
+checks the scrutinee, every arm result and every enum payload input at the same
+initialization point; an uninitialized-field negative accompanies the repair.
+Two independent C0 owner-result expansions and a constructor expansion return 42.
+Full C0 source semantics passes after these repairs (preflight 21, 64.950 seconds).
+Native qualification of the repairs remains pending.
+
+The next optimized development build freezes
+`1ce4bddd2d69bc8de5934dc301d59beb6951b85f`. It includes the copyable payload
+pipeline and metadata-only binder reference fix, but predates the repairs in the
+preceding paragraphs. It is a changing-source development generation, with no
+fixed-source Stage3 or release claim.

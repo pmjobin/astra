@@ -51,7 +51,7 @@ bool ownership_local_source_verified(CheckedIndex checked, SyntaxNodeId source, 
 	}
 	if (initializer.index < 1 || depth == 192) return false;
 	var kind = checked.bindings.program.arena.kind(initializer);
-	bool producer = kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.ConditionalExpressionSyntax() && (checked.uses[initializer.index].flags & 4) != 0;
+	bool producer = kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.BufferAllocationSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || (kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) && (checked.uses[initializer.index].flags & 4) != 0;
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		var target = checked_target(checked, initializer, checked.bindings.program.arena.get_token_identifier(initializer));
 		if (target.index > 0) {
@@ -78,6 +78,6 @@ bool recover_class_local_source(CheckedIndex checked, SyntaxNodeId source, Symbo
 	}
 	if (initializer.index == 0 || depth == 192) return false;
 	var kind = checked.bindings.program.arena.kind(initializer);
-	if (kind == SyntaxKind.ConditionalExpressionSyntax()) return (checked.uses[initializer.index].flags & 4) != 0;
+	if (kind == SyntaxKind.ConditionalExpressionSyntax() || kind == SyntaxKind.MatchExpressionSyntax()) return (checked.uses[initializer.index].flags & 4) != 0;
 	return kind == SyntaxKind.HeapObjectConstructionSyntax() || kind == SyntaxKind.MoveExpressionSyntax() || kind == SyntaxKind.CallExpressionSyntax();
 }

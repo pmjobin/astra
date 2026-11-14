@@ -175,6 +175,88 @@ NEGATIVE = [
 MATCH_TAG = 'enum Mode { First, Middle, Last }\n'
 NESTED_TAG = 'enum Problem { NotFound, Decode(int code) }\nenum Result { Success(int value), Failure(Problem problem) }\n'
 MATCH_CASES = [
+	('match-constructor-source', MATCH_TAG+'''class Box {
+	int value;
+	init(Mode mode) {
+		this.value = match (mode) {
+			case Mode.First() => 20;
+			case Mode.Middle() => 22;
+			case Mode.Last() => 42;
+		};
+	}
+}
+int main() { var box = new Box(Mode.Last()); return box.value; }
+''', MATCH_TAG+'''int status(Mode mode) {
+	match (mode) {
+		case Mode.First(): { return 20; }
+		case Mode.Middle(): { return 22; }
+		case Mode.Last(): { return 42; }
+	}
+}
+class Box { int value; init(Mode mode) { this.value = status(mode); } }
+int main() { var box = new Box(Mode.Last()); return box.value; }
+''', False),
+	('match-owned-local', ITEM+MATCH_TAG+'''int run(Mode value) {
+	var item = match (value) {
+		case Mode.First() => new Item(20);
+		case Mode.Middle() => new Item(22);
+		case Mode.Last() => new Item(42);
+	};
+	return item.value;
+}
+int main() { if (run(Mode.Last()) != 42 || drops() != 1 || drop_sum() != 42) return 1; return 42; }
+''', ITEM+MATCH_TAG+'''owned Item acquire(Mode value) {
+	match (value) {
+		case Mode.First(): { var item = new Item(20); return move item; }
+		case Mode.Middle(): { var item = new Item(22); return move item; }
+		case Mode.Last(): { var item = new Item(42); return move item; }
+	}
+}
+int run(Mode value) { var item = acquire(value); return item.value; }
+int main() { if (run(Mode.Last()) != 42 || drops() != 1 || drop_sum() != 42) return 1; return 42; }
+''', False),
+	('match-owned-error-cleanup', ITEM+MATCH_TAG+'''owned Item build(int value, bool fail) throws Error {
+	var item = new Item(value);
+	if (fail) { throw new Error("selected match failure"); }
+	return move item;
+}
+int attempt(Mode value) {
+	try {
+		var item = match (value) {
+			case Mode.First() => build(20, true);
+			case Mode.Middle() => build(999, false);
+			case Mode.Last() => build(42, false);
+		};
+		return item.value;
+	} catch (Error error) { return 42; }
+}
+int main() {
+	if (attempt(Mode.First()) != 42 || drops() != 1 || drop_sum() != 20) return 1;
+	if (attempt(Mode.Last()) != 42 || drops() != 2 || drop_sum() != 62) return 2;
+	return 42;
+}
+''', ITEM+MATCH_TAG+'''owned Item build(int value, bool fail) throws Error {
+	var item = new Item(value);
+	if (fail) { throw new Error("selected match failure"); }
+	return move item;
+}
+owned Item acquire(Mode value) throws Error {
+	match (value) {
+		case Mode.First(): { return build(20, true); }
+		case Mode.Middle(): { return build(999, false); }
+		case Mode.Last(): { return build(42, false); }
+	}
+}
+int attempt(Mode value) {
+	try { var item = acquire(value); return item.value; }
+	catch (Error error) { return 42; }
+}
+int main() {
+	if (attempt(Mode.First()) != 42 || drops() != 1 || drop_sum() != 20) return 1;
+	if (attempt(Mode.Last()) != 42 || drops() != 2 || drop_sum() != 62) return 2;
+	return 42;
+}
+''', True),
 	('match-payload-alignment', '''enum Payload { Data(bool enabled, u8 small, i64 wide, f64 real), Empty }
 int inspect(Payload value) => match (value) {
 	case Payload.Data(enabled, small, wide, real) => enabled && small == 2 && wide == 9223372036854775807 && real == 40.0d ? 42 : 1;
@@ -309,6 +391,7 @@ int main() { if (run() != 42 || drops() != 1 || drop_sum() != 42) return 1; retu
 ''', False),
 ]
 MATCH_NEGATIVE = [
+	('match-constructor-uninitialized', 'enum E { Data(int value) } class Box { int value; init() { this.value = match (E.Data(this.value)) { case E.Data(value) => value; }; } } int main() { var box = new Box(); return box.value; }'),
 	('match-nested-missing', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(Problem.NotFound()) => 1; }; }'),
 	('match-nested-overlap', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(value) => value; case Result.Failure(problem) => 1; case Result.Failure(Problem.Decode(code)) => code; }; }'),
 	('match-nested-wrong-payload', NESTED_TAG+'int main() { return match (Result.Success(42)) { case Result.Success(Problem.NotFound()) => 1; case Result.Failure(problem) => 2; }; }'),

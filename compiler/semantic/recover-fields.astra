@@ -97,6 +97,7 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 		var declaration = checked.bindings.symbol(symbol);
 		if (declaration.owner.index != function.index || !checked.bindings.accessible(symbol, checked.bindings.scope_for_node(node))) return false;
 		if (declaration.kind == 7) return symbol.index != class_storage_receiver(checked, function);
+		if (enum_leaf_binding(checked, symbol)) return checked.symbol_flags[symbol.index] == 0 && recover_copy_channel(checked, checked.symbol_types[symbol.index], 0, false);
 		return declaration.kind == 8 && initialized[symbol.index] && (checked.symbol_flags[symbol.index] == 0 || checked.symbol_flags[symbol.index] == 4 && recover_storage_channel(checked, checked.symbol_types[symbol.index], 4, false));
 	}
 	if (kind == SyntaxKind.MoveExpressionSyntax()) {
@@ -107,6 +108,16 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 	}
 	if (kind == SyntaxKind.ParenthesizedExpressionSyntax()) return recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_expression(node), function, aggregate, initialized, handled, depth + 1);
 	if (kind == SyntaxKind.RecordExpressionSyntax()) return recover_record_expression_source(checked, node, checked.uses[node.index].type) && recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_initializer(node), function, aggregate, initialized, handled, depth + 1);
+	if (kind == SyntaxKind.MatchExpressionSyntax()) {
+		if (!enum_match_expression_verified(checked, node) || !recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_scrutinee(node), function, aggregate, initialized, handled, depth + 1)) return false;
+		var arms = checked.bindings.program.arena.get_list_arms(node); int at = 0;
+		while (at < checked.bindings.program.arena.list_count(arms)) {
+			var arm = checked.bindings.program.arena.node_at(arms, at);
+			if (!recover_constructor_value_at(checked, checked.bindings.program.arena.get_node_expression(arm), function, aggregate, initialized, handled, depth + 1)) return false;
+			at = at + 1;
+		}
+		return true;
+	}
 	if (kind == SyntaxKind.ConditionalExpressionSyntax()) {
 		var condition = checked.bindings.program.arena.get_node_condition(node);
 		var left = checked.bindings.program.arena.get_node_left(node);
@@ -187,7 +198,15 @@ bool recover_constructor_value_at(CheckedIndex checked, SyntaxNodeId node, Symbo
 	if (kind == SyntaxKind.CallExpressionSyntax()) {
 		if (checked_kind(checked, checked.uses[node.index].type) == 32) {
 			var variant = checked_target(checked, node, checked.bindings.program.arena.get_token_identifier(node));
-			if (variant.index > 0 && checked.bindings.symbol(variant).kind == 13) return enum_constructor_verified(checked, node, variant, checked.uses[node.index].type);
+			if (variant.index > 0 && checked.bindings.symbol(variant).kind == 13) {
+				if (!enum_constructor_verified(checked, node, variant, checked.uses[node.index].type)) return false;
+				var inputs = checked.bindings.program.arena.get_list_arguments(node); int at = 0;
+				while (at < checked.bindings.program.arena.list_count(inputs)) {
+					if (!recover_constructor_value_at(checked, checked.bindings.program.arena.node_at(inputs, at), function, aggregate, initialized, handled, depth + 1)) return false;
+					at = at + 1;
+				}
+				return true;
+			}
 		}
 		var arguments = checked_call_arguments(checked, node);
 		int shared = checked_shared_action(checked, node);

@@ -378,7 +378,7 @@ bool enum_value_facts_verified(CheckedIndex index) {
 bool enum_match_expression_verified(CheckedIndex index, SyntaxNodeId node) {
 	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.MatchExpressionSyntax() || !checked_modern_source(index, node)) return false;
 	var use = index.uses[node.index];
-	if (use.type.index == 0 || use.deferred != 0 || use.flags != 0 && use.flags != 4) return false;
+	if (use.type.index == 0 || use.deferred != 0 && !(use.deferred == 19 && use.flags == 4) || use.flags != 0 && use.flags != 4) return false;
 	var scrutinee = index.bindings.program.arena.get_node_scrutinee(node);
 	if (scrutinee.index < 1 || scrutinee.index >= len(index.uses)) return false;
 	var type = index.uses[scrutinee.index].type;

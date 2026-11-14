@@ -74,6 +74,7 @@ int checked_named_argument_slot(CheckedIndex index, SyntaxNodeId node, SymbolId 
 	int offset = 0;
 	if (class_storage_initializing(index, target)) offset = 1;
 	var explicit_arguments = checked_call_written_arguments(index, node);
+	if (declaration.kind == 11) explicit_arguments = index.bindings.program.arena.get_list_arguments(node);
 	int explicit_count = index.bindings.program.arena.list_count(explicit_arguments);
 	int total = index.bindings.program.arena.list_count(parameters) - offset;
 	if (explicit_count > total || count != explicit_count && count != total) return -1;
