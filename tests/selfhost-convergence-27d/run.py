@@ -241,8 +241,25 @@ def fixed_corpus():
 	"""Replay Stage3 on the exact absolute inputs already compiled by Stage2."""
 	assert authenticate()[0] == load(RUNTIME/'fixed-source.json')['source_rows']
 	runtime = RUNTIME/'fixed-path-corpus'; build = BUILD/'fixed-path-corpus'
-	runtime.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
-	commands = []; comparisons = []; raw_inputs = {}
+	resuming = runtime.exists()
+	if resuming:
+		assert (runtime/'comparisons.json').is_file() and (runtime/'execution-recipe-identity.json').is_file()
+		check_streams(runtime)
+	else:
+		runtime.mkdir(); build.mkdir()
+	commands = load(runtime/'commands.json') if resuming else []
+	comparisons = load(runtime/'comparisons.json') if resuming else []
+	completed = {}; raw_inputs = {}
+	for row in comparisons:
+		assert all(sha(path) == digest for path, digest in {**row['sources'], **row['cached_C_support_objects']}.items())
+		assert sha(row['Stage3_object']) == sha(row['Stage2_object']) == row['object_sha256']
+		assert sha(row['Stage3_ELF']) == sha(row['Stage2_ELF']) == row['ELF_sha256']
+		assert sha(row['raw_LLVM']['path']) == sha(row['raw_LLVM']['Stage2_path']) == row['raw_LLVM']['sha256']
+		completed[(row['host_profile'], row['suite'], row['case'])] = row
+		raw_inputs[(row['host_profile'], row['suite'], tuple(row['sources']))] = row['raw_LLVM']
+	stamp = 'resume-'+str(time.time_ns()) if resuming else 'executed-recipe'
+	(runtime/(stamp+'.py.txt')).write_bytes(Path(__file__).read_bytes())
+	write(runtime/(stamp+'-identity.json'), dict(recipe_sha256=sha(__file__), fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), reauthenticated_completed_program_profiles=len(completed), reused_generation_products=False))
 	def run(name, argv, expected=0, overrides=None, memory=False):
 		argv = list(map(str, argv))
 		outcome = execute(argv, runtime/name, expected=expected, timeout=900, env=dict(environment(), **(overrides or {})))
@@ -270,7 +287,8 @@ def fixed_corpus():
 				for program in load(old/'programs.json'):
 					sources.update(program['sources']); products.update(program['products'])
 			for original in recorded:
-				argv = original['argv']
+				argv = original.get('argv', [])
+				if not argv: continue
 				if argv[0] != left['path'] or argv[1] != '-c': continue
 				assert argv[2] in ('-O0', '-O2') and argv[3] == '-o'
 				assert original['result']['status'] == 'EXPECTED_OUTCOME'
@@ -278,6 +296,9 @@ def fixed_corpus():
 				assert inputs and all(sha(path) == sources[path] for path in inputs)
 				assert sha(argv[4]) == products[argv[4]]
 				prefix = original['name'].removesuffix('-compile')
+				if (host, suite, prefix) in completed:
+					assert completed[(host, suite, prefix)]['original_compile_argv'] == argv
+					continue
 				label = host+'-'+suite+'-'+prefix
 				bucket = build/host/suite; bucket.mkdir(parents=True, exist_ok=True)
 				obj = bucket/Path(argv[4]).name; target = bucket/prefix
@@ -312,7 +333,7 @@ def fixed_corpus():
 				if key not in raw_inputs:
 					old_ir = None
 					for row in recorded:
-						arguments = row['argv']
+						arguments = row.get('argv', [])
 						if '--emit-llvm' not in arguments: continue
 						at = arguments.index('--emit-llvm')
 						if arguments[at+1:at+2] == ['-o'] and arguments[at+3:] == inputs:
@@ -329,7 +350,7 @@ def fixed_corpus():
 				write(runtime/'comparisons.json', comparisons)
 			print('FIXED_PATH', host, suite, 'PASS', flush=True)
 	assert comparisons and all(sha(path) == digest for row in comparisons for path, digest in row['sources'].items())
-	write(runtime/'result.json', dict(status='FIXED_PATH_STAGE2_STAGE3_CORPUS_BYTE_AND_NATIVE_MEMORY_PASS', fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), program_profiles=len(comparisons), exact_raw_LLVM_modules=len(raw_inputs), comparison_sha256=sha(runtime/'comparisons.json'), commands_sha256=sha(runtime/'commands.json'), source_selection='Exact Stage2 absolute source argument lists and recorded bytes; only producer and output destination change. C support objects are authenticated caches, never reused Astra objects or ELFs.', artifact_normalization='NONE'))
+	write(runtime/'result.json', dict(status='FIXED_PATH_STAGE2_STAGE3_CORPUS_BYTE_AND_NATIVE_MEMORY_PASS', fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), program_profiles=len(comparisons), reauthenticated_completed_program_profiles=len(completed), fresh_program_profiles=len(comparisons)-len(completed), exact_raw_LLVM_modules=len(raw_inputs), comparison_sha256=sha(runtime/'comparisons.json'), commands_sha256=sha(runtime/'commands.json'), source_selection='Exact Stage2 absolute source argument lists and recorded bytes; only producer and output destination change. C support objects are authenticated caches, never reused Astra objects or ELFs.', artifact_normalization='NONE'))
 
 
 def convergence():
