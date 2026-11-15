@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 class DuplicateSourceInput : Error {
 	init(string message) : base(message) {}
 }
@@ -22,10 +23,8 @@ owned int[] source_path_order(Vector<Utf8Message> paths) {
 	int count = paths.count();
 	var order = new int[count];
 	var scratch = new int[count];
-	int i = 0;
-	while (i < count) {
+	foreach (var i in 0..count) {
 		order[i] = i;
-		i = i + 1;
 	}
 	int width = 1;
 	while (width < count) {
@@ -41,7 +40,7 @@ owned int[] source_path_order(Vector<Utf8Message> paths) {
 			}
 			int left = start;
 			int right = middle;
-			i = start;
+			int i = start;
 			while (i < end) {
 				bool take_left = right == end;
 				if (left < middle && right < end) {
@@ -92,21 +91,16 @@ int source_path_byte(borrowed Utf8Message path, int offset) {
 owned Vector<Utf8Message> source_canonical_paths(string[] inputs) throws Error {
 	var pending = new Vector<Utf8Message>(len(inputs));
 	var paths = new Vector<Utf8Message>(len(inputs));
-	int i = 0;
-	while (i < len(inputs)) {
+	foreach (var i in 0..len(inputs)) {
 		var path = source_normalize_path(inputs[i]);
 		assert_that(pending.append(move path));
-		i = i + 1;
 	}
 	var order = source_path_order(pending);
-	i = 0;
-	while (i < len(order)) {
+	foreach (var i in 0..len(order)) {
 		int length = source_path_length(pending.entries[order[i]]);
 		var bytes = new u8[length];
-		int at = 0;
-		while (at < length) {
+		foreach (var at in 0..length) {
 			bytes[at] = source_path_byte(pending.entries[order[i]], at) as u8;
-			at = at + 1;
 		}
 		var next = utf8_message(bytes);
 		if (i > 0 && source_path_compare(pending.entries[order[i - 1]], pending.entries[order[i]]) == 0) {
@@ -114,7 +108,6 @@ owned Vector<Utf8Message> source_canonical_paths(string[] inputs) throws Error {
 			throw new DuplicateSourceInput(message.text);
 		}
 		assert_that(paths.append(move next));
-		i = i + 1;
 	}
 	return move paths;
 }
@@ -199,18 +192,15 @@ class SourceSet {
 owned SourceSet source_set(owned Vector<SourceEntry> files) throws Error {
 	assert_that(files.count() > 0);
 	var paths = new Vector<Utf8Message>(files.count());
-	int i = 0;
-	while (i < files.count()) {
+	foreach (var i in 0..files.count()) {
 		var selection = new SourceSelection();
 		source_entry_select(files.entries[i], selection);
 		var source = selection.take();
 		var path = source_path(shared_borrow(source));
 		assert_that(paths.append(move path));
-		i = i + 1;
 	}
 	var order = source_path_order(paths);
-	i = 1;
-	while (i < len(order)) {
+	foreach (var i in 1..len(order)) {
 		if (source_path_compare(paths.entries[order[i - 1]], paths.entries[order[i]]) == 0) {
 			var selection = new SourceSelection();
 			source_entry_select(files.entries[order[i]], selection);
@@ -219,7 +209,6 @@ owned SourceSet source_set(owned Vector<SourceEntry> files) throws Error {
 			var message = source_duplicate_message(path.text);
 			throw new DuplicateSourceInput(message.text);
 		}
-		i = i + 1;
 	}
 	var result = new SourceSet(move files, move order);
 	return move result;

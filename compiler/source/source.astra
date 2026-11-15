@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 // Byte offsets are half-open; columns count non-continuation UTF-8 bytes.
 class SourceBoundsError : Error {
 	init() : base("invalid source span or offset") {}
@@ -11,10 +12,8 @@ struct SourceLocation {
 
 bool source_append_text(Utf8ByteBuilder output, string text) {
 	var bytes = new u8[text.byte_length];
-	int i = 0;
-	while (i < len(bytes)) {
+	foreach (var i in 0..len(bytes)) {
 		bytes[i] = astra_host_text_byte(text, i) as u8;
-		i = i + 1;
 	}
 	return output.append_bytes(bytes);
 }
@@ -36,10 +35,8 @@ owned Utf8Message source_normalize_path(string path) throws Error {
 		if (count > 0 && !(count == 1 && astra_host_text_byte(path, start) == 46)) {
 			if (component) output.append_bytes(slice(slash));
 			var bytes = new u8[count];
-			int i = 0;
-			while (i < count) {
+			foreach (var i in 0..count) {
 				bytes[i] = astra_host_text_byte(path, start + i) as u8;
-				i = i + 1;
 			}
 			output.append_bytes(bytes);
 			component = true;
@@ -138,11 +135,12 @@ class SourceBuffer {
 		int i = this.starts[low];
 		while (i < offset) {
 			int byte = this.content[i] as int;
-			if ((byte & 192) != 128 && byte != 13 && byte != 10) column = column + 1;
+			if ((byte & 192) != 128 && byte != 13 && byte != 10) {
+				column += 1;
+			}
 			i = i + 1;
 		}
-		SourceLocation result = {line = low + 1, column = column};
-		return result;
+		return SourceLocation {line = low + 1, column};
 	}
 
 	// Match bounded GLib UTF-8 validation: the first malformed sequence starts

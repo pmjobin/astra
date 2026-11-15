@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 // Semantic names follow the bootstrap contract; representation is component-local.
 enum TokenKind {
 	EOF,
@@ -300,110 +301,108 @@ int syntax_encoding_error(borrowed SourceBuffer source) { return source.encoding
 string syntax_encoding_message(borrowed SourceBuffer source, int offset) throws SourceBoundsError { if (source.byte_at(offset) == 0) return "unexpected NUL byte";
 	return "invalid UTF-8 encoding"; }
 
-int token_kind_code(TokenKind kind) {
-	match (kind) {
-		case TokenKind.EOF(): { return 0; }
-		case TokenKind.IDENTIFIER(): { return 1; }
-		case TokenKind.SLICE(): { return 2; }
-		case TokenKind.LEN(): { return 3; }
-		case TokenKind.ALL(): { return 4; }
-		case TokenKind.ANY(): { return 5; }
-		case TokenKind.AS(): { return 6; }
-		case TokenKind.DOT_WRAP(): { return 7; }
-		case TokenKind.MAC_WRAP(): { return 8; }
-		case TokenKind.DOT_F32(): { return 9; }
-		case TokenKind.MAC_F32(): { return 10; }
-		case TokenKind.SAT_ADD(): { return 11; }
-		case TokenKind.SAT_SUB(): { return 12; }
-		case TokenKind.WIDEN_LOW(): { return 13; }
-		case TokenKind.WIDEN_HIGH(): { return 14; }
-		case TokenKind.PACK_WRAP(): { return 15; }
-		case TokenKind.PACK_SAT(): { return 16; }
-		case TokenKind.INTERLEAVE_LOW(): { return 17; }
-		case TokenKind.INTERLEAVE_HIGH(): { return 18; }
-		case TokenKind.SPLAT(): { return 19; }
-		case TokenKind.INSERT(): { return 20; }
-		case TokenKind.SHUFFLE(): { return 21; }
-		case TokenKind.SELECT(): { return 22; }
-		case TokenKind.BORROWED(): { return 23; }
-		case TokenKind.INTEGER(): { return 24; }
-		case TokenKind.FLOAT(): { return 25; }
-		case TokenKind.TEXT(): { return 26; }
-		case TokenKind.ENUM(): { return 27; }
-		case TokenKind.MATCH(): { return 28; }
-		case TokenKind.CASE(): { return 29; }
-		case TokenKind.STRUCT(): { return 30; }
-		case TokenKind.CLASS(): { return 31; }
-		case TokenKind.THIS(): { return 32; }
-		case TokenKind.OWNED(): { return 33; }
-		case TokenKind.VAR(): { return 34; }
-		case TokenKind.CONST(): { return 35; }
-		case TokenKind.MOVE(): { return 36; }
-		case TokenKind.RELEASE(): { return 37; }
-		case TokenKind.SWAP(): { return 38; }
-		case TokenKind.DOT(): { return 39; }
-		case TokenKind.EXTERN(): { return 40; }
-		case TokenKind.EXPORT(): { return 41; }
-		case TokenKind.RETURN(): { return 42; }
-		case TokenKind.ASYNC(): { return 43; }
-		case TokenKind.AWAIT(): { return 44; }
-		case TokenKind.THROWS(): { return 45; }
-		case TokenKind.THROW(): { return 46; }
-		case TokenKind.TRY(): { return 47; }
-		case TokenKind.CATCH(): { return 48; }
-		case TokenKind.TRUE(): { return 49; }
-		case TokenKind.FALSE(): { return 50; }
-		case TokenKind.NULL(): { return 51; }
-		case TokenKind.IF(): { return 52; }
-		case TokenKind.ELSE(): { return 53; }
-		case TokenKind.WHILE(): { return 54; }
-		case TokenKind.FOR(): { return 55; }
-		case TokenKind.FOREACH(): { return 56; }
-		case TokenKind.WITH(): { return 57; }
-		case TokenKind.NONNULL(): { return 58; }
-		case TokenKind.BREAK(): { return 59; }
-		case TokenKind.CONTINUE(): { return 60; }
-		case TokenKind.OPEN_PAREN(): { return 61; }
-		case TokenKind.CLOSE_PAREN(): { return 62; }
-		case TokenKind.OPEN_BRACKET(): { return 63; }
-		case TokenKind.CLOSE_BRACKET(): { return 64; }
-		case TokenKind.OPEN_BRACE(): { return 65; }
-		case TokenKind.CLOSE_BRACE(): { return 66; }
-		case TokenKind.COMMA(): { return 67; }
-		case TokenKind.COLON(): { return 68; }
-		case TokenKind.SEMICOLON(): { return 69; }
-		case TokenKind.EQUAL(): { return 70; }
-		case TokenKind.EQUAL_EQUAL(): { return 71; }
-		case TokenKind.BANG(): { return 72; }
-		case TokenKind.BANG_EQUAL(): { return 73; }
-		case TokenKind.AMPERSAND(): { return 74; }
-		case TokenKind.PIPE(): { return 75; }
-		case TokenKind.CARET(): { return 76; }
-		case TokenKind.TILDE(): { return 77; }
-		case TokenKind.SHIFT_LEFT(): { return 78; }
-		case TokenKind.SHIFT_RIGHT(): { return 79; }
-		case TokenKind.ARROW(): { return 80; }
-		case TokenKind.AMPERSAND_AMPERSAND(): { return 81; }
-		case TokenKind.PIPE_PIPE(): { return 82; }
-		case TokenKind.LESS(): { return 83; }
-		case TokenKind.LESS_EQUAL(): { return 84; }
-		case TokenKind.GREATER(): { return 85; }
-		case TokenKind.GREATER_EQUAL(): { return 86; }
-		case TokenKind.PLUS(): { return 87; }
-		case TokenKind.MINUS(): { return 88; }
-		case TokenKind.STAR(): { return 89; }
-		case TokenKind.SLASH(): { return 90; }
-		case TokenKind.PERCENT(): { return 91; }
-		case TokenKind.FAT_ARROW(): { return 92; }
-		case TokenKind.QUESTION(): { return 93; }
-		case TokenKind.COMPOUND_ASSIGNMENT(): { return 94; }
-		case TokenKind.RANGE(): { return 95; }
-		case TokenKind.RANGE_INCLUSIVE(): { return 96; }
-		case TokenKind.INTERPOLATION_END(): { return 99; }
-		case TokenKind.INTERPOLATION_PART(): { return 98; }
-		case TokenKind.INTERPOLATION_START(): { return 97; }
-	}
-}
+int token_kind_code(TokenKind kind) => match (kind) {
+	case TokenKind.EOF() => 0;
+	case TokenKind.IDENTIFIER() => 1;
+	case TokenKind.SLICE() => 2;
+	case TokenKind.LEN() => 3;
+	case TokenKind.ALL() => 4;
+	case TokenKind.ANY() => 5;
+	case TokenKind.AS() => 6;
+	case TokenKind.DOT_WRAP() => 7;
+	case TokenKind.MAC_WRAP() => 8;
+	case TokenKind.DOT_F32() => 9;
+	case TokenKind.MAC_F32() => 10;
+	case TokenKind.SAT_ADD() => 11;
+	case TokenKind.SAT_SUB() => 12;
+	case TokenKind.WIDEN_LOW() => 13;
+	case TokenKind.WIDEN_HIGH() => 14;
+	case TokenKind.PACK_WRAP() => 15;
+	case TokenKind.PACK_SAT() => 16;
+	case TokenKind.INTERLEAVE_LOW() => 17;
+	case TokenKind.INTERLEAVE_HIGH() => 18;
+	case TokenKind.SPLAT() => 19;
+	case TokenKind.INSERT() => 20;
+	case TokenKind.SHUFFLE() => 21;
+	case TokenKind.SELECT() => 22;
+	case TokenKind.BORROWED() => 23;
+	case TokenKind.INTEGER() => 24;
+	case TokenKind.FLOAT() => 25;
+	case TokenKind.TEXT() => 26;
+	case TokenKind.ENUM() => 27;
+	case TokenKind.MATCH() => 28;
+	case TokenKind.CASE() => 29;
+	case TokenKind.STRUCT() => 30;
+	case TokenKind.CLASS() => 31;
+	case TokenKind.THIS() => 32;
+	case TokenKind.OWNED() => 33;
+	case TokenKind.VAR() => 34;
+	case TokenKind.CONST() => 35;
+	case TokenKind.MOVE() => 36;
+	case TokenKind.RELEASE() => 37;
+	case TokenKind.SWAP() => 38;
+	case TokenKind.DOT() => 39;
+	case TokenKind.EXTERN() => 40;
+	case TokenKind.EXPORT() => 41;
+	case TokenKind.RETURN() => 42;
+	case TokenKind.ASYNC() => 43;
+	case TokenKind.AWAIT() => 44;
+	case TokenKind.THROWS() => 45;
+	case TokenKind.THROW() => 46;
+	case TokenKind.TRY() => 47;
+	case TokenKind.CATCH() => 48;
+	case TokenKind.TRUE() => 49;
+	case TokenKind.FALSE() => 50;
+	case TokenKind.NULL() => 51;
+	case TokenKind.IF() => 52;
+	case TokenKind.ELSE() => 53;
+	case TokenKind.WHILE() => 54;
+	case TokenKind.FOR() => 55;
+	case TokenKind.FOREACH() => 56;
+	case TokenKind.WITH() => 57;
+	case TokenKind.NONNULL() => 58;
+	case TokenKind.BREAK() => 59;
+	case TokenKind.CONTINUE() => 60;
+	case TokenKind.OPEN_PAREN() => 61;
+	case TokenKind.CLOSE_PAREN() => 62;
+	case TokenKind.OPEN_BRACKET() => 63;
+	case TokenKind.CLOSE_BRACKET() => 64;
+	case TokenKind.OPEN_BRACE() => 65;
+	case TokenKind.CLOSE_BRACE() => 66;
+	case TokenKind.COMMA() => 67;
+	case TokenKind.COLON() => 68;
+	case TokenKind.SEMICOLON() => 69;
+	case TokenKind.EQUAL() => 70;
+	case TokenKind.EQUAL_EQUAL() => 71;
+	case TokenKind.BANG() => 72;
+	case TokenKind.BANG_EQUAL() => 73;
+	case TokenKind.AMPERSAND() => 74;
+	case TokenKind.PIPE() => 75;
+	case TokenKind.CARET() => 76;
+	case TokenKind.TILDE() => 77;
+	case TokenKind.SHIFT_LEFT() => 78;
+	case TokenKind.SHIFT_RIGHT() => 79;
+	case TokenKind.ARROW() => 80;
+	case TokenKind.AMPERSAND_AMPERSAND() => 81;
+	case TokenKind.PIPE_PIPE() => 82;
+	case TokenKind.LESS() => 83;
+	case TokenKind.LESS_EQUAL() => 84;
+	case TokenKind.GREATER() => 85;
+	case TokenKind.GREATER_EQUAL() => 86;
+	case TokenKind.PLUS() => 87;
+	case TokenKind.MINUS() => 88;
+	case TokenKind.STAR() => 89;
+	case TokenKind.SLASH() => 90;
+	case TokenKind.PERCENT() => 91;
+	case TokenKind.FAT_ARROW() => 92;
+	case TokenKind.QUESTION() => 93;
+	case TokenKind.COMPOUND_ASSIGNMENT() => 94;
+	case TokenKind.RANGE() => 95;
+	case TokenKind.RANGE_INCLUSIVE() => 96;
+	case TokenKind.INTERPOLATION_END() => 99;
+	case TokenKind.INTERPOLATION_PART() => 98;
+	case TokenKind.INTERPOLATION_START() => 97;
+};
 
 TokenKind token_kind_from_code(int code) {
 	if (code == 0) return TokenKind.EOF();
