@@ -62,6 +62,10 @@ Public ABI, LLVM23.1.4, generic256 and SSA8M ceilings remain fixed. Fixed-source
 Stage1→2→3 convergence is reserved for 27-D; public release is reserved for 28.
 The new 27-C G7 remains a separate check after publication.
 
+The chronological development observations below preserve earlier failures and
+their original limits. The final corrected candidate and qualification are
+recorded in the last section; no earlier failed product is relabeled.
+
 ## Development state
 
 The first named-call source batch retains label and colon tokens separately
@@ -1529,3 +1533,89 @@ remains a qualification failure. The repair must require actual receiver syntax
 for range/lazy member recognition while preserving ordinary binding and fresh
 independent source checks; no test expectation, C0/LLVM/public ABI or work ceiling
 is waived. Complete old-native qualification and final publication remain pending.
+
+## Corrected final candidate and current qualification
+
+The ordinary free-function `sum` failure is repaired in the producer, without
+weakening assertions or independent consumers. Range/lazy member recognition
+requires an actual receiver, zero-token helper queries return a refusal, and an
+ordinary user method named `collect_fixed` follows ordinary binding when its
+receiver is not a supported range/collection. The legacy-source repair is
+commit `20cb5de631b0ea583a1e0516d2603d9e5f77cc0c`; its normal merge into migrated
+source is `fbfd9828fc679f0408a1acd15d096ee3b2597371`, tree
+`d523aef15bc6753fad8fe4ed4ac43b04d9dbfe90`. No source restore, reset or repin
+was used. Permanent positive twins cover twelve ordinary free-function names,
+twelve ordinary methods, and the actual lazy/range/fixed forms.
+
+The final supporting C0-built Stage1 dev20 has SHA-256
+`ef76dc5ff31235099fbca05a06e586c02c464f195229a77097349ec51186dbb0` and compiles
+the complete legacy-source 220+10 closure at 20cb5de. Its retained C0 LLVM IR is
+SHA-256 `83d1667328f91380753505679db0beb90bb4fa8c886d9079325ae977ce5778d7`.
+The final Astra-built Stage2 dev21 has SHA-256
+`b35a9ca0f7bcc54fbb4dc632a7004fa0f5f14bb5797c75f5e9468d3eda1ce857` and actually
+accepts all 220 migrated compiler and 10 current library sources at fbfd9828.
+Its actual producer is dev18, SHA-256
+`01d4b84cc7f6d0239327d1899e0257b7ff68225df0213ce0774031e378644a99`; dev20 is
+not its producer. The actual Astra compilation took 3504.880 seconds, followed
+by a 0.347-second link. Both hosts use O2 host optimization. C0's separately
+recorded semantic oracle is the explicit older 230-source 20cb5de closure; it
+does not claim that C0 accepts migrated syntax. These versioned generation
+identities establish no fixed-source Stage3 convergence.
+
+Both final hosts pass all five 27-C native feature selections, actual target
+O0/O2, expanded C0 references, LLVM structural verification, ELF execution,
+semantic refusals with preserved output sentinels, and strict returning
+compiler/target memory with zero live bytes, errors and suppressions. Both
+also pass all seven selected physical groups: named/match, range, lazy,
+collection, interpolation, enum and the existing 27-B physical suite. Mutations
+are LLVM-valid before an independent consumer rejects them; corrupted targets
+are not executed. The 24-job controller is
+`selfhost27c-stable-native-qualification3/result.json`, commands SHA-256
+`22bea07404cdff690dd7e949dc4d92695d2b55b6119a7e25cad13e7e6cad8706`.
+The exact inclusive 20 through 80 stride 5 example produces thirteen values,
+sum 650, with one 52-byte owning allocation and no intermediate array.
+
+The additional final-host freestanding proofs are
+`selfhost27c-dev20-final-freestanding` and
+`selfhost27c-dev21-final-freestanding`. Unused ranges, scalar loops and static
+fixed collection each pass actual O0/O2 objects and ELF execution linked only
+to a syscall entry, with no libc, allocator or undefined symbols. C0 expanded
+references, returning compiler/target memory and LLVM checks pass. The owning
+array positive twin imports allocation and independently fails the same link
+without its allocator at both modes.
+
+The corrected final old regressions pass on each host in
+`selfhost27c-dev20-corrected-final2-worker` and
+`selfhost27c-dev21-corrected-final2-worker`: unchanged record-punning failfast,
+all eight old-native selections, seven retained legacy groups, intrinsic ABI,
+and the existing three C-client fixtures. They include real target O0/O2,
+retained LLVM/ELF and strict returning memory. The C-client proof uses the
+established LLVM fastcc-to-C bridge and objcopy isolation of the unused
+program-mode main; it does not claim a new source-defined C export. The 18/19
+regression failures remain failed evidence, never upgraded by these reruns.
+
+The final current-source semantic consumer executes at least 30 independent
+corruption/refusal/restoration controls across copied Class/free-generic/
+generic-Class foreach and all five member-dispatch families. Two controls
+substitute a same-spelling `sum` token from the wrong source span: the producer
+still recognizes action 4, while the fresh independent consumer rejects it.
+Its actual 114-compiler+10-library+consumer component returns 42 natively and
+under strict Valgrind with zero live bytes, errors and suppressions.
+`selfhost27c-dispatch-semantic1/result.json` has SHA-256
+`a9fc94daf203b8389582dbb27f93586b2dc7c2a14131396bbe4787f55be9fe43`;
+the tested consumer SHA-256 is
+`cf334a1b53fa1bf6825951a3370ca3ee9dfde5a8bdb89e25d9481ee5ee2809e2`.
+
+All three migrated CLI workloads pass again on both corrected hosts. Per host,
+the proof records 12 actual C0-before/Astra-after executables, target O0/O2,
+108 file/fault observations, 132 argv checks and 64 strict returning target
+memory streams, plus LLVM and ELF checks. Aggregate
+`selfhost27c-workload-corrected-final-hosts/result.json` SHA-256 is
+`607e8f021761df0bb242af9e23dd208e631dea9216e4bbaa3a0be128f19a67c5`.
+The portable README recipe now names these corrected hosts; its Bash body is
+the previously executed body. Source-versioned legacy oracles remain distinct
+from actual current-source compilation and workload execution.
+
+The historical release-decision ledger above remains in force. Installed
+publication and the independently dated post-delivery 27-C G7 remain subsequent
+operations; this prepublication source document does not predeclare G7 PASS.

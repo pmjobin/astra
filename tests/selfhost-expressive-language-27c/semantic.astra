@@ -420,6 +420,75 @@ void expressive_copied_foreach() throws Error {
 	println("COPIED_FOREACH_GENERIC_CLASS_STRUCTURAL_BINDING_FLOW_PASS");
 }
 
+bool expressive_dispatch_verified(CheckedIndex checked, SyntaxNodeId node, int family) {
+	if (family == 1) return lazy_call_verified(checked, node);
+	if (family == 2) return range_query_verified(checked, node);
+	if (family == 3) return range_step_verified(checked, node);
+	if (family == 4) return range_collect_verified(checked, node);
+	if (family == 5) return range_fixed_verified(checked, node);
+	return false;
+}
+
+void expressive_member_dispatch() throws Error {
+	var checked = expressive_checked("language astra27b; int sum(int value) { return value; } class Ordinary { init() {} int collect_fixed(int value) { return value; } } int main() { var ordinary = new Ordinary(); if (sum(42) != 42 || ordinary.collect_fixed(42) != 42) return 1; var data = (20..=80).step_by(5).collect_array(); int total = (0..10).map(value => value*2).filter(value => value >= 10).sum(); int[3] fixed = (1..4).collect_fixed(); int[4] source = {1,2,3,4}; if (source.iter().map(value => value+1).sum() != 14 || !(1..4).contains(3) || !(4..4).is_empty()) return 2; return 42; }");
+	int at = 1; int members = 0; int free_calls = 0; int alien_names = 0;
+	var families = new int[6];
+	SyntaxNodeId absent = {index = 0}; SyntaxTokenId absent_token = {index = 0};
+	SyntaxTokenId free_sum = {index = 0};
+	while (at <= checked.bindings.symbol_count) {
+		var declaration = checked.bindings.symbol(type_symbol(at));
+		if (declaration.kind == 1 && declaration.owner.index == 0 && checked.bindings.program.arena.token_is(declaration.token, "sum")) free_sum = declaration.token;
+		at = at+1;
+	}
+	assert_that(free_sum.index > 0);
+	at = 1;
+	while (at < len(checked.uses)) {
+		SyntaxNodeId node = {index = at};
+		if (checked.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax()) {
+			var receiver = checked.bindings.program.arena.get_node_receiver_place(node);
+			var token = checked.bindings.program.arena.get_token_receiver(node);
+			if (receiver.index == 0 && token.index == 0) {
+				assert_that(lazy_call_action(checked, node) == 0 && range_query_action(checked, node) == 0 && !range_step_call(checked, node) && !range_collect_call(checked, node) && !range_fixed_call(checked, node));
+				assert_that(range_query_receiver(checked, node).index == 0 && lazy_iter_root(checked, node).index == 0 && lazy_receiver_flags(checked, node) == -1);
+				free_calls = free_calls+1;
+			}
+			int family = 0;
+			if (lazy_call_verified(checked, node)) family = 1;
+			if (range_query_verified(checked, node)) family = 2;
+			if (range_step_verified(checked, node)) family = 3;
+			if (range_collect_verified(checked, node)) family = 4;
+			if (range_fixed_verified(checked, node)) family = 5;
+			if (family != 0) {
+				checked.bindings.program.arena.set_node_receiver_place(node, absent);
+				checked.bindings.program.arena.set_token_receiver(node, absent_token);
+				assert_that(lazy_call_action(checked, node) == 0 && range_query_action(checked, node) == 0 && !range_step_call(checked, node) && !range_collect_call(checked, node) && !range_fixed_call(checked, node));
+				assert_that(range_query_receiver(checked, node).index == 0 && lazy_iter_root(checked, node).index == 0 && lazy_receiver_flags(checked, node) == -1);
+				assert_that(!expressive_dispatch_verified(checked, node, family));
+				checked.bindings.program.arena.set_node_receiver_place(node, receiver);
+				checked.bindings.program.arena.set_token_receiver(node, token);
+				assert_that(expressive_dispatch_verified(checked, node, family));
+				members = members+1; families[family] = families[family]+1;
+				var identifier = checked.bindings.program.arena.get_token_identifier(node);
+				if (checked.bindings.program.arena.token_is(identifier, "sum")) {
+					// The spelling stays "sum"; the original declaration token span
+					// cannot stand in for this call's independently checked source.
+					checked.bindings.program.arena.set_token_identifier(node, free_sum);
+					assert_that(lazy_call_action(checked, node) == 4);
+					assert_that(!expressive_dispatch_verified(checked, node, family));
+					checked.bindings.program.arena.set_token_identifier(node, identifier);
+					assert_that(expressive_dispatch_verified(checked, node, family));
+					alien_names = alien_names+1;
+				}
+			}
+		}
+		at = at+1;
+	}
+	assert_that(free_calls > 0 && members >= 10 && alien_names == 2);
+	assert_that(families[1] > 0 && families[2] > 0 && families[3] > 0 && families[4] > 0 && families[5] > 0);
+	assert_that(checked.validate() && generic_verify(checked) && enum_value_facts_verified(checked));
+	println("MEMBER_DISPATCH_SOURCE_AND_CONSUMER_CONTROLS_PASS");
+}
+
 int main() {
 	try {
 		if (astrac_argument_count() > 1) {
@@ -458,6 +527,7 @@ int main() {
 		expressive_comprehension_types();
 		expressive_named_enum_arguments();
 		expressive_copied_foreach();
+		expressive_member_dispatch();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }

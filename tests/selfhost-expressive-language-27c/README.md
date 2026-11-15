@@ -90,8 +90,8 @@ Use an authenticated compiler and the six authenticated provider objects from an
 
 | Host | Actual compiler source revision | Producer | SHA-256 |
 | --- | --- | --- | --- |
-| dev18 | `28f89b600115efe958f3f8d4724bb79aed0fc0f5` | C0 | `01d4b84cc7f6d0239327d1899e0257b7ff68225df0213ce0774031e378644a99` |
-| dev19 | `38e3e3e181609e1513e86cbb22a28a5465cfd000` | Astra dev16 | `93615207f7fc09a4947f8eb759b19b98d984371df7bc065e16dd1d5e67c4bdc3` |
+| dev20 | `20cb5de631b0ea583a1e0516d2603d9e5f77cc0c` | C0 | `ef76dc5ff31235099fbca05a06e586c02c464f195229a77097349ec51186dbb0` |
+| dev21 | `fbfd9828fc679f0408a1acd15d096ee3b2597371` | Astra dev18 | `b35a9ca0f7bcc54fbb4dc632a7004fa0f5f14bb5797c75f5e9468d3eda1ce857` |
 
 This Bash recipe uses explicit repository, compiler, provider and external output paths, the existing native driver, `cc`, and the pinned LLVM 23.1.4 verifier. It does not invoke C0 on migrated source. Set the four paths before running it; select the same qualified PATH/library environment recorded in the compiler build receipt.
 
