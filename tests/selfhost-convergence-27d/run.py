@@ -598,9 +598,34 @@ def package():
 		destination = snapshot/'source'/name; destination.parent.mkdir(parents=True, exist_ok=True)
 		destination.write_bytes((ROOT/name).read_bytes())
 	packet = WORK/'runtime/native-current/input'
-	for name in ('27c-delivered-report.zip', '27c-original-submission.zip', '27c-post-delivery-G7.json'):
-		destination = snapshot/'predecessor'/name; destination.parent.mkdir(parents=True, exist_ok=True)
-		shutil.copy2(packet/'reference/previous'/name, destination)
+	# The unchanged publisher limits the final ZIP to 25 MiB. Preserve every
+	# new proof byte; identify duplicate supplied archives by exact bytes/hash
+	# in the immutable original submission rather than recursively bundling them.
+	archives = {
+		'27c-delivered-report.zip': 'fa2774726568fa1942e46b74fcb138664e11048981776eb2e9dc3e21011cdca0',
+		'27c-original-submission.zip': 'ec80c9c284fcc324f1f54837f4c7d2b028a98ae2980f4841c960576b4ecf4ab2',
+	}
+	intake = load(WORK/'runtime/native-current/pm-next-intake.json')
+	assert sha(intake['submission_path']) == intake['submission_sha256']
+	references = []
+	with zipfile.ZipFile(intake['submission_path']) as submitted:
+		for name, digest in archives.items():
+			path = packet/'reference/previous'/name
+			assert sha(path) == digest
+			member = 'reference/previous/'+name
+			data = submitted.read(member)
+			assert hashlib.sha256(data).hexdigest() == digest and len(data) == path.stat().st_size
+			references.append(dict(path=str(path), submission_member=member, bytes=len(data), sha256=digest, bundled=False))
+	write(snapshot/'predecessor/external-archives.json', dict(submission_path=intake['submission_path'], submission_sha256=intake['submission_sha256'], archives=references, reason='Duplicate supplied archives remain byte-exact in the unchanged original submission. The report transports every new 27D proof byte within the unchanged 25 MiB publisher bound.'))
+	with zipfile.ZipFile(packet/'reference/previous/27c-delivered-report.zip') as predecessor:
+		for name in ('MANIFEST.json', 'RESULT.json', 'REPORT.md', 'OMISSIONS.md'):
+			if name not in predecessor.namelist(): continue
+			destination = snapshot/'predecessor'/name; destination.parent.mkdir(parents=True, exist_ok=True)
+			destination.write_bytes(predecessor.read(name))
+	for path in [packet/'reference/previous/27c-post-delivery-G7.json', *sorted((packet/'reference/approval').glob('*')), *sorted(packet.glob('*.md')), *sorted(packet.glob('*.json'))]:
+		if not path.is_file(): continue
+		destination = snapshot/'intake-reference'/path.relative_to(packet)
+		destination.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, destination)
 	for name in ('build-identity.json', 'snapshot.json', 'result.json', 'link.json'):
 		destination = snapshot/'seed'/name; destination.parent.mkdir(parents=True, exist_ok=True)
 		shutil.copy2(PRIOR/name, destination)
@@ -678,6 +703,13 @@ def delivery():
 	for row in load(RUNTIME/'fixed-source.json')['source_rows']:
 		proof = model['files']['payload/source/'+row['path']]
 		assert proof['sha256'] == sha(ROOT/row['path']) == row['sha256'] and proof['bytes'] == row['bytes']
+	references = load(WORK/'runtime/selfhost27d-publication/payload/predecessor/external-archives.json')
+	assert model['files']['payload/predecessor/external-archives.json']['sha256'] == sha(WORK/'runtime/selfhost27d-publication/payload/predecessor/external-archives.json')
+	assert sha(references['submission_path']) == references['submission_sha256'] == intake['submission_sha256']
+	with zipfile.ZipFile(references['submission_path']) as submitted:
+		for row in references['archives']:
+			data = submitted.read(row['submission_member'])
+			assert len(data) == row['bytes'] and hashlib.sha256(data).hexdigest() == sha(row['path']) == row['sha256']
 	stage = load(RUNTIME/'stage3/result.json')
 	for mode, product in stage['products'].items():
 		assert model['files']['payload/build/stage3/astrac-'+mode]['sha256'] == sha(product['path']) == product['sha256']

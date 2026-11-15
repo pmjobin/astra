@@ -231,12 +231,23 @@ release-level owner decision remains for milestone 28; this milestone neither
 demands impossible historical reconstruction nor waives that decision.
 
 After actual qualification, `compare`, `audit` and `package` retain the complete
-new raw evidence and the embedded predecessor references. Malformed-argv symlink
+new raw evidence and authenticated predecessor identities. Malformed-argv symlink
 aliases are recorded as path/target metadata; their underlying programs,
 arguments and raw results are retained. The predecessor's concatenated archive
-is reconstructible from its embedded report segments and is not duplicated.
+is reconstructible from the original supplied report segments and is not duplicated.
 LLVM capsule, system libraries, rebuilt C0 and other external tool paths remain
 explicitly identified external dependencies, not bundled toolchain sources.
+
+The initial complete package reconstructed byte-exactly but was 32,485,024 bytes,
+exceeding the unchanged publisher's 25 MiB report limit. That first package is
+retained locally as `runtime/selfhost27d-publication-attempt1`. The final report
+includes every new 27-D proof byte, the actual seed, complete F, prior summary,
+manifest, approval and G7 receipt. It identifies the duplicate 27-C report and
+original submission archives by exact hash, size and member within the unchanged
+27-D submission ZIP. Those supplied read-only archives remain external report
+dependencies, not missing or newly reconstructed historical proofs. G8 checks
+their exact bytes again against the authenticated original submission. No new
+proof is pruned and no workflow size limit is changed.
 
 Publication uses only the unchanged installed `publish.py` and one canonical
 `~/Workspace/codex/reports/astra-report-current.zip`. Prepublication G8 is always
