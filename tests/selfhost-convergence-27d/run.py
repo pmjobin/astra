@@ -518,8 +518,8 @@ def audit():
 				if 'compiler_sha256' in proof: assert proof['compiler_sha256'] == product['sha256']
 				for name, key in (('identity.json', 'identity_sha256'), ('commands.json', 'commands_sha256'), ('programs.json', 'programs_sha256'), ('observations.json', 'observations_sha256')):
 					if key in proof: assert sha(root/name) == proof[key]
-				identity = load(root/'identity.json') if (root/'identity.json').exists() else {}
-				for model in (proof, identity):
+				suite_identity = load(root/'identity.json') if (root/'identity.json').exists() else {}
+				for model in (proof, suite_identity):
 					for group in ('inputs', 'sources', 'actual_sources', 'source_inputs', 'providers', 'tools', 'products'):
 						for path, digest in model.get(group, {}).items():
 							if isinstance(digest, dict):
