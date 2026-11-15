@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 // The condition entry exists before lowering the body, so continue targets
 // the actual condition evaluation, including its checked-call error edge.
 int recover_cfg_loop(RecoverCfg cfg, int id, int next, int depth) {
 	var row = cfg.core.nodes[id - 1].value; int operation = 0; int head = 0;
 	if (row.kind == 89) {
-		int check = cfg.block(row.function, id, 90, row.a, 0, 0, next, 0, 0, 0);
-		int increment = cfg.block(row.function, id, 92, 0, 0, check, 0, 0, 0, 0);
-		int advance = cfg.block(row.function, id, 91, row.a, 0, increment, next, 0, 0, 0);
-		operation = cfg.block(row.function, id, 89, row.a, 0, check, 0, 0, 0, advance);
+		int check = cfg.block(row.function, id, opcode: 90, a: row.a, b: 0, next: 0, other: next, owner: 0, carry: 0, rank: 0);
+		int increment = cfg.block(row.function, id, opcode: 92, a: 0, b: 0, next: check, other: 0, owner: 0, carry: 0, rank: 0);
+		int advance = cfg.block(row.function, id, opcode: 91, a: row.a, b: 0, next: increment, other: next, owner: 0, carry: 0, rank: 0);
+		operation = cfg.block(row.function, id, opcode: 89, a: row.a, b: 0, next: check, other: 0, owner: 0, carry: 0, rank: advance);
 		if (operation == 0) return 0;
-		RecoverRegion early = {entry = operation, operation = operation, next = next}; cfg.regions[id - 1] = early;
+		cfg.regions[id - 1] = RecoverRegion {entry = operation, operation, next};
 		int body = recover_cfg_tree(cfg, row.b, advance, depth + 1);
 		var branch = cfg.blocks[check - 1]; branch.next = body; cfg.blocks[check - 1] = branch;
 		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
 	}
 	if (row.kind == 28) {
-		operation = cfg.block(row.function, id, 21, row.a, 0, 0, next, 0, 0, 0);
+		operation = cfg.block(row.function, id, opcode: 21, a: row.a, b: 0, next: 0, other: next, owner: 0, carry: 0, rank: 0);
 		if (operation == 0) return 0;
 		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
-		RecoverRegion early = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = early;
+		cfg.regions[id - 1] = RecoverRegion {entry = head, operation, next};
 		int body = recover_cfg_tree(cfg, row.b, head, depth + 1); var branch = cfg.blocks[operation - 1]; branch.next = body; cfg.blocks[operation - 1] = branch;
 	}
 	if (row.kind == 29 || row.kind == 41) {
@@ -29,14 +30,14 @@ int recover_cfg_loop(RecoverCfg cfg, int id, int next, int depth) {
 				destination = cfg.blocks[loop.operation - 1].rank;
 			}
 		}
-		operation = cfg.block(row.function, id, row.kind, 0, 0, destination, 0, 0, 0, 0);
+		operation = cfg.block(row.function, id, opcode: row.kind, a: 0, b: 0, next: destination, other: 0, owner: 0, carry: 0, rank: 0);
 		head = recover_cfg_scope_exit(cfg, id, cfg.core.owners.scopes[id - 1], cfg.core.owners.scopes[row.c - 1], row.caught, 0, 0, operation, 0);
 	}
 	if (row.kind == 42 || row.kind == 75) {
-		operation = cfg.block(row.function, id, row.kind, row.a, 0, next, 0, 0, 0, 0);
+		operation = cfg.block(row.function, id, opcode: row.kind, a: row.a, b: 0, next: next, other: 0, owner: 0, carry: 0, rank: 0);
 		head = recover_cfg_tree(cfg, row.a, operation, depth + 1);
 	}
-	RecoverRegion region = {entry = head, operation = operation, next = next}; cfg.regions[id - 1] = region; return head;
+	cfg.regions[id - 1] = RecoverRegion {entry = head, operation, next}; return head;
 }
 
 bool recover_cfg_check_loop(RecoverCfg cfg, int id, int next, bool[] seen, bool[] nodes, int depth) {
