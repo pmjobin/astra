@@ -28,7 +28,9 @@ def main():
 	p.add_argument('--producer-kind', choices=('astra', 'c0'), default='astra')
 	p.add_argument('--consumer', type=Path)
 	p.add_argument('--semantic-oracle-inputs', type=Path, help='Authenticated versioned compiler/library source closure for C0 preflight; the actual consumer and Astra compilation remain current')
+	p.add_argument('--compile-timeout-seconds', type=int, default=7200, help='Bound the actual component compilation; retained modern O0 evidence costs about 1,565 CPU seconds before O2 qualification')
 	a = p.parse_args()
+	assert a.compile_timeout_seconds > 0
 	if a.consumer is None: a.consumer = Path(__file__).with_name(a.layer+'.astra')
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
@@ -91,9 +93,9 @@ def main():
 		obj = build/('component-'+mode+'.o'); target = build/('component-'+mode)
 		if a.producer_kind == 'c0':
 			links = [arg for path in providers for arg in ('--link-object', path)]
-			run(mode+'-compile-link', [a.compiler, '-'+mode, *actual, *links, '-o', target], timeout=3600)
+			run(mode+'-compile-link', [a.compiler, '-'+mode, *actual, *links, '-o', target], timeout=a.compile_timeout_seconds)
 		else:
-			run(mode+'-compile', [a.compiler, '-c', '-'+mode, '-o', obj, *actual], timeout=1800)
+			run(mode+'-compile', [a.compiler, '-c', '-'+mode, '-o', obj, *actual], timeout=a.compile_timeout_seconds)
 			run(mode+'-link', ['cc', '-no-pie', obj, *providers, '-o', target])
 		run(mode+'-native', [target], 42)
 		run(mode+'-memory', ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', target], 42)
