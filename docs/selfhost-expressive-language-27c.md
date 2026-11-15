@@ -1430,3 +1430,53 @@ suppressions (selfhost27c-dev15-owner-replay2). This measures the combined repai
 on the unchanged captured graph, not a completed compilation of the next source
 revision. A fresh complete C0-built host and genuine Astra-source build remain
 required before migration.
+
+Dev16 is the genuine optimized C0-built product from b3cc7bd9b972d3897a8981dfbcf12bf87a08821e,
+tree 759a48dd549fe75dd277f699733b67bb3344aa05. Its semantic/Core preflights
+pass in 76.676/94.943 seconds and construction takes 3951.287 seconds. Executable
+SHA-256 is 520da0721954f16832061da4e4a5659d948e5212aad2723b5e8dc68d2a790d58;
+retained optimized C0 IR is d640da45cb922f6adee6816bfcb3132e1b38a89d7d48a52050d92b94f982e17e.
+Dev17 genuinely compiles the same 220 compiler and ten library inputs with that
+Astra producer in 3542.014 seconds, then links an actual executable with SHA-256
+e713a1668d92928af5ad64e47c0972e01c24bb895d06b26686cb52f6e132ebfd.
+Both products pass five focused new-language cases, their semantic negatives,
+actual O0/O2 targets, C0 expanded references, LLVM and strict returning compiler/
+target memory (selfhost27c-dev16-continuation1). This is a development-source
+and focused-native pass, not final milestone qualification or Stage3.
+
+A bounded read-only live dev17 sample authenticates the actual producer and
+finds it in RecoverLlvm.emit_block/build after both SSA checks. Its stack contains
+RecoverAbi construction, recover_abi_group_count and recursive class-storage
+source validation (selfhost27c-dev17-sample1). The next small producer change
+counts Class/Shared/Weak candidate ABI positions as their single pointer group;
+recover_abi_source and the complete independent physical consumer remain
+unchanged. Its complete 230-source C0 semantic preflight passes in 79.104 seconds
+(selfhost27c-abi-planner-preflight1). This identifies and removes redundant
+planning work; the one sample and semantic preflight establish no measured cold
+speedup or final native/ABI qualification.
+
+Parallel migration preparation finds a real missing ForeachStatementSyntax case
+in the maintained Class/generic specialization copier and its independent
+structural consumer. The implementation fix adds that existing schema node via
+the generator, without changing Binder, ownership, Source/root or physical
+checks. The prior seed still cannot qualify Class/generic foreach. Rejected
+method-foreach and C-style-for probes remain failures; the latter also has no
+recover-native CFG lowering. Seed-compatible migration therefore retains Class/
+generic while loops, while exercising supported free-function ranges, expression
+matches, named calls, record returns and compound updates. The selected helper
+and Source utility before/after probes pass actual O0/O2, C0 references, LLVM and
+strict returning memory (selfhost27c-migration-compiler-probe1 and
+selfhost27c-migration-source-probe5).
+
+The existing production recipe now has explicit, authenticated committed-source
+selection and versioned semantic-oracle inputs. They freeze Git bytes into the
+prescribed external work directory, disclose whether they equal live source,
+and never restore the worktree or change HEAD. Older C0 preflight source is
+reported separately from actual current Astra compilation; no C0 acceptance of
+modern syntax is inferred. The 230-input oracle validator accepts the exact
+dev16 baseline and refuses wrong hashes, missing sources, wrong revisions and
+writable inputs (selfhost27c-versioned-oracle-validator1). A supporting legacy
+source revision can therefore receive the real foreach implementation fix and
+planning optimization while ongoing migration remains intact in the worktree.
+Its new compiler build and Class/generic foreach native qualification remain
+required; there is no repin of C0, LLVM, the public ABI or the work ceilings.

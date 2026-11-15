@@ -229,6 +229,12 @@ SyntaxNodeId generic_copy_node(CheckedIndex index, GenericInstance plan, SyntaxN
 			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
 			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_for_statement(data, header.span, header.depth);
 		}
+		case SyntaxKind.ForeachStatementSyntax(): {
+			var data = index.bindings.program.arena.foreach_statement(original);
+			data.f_collection = generic_copy_node(index, plan, data.f_collection, depth + 1);
+			data.f_body = generic_copy_node(index, plan, data.f_body, depth + 1);
+			if (!index.failed() && generic_copy_room(index, original)) result = index.bindings.program.arena.add_foreach_statement(data, header.span, header.depth);
+		}
 		case SyntaxKind.MatchStatementSyntax(): {
 			var data = index.bindings.program.arena.match_statement(original);
 			data.f_scrutinee = generic_copy_node(index, plan, data.f_scrutinee, depth + 1);

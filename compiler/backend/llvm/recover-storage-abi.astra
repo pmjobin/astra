@@ -57,7 +57,13 @@ class RecoverAbi {
 			if (physical == success) physical = physical + 1;
 			this.groups[p] = physical;
 			var channel = checked.types.argument(checked.types, signature.callable, p + 1);
-			physical = physical + recover_abi_group_count(checked, channel.type, channel.flags);
+			// This producer computes candidate ABI positions only. Class,
+			// Shared and Weak handles each occupy one pointer channel; their
+			// recursive source admission belongs to recover_abi_source and
+			// the independent physical consumer, not every call-site plan.
+			int kind = checked_kind(checked, channel.type); int groups = 1;
+			if (kind != 31 && kind != 27 && kind != 28) groups = recover_abi_group_count(checked, channel.type, channel.flags);
+			physical = physical + groups;
 			p = p + 1;
 		}
 		if (physical == success) physical = physical + 1; this.parameters = physical;

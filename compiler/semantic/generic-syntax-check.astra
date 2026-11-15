@@ -331,6 +331,14 @@ bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId o
 			if (!generic_check_child(index, plan, first_data.f_step, second_data.f_step)) return false;
 			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
 		}
+		case SyntaxKind.ForeachStatementSyntax(): {
+			var first_data = index.bindings.program.arena.foreach_statement(original);
+			var second_data = index.bindings.program.arena.foreach_statement(concrete);
+			if (first_data.f_keyword.index != second_data.f_keyword.index) return false;
+			if (first_data.f_binding.index != second_data.f_binding.index) return false;
+			if (!generic_check_child(index, plan, first_data.f_collection, second_data.f_collection)) return false;
+			if (!generic_check_child(index, plan, first_data.f_body, second_data.f_body)) return false;
+		}
 		case SyntaxKind.MatchStatementSyntax(): {
 			var first_data = index.bindings.program.arena.match_statement(original);
 			var second_data = index.bindings.program.arena.match_statement(concrete);
