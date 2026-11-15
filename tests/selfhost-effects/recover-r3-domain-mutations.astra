@@ -124,7 +124,7 @@ bool recover_r3_domain_physical(RecoverLlvm module, RecoverSsa ssa, int category
 	while (b < ssa.cfg.block_count) {
 		var block = ssa.cfg.blocks[b];
 		if (block.origin > 0) {
-			var row = ssa.cfg.core.nodes[block.origin - 1].value; var operation = module.operations[b];
+			var row = ssa.cfg.core.nodes[block.origin - 1].value; var operation = module.state.operations[b];
 			if ((category == 0 || category == 3) && block.opcode == 4 && recover_call_receiver(ssa.cfg.core.flow.checked, row.symbol)) {
 				if (category == 0) {
 					var receiver = LLVMGetArgOperand(operation, 0);
@@ -136,14 +136,14 @@ bool recover_r3_domain_physical(RecoverLlvm module, RecoverSsa ssa, int category
 				return true;
 			}
 			if (category == 2 && block.opcode == 16) {
-				var term = LLVMGetBasicBlockTerminator(module.blocks[b]); var first = LLVMGetSuccessor(term, 0); var second = LLVMGetSuccessor(term, 1); LLVMSetSuccessor(term, 0, second); LLVMSetSuccessor(term, 1, first); return true;
+				var term = LLVMGetBasicBlockTerminator(module.state.blocks[b]); var first = LLVMGetSuccessor(term, 0); var second = LLVMGetSuccessor(term, 1); LLVMSetSuccessor(term, 0, second); LLVMSetSuccessor(term, 1, first); return true;
 			}
-			if (category == 4 && block.opcode == 3 && row.type.index == 12 && LLVMIsAInstruction(module.values[block.origin]) != null) {
-				LLVMSetFastMathFlags(module.values[block.origin], 1);
+			if (category == 4 && block.opcode == 3 && row.type.index == 12 && LLVMIsAInstruction(module.state.values[block.origin]) != null) {
+				LLVMSetFastMathFlags(module.state.values[block.origin], 1);
 				return true;
 			}
 			if ((category == 1 || category == 5) && block.opcode == 22 && recover_call_receiver(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[block.function - 1].symbol)) {
-				if (category == 1) LLVMSetOperand(operation, 1, LLVMGetParam(module.functions[block.function - 1], 0));
+				if (category == 1) LLVMSetOperand(operation, 1, LLVMGetParam(module.state.functions[block.function - 1], 0));
 				if (category == 5) LLVMSetOperand(operation, 0, LLVMConstReal(LLVMTypeOf(LLVMGetOperand(operation, 0)), 0.75d));
 				return true;
 			}
@@ -153,7 +153,7 @@ bool recover_r3_domain_physical(RecoverLlvm module, RecoverSsa ssa, int category
 				return true;
 			}
 			if (category == 7 && row.kind == 43 && block.opcode == 27) {
-				var body = recover_llvm_body(module.blocks[b], 3);
+				var body = recover_llvm_body(module.state.blocks[b], 3);
 				if (len(body) != 3) return false;
 				LLVMSetOperand(body[1], 0, LLVMConstInt(module.boolean, 0, 0));
 				return true;

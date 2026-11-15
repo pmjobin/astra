@@ -180,12 +180,12 @@ bool recover_owner_main(RecoverSsa ssa, int function) { var symbol = ssa.cfg.cor
 bool recover_owner_input(RecoverSsa ssa, int place) { var slot = ssa.cfg.core.flow.storage.slots[place - 1]; bool main = recover_owner_main(ssa, slot.function); var declaration = ssa.cfg.core.flow.checked.bindings.symbol(slot.symbol); return main && ssa.cfg.core.flow.checked.bindings.program.arena.token_is(declaration.token, "input"); }
 
 bool recover_owner_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
-	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.operations[b];
+	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.state.operations[b];
 		if (ssa.data.reachable[b]) {
 			if (category == 0 && row.opcode == 10 && recover_owner_main(ssa, row.function)) {
 				var source = ssa.cfg.core.nodes[row.origin - 1].value;
-				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.blocks[b]));
-				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.owner_armed[source.symbol.index]);
+				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.state.blocks[b]));
+				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.state.owner_armed[source.symbol.index]);
 				changed = true;
 			}
 			if (category == 1 && row.opcode == 36) {
@@ -194,8 +194,8 @@ bool recover_owner_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int categ
 			}
 			if (category == 2 && row.opcode == 37) {
 				var slot = ssa.cfg.core.flow.storage.slots[row.b - 1];
-				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.blocks[b]));
-				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.owner_armed[slot.symbol.index]);
+				LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.state.blocks[b]));
+				var early = LLVMBuildStore(module.builder, LLVMConstInt(module.boolean, 0, 0), module.state.owner_armed[slot.symbol.index]);
 				changed = true;
 			}
 			if (category == 3 && row.opcode == 38 && recover_owner_input(ssa, row.a)) {
@@ -214,7 +214,7 @@ bool recover_owner_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int categ
 			if (category == 5 && row.opcode == 22 && operation != null) {
 				var function = ssa.cfg.core.flow.data.functions[row.function - 1];
 				if (function.checked && checked_kind(ssa.cfg.core.flow.checked, function.result) == 22) {
-					LLVMSetOperand(operation, 1, LLVMGetParam(module.functions[row.function - 1], 1));
+					LLVMSetOperand(operation, 1, LLVMGetParam(module.state.functions[row.function - 1], 1));
 					changed = true;
 				}
 			}

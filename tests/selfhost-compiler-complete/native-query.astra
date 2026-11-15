@@ -4,23 +4,23 @@
 bool template_error_cache_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa)) return false;
 	var root = checked_effect_root(ssa.cfg.core.flow.checked);
-	if (root.index < 1 || module.descriptors[root.index] == null || module.payloads[root.index] == null || module.destroyers[root.index] == null || module.tables[root.index] == null) return false;
+	if (root.index < 1 || module.state.descriptors[root.index] == null || module.state.payloads[root.index] == null || module.state.destroyers[root.index] == null || module.state.tables[root.index] == null) return false;
 	int count = 0; int s = 1;
 	while (s <= ssa.cfg.core.flow.checked.bindings.symbol_count) {
 		var symbol = type_symbol(s);
 		if (recover_slot_template_source(ssa.cfg.core.flow.checked, symbol)) {
-			if (recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s]) || module.descriptors[s] != null || module.payloads[s] != null || module.destroyers[s] != null || module.tables[s] != null) return false;
-			module.descriptors[s] = module.descriptors[root.index];
-			bool rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.descriptors[s] = null;
+			if (recover_storage_class(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[s]) || module.state.descriptors[s] != null || module.state.payloads[s] != null || module.state.destroyers[s] != null || module.state.tables[s] != null) return false;
+			module.state.descriptors[s] = module.state.descriptors[root.index];
+			bool rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.state.descriptors[s] = null;
 			if (!rejected || !module.check(ssa)) return false;
-			module.payloads[s] = module.payloads[root.index];
-			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.payloads[s] = null;
+			module.state.payloads[s] = module.state.payloads[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.state.payloads[s] = null;
 			if (!rejected || !module.check(ssa)) return false;
-			module.destroyers[s] = module.destroyers[root.index];
-			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.destroyers[s] = null;
+			module.state.destroyers[s] = module.state.destroyers[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.state.destroyers[s] = null;
 			if (!rejected || !module.check(ssa)) return false;
-			module.tables[s] = module.tables[root.index];
-			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.tables[s] = null;
+			module.state.tables[s] = module.state.tables[root.index];
+			rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); module.state.tables[s] = null;
 			if (!rejected || !module.check(ssa)) return false;
 			count = count + 1;
 		}
@@ -44,7 +44,7 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 			rejected = !recover_flow_verify(ssa.cfg.core.flow); ssa.cfg.core.flow.data.nodes[n].symbol = row.symbol;
 			if (!rejected || !recover_flow_verify(ssa.cfg.core.flow)) return false;
 			source_controls = source_controls + 2;
-			var value = module.values[n + 1]; var aggregate = module.values[row.a];
+			var value = module.state.values[n + 1]; var aggregate = module.state.values[row.a];
 			if (value != null && LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 53 && LLVMIsAInstruction(aggregate) != null) {
 				LLVMSetOperand(value, 0, LLVMConstNull(LLVMTypeOf(aggregate)));
 				rejected = llvm12_verify(module.module) == 0 && !module.check(ssa); LLVMSetOperand(value, 0, aggregate);
@@ -53,7 +53,7 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 			}
 		}
 		if (row.kind == 8 || row.kind == 12 && checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
-			var record = module.values[n + 1];
+			var record = module.state.values[n + 1];
 			if (record != null && LLVMIsAInstruction(record) != null && LLVMGetInstructionOpcode(record) == 54) {
 				var element = LLVMGetOperand(record, 1); var replacement = LLVMConstNull(LLVMTypeOf(element));
 				if (element != replacement) {
@@ -71,7 +71,7 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 		var lowered = ssa.cfg.blocks[block];
 		if (ssa.data.reachable[block] && lowered.origin > 0) {
 			var row = ssa.cfg.core.nodes[lowered.origin - 1].value;
-			void* operation = module.operations[block]; int operand = 0; bool selected = false;
+			void* operation = module.state.operations[block]; int operand = 0; bool selected = false;
 			if (lowered.opcode == 17 || lowered.opcode == 44) {
 				var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
 				var type = ssa.cfg.core.flow.checked.symbol_types[fact.field.index];
@@ -83,7 +83,7 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				operand = 1;
 			}
 			if (lowered.opcode == 55 && checked_kind(ssa.cfg.core.flow.checked, row.type) == 30) {
-				operation = module.values[lowered.origin];
+				operation = module.state.values[lowered.origin];
 				selected = true;
 			}
 			if (lowered.opcode == 61) selected = checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[row.c - 1].value.type) == 30;
@@ -110,8 +110,8 @@ bool record_value_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 bool class_finalizer_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 	if (!module.check(ssa)) return false;
 	int count = 0; int source_controls = 0; int s = 1;
-	while (s < len(module.class_destroyers)) {
-		var destroy = module.class_destroyers[s];
+	while (s < len(module.state.class_destroyers)) {
+		var destroy = module.state.class_destroyers[s];
 		if (destroy != null) {
 			var source = recover_class_deinit_source(ssa.cfg.core.flow.checked, type_symbol(s));
 			if (source.index > 0) {
@@ -232,7 +232,7 @@ bool enum_transport_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 		if (ssa.data.reachable[b] && block.origin > 0) {
 			var row = ssa.cfg.core.nodes[block.origin - 1].value;
 			if (block.opcode == 73 && !case_guard || block.opcode == 74 && !range_guard) {
-				var condition = LLVMGetCondition(LLVMGetBasicBlockTerminator(module.blocks[b]));
+				var condition = LLVMGetCondition(LLVMGetBasicBlockTerminator(module.state.blocks[b]));
 				if (LLVMIsAInstruction(condition) != null) {
 					ssa.cfg.blocks[b].rank = block.rank + 1;
 					bool refused = !recover_cfg_verify(ssa.cfg);
@@ -256,7 +256,7 @@ bool enum_transport_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				while (at < row.count && !argument) {
 					int child = ssa.cfg.core.flow.data.edges[row.first + at];
 					if (checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.nodes[child - 1].value.type) == 32) {
-						var call = module.operations[b]; int position = plan.groups[at]; var address = LLVMGetArgOperand(call, position);
+						var call = module.state.operations[b]; int position = plan.groups[at]; var address = LLVMGetArgOperand(call, position);
 						LLVMSetOperand(call, position, LLVMConstNull(module.pointer));
 						bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 						LLVMSetOperand(call, position, address);
@@ -267,7 +267,7 @@ bool enum_transport_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				}
 			}
 			if (block.opcode == 22 && !result && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.data.functions[block.function - 1].result) == 32) {
-				var store = module.operations[b];
+				var store = module.state.operations[b];
 				if (store == null || LLVMGetInstructionOpcode(store) != 28) return false;
 				var address = LLVMGetOperand(store, 1);
 				LLVMSetOperand(store, 1, LLVMConstNull(module.pointer));
@@ -315,10 +315,10 @@ bool record_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 			while (s < ssa.cfg.core.flow.storage.count && frame_controls == 0) {
 				var slot = ssa.cfg.core.flow.storage.slots[s];
 				if (slot.function == row.function && slot.symbol.index != row.symbol.index && slot.type.index == ssa.cfg.core.flow.checked.symbol_types[row.symbol.index].index && recover_mutable(ssa.cfg.core.flow.data, slot.symbol)) {
-					var address = module.owner_addresses[slot.symbol.index];
-					module.owner_addresses[slot.symbol.index] = module.owner_addresses[row.symbol.index];
+					var address = module.state.owner_addresses[slot.symbol.index];
+					module.state.owner_addresses[slot.symbol.index] = module.state.owner_addresses[row.symbol.index];
 					refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
-					module.owner_addresses[slot.symbol.index] = address;
+					module.state.owner_addresses[slot.symbol.index] = address;
 					if (!refused || !module.check(ssa)) return false;
 					frame_controls = 1;
 				}
@@ -339,12 +339,12 @@ bool record_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				ssa.cfg.blocks[b].opcode = block.opcode;
 				if (!refused || !module.check(ssa)) return false;
 				cfg_controls = 1;
-				var store = module.operations[b]; var address = LLVMGetOperand(store, 1);
+				var store = module.state.operations[b]; var address = LLVMGetOperand(store, 1);
 				LLVMSetOperand(store, 1, LLVMConstNull(module.pointer));
 				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 				LLVMSetOperand(store, 1, address);
 				if (!refused || !module.check(ssa)) return false;
-				var load = LLVMGetFirstInstruction(module.blocks[b]);
+				var load = LLVMGetFirstInstruction(module.state.blocks[b]);
 				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
 				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 				LLVMSetOperand(load, 0, address);
@@ -357,7 +357,7 @@ bool record_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				physical_controls = physical_controls + 3;
 			}
 			if (block.opcode == 12 && row.a == 0 && recover_mutable(ssa.cfg.core.flow.data, row.symbol) && !projection) {
-				var load = LLVMGetFirstInstruction(module.blocks[b]); var address = LLVMGetOperand(load, 0);
+				var load = LLVMGetFirstInstruction(module.state.blocks[b]); var address = LLVMGetOperand(load, 0);
 				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
 				bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 				LLVMSetOperand(load, 0, address);
@@ -417,12 +417,12 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 			refused = !recover_cfg_verify(ssa.cfg) && !recover_ssa_verify(ssa);
 			ssa.cfg.blocks[guard - 1].next = next;
 			if (!refused || !module.check(ssa)) return false;
-			var store = module.operations[b]; var address = LLVMGetArgOperand(store, 0);
+			var store = module.state.operations[b]; var address = LLVMGetArgOperand(store, 0);
 			LLVMSetOperand(store, 0, LLVMConstNull(module.pointer));
 			refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 			LLVMSetOperand(store, 0, address);
 			if (!refused || !module.check(ssa)) return false;
-			var load = LLVMGetFirstInstruction(module.blocks[b]);
+			var load = LLVMGetFirstInstruction(module.state.blocks[b]);
 			LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
 			refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 			LLVMSetOperand(load, 0, address);
@@ -432,7 +432,7 @@ bool record_array_mutation_controls(RecoverLlvm module, RecoverSsa ssa) throws E
 			refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 			LLVMSetOperand(insertion, 0, previous);
 			if (!refused || !module.check(ssa)) return false;
-			var call = module.operations[guard - 1]; var index = LLVMGetArgOperand(call, 2);
+			var call = module.state.operations[guard - 1]; var index = LLVMGetArgOperand(call, 2);
 			u64 replacement = 1;
 			if (LLVMIsAConstantInt(index) != null && LLVMConstIntGetZExtValue(index) != 0) replacement = 0;
 			LLVMSetOperand(call, 2, LLVMConstInt(LLVMTypeOf(index), replacement, 0));
@@ -485,7 +485,7 @@ bool record_order_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 			var token = ssa.cfg.core.flow.checked.bindings.program.arena.get_token_name(first);
 			if (recover_record_field(ssa.cfg.core.flow.checked, row.type, token) > 0) {
 				void* first_insert = null; void* second_insert = null; void* extraction = null;
-				var current = module.values[n + 1]; int remaining = 1024;
+				var current = module.state.values[n + 1]; int remaining = 1024;
 				while (current != null && LLVMIsAInstruction(current) != null && LLVMGetInstructionOpcode(current) == 54 && remaining > 0) {
 					var element = LLVMGetOperand(current, 1);
 					if (LLVMGetTypeKind(LLVMTypeOf(element)) == 8 && LLVMGetIntTypeWidth(LLVMTypeOf(element)) == 32) {
@@ -552,14 +552,14 @@ bool slot_borrow_controls(RecoverLlvm module, RecoverSsa ssa) throws Error {
 				bool mutation_rejected = !recover_ssa_array_view(ssa, block.origin, parents, mutation_work) && !mutation_work.exhausted;
 				ssa.cfg.blocks[next - 1] = original;
 				if (!retired_rejected || !mutation_rejected || !module.check(ssa)) return false;
-				var call = module.operations[b]; var index = LLVMGetArgOperand(call, 2);
+				var call = module.state.operations[b]; var index = LLVMGetArgOperand(call, 2);
 				u64 replacement = 1;
 				if (LLVMIsAConstantInt(index) != null && LLVMConstIntGetZExtValue(index) != 0) replacement = 0;
 				LLVMSetOperand(call, 2, LLVMConstInt(LLVMTypeOf(index), replacement, 0));
 				bool refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 				LLVMSetOperand(call, 2, index);
 				if (!refused || !module.check(ssa)) return false;
-				var load = module.values[block.origin]; var address = LLVMGetOperand(load, 0);
+				var load = module.state.values[block.origin]; var address = LLVMGetOperand(load, 0);
 				LLVMSetOperand(load, 0, LLVMConstNull(module.pointer));
 				refused = llvm12_verify(module.module) == 0 && !module.check(ssa);
 				LLVMSetOperand(load, 0, address);

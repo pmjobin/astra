@@ -87,14 +87,14 @@ bool recover_loop_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int catego
 		LLVMSetSuccessor(split, 0, LLVMGetSuccessor(split, 1));
 		return true;
 	}
-	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.operations[b];
+	bool changed = false; int b = 0; while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.state.operations[b];
 		if (ssa.data.reachable[b]) {
 			if (category == 0 && row.opcode == 38 && recover_storage_error(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.storage.slots[row.a - 1].type)) {
 				LLVMSetOperand(operation, 0, LLVMConstNull(module.pointer));
 				changed = true;
 			}
 			if (category == 1 && row.opcode == 39) {
-				var split = LLVMGetBasicBlockTerminator(module.blocks[b]);
+				var split = LLVMGetBasicBlockTerminator(module.state.blocks[b]);
 				var yes = LLVMGetSuccessor(split, 0);
 				LLVMSetSuccessor(split, 0, LLVMGetSuccessor(split, 1));
 				LLVMSetSuccessor(split, 1, yes);
@@ -110,7 +110,7 @@ bool recover_loop_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int catego
 			}
 			if (category == 4 && row.opcode == 41) {
 				int loop = ssa.cfg.core.nodes[row.origin - 1].value.c;
-				LLVMSetSuccessor(LLVMGetBasicBlockTerminator(module.blocks[b]), 0, module.blocks[ssa.cfg.regions[loop - 1].next - 1]);
+				LLVMSetSuccessor(LLVMGetBasicBlockTerminator(module.state.blocks[b]), 0, module.state.blocks[ssa.cfg.regions[loop - 1].next - 1]);
 				changed = true;
 			}
 		} b = b + 1;

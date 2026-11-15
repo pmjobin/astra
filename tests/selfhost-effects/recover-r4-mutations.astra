@@ -128,12 +128,12 @@ bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 		var row = ssa.cfg.core.nodes[n].value; int at = ssa.cfg.regions[n].operation;
 		if (row.kind == 11 && category == 0) {
 			var size = module.int64(1);
-			LLVMSetOperand(module.values[n + 1], 1, size);
+			LLVMSetOperand(module.state.values[n + 1], 1, size);
 			return true;
 		}
 		if (row.kind == 45 && (category == 6 || category == 7) && at > 0) {
-			var first = module.operations[at - 1];
-			if (category == 6) LLVMSetOperand(first, 0, module.values[row.a]);
+			var first = module.state.operations[at - 1];
+			if (category == 6) LLVMSetOperand(first, 0, module.state.values[row.a]);
 			if (category == 7) {
 				var last = LLVMGetNextInstruction(first);
 				LLVMSetOperand(last, 1, LLVMGetOperand(first, 1));
@@ -141,7 +141,7 @@ bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 			return true;
 		}
 		if ((row.kind == 44 && (category == 1 || category == 2) || row.kind == 17 && category == 3) && at > 0) {
-			var address = LLVMGetFirstInstruction(module.blocks[at - 1]);
+			var address = LLVMGetFirstInstruction(module.state.blocks[at - 1]);
 			if (category == 1) {
 				var fact = ssa.cfg.core.flow.fields.facts[row.source.index]; int symbol = 1;
 				while (symbol < len(ssa.cfg.core.flow.fields.layout.fields)) {
@@ -155,7 +155,7 @@ bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 			}
 			if (category == 2 && checked_kind(ssa.cfg.core.flow.checked, ssa.cfg.core.flow.checked.symbol_types[ssa.cfg.core.flow.fields.facts[row.source.index].field.index]) == 1) {
 				var zero = module.int32(0);
-				LLVMSetOperand(module.operations[at - 1], 0, zero);
+				LLVMSetOperand(module.state.operations[at - 1], 0, zero);
 				return true;
 			}
 			if (category == 3) {
@@ -165,8 +165,8 @@ bool recover_r4_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 		}
 		n = n + 1;
 	}
-	int s = 1; while (s < len(module.class_destroyers)) {
-		var function = module.class_destroyers[s];
+	int s = 1; while (s < len(module.state.class_destroyers)) {
+		var function = module.state.class_destroyers[s];
 		if (function != null) {
 			var block = LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(function)); var instruction = LLVMGetFirstInstruction(block); void* first = null; void* last = null;
 			while (instruction != null) {

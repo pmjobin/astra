@@ -8,7 +8,7 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 		var block = ssa.cfg.blocks[b];
 		if (block.origin > 0 && ssa.data.reachable[b]) {
 			var row = ssa.cfg.core.nodes[block.origin - 1].value;
-			var operation = module.operations[b];
+			var operation = module.state.operations[b];
 			if (category == 0 && block.opcode == 50) {
 				LLVMSetOperand(operation, 1, module.int32(42));
 				return true;
@@ -38,7 +38,7 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 				return true;
 			}
 			if (category == 9 && block.opcode == 54) {
-				var value = module.values[block.origin];
+				var value = module.state.values[block.origin];
 				if (LLVMIsAInstruction(value) != null && LLVMGetInstructionOpcode(value) == 30) {
 					LLVMSetNSW(value, 1);
 					return true;
@@ -47,13 +47,13 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 			if (category == 11 && block.opcode == 17) {
 				var fact = ssa.cfg.core.flow.fields.facts[row.source.index];
 				if (fact.parent > 0) {
-					var address = LLVMGetFirstInstruction(module.blocks[b]);
-					LLVMSetOperand(address, 0, module.locals[fact.receiver.index]);
+					var address = LLVMGetFirstInstruction(module.state.blocks[b]);
+					LLVMSetOperand(address, 0, module.state.locals[fact.receiver.index]);
 					return true;
 				}
 			}
 			if (category == 12 && block.opcode == 62) {
-				LLVMSetOperand(module.values[block.origin], 0, LLVMConstInt(module.boolean, 1, 0));
+				LLVMSetOperand(module.state.values[block.origin], 0, LLVMConstInt(module.boolean, 1, 0));
 				return true;
 			}
 		}
@@ -67,14 +67,14 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 	}
 	int k = 0;
 	while (k < 13) {
-		if (category == 6 && module.index_functions[k] != null) {
-			var entry = LLVMGetFirstBasicBlock(module.index_functions[k]);
+		if (category == 6 && module.state.index_functions[k] != null) {
+			var entry = LLVMGetFirstBasicBlock(module.state.index_functions[k]);
 			var valid = LLVMGetNextBasicBlock(LLVMGetNextBasicBlock(entry));
 			LLVMGEPSetNoWrapFlags(LLVMGetFirstInstruction(valid), 1);
 			return true;
 		}
-		if (category == 7 && module.slice_functions[k] != null) {
-			var function = module.slice_functions[k];
+		if (category == 7 && module.state.slice_functions[k] != null) {
+			var function = module.state.slice_functions[k];
 			var valid = LLVMGetNextBasicBlock(LLVMGetNextBasicBlock(LLVMGetFirstBasicBlock(function)));
 			var descriptor = LLVMGetNextInstruction(LLVMGetNextInstruction(LLVMGetFirstInstruction(valid)));
 			LLVMSetOperand(descriptor, 1, LLVMGetParam(function, 2));
@@ -84,16 +84,16 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 	}
 	k = 0;
 	while (k < 20) {
-		if (category == 10 && module.integer_functions[k] != null) {
-			var entry = LLVMGetFirstBasicBlock(module.integer_functions[k]);
+		if (category == 10 && module.state.integer_functions[k] != null) {
+			var entry = LLVMGetFirstBasicBlock(module.state.integer_functions[k]);
 			LLVMSetOperand(LLVMGetBasicBlockTerminator(entry), 0, LLVMConstInt(module.boolean, 1, 0));
 			return true;
 		}
 		k = k + 1;
 	}
 	int n = 0;
-	while (n < len(module.fixed_backings)) {
-		var backing = module.fixed_backings[n];
+	while (n < len(module.state.fixed_backings)) {
+		var backing = module.state.fixed_backings[n];
 		if (backing != null) {
 			if (category == 8) {
 				var count = LLVMGetOperand(backing, 0);
@@ -103,10 +103,10 @@ bool recover_frontier_physical(RecoverLlvm module, RecoverSsa ssa, int category)
 			if (category == 13) {
 				int p = 0;
 				while (p < n) {
-					var other = module.fixed_backings[p];
+					var other = module.state.fixed_backings[p];
 					if (other != null && LLVMGetInstructionParent(other) == LLVMGetInstructionParent(backing) && LLVMGetAllocatedType(other) == LLVMGetAllocatedType(backing) && LLVMGetOperand(other, 0) == LLVMGetOperand(backing, 0)) {
 						LLVMReplaceAllUsesWith(backing, other);
-						module.fixed_backings[n] = other;
+						module.state.fixed_backings[n] = other;
 						return true;
 					}
 					p = p + 1;

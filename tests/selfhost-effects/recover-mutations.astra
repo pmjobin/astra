@@ -145,9 +145,9 @@ int recover_semantic_case(string[] args, int category) throws Error {
 bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 	if (category == 4 || category == 5) {
 		int s = 1;
-		while (s < len(module.descriptors)) {
-			if (module.descriptors[s] != null) {
-				var initializer = LLVMGetInitializer(module.descriptors[s]);
+		while (s < len(module.state.descriptors)) {
+			if (module.state.descriptors[s] != null) {
+				var initializer = LLVMGetInitializer(module.state.descriptors[s]);
 				if (LLVMIsNull(LLVMGetOperand(initializer, 0)) == 0) {
 					var fields = new void*[3];
 					fields[0] = LLVMGetOperand(initializer, 0);
@@ -156,10 +156,10 @@ bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 					if (category == 4) fields[0] = LLVMConstNull(module.pointer);
 					if (category == 5) {
 						var root = checked_effect_root(ssa.cfg.core.flow.checked);
-						fields[1] = module.destroyers[root.index];
+						fields[1] = module.state.destroyers[root.index];
 					}
 					var changed = module.constant(fields);
-					LLVMSetInitializer(module.descriptors[s], changed);
+					LLVMSetInitializer(module.state.descriptors[s], changed);
 					return true;
 				}
 			}
@@ -174,9 +174,9 @@ bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 	}
 	if (category == 9) {
 		int f = 0;
-		while (f < len(module.functions)) {
+		while (f < len(module.state.functions)) {
 			if (ssa.cfg.core.flow.data.functions[f].checked) {
-				LLVMSetLinkage(module.functions[f], 0);
+				LLVMSetLinkage(module.state.functions[f], 0);
 				return true;
 			}
 			f = f + 1;
@@ -184,18 +184,18 @@ bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 		return false;
 	}
 	int b = 0;
-	while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.operations[b];
+	while (b < ssa.cfg.block_count) { var row = ssa.cfg.blocks[b]; var operation = module.state.operations[b];
 		if (category == 0 && row.opcode == 4 && row.other > 0) {
-			var term = LLVMGetBasicBlockTerminator(module.blocks[b]);
+			var term = LLVMGetBasicBlockTerminator(module.state.blocks[b]);
 			var yes = LLVMGetSuccessor(term, 0);
 			var no = LLVMGetSuccessor(term, 1);
 			LLVMSetSuccessor(term, 0, no);
 			LLVMSetSuccessor(term, 1, yes);
 			return true;
 		}
-		if (category == 1 && row.opcode == 4 && row.other > 0 && module.slots[row.origin - 1] != null) {
-			LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.blocks[row.other - 1]));
-			var slot = module.slots[row.origin - 1];
+		if (category == 1 && row.opcode == 4 && row.other > 0 && module.state.slots[row.origin - 1] != null) {
+			LLVMPositionBuilderBefore(module.builder, LLVMGetBasicBlockTerminator(module.state.blocks[row.other - 1]));
+			var slot = module.state.slots[row.origin - 1];
 			var unused = LLVMBuildLoad2(module.builder, LLVMGetAllocatedType(slot), slot, module.empty);
 			return true;
 		}
@@ -205,11 +205,11 @@ bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 		}
 		if (category == 3 && row.opcode == 32 && operation != null) {
 			var root = checked_effect_root(ssa.cfg.core.flow.checked);
-			LLVMSetOperand(operation, LLVMGetNumOperands(operation) - 1, module.destroyers[root.index]);
+			LLVMSetOperand(operation, LLVMGetNumOperands(operation) - 1, module.state.destroyers[root.index]);
 			return true;
 		}
 		if (category == 6 && row.opcode == 34 && row.origin > 0 && ssa.cfg.core.nodes[row.origin - 1].value.kind == 23 && ssa.cfg.core.nodes[row.origin - 1].value.a != 0) {
-			var address = LLVMGetFirstInstruction(module.blocks[b]);
+			var address = LLVMGetFirstInstruction(module.state.blocks[b]);
 			var previous = LLVMGetNextInstruction(address);
 			var condition = LLVMGetNextInstruction(previous);
 			var selected = LLVMGetNextInstruction(condition);
@@ -219,7 +219,7 @@ bool recover_mutate_physical(RecoverLlvm module, RecoverSsa ssa, int category) {
 		if (category == 8 && row.opcode == 32 && operation != null) {
 			LLVMPositionBuilderBefore(module.builder, operation);
 			var arguments = new void*[1];
-			arguments[0] = module.values[row.owner];
+			arguments[0] = module.state.values[row.owner];
 			var duplicated = module.call(module.destroy_function, arguments, true);
 			return true;
 		}
