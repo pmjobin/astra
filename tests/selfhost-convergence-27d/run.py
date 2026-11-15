@@ -607,6 +607,7 @@ def package():
 	}
 	intake = load(WORK/'runtime/native-current/pm-next-intake.json')
 	assert sha(intake['submission_path']) == intake['submission_sha256']
+	(snapshot/'predecessor').mkdir()
 	references = []
 	with zipfile.ZipFile(intake['submission_path']) as submitted:
 		for name, digest in archives.items():
