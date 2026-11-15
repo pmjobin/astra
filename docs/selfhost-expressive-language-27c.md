@@ -1480,3 +1480,52 @@ source revision can therefore receive the real foreach implementation fix and
 planning optimization while ongoing migration remains intact in the worktree.
 Its new compiler build and Class/generic foreach native qualification remain
 required; there is no repin of C0, LLVM, the public ABI or the work ceilings.
+
+The production-source migration is committed in five reviewable batches through
+38e3e3e181609e1513e86cbb22a28a5465cfd000. The supporting C0-built dev18
+(Source28f89b6) has SHA01d4b84cc7f6d0239327d1899e0257b7ff68225df0213ce0774031e378644a99;
+the genuine migrated-source Astra dev19 (produced by dev16, not by dev18)
+has SHA93615207f7fc09a4947f8eb759b19b98d984371df7bc065e16dd1d5e67c4bdc3.
+Dev19 accepts all220 current compiler and10 library inputs and compiles them in
+3641.618 seconds. Its C0 preflight is an explicitly versioned older baseline,
+not a claim that C0 accepts the migrated source syntax. These are actual
+source-versioned development products, not Stage3 convergence or release.
+
+The new generic/Class foreach copier is exercised by an actual current125-input
+semantic component, produced by dev18 in1492.538 seconds. Its corrected consumer
+executes at least18 independent actual-copy metadata/binding corruptions,
+restores positives and checks Flow for Class, free-generic and generic-Class
+families. Native42 and strict returning memory pass with zero live bytes,
+errors or suppressions (selfhost27c-foreach-component3). Earlier main-argument
+profile failures, a guarded invalid-kind test mutation, and a timed-out
+read-only diagnostic remain failures. The originally proposed constrained
+ExactHeapClass fixture and its while expansion both refuse the older and current
+native Flow profile. The admitted unconstrained generic-Class form is now the
+positive test; both original constrained forms remain explicit refusal controls.
+No new constraint policy or generic/SSA budget was granted.
+
+Both18/19 pass all five selected27C native feature groups and new/old physical
+corruption groups after that fixture correction. The initial whole range leaf
+remains failed; its admitted rerun and the first complete dev19 campaign are
+selfhost27c-stable-native-qualification2. Existing tests remain separately
+attributed; no fresh replay of the lost1044 historical proofs is inferred.
+
+The actual three migrated compiler-systems CLI applications now use the existing
+private GNU/Linux argument transport and preserve the original C0 UTF8 argv
+policy, including argv0, unused arguments, usage64 and invalid-encoding exit2.
+Before/after nativeO0/O2, LLVM/ELF,108 file/fault observations,132 argv cases and
+64 strict returning target-memory streams pass separately on dev18 and dev19
+(selfhost27c-workload-final-hosts). All outputs, failures, ownership clarifications
+and baseline-versus-current source versions remain explicit. The tested portable
+build recipe is in the expressive-language test README. Only the new checked
+argument source was added to formatting scope; all previous entries remain.
+
+Old all-feature native regression independently finds a real compiler assertion
+on the unchanged record-punning test in both18/19, after seven preceding cases
+pass. A minimal ordinary free function named sum reproduces it; an ordinary_sum
+rename does not. The actual stack enters lazy method recognition with no receiver,
+then queries token0. This is a newly located internal compiler regression and
+remains a qualification failure. The repair must require actual receiver syntax
+for range/lazy member recognition while preserving ordinary binding and fresh
+independent source checks; no test expectation, C0/LLVM/public ABI or work ceiling
+is waived. Complete old-native qualification and final publication remain pending.

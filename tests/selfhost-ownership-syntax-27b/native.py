@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Execute current production-compiler targets, C0 oracles and refusal sentinels."""
 import argparse
+import importlib.util
 import os
 from pathlib import Path
 import re
@@ -378,6 +379,21 @@ def expanded_compounds(text):
 	return re.sub(r'(?m)^(\s*)([a-zA-Z_][a-zA-Z_0-9.]*) (<<|>>|[+*/%&|^\-])= ([^;]+);', r'\1\2 = \2 \3 \4;', text)
 
 
+def oracle_library_routing(manifest_path):
+	validator = ROOT/'tests/selfhost-expressive-language-27c/named.py'
+	assert validator.is_file() and not validator.is_symlink() and validator.resolve() == validator
+	digest = sha(validator)
+	spec = importlib.util.spec_from_file_location('astra27c_named_oracle_libraries', validator)
+	assert spec is not None and spec.loader is not None
+	module = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(module)
+	assert Path(module.__file__) == validator and sha(validator) == digest
+	mapping, identity = module.versioned_oracle_libraries(manifest_path)
+	assert sha(validator) == digest
+	identity['validator'] = dict(path=str(validator), sha256=digest)
+	return mapping, identity
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for name in ('compiler', 'c0', 'build', 'runtime', 'link'):
@@ -386,6 +402,7 @@ def main():
 	p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--case', action='append', help='Run only named positive cases during focused development; records the selection explicitly')
 	p.add_argument('--oracle-only', action='store_true', help='Qualify the authored C0 equivalents only; gives no current-language acceptance credit')
+	p.add_argument('--oracle-library-inputs', type=Path, help='Explicit Git/hash-checked immutable ten-library inputs.json for C0 references; Astra uses current libraries')
 	p.add_argument('--feature', choices=('initial', 'records', 'conditional', 'compound', 'weak', 'borrowed', 'workload', 'errors'), action='append', required=True)
 	a = p.parse_args()
 	assert all(re.fullmatch('[0-9a-f]{64}', s) for s in (a.compiler_sha256, a.c0_sha256))
@@ -406,6 +423,11 @@ def main():
 	env.pop('VALGRIND_OPTS', None)
 	tools = tool_identity([a.compiler, a.c0, '/usr/bin/time', *[shutil.which(n) for n in ('gcc', 'cc', 'as', 'ld', 'opt', 'llc', 'valgrind')]])
 	source_inputs = {str(path):sha(path) for path in (Path(__file__), Path(__file__).with_name('support.py'), a.link, bridge)}
+	oracle_libraries = {}; oracle_library_identity = None
+	if a.oracle_library_inputs is not None:
+		oracle_libraries, oracle_library_identity = oracle_library_routing(a.oracle_library_inputs)
+		source_inputs.update({str(path):sha(path) for path in [a.oracle_library_inputs, ROOT/'tests/selfhost-typecore/build.py', ROOT/'tests/selfhost-expressive-language-27c/named.py', *oracle_libraries.values()]})
+		write(runtime/'oracle-libraries.json', oracle_library_identity)
 	write(runtime/'inputs.json', source_inputs)
 	write(runtime/'tools.json', tools)
 	commands = []
@@ -483,9 +505,10 @@ def main():
 		if extra_sources:
 			source_inputs.update({str(path):sha(path) for path in extra_sources})
 			write(runtime/'inputs.json', source_inputs)
+		oracle_extra_sources = [oracle_libraries[str(path)] for path in extra_sources] if oracle_library_identity is not None else extra_sources
 		oracle = build/(name+'-C0')
 		links = [arg for path in objects for arg in ('--link-object', path)]
-		run(name+'-C0-build', [a.c0, '-O0', oracle_source, *extra_sources, *links, '-o', oracle])
+		run(name+'-C0-build', [a.c0, '-O0', oracle_source, *oracle_extra_sources, *links, '-o', oracle])
 		run(name+'-C0-native', [oracle], 42)
 		products[str(oracle)] = sha(oracle)
 		write(runtime/'products.json', products)
@@ -540,7 +563,11 @@ def main():
 	assert all(sha(path) == digest for path, digest in tools.items())
 	assert all(sha(path) == digest for path, digest in source_inputs.items())
 	assert all(sha(path) == digest for path, digest in products.items())
-	write(runtime/'result.json', dict(status='C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', oracle_only=a.oracle_only, selected_cases=[case[0] for case in cases], features=a.feature, compiler=dict(path=str(a.compiler), sha256=a.compiler_sha256), tools=tools, providers=providers, source_inputs=source_inputs, inputs_sha256=sha(runtime/'inputs.json'), products=products, commands_sha256=sha(runtime/'commands.json'), scope='Selected feature programs and source refusals only. Remaining ownership/syntax, physical mutations, full preservation and delivery gates are separate.'))
+	result = dict(status='C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', oracle_only=a.oracle_only, selected_cases=[case[0] for case in cases], features=a.feature, compiler=dict(path=str(a.compiler), sha256=a.compiler_sha256), tools=tools, providers=providers, source_inputs=source_inputs, inputs_sha256=sha(runtime/'inputs.json'), products=products, commands_sha256=sha(runtime/'commands.json'), scope='Selected feature programs and source refusals only. Remaining ownership/syntax, physical mutations, full preservation and delivery gates are separate.')
+	if oracle_library_identity is not None:
+		result['oracle_library_revision'] = oracle_library_identity['revision']
+		result['oracle_library_identity_sha256'] = sha(runtime/'oracle-libraries.json')
+	write(runtime/'result.json', result)
 	print('C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_CURRENT_COMPILER_NATIVE_GATES_PASS', flush=True)
 
 

@@ -1,6 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Execute actual source consumers. Deliberate corruptions are restored before
 // positive controls; no retained builder result is substituted for verification.
+extern(C) int astrac_argument_count();
+
+extern(C) int astrac_argument_length(int index);
+
+extern(C) int astrac_argument_byte(int index, int offset);
+
+owned Utf8Message expressive_argument(int index) throws Error {
+	int length = astrac_argument_length(index);
+	if (length < 0) {
+		throw new Error("invalid semantic component arguments");
+	}
+	var bytes = new u8[length]; int at = 0;
+	while (at < length) {
+		int byte = astrac_argument_byte(index, at);
+		if (byte < 0) {
+			throw new Error("semantic component arguments changed");
+		}
+		bytes[at] = byte as u8; at = at + 1;
+	}
+	var result = utf8_message(bytes); return move result;
+}
+
+owned SyntaxProgram expressive_load_program(int start) throws Error {
+	int count = astrac_argument_count(); var entries = new Vector<SourceEntry>(count); int index = start;
+	while (index < count) {
+		var path = expressive_argument(index); var file = read_file(path.text);
+		var bytes = new u8[file.byte_count()]; int at = 0;
+		while (at < len(bytes)) {
+			bytes[at] = file.byte_at(at) as u8; at = at + 1;
+		}
+		var buffer = source_buffer(path.text, move bytes, false); var retained = shared_acquire(move buffer);
+		var entry = new SourceEntry(move retained); assert_that(entries.append(move entry)); index = index + 1;
+	}
+	var sources = source_set(move entries); var result = syntax_program(move sources); return move result;
+}
+
 owned CheckedIndex expressive_checked(string text) throws Error {
 	var bytes = new u8[text.byte_length]; int at = 0;
 	while (at < len(bytes)) {
@@ -325,11 +361,71 @@ void expressive_named_enum_arguments() throws Error {
 	assert_that(count == 2 && generic_verify(checked));
 }
 
-int main(string[] args) {
+int expressive_copied_foreach_source(string text) throws Error {
+	var checked = expressive_checked(text); int copied = 0; int ordinal = 0;
+	while (ordinal < checked.instance_count + len(checked.direct_methods)) {
+		var plan = checked_copy_plan(checked, ordinal); int at = plan.node_first;
+		while (plan.state == 2 && at - plan.node_first < plan.node_count) {
+			SyntaxNodeId original = {index = at}; SyntaxNodeId concrete = {index = generic_node(checked, plan, at)};
+			if (checked.bindings.program.arena.kind(original) == SyntaxKind.ForeachStatementSyntax() && concrete.index > 0) {
+				assert_that(concrete.index > checked.generic_nodes && concrete.index != original.index && generic_check_node(checked, plan, original));
+				var keyword = checked.bindings.program.arena.get_token_keyword(concrete); var binding_token = checked.bindings.program.arena.get_token_binding(concrete);
+				var collection = checked.bindings.program.arena.get_node_collection(concrete); var body = checked.bindings.program.arena.get_node_body(concrete);
+				// Mutate the actual generated copy, one independent edge at a time.
+				checked.bindings.program.arena.set_token_keyword(concrete, binding_token);
+				assert_that(!generic_check_node(checked, plan, original) && !generic_verify(checked));
+				checked.bindings.program.arena.set_token_keyword(concrete, keyword);
+				assert_that(generic_check_node(checked, plan, original) && generic_verify(checked));
+				checked.bindings.program.arena.set_token_binding(concrete, keyword);
+				assert_that(!generic_check_node(checked, plan, original) && !generic_verify(checked));
+				checked.bindings.program.arena.set_token_binding(concrete, binding_token);
+				assert_that(generic_check_node(checked, plan, original) && generic_verify(checked));
+				checked.bindings.program.arena.set_node_collection(concrete, checked.bindings.program.arena.get_node_collection(original));
+				assert_that(!generic_check_node(checked, plan, original) && !generic_verify(checked));
+				checked.bindings.program.arena.set_node_collection(concrete, collection);
+				assert_that(generic_check_node(checked, plan, original) && generic_verify(checked));
+				checked.bindings.program.arena.set_node_body(concrete, checked.bindings.program.arena.get_node_body(original));
+				assert_that(!generic_check_node(checked, plan, original) && !generic_verify(checked));
+				checked.bindings.program.arena.set_node_body(concrete, body);
+				assert_that(generic_check_node(checked, plan, original) && generic_verify(checked));
+				var binding = checked.node_symbols[concrete.index]; var declaration = checked.bindings.symbol(binding);
+				assert_that(binding.index > checked.generic_symbols && declaration.node.index == concrete.index && range_foreach_binding(checked, binding));
+				var changed = declaration; changed.scope.index = 0;
+				checked.bindings.replace_instance_symbol(binding, changed);
+				assert_that(!range_foreach_binding(checked, binding) && !generic_verify(checked));
+				checked.bindings.replace_instance_symbol(binding, declaration);
+				assert_that(range_foreach_binding(checked, binding) && generic_verify(checked));
+				int flags = checked.symbol_flags[binding.index]; checked.symbol_flags[binding.index] = 4;
+				assert_that(!range_foreach_binding(checked, binding));
+				checked.symbol_flags[binding.index] = flags;
+				assert_that(range_foreach_binding(checked, binding) && generic_verify(checked));
+				copied = copied + 1;
+			}
+			at = at + 1;
+		}
+		ordinal = ordinal + 1;
+	}
+	assert_that(copied > 0 && checked.validate() && generic_verify(checked));
+	var flow = recover_flow_lower(move checked, 8192);
+	assert_that(flow.data.status == 0 && recover_flow_verify(flow));
+	return copied;
+}
+
+void expressive_copied_foreach() throws Error {
+	assert_that(expressive_copied_foreach_source("language astra27b; class StrideCounter { int offset; init(int offset) { this.offset = offset; } int total() { int result = this.offset; foreach (var value in (20..=80).step_by(5)) { result += value; } return result; } } int main() { var counter = new StrideCounter(-608); int observed = counter.total(); return observed; }") > 0);
+	println("COPIED_FOREACH_CLASS_STRUCTURAL_BINDING_FLOW_PASS");
+	assert_that(expressive_copied_foreach_source("language astra27b; int range_total<T>(T marker, int first, int last) { int result = 0; foreach (var value in (first..=last).step_by(5)) { result += value; } return result; } int main() { int observed = range_total<int>(0, 20, 80); return observed - 608; }") > 0);
+	println("COPIED_FOREACH_FREE_GENERIC_STRUCTURAL_BINDING_FLOW_PASS");
+	assert_that(expressive_copied_foreach_source("language astra27b; class Item { int value; init(int value) { this.value = value; } } class RangeHolder<T> { owned T[slots] entries; init() { this.entries = new T[slots]; } int total(int first, int last) { int result = 0; foreach (var value in (first..=last).step_by(5)) { result += value; } return result; } } int main() { var holder = new RangeHolder<Item>(); int observed = holder.total(20, 80); return observed - 608; }") > 0);
+	println("COPIED_FOREACH_GENERIC_CLASS_STRUCTURAL_BINDING_FLOW_PASS");
+}
+
+int main() {
 	try {
-		if (len(args) > 1) {
-			if (len(args) < 3 || args[1] != "--source" && args[1] != "--flow") return 2;
-			var program = binding_load_program(args, 2);
+		if (astrac_argument_count() > 1) {
+			var mode = expressive_argument(1);
+			if (astrac_argument_count() < 3 || mode.text != "--source" && mode.text != "--flow") return 2;
+			var program = expressive_load_program(2);
 			var bindings = binding_index(move program, 0);
 			var checked = checked_build_effects_profile(move bindings, 0);
 			if (checked.failed()) {
@@ -338,7 +434,7 @@ int main(string[] args) {
 			if (!checked.validate() || !generic_verify(checked) || !enum_value_facts_verified(checked)) return 3;
 			var effect = checked_effect_source_verify(checked);
 			if (effect.status != 0) return 4;
-			if (args[1] == "--flow") {
+			if (mode.text == "--flow") {
 				var flow = recover_flow_lower(move checked, 8192);
 				if (flow.data.status != 0 || !recover_flow_verify(flow)) {
 					var output = new Utf8ByteBuilder(); source_append_text(output, "FLOW_REFUSAL status="); append_int(output, flow.data.status); source_append_text(output, " boundary="); append_int(output, flow.data.boundary.index); var text = output.snapshot(); println(text.text); return 5;
@@ -361,6 +457,7 @@ int main(string[] args) {
 		expressive_formatting_types();
 		expressive_comprehension_types();
 		expressive_named_enum_arguments();
+		expressive_copied_foreach();
 		return 42;
 	} catch (Error error) { println_stderr(error.message); return 1; }
 }
