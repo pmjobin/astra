@@ -3,6 +3,7 @@
 """Focused production-source frontend consumer; native host gates are separate."""
 import argparse
 import ast
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
 import os
@@ -10,6 +11,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from threading import Lock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT.parent/'codex/work/astra'
@@ -29,8 +31,10 @@ def main():
 	p.add_argument('--consumer', type=Path)
 	p.add_argument('--semantic-oracle-inputs', type=Path, help='Authenticated versioned compiler/library source closure for C0 preflight; the actual consumer and Astra compilation remain current')
 	p.add_argument('--compile-timeout-seconds', type=int, default=7200, help='Bound the actual component compilation; retained modern O0 evidence costs about 1,565 CPU seconds before O2 qualification')
+	p.add_argument('--profile-jobs', type=int, choices=(1, 2), default=2, help='Independent profile processes with disjoint products and a synchronized command log')
 	a = p.parse_args()
 	assert a.compile_timeout_seconds > 0
+	assert len(a.mode) == len(set(a.mode)), 'profile output paths must be distinct'
 	if a.consumer is None: a.consumer = Path(__file__).with_name(a.layer+'.astra')
 	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
 	assert sha(a.compiler) == a.compiler_sha256 and sha(a.c0) == a.c0_sha256
@@ -77,19 +81,20 @@ def main():
 		oracle_authentication = {**baseline, str(a.semantic_oracle_inputs):sha(a.semantic_oracle_inputs)}
 		recipes.append(helper)
 	write(runtime/'semantic-oracle.json', dict(producer=dict(path=str(a.c0), sha256=a.c0_sha256), source_scope=semantic_scope, inputs={str(n):sha(n) for n in semantic_inputs}))
-	identity = dict(layer=a.layer, producer_kind=a.producer_kind, revision=subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip(), sources={str(n):sha(n) for n in [*inputs, *recipes]}, actual_sources={str(n):sha(n) for n in actual}, providers=providers, tools=tool_identity([a.compiler, a.c0, *[shutil.which(n) for n in ('opt', 'llc', 'cc', 'valgrind', 'llvm-config')]]), environment={n:os.environ.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'LC_ALL', 'LANG')})
+	identity = dict(layer=a.layer, producer_kind=a.producer_kind, profile_jobs=a.profile_jobs, revision=subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip(), sources={str(n):sha(n) for n in [*inputs, *recipes]}, actual_sources={str(n):sha(n) for n in actual}, providers=providers, tools=tool_identity([a.compiler, a.c0, *[shutil.which(n) for n in ('opt', 'llc', 'cc', 'valgrind', 'llvm-config')]]), environment={n:os.environ.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'LC_ALL', 'LANG')})
 	write(runtime/'identity.json', identity)
 	env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1')
 	env.pop('LD_PRELOAD', None); env.pop('VALGRIND_OPTS', None)
 	commands = []
+	command_lock = Lock()
 	def run(name, argv, expected=0, timeout=900):
 		r = execute(argv, runtime/name, expected=expected, timeout=timeout, env=env)
-		commands.append(dict(name=name, argv=list(map(str, argv)), result=r)); write(runtime/'commands.json', commands)
+		with command_lock:
+			commands.append(dict(name=name, argv=list(map(str, argv)), result=r)); write(runtime/'commands.json', commands)
 		print(name, r['status'], round(r['seconds'], 3), flush=True)
 		assert r['status'] == 'EXPECTED_OUTCOME', (name, r)
 	run('semantic-preflight', [a.c0, '--dump-semantics', *semantic_inputs])
-	products = {}
-	for mode in a.mode:
+	def profile(mode):
 		obj = build/('component-'+mode+'.o'); target = build/('component-'+mode)
 		if a.producer_kind == 'c0':
 			links = [arg for path in providers for arg in ('--link-object', path)]
@@ -101,7 +106,9 @@ def main():
 		run(mode+'-memory', ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', target], 42)
 		log = (runtime/(mode+'-memory')/'stderr').read_bytes()
 		assert all(m in log for m in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
-		products[mode] = dict(path=str(target), sha256=sha(target))
+		return mode, dict(path=str(target), sha256=sha(target))
+	with ThreadPoolExecutor(max_workers=a.profile_jobs) as pool:
+		products = dict(pool.map(profile, a.mode))
 	assert all(sha(n) == h for n,h in {**identity['sources'], **identity['actual_sources'], **providers, **identity['tools'], **oracle_authentication}.items())
 	write(runtime/'result.json', dict(status='FOCUSED_EXPRESSIVE_'+a.layer.upper()+'_COMPONENT_PASS', compiler_sha256=a.compiler_sha256, products=products, identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), semantic_oracle_sha256=sha(runtime/'semantic-oracle.json'), semantic_preflight_scope=semantic_scope['kind'], limitation='Selected '+a.layer+' source consumers only; no complete host, ABI, native new-feature or milestone qualification.'))
 
