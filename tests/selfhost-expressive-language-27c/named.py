@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Actual named-call native targets and separately authored C0 expansions."""
 import argparse
+import ast
+import re
 import json
 import os
 from pathlib import Path
@@ -958,7 +960,18 @@ int main() {
 ''', True),
 ])
 
+# Class/generic copies use the same exact range and owner proof machinery.
+RANGE_CASES.extend([
+	('range-class-foreach', 'class StrideCounter { int offset; init(int offset) { this.offset = offset; } int total() { int result = this.offset; foreach (var value in (20..=80).step_by(5)) { result += value; } return result; } } int main() { var counter = new StrideCounter(-608); int observed = counter.total(); return observed; }\n', 'class StrideCounter { int offset; init(int offset) { this.offset = offset; } int total() { int result = this.offset; int value = 20; while (value <= 80) { result = result + value; value = value + 5; } return result; } } int main() { var counter = new StrideCounter(-608); int observed = counter.total(); return observed; }\n', False),
+	('range-generic-foreach', 'int range_total<T>(T marker, int first, int last) { int result = 0; foreach (var value in (first..=last).step_by(5)) { result += value; } return result; } int main() { int observed = range_total<int>(0, 20, 80); return observed - 608; }\n', 'int range_total<T>(T marker, int first, int last) { int result = 0; int value = first; while (value <= last) { result = result + value; value = value + 5; } return result; } int main() { int observed = range_total<int>(0, 20, 80); return observed - 608; }\n', False),
+	('range-nested-class-foreach', 'class NestedCounter { int initial; init(int initial) { this.initial = initial; } int total() { int result = this.initial; foreach (var first in 0..3) { foreach (var last in 0..4) { if (last == 1) continue; if (last == 3) break; result += first + last; } } return result; } } int main() { var counter = new NestedCounter(30); int observed = counter.total(); return observed; }\n', 'class NestedCounter { int initial; init(int initial) { this.initial = initial; } int total() { int result = this.initial; int first = 0; while (first < 3) { int last = 0; while (last < 4) { if (last == 1) { last = last + 1; continue; } if (last == 3) break; result = result + first + last; last = last + 1; } first = first + 1; } return result; } } int main() { var counter = new NestedCounter(30); int observed = counter.total(); return observed; }\n', False),
+	('range-generic-class-foreach', 'class Item { int value; init(int value) { this.value = value; } } class RangeHolder<T> where T : ExactHeapClass { owned T[slots] entries; init() { this.entries = new T[slots]; } int total(int first, int last) { int result = 0; foreach (var value in (first..=last).step_by(5)) { result += value; } return result; } } int main() { var holder = new RangeHolder<Item>(); int observed = holder.total(20, 80); return observed - 608; }\n', 'class Item { int value; init(int value) { this.value = value; } } class RangeHolder<T> where T : ExactHeapClass { owned T[slots] entries; init() { this.entries = new T[slots]; } int total(int first, int last) { int result = 0; int value = first; while (value <= last) { result = result + value; value = value + 5; } return result; } } int main() { var holder = new RangeHolder<Item>(); int observed = holder.total(20, 80); return observed - 608; }\n', False),
+])
+
 RANGE_NEGATIVE = [
+	('range-class-foreach-write', 'class Counter { int initial; init(int initial) { this.initial = initial; } int total() { foreach (var value in 0..3) { value += 1; } return this.initial; } } int main() { var counter = new Counter(42); return counter.total(); }'),
+	('range-class-foreach-escape', 'class Counter { int initial; init(int initial) { this.initial = initial; } int total() { foreach (var value in 0..3) { int copied = value; } return value; } } int main() { var counter = new Counter(42); return counter.total(); }'),
+	('range-generic-foreach-write', 'int total<T>(T marker) { foreach (var value in 0..3) { value = value + 1; } return 42; } int main() { return total<int>(0); }'),
 	('range-fixed-dynamic', 'int main() { int end = 80; int[13] values = (20..=end).step_by(5).collect_fixed(); return 42; }'),
 	('range-fixed-count', 'int main() { int[12] values = (20..=80).step_by(5).collect_fixed(); return 42; }'),
 	('range-fixed-implicit', 'int main() { var values = (20..=80).step_by(5).collect_fixed(); return 42; }'),
@@ -1304,11 +1317,46 @@ FORMAT_NEGATIVE = [
 ]
 
 
+def versioned_oracle_libraries(manifest_path):
+	manifest_path = Path(manifest_path)
+	assert manifest_path.is_file() and not manifest_path.is_symlink()
+	manifest = json.loads(manifest_path.read_text())
+	assert manifest.get('format') == 'astra-current-inputs/1'
+	revision = manifest.get('revision', '')
+	assert re.fullmatch('[0-9a-f]{40}', revision)
+	assert subprocess.check_output(['git', '-C', ROOT, 'rev-parse', '--verify', revision+'^{commit}'], text=True).strip() == revision
+	assert subprocess.run(['git', '-C', ROOT, 'merge-base', '--is-ancestor', revision, 'HEAD'], capture_output=True).returncode == 0
+	definition = ROOT/'tests/selfhost-typecore/build.py'
+	model = ast.parse(definition.read_text())
+	libraries = next(ast.literal_eval(n.value) for n in model.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'LIBRARIES' for t in n.targets))
+	expected = {'lib/astra/'+name+'.astra' for name in libraries}
+	assert len(expected) == len(libraries) == 10
+	selected = {}; rows = []
+	for path, digest in manifest['inputs'].items():
+		marker = '/source-inputs/lib/astra/'
+		if marker not in path: continue
+		relative = 'lib/astra/'+path.split(marker, 1)[1]
+		assert relative in expected and relative not in selected
+		source = Path(path)
+		assert source.is_absolute() and source.resolve().is_relative_to((WORK/'runtime').resolve())
+		assert not any(p.is_symlink() for p in (source, *source.parents))
+		assert source.is_file() and source.stat().st_mode & 0o222 == 0 and sha(source) == digest
+		blob = subprocess.check_output(['git', '-C', ROOT, 'rev-parse', revision+':'+relative], text=True).strip()
+		assert subprocess.check_output(['git', '-C', ROOT, 'hash-object', '--no-filters', source], text=True).strip() == blob
+		selected[relative] = source
+		rows.append(dict(repository_path=relative, snapshot_path=str(source), sha256=digest, git_blob=blob, bytes=source.stat().st_size))
+	assert set(selected) == expected
+	mapping = {str(ROOT/name):path for name,path in selected.items()}
+	identity = dict(format='astra-versioned-oracle-libraries/1', manifest=str(manifest_path), manifest_sha256=sha(manifest_path), revision=revision, library_definition=dict(path=str(definition), sha256=sha(definition)), libraries=sorted(rows, key=lambda row:row['repository_path']), scope='Only C0 expanded references use these explicit immutable legacy libraries. Actual Astra targets use current repository libraries. This is not C0 acceptance of current modern library source.')
+	return mapping, identity
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for n in ('compiler', 'c0', 'link', 'build', 'runtime'): p.add_argument('--'+n, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True); p.add_argument('--c0-sha256', required=True)
 	p.add_argument('--oracle-only', action='store_true'); p.add_argument('--case', action='append')
+	p.add_argument('--oracle-library-inputs', type=Path, help='Explicit Git/hash-checked immutable ten-library inputs.json for C0 expanded references; Astra uses current libraries')
 	p.add_argument('--freestanding-only', action='store_true', help='Range/fixed targets linked with a syscall entry only, without libc or allocator')
 	p.add_argument('--feature', choices=('named', 'match', 'range', 'format', 'collection'), default='named')
 	a = p.parse_args()
@@ -1321,6 +1369,11 @@ def main():
 	tools = tool_identity([a.compiler, a.c0, sys.executable, *[shutil.which(n) for n in ('gcc', 'cc', 'opt', 'readelf', 'valgrind', 'llvm-config')]])
 	env = dict(os.environ, CCACHE_DISABLE='1', PYTHONDONTWRITEBYTECODE='1'); env.pop('LD_PRELOAD', None); env.pop('VALGRIND_OPTS', None)
 	inputs = {str(Path(__file__)):sha(__file__), str(a.link):sha(a.link)}; products = {}; commands = []
+	oracle_libraries = {}; oracle_library_identity = None
+	if a.oracle_library_inputs is not None:
+		oracle_libraries, oracle_library_identity = versioned_oracle_libraries(a.oracle_library_inputs)
+		inputs.update({str(path):sha(path) for path in [a.oracle_library_inputs, ROOT/'tests/selfhost-typecore/build.py', *oracle_libraries.values()]})
+		write(runtime/'oracle-libraries.json', oracle_library_identity)
 	def run(name, argv, expected=0):
 		r = execute(argv, runtime/name, expected=expected, timeout=900, env=env)
 		commands.append(dict(name=name, argv=list(map(str, argv)), result=r)); write(runtime/'commands.json', commands)
@@ -1411,15 +1464,16 @@ def main():
 		if name == 'namespace-call':
 			helper = runtime/'Helpers.astra'; helper.write_text('namespace Helpers;\nint add(int first, int last) { return first+last; }\n')
 			extra.append(helper)
-		inputs.update({str(n):sha(n) for n in [source, oracle, *extra]}); write(runtime/'inputs.json', inputs)
+		oracle_extra = [oracle_libraries.get(str(path), path) for path in extra]
+		inputs.update({str(n):sha(n) for n in [source, oracle, *extra, *oracle_extra]}); write(runtime/'inputs.json', inputs)
 		reference = build/(name+'-C0'); links = [arg for n in objects for arg in ('--link-object', n)]
 		observed = name in ('range-collect', 'range-collect-literal', 'range-collect-named', 'range-fixed') or name.startswith(('lazy-', 'format-', 'collection-', 'comprehension-', 'named-enum-')); allocation_links = ['-Wl,--wrap=calloc', '-Wl,--wrap=malloc', '-Wl,--wrap=realloc', '-Wl,--wrap=free', allocation_object] if observed else []
 		if observed:
 			oracle_object = build/(name+'-C0.o')
-			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *extra, '-o', oracle_object])
+			run(name+'-C0-compile', [a.c0, '-c', '--entry-object', '-O0', oracle, *oracle_extra, '-o', oracle_object])
 			run(name+'-C0-link', ['cc', '-no-pie', oracle_object, *objects, *allocation_links, '-o', reference])
 		else:
-			run(name+'-C0-compile', [a.c0, '-O0', oracle, *extra, *links, '-o', reference])
+			run(name+'-C0-compile', [a.c0, '-O0', oracle, *oracle_extra, *links, '-o', reference])
 		run(name+'-C0-native', [reference], 42); products[str(reference)] = sha(reference)
 		if a.feature in ('format', 'collection') or name.startswith('named-enum-'): memory(name+'-C0-memory', [reference], 42)
 		if a.oracle_only: continue
@@ -1443,9 +1497,19 @@ def main():
 		inputs.update({str(n):sha(n) for n in extra}); write(runtime/'inputs.json', inputs)
 		run(name+'-reject', [a.compiler, '--emit-llvm', '-o', target, source, *extra], 1)
 		assert target.read_bytes() == marker and (runtime/(name+'-reject/stderr')).stat().st_size > 0
+		if name in ('range-class-foreach-write', 'range-generic-foreach-write'):
+			assert b'foreach element binding is immutable' in (runtime/(name+'-reject/stderr')).read_bytes()
+		if name == 'range-class-foreach-escape':
+			assert b'generic body syntax lacks a concrete specialization contract' not in (runtime/(name+'-reject/stderr')).read_bytes()
 	assert all(sha(n) == h for n,h in {**inputs, **providers, **tools, **products}.items())
-	write(runtime/'identity.json', dict(inputs=inputs, providers=providers, tools=tools, products=products, environment={n:env.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'PYTHONHOME', 'LIBRARY_PATH', 'LC_ALL', 'LANG')}))
-	write(runtime/'result.json', dict(status='EXPANDED_C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_EXPRESSIVE_NATIVE_AND_MEMORY_PASS', feature=a.feature, compiler_sha256=a.compiler_sha256, oracle_only=a.oracle_only, cases=[r[0] for r in cases], negatives=0 if a.oracle_only else len(negatives), identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), limitation='Selected actual source behavior only. Independent source/owner/LLVM corruptions and full current compiler qualification remain separate gates.'))
+	identity = dict(inputs=inputs, providers=providers, tools=tools, products=products, environment={n:env.get(n) for n in ('PATH', 'LD_LIBRARY_PATH', 'PYTHONHOME', 'LIBRARY_PATH', 'LC_ALL', 'LANG')})
+	if oracle_library_identity is not None: identity['oracle_libraries'] = oracle_library_identity
+	write(runtime/'identity.json', identity)
+	result = dict(status='EXPANDED_C0_ORACLES_ONLY' if a.oracle_only else 'SELECTED_EXPRESSIVE_NATIVE_AND_MEMORY_PASS', feature=a.feature, compiler_sha256=a.compiler_sha256, oracle_only=a.oracle_only, cases=[r[0] for r in cases], negatives=0 if a.oracle_only else len(negatives), identity_sha256=sha(runtime/'identity.json'), commands_sha256=sha(runtime/'commands.json'), limitation='Selected actual source behavior only. Independent source/owner/LLVM corruptions and full current compiler qualification remain separate gates.')
+	if oracle_library_identity is not None:
+		result['oracle_library_revision'] = oracle_library_identity['revision']
+		result['limitation'] += ' C0 expanded references use explicitly versioned legacy libraries; no C0 acceptance of current modern library source is claimed.'
+	write(runtime/'result.json', result)
 
 
 if __name__ == '__main__': main()
