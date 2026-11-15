@@ -80,6 +80,17 @@ All generated products belong under `~/Workspace/codex/work/astra/build/` and
 temporary inputs/receipts under its `runtime/`. No recipe here changes intake,
 publishes a release, upgrades a failed gate, or predeclares post-delivery G7.
 
+After the installed publisher completes, `delivered.py` performs the separate
+27-C G7. Supply the prepublication `--audit` JSON, authenticated final
+`--stage-runtime`, current `--component-runtime`, versioned C0
+`--oracle-inputs`, and fresh external `--build`/`--runtime` leaves. It reopens
+the canonical report and its complete content-addressed evidence, checks every
+changed source against Git/live bytes, then runs fresh Stage2 O0/O2 range and
+match targets, semantic refusals, strict returning compiler/target memory,
+LLVM-valid physical refusals and the actual source/owner corruption consumer.
+Its separately dated receipt preserves the immutable prepublication G7=PENDING
+and the historical 27-B PARTIAL; it never republishes the report.
+
 ### Current migrated compiler-systems examples
 
 These are workload-cohort identities. Complete milestone qualification, including later compiler regression repairs, is recorded separately.
