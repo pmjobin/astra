@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 // Indices belong to exactly one BindingIndex. Zero never names a declaration.
 struct SymbolId {
 	int index;
@@ -78,18 +79,12 @@ BindingState binding_state(int code) {
 	return BindingState.Builtin();
 }
 
-int binding_domain_code(BindingDomain domain) {
-	if (domain == BindingDomain.Type()) {
-		return 1;
-	}
-	if (domain == BindingDomain.Value()) {
-		return 2;
-	}
-	if (domain == BindingDomain.Namespace()) {
-		return 3;
-	}
-	return 4;
-}
+int binding_domain_code(BindingDomain domain) => match (domain) {
+	case BindingDomain.Type() => 1;
+	case BindingDomain.Value() => 2;
+	case BindingDomain.Namespace() => 3;
+	case BindingDomain.Member() => 4;
+};
 
 enum BindingSymbolKind {
 	Function,

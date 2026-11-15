@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 // Generated structural consumer. Never calls the instance builder.
 bool generic_check_node(CheckedIndex index, GenericInstance plan, SyntaxNodeId original) {
 	if (original.index <= 0 || original.index >= (index.generic_nodes + 1)) return false;
@@ -620,10 +621,8 @@ bool generic_check_child(CheckedIndex index, GenericInstance plan, SyntaxNodeId 
 bool generic_check_list(CheckedIndex index, GenericInstance plan, SyntaxListId original, SyntaxListId concrete) {
 	int count = index.bindings.program.arena.list_count(original);
 	if (count != index.bindings.program.arena.list_count(concrete)) return false;
-	int i = 0;
-	while (i < count) {
+	foreach (var i in 0..count) {
 		if (!generic_check_child(index, plan, index.bindings.program.arena.node_at(original, i), index.bindings.program.arena.node_at(concrete, i))) return false;
-		i = i + 1;
 	}
 	return true;
 }
