@@ -1,8 +1,12 @@
 # 27-D fixed-source self-host convergence
 
-This milestone builds new production compilers from the modern 27-C source. It
-does not restart 27-B, relabel dev20/dev21 as a same-source chain, or authorize a
-release. Results below remain pending until their actual receipts exist.
+Three fresh production generations from one modern 27-C source revision passed
+native O0/O2 qualification. Their corresponding compiler objects and executables
+are byte-identical. One source candidate F was used throughout; no compiler or
+library changes were necessary. The changes in this milestone are source-bound
+build, comparison, qualification and delivery recipes, plus measured findings.
+Publication and the separate after-publication G8 remain pending in this Git
+revision. This is technical convergence evidence, not release authorization.
 
 ## Source and seed
 
@@ -62,13 +66,14 @@ export LD_LIBRARY_PATH="$HOME/Workspace/codex/work/astra/runtime/selfhost27c-ent
 export LIBRARY_PATH="$LD_LIBRARY_PATH"
 export LC_ALL=C.UTF-8
 python3 -B tests/selfhost-convergence-27d/run.py generate --stage 1
-python3 -B tests/selfhost-convergence-27d/run.py observe --stage 1
 python3 -B tests/selfhost-convergence-27d/run.py regress --stage 1 --mode O2
 python3 -B tests/selfhost-convergence-27d/run.py regress --stage 1 --mode O0
 ```
 
-The running first generation must be joined, not started twice. Repeat generation
-and observation for stages two and three, using the previous stage's actual O2
+While generation is running, a second terminal executes
+`python3 -B tests/selfhost-convergence-27d/run.py observe --stage 1` to capture
+the actual live producer. Join that generation before qualifying it; never start
+it twice. Repeat generation and observation for stages two and three, using the previous stage's actual O2
 compiler as producer. Each generation independently builds O0 and O2 compiler
 hosts into new destinations; both profiles consume F. O0 companions receive
 target O0/O2 qualification, while O2 hosts produce the next generation. A target
@@ -92,13 +97,108 @@ client and application wrappers are parameterized versions of retained 27-C
 invocations; they preserve the explicit private-fastcc/C-descriptor bridge and
 the original application expectations, I/O faults and malformed-argv controls.
 
-Compiler objects and ELF products are compared byte-for-byte for Stage1/2 and
-Stage2/3. Stage2/3 corpus LLVM, object and ELF products are also compared exactly.
-Diagnostic comparisons replace only the declared generation output roots;
-offsets and remaining message bytes stay exact. Valgrind process-statistics
-lines are excluded from diagnostic comparison only after independently checking
-zero errors, zero live bytes and zero suppressions. Raw streams and differences
-are preserved. No normalization grants byte identity to different artifacts.
+The generation commands refuse pre-existing output directories. The retained
+receipts under `runtime/selfhost27d` and `build/selfhost27d` are the results of
+these actual runs, not destinations to overwrite during a replay.
+
+## Actual generation and qualification results
+
+Each row is a cold production compiler generation, with its own GNU time receipt.
+CPU columns are user and system seconds; RSS is KiB. Overlapping profile wall
+intervals are not added together.
+
+| Generation / host | Wall seconds | User CPU | System CPU | Max RSS |
+| --- | ---: | ---: | ---: | ---: |
+| Stage1 / O0 | 2336.154 | 2315.57 | 4.30 | 941512 |
+| Stage1 / O2 | 3653.451 | 3622.79 | 4.31 | 959304 |
+| Stage2 / O0 | 2364.525 | 2343.60 | 4.50 | 939688 |
+| Stage2 / O2 | 3730.203 | 3698.75 | 4.51 | 959612 |
+| Stage3 / O0 | 2392.361 | 2370.69 | 4.55 | 940000 |
+| Stage3 / O2 | 3758.291 | 3726.27 | 4.58 | 959032 |
+
+The actual chain is S(F) to Stage1, Stage1-O2(F) to Stage2, and Stage2-O2(F)
+to Stage3. All three stages have these corresponding SHA-256 products:
+
+| Profile / product | Bytes | SHA-256 |
+| --- | ---: | --- |
+| O0 object | 7893984 | `4511b3845b12d5e7fed47a22529b23c95faa0233c3964b1b3b343e050827c3d8` |
+| O0 ELF | 7554712 | `5c87b159a55e6bfd745ae54a6c927f6d76a08318b0b9576af583b5b20607456a` |
+| O2 object | 3273208 | `16647b1afcba13b58676bd326eb24ba4c089ef71a701732617d22d1a42760f27` |
+| O2 ELF | 2388496 | `560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4afd77052325addf1f1c6` |
+
+S has different executable bytes and its earlier dev18 producer remains explicit.
+It receives no same-source generation credit. Live process observations bind all
+six fresh compiles to F, their producer executable and exact mapped LLVM bytes.
+All six new production compilers execute and pass the retained qualification.
+
+There are 18 independent suites per host, with a nineteenth source/owner
+consumer suite on Stage3-O2. Every campaign passed. Coverage includes the 27-B
+ownership, weak/borrow and exception cases; current named calls, expression
+match, formatting, stride/range/slice and lazy pipeline cases; collections and
+comprehensions; freestanding allocator separation; original C descriptor ABI;
+and actual config/digest/report applications, I/O faults and malformed argv.
+The application suite records 108 observations, 64 strict target memory streams
+and 132 malformed-argv native/memory cases per compiler host.
+
+Each host has 48 LLVM-valid physical mutations and 28 matched controls: 288
+mutations and 168 controls across six hosts. Structural LLVM acceptance and
+source-correspondence refusal are independently observed; refused mutants are
+never executed. The Stage3-built source/owner consumer uses 125 actual inputs,
+tests both target profiles, and returns 42 with the source/consumer control marker
+in native and strict memory runs. Its target builds took 1669.270 seconds (O0)
+and 2350.719 seconds (O2), in parallel. The maintained component recipe now has
+an explicit 7200-second compile timeout and isolated profile jobs with a locked
+shared command log; the actual two-profile campaign validates that scheduling.
+
+Actual compiler and target returning-memory checks use all six strict Valgrind
+flags from the task, with zero errors, zero live bytes and zero suppressions.
+Additional Stage3 host O0/O2 borrowed-slice refusal checks preserve their output
+sentinels, return 1 and pass strict compiler-process memory. Full raw timings for
+native targets, compiler invocations and Valgrind are retained beside each
+execution; `execution-costs.json` indexes wall, user/system CPU, RSS and expected
+versus actual exit without adding overlapping intervals. Slow whole-compiler
+generation retains all module verifications; no verifier bypass was used.
+
+Seven surviving byte-exact legacy groups were freshly replayed per host. The
+other six original 27-A groups reference fixture sources absent after the
+historical purge. The original 411-source qualification remains historical;
+this work neither invents that complete replay nor waives the historical loss.
+
+## Convergence and retained differences
+
+Stage1/2 and Stage2/3 compiler objects and ELF products are byte-identical: eight
+pair comparisons. The independent per-suite corpus originally used different
+absolute fixture paths for each generation. Of 1686 artifacts, 1370 match raw
+bytes and 316 differ. Error-origin constants embed those absolute source paths;
+C bridge LLVM also carries module/source filenames. All raw differences remain
+in `corpus-unfixed-raw-differences.json`. LLVM explanation compares only declared
+equal-length roots inside origin constants or module filename metadata, with
+assertions forbidding instruction changes. C0/GCC observer and oracle support
+differences receive no Stage3 byte-identity credit.
+
+To remove that input-path ambiguity, `fixed-corpus` freshly compiled with Stage3
+against the exact Stage2 absolute source argument lists and bytes, changing only
+the producer and output destination. Both host profiles and target O0/O2 passed:
+380 program profiles have byte-identical objects and ELF executables; all 190
+raw LLVM modules match exactly and independently pass LLVM verification.
+Native behavior, application output files and strict target memory also pass.
+Authenticated C support objects are reused; no Astra object or executable is
+reused. This proof uses no artifact normalization.
+
+The separate behavioral comparison covers 6136 streams. It replaces only known
+generation roots in diagnostics, retaining spans and other message bytes.
+Valgrind statistics are omitted only from stderr, after independently asserting
+zero errors, zero live bytes and zero suppressions. Program stdout is compared
+as output. The final comparison has no unexplained differences.
+
+Two audit-wrapper failures are retained openly. The initial comparator checked
+stderr-only Valgrind markers in stdout after all six campaigns had passed.
+During the stronger fixed-path replay, a raw malformed-argv command row lacked
+the ordinary `argv` key; that wrapper stopped after 176 passed program profiles.
+The corrected reader reauthenticated those 176 complete results and executed
+the remaining 204. Executed recipe snapshots, original failure description and
+all command streams remain available. F, tools and compiler products did not
+change; neither failure was a compiler or native-program failure.
 
 ## Preservation and delivery
 

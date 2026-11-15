@@ -355,6 +355,12 @@ def fixed_corpus():
 
 def convergence():
 	assert authenticate()[0] == load(RUNTIME/'fixed-source.json')['source_rows']
+	(RUNTIME/'comparison-executed-recipe.py.txt').write_bytes(Path(__file__).read_bytes())
+	fixed = load(RUNTIME/'fixed-path-corpus/result.json')
+	assert fixed['status'] == 'FIXED_PATH_STAGE2_STAGE3_CORPUS_BYTE_AND_NATIVE_MEMORY_PASS'
+	assert sha(RUNTIME/'fixed-path-corpus/comparisons.json') == fixed['comparison_sha256']
+	fixed_rows = load(RUNTIME/'fixed-path-corpus/comparisons.json')
+	covered = {row[key] for row in fixed_rows for key in ('Stage2_object', 'Stage2_ELF')}
 	pairs = []
 	for first, second in ((1, 2), (2, 3)):
 		left = load(RUNTIME/('stage'+str(first))/'result.json')
@@ -367,12 +373,28 @@ def convergence():
 				pairs.append(dict(generations=[first, second], profile=mode, artifact=kind, first_sha256=one, second_sha256=two, bitwise_equal=one == two))
 	write(RUNTIME/'generation-comparison.json', pairs)
 	assert all(row['bitwise_equal'] for row in pairs), 'Retained native-generation difference requires investigation'
-	differences = []; artifacts = []; behaviors = []
+	differences = []; artifacts = []; behaviors = []; source_rows = []
 	for mode in ('O0', 'O2'):
 		left_root = BUILD/('stage2-'+mode+'-regression'); right_root = BUILD/('stage3-'+mode+'-regression')
 		left_runtime = RUNTIME/('stage2-'+mode+'-regression'); right_runtime = RUNTIME/('stage3-'+mode+'-regression')
 		for root in (left_runtime, right_runtime): assert load(root/'result.json')['status'] == 'ALL_RETAINED_CURRENT_SUITES_PASS'
-		# Stage3's additional whole source/owner consumer build has separate proof.
+		for path in sorted(left_runtime.rglob('*.astra')):
+			relative = path.relative_to(left_runtime)
+			if relative.parts[0] == 'jobs': continue
+			other = right_runtime/relative
+			assert other.is_file() and path.read_bytes() == other.read_bytes(), ('corpus source bytes changed', relative)
+			source_rows.append(dict(host_profile=mode, path=str(relative), sha256=sha(path), byte_equal=True))
+		def canonical_ir(data):
+			for prefix in (str(left_runtime), str(right_runtime), str(left_root), str(right_root)):
+				needle = prefix.encode()
+				for line in data.splitlines():
+					if needle in line:
+						assert line.startswith((b'; ModuleID =', b'source_filename =')) or line.startswith(b'@') and b'constant' in line and b'c"' in line, ('unexpected path in LLVM instructions', line)
+				canonical = prefix.replace('stage2-', 'stageN-').replace('stage3-', 'stageN-').encode()
+				assert len(canonical) == len(needle)
+				data = data.replace(needle, canonical)
+			return data
+			# Stage3's additional whole source/owner consumer build has separate proof.
 		for path in sorted(left_root.rglob('*')):
 			if not path.is_file(): continue
 			name = path.relative_to(left_root)
@@ -381,8 +403,19 @@ def convergence():
 			if not other.is_file(): differences.append(dict(profile=mode, missing=str(name))); continue
 			if path.suffix not in ('.ll', '.o') and path.read_bytes()[:4] != b'\x7fELF': continue
 			row = dict(host_profile=mode, path=str(name), first_sha256=sha(path), second_sha256=sha(other), bitwise_equal=sha(path) == sha(other))
+			if not row['bitwise_equal']:
+				if path.suffix == '.ll':
+					one = canonical_ir(path.read_bytes()); two = canonical_ir(other.read_bytes())
+					row.update(comparison='SOURCE_ORIGIN_AND_MODULE_FILENAME_METADATA_ONLY', normalized_equal=one == two, first_normalized_sha256=hashlib.sha256(one).hexdigest(), second_normalized_sha256=hashlib.sha256(two).hexdigest())
+					if one != two: differences.append(row)
+				elif str(path) in covered:
+					row['comparison'] = 'DIFFERENT_FIXTURE_PATHS; EXACT_NATIVE_BYTES_PROVED_BY_FIXED_PATH_REPLAY'
+				elif re.search(r'-C0(?:\.o)?$', path.name) or '-baseline-' in path.name or path.name in ('observe.o', 'observer.o', 'allocation-observer.o', 'bridge.o'):
+					row['comparison'] = 'C0_OR_GCC_TEST_SUPPORT; RAW_DIFFERENCE_RETAINED; NO_STAGE3_BYTE_IDENTITY_CREDIT'
+				else:
+					row['comparison'] = 'UNEXPLAINED_NATIVE_DIFFERENCE'
+					differences.append(row)
 			artifacts.append(row)
-			if not row['bitwise_equal']: differences.append(row)
 		for commands in sorted(left_runtime.glob('*/commands.json')):
 			relative = commands.relative_to(left_runtime); other_commands = right_runtime/relative
 			if not other_commands.is_file(): differences.append(dict(missing_commands=str(relative))); continue
@@ -400,7 +433,7 @@ def convergence():
 					p = left_runtime/suite/name/stream; q = right_runtime/suite/name/stream
 					if not p.exists(): continue
 					before = p.read_bytes(); after = q.read_bytes()
-					if name.endswith('memory') or b'Valgrind' in before:
+					if stream == 'stderr' and any(Path(part).name == 'valgrind' for part in a['argv']):
 						# Zero live bytes/errors/suppressions are independently asserted;
 						# remove only Valgrind's process-statistics lines for diagnostics.
 						for raw in (before, after):
@@ -415,10 +448,12 @@ def convergence():
 					behaviors.append(row)
 					if not row['normalized_equal']: differences.append(row)
 	write(RUNTIME/'corpus-artifact-comparison.json', artifacts)
+	write(RUNTIME/'corpus-input-identity.json', source_rows)
+	write(RUNTIME/'corpus-unfixed-raw-differences.json', [row for row in artifacts if not row['bitwise_equal']])
 	write(RUNTIME/'corpus-behavior-comparison.json', behaviors)
 	write(RUNTIME/'convergence-differences.json', differences)
 	assert artifacts and behaviors and not differences, 'Retained corpus difference requires investigation'
-	write(RUNTIME/'convergence.json', dict(status='FIXED_SOURCE_GENERATION_AND_CORPUS_CONVERGENCE_PASS', fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), generation_pairs=len(pairs), exact_corpus_artifacts=len(artifacts), normalized_behavior_streams=len(behaviors), normalization='Compiler objects, ELF and corpus LLVM/object/ELF are byte-exact. Diagnostic comparison replaces only the declared per-generation build/runtime roots; Valgrind PID/statistics lines are omitted after separate strict zero errors/live bytes/suppressions assertions. Source offsets and all remaining diagnostic bytes are exact.', generation_comparison_sha256=sha(RUNTIME/'generation-comparison.json'), artifact_comparison_sha256=sha(RUNTIME/'corpus-artifact-comparison.json'), behavior_comparison_sha256=sha(RUNTIME/'corpus-behavior-comparison.json'), differences_sha256=sha(RUNTIME/'convergence-differences.json')))
+	write(RUNTIME/'convergence.json', dict(status='FIXED_SOURCE_GENERATION_AND_CORPUS_CONVERGENCE_PASS', fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), generation_pairs=len(pairs), unfixed_path_artifacts=len(artifacts), unfixed_path_raw_byte_equal=sum(row['bitwise_equal'] for row in artifacts), unfixed_path_raw_differences=sum(not row['bitwise_equal'] for row in artifacts), fixed_path_program_profiles=fixed['program_profiles'], fixed_path_exact_raw_LLVM_modules=fixed['exact_raw_LLVM_modules'], fixed_path_proof_sha256=sha(RUNTIME/'fixed-path-corpus/result.json'), normalized_behavior_streams=len(behaviors), normalization='Compiler generation objects/ELFs and the same-absolute-input corpus replay LLVM/objects/ELFs are byte-exact with no artifact normalization. Independent per-suite fixtures have different absolute source paths: retain all raw differences, compare LLVM only after equal-length replacement of declared source/output roots in origin constants and module filename metadata, and compare diagnostics after declared root replacement. No binary normalization is used. C0/GCC observer/oracle artifacts receive no Stage3 byte-identity credit. Strict Valgrind stderr markers are checked before omitting PID/statistics lines; stdout is compared as program output.', generation_comparison_sha256=sha(RUNTIME/'generation-comparison.json'), artifact_comparison_sha256=sha(RUNTIME/'corpus-artifact-comparison.json'), behavior_comparison_sha256=sha(RUNTIME/'corpus-behavior-comparison.json'), differences_sha256=sha(RUNTIME/'convergence-differences.json')))
 
 
 def check_streams(directory):
@@ -438,7 +473,20 @@ def audit():
 	modes = load(RUNTIME/'language-modes.json')
 	assert modes['fixed_source_sha256'] == sha(RUNTIME/'fixed-source.json')
 	assert {row['path']:row['sha256'] for row in modes['source_rows']} == {row['path']:row['sha256'] for row in rows}
-	assert load(RUNTIME/'convergence.json')['status'] == 'FIXED_SOURCE_GENERATION_AND_CORPUS_CONVERGENCE_PASS'
+	converged = load(RUNTIME/'convergence.json')
+	assert converged['status'] == 'FIXED_SOURCE_GENERATION_AND_CORPUS_CONVERGENCE_PASS'
+	assert (RUNTIME/'comparison-executed-recipe.py.txt').read_bytes() == Path(__file__).read_bytes()
+	for name, key in (('generation-comparison.json', 'generation_comparison_sha256'), ('corpus-artifact-comparison.json', 'artifact_comparison_sha256'), ('corpus-behavior-comparison.json', 'behavior_comparison_sha256'), ('convergence-differences.json', 'differences_sha256'), ('fixed-path-corpus/result.json', 'fixed_path_proof_sha256')):
+		assert sha(RUNTIME/name) == converged[key]
+	assert not load(RUNTIME/'convergence-differences.json')
+	fixed = load(RUNTIME/'fixed-path-corpus/result.json')
+	for name, key in (('comparisons.json', 'comparison_sha256'), ('commands.json', 'commands_sha256')):
+		assert sha(RUNTIME/'fixed-path-corpus'/name) == fixed[key]
+	for row in load(RUNTIME/'fixed-path-corpus/comparisons.json'):
+		assert all(sha(path) == digest for path, digest in {**row['sources'], **row['cached_C_support_objects']}.items())
+		assert sha(row['Stage2_object']) == sha(row['Stage3_object']) == row['object_sha256']
+		assert sha(row['Stage2_ELF']) == sha(row['Stage3_ELF']) == row['ELF_sha256']
+		assert sha(row['raw_LLVM']['path']) == sha(row['raw_LLVM']['Stage2_path']) == row['raw_LLVM']['sha256']
 	assert not git('diff', '--name-only').strip() and not git('diff', '--cached', '--name-only').strip()
 	stages = []; measurements = []; memory = []; physical = []
 	for stage in (1, 2, 3):
@@ -461,7 +509,27 @@ def audit():
 					if line.strip().startswith(key+':'): metrics[key] = line.strip()[len(key)+1:].strip()
 			measurements.append(dict(stage=stage, host_profile=mode, producer=result['producer'], product_sha256=product['sha256'], fixed_source_sha256=result['fixed_source_sha256'], GNU_time=metrics))
 			regression = RUNTIME/('stage'+str(stage)+'-'+mode+'-regression')
-			assert load(regression/'result.json')['status'] == 'ALL_RETAINED_CURRENT_SUITES_PASS'
+			campaign = load(regression/'result.json')
+			assert campaign['status'] == 'ALL_RETAINED_CURRENT_SUITES_PASS'
+			for suite in campaign['suites']:
+				root = regression/suite['name']; proof = load(root/'result.json')
+				assert sha(root/'result.json') == suite['receipt_sha256']
+				assert suite['result']['status'] == 'EXPECTED_OUTCOME'
+				if 'compiler_sha256' in proof: assert proof['compiler_sha256'] == product['sha256']
+				for name, key in (('identity.json', 'identity_sha256'), ('commands.json', 'commands_sha256'), ('programs.json', 'programs_sha256'), ('observations.json', 'observations_sha256')):
+					if key in proof: assert sha(root/name) == proof[key]
+				identity = load(root/'identity.json') if (root/'identity.json').exists() else {}
+				for model in (proof, identity):
+					for group in ('inputs', 'sources', 'actual_sources', 'source_inputs', 'providers', 'tools', 'products'):
+						for path, digest in model.get(group, {}).items():
+							if isinstance(digest, dict):
+								assert sha(digest['path']) == digest['sha256']
+							else: assert sha(path) == digest
+				if (root/'products.json').exists():
+					assert all(sha(path) == digest for path, digest in load(root/'products.json').items())
+				if (root/'programs.json').exists():
+					for program in load(root/'programs.json'):
+						assert all(sha(path) == digest for group in ('sources', 'products') for path, digest in program[group].items())
 			for row in load(regression/'plans.json'): assert sha(row['recipe']) == row['recipe_sha256']
 			for path in regression.rglob('stderr'):
 				data = path.read_bytes()
@@ -470,6 +538,11 @@ def audit():
 				memory.append(dict(path=str(path), sha256=sha(path)))
 			for path in regression.glob('physical-*/result.json'):
 				proof = load(path); assert proof['status'] == 'SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS'
+				observations = load(path.with_name('observations.json'))
+				assert len(observations) == proof['mutations']+proof['controls']
+				for row in observations:
+					assert row['observations']['structural-return']['returned'] == 0
+					assert row['observations']['inferior-exit']['exit'] == int(not row['action'].endswith('control'))
 				physical.append(dict(stage=stage, host_profile=mode, path=str(path), sha256=sha(path), mutations=proof['mutations'], controls=proof['controls']))
 		observed = set()
 		for path in directory.glob('process-observation-*.json'):
@@ -485,6 +558,16 @@ def audit():
 	write(RUNTIME/'strict-memory-streams.json', memory)
 	write(RUNTIME/'physical-receipts.json', physical)
 	streams = check_streams(RUNTIME)
+	costs = []
+	for path in sorted(RUNTIME.rglob('result.json')):
+		result = load(path)
+		if not isinstance(result, dict) or 'stdout_sha256' not in result: continue
+		metrics = {}
+		for line in path.with_name('time.txt').read_text().splitlines():
+			for key in ('User time (seconds)', 'System time (seconds)', 'Elapsed (wall clock) time (h:mm:ss or m:ss)', 'Maximum resident set size (kbytes)', 'Exit status'):
+				if line.strip().startswith(key+':'): metrics[key] = line.strip()[len(key)+1:].strip()
+		costs.append(dict(execution=str(path.parent.relative_to(RUNTIME)), result_sha256=sha(path), GNU_time=metrics, monotonic_wall_seconds=result['seconds'], actual_exit=result['exit'], expected_exit=result['expected_exit']))
+	write(RUNTIME/'execution-costs.json', dict(format='astra27d-execution-costs/1', executions=costs, overlapping_intervals_not_summed=True))
 	write(RUNTIME/'engineering-audit.json', dict(format='astra27d-engineering-audit/1', status='ENGINEERING_G0_G7_PASS_G8_PENDING', UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(), HEAD=git('rev-parse', 'HEAD').decode().strip(), tree=git('rev-parse', 'HEAD^{tree}').decode().strip(), fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), source_revision=BASE, source_tree=TREE, gates={**{'G'+str(n):'PASS' for n in range(8)}, 'G8':'PENDING_SEPARATE_AFTER_PUBLICATION_CHECK'}, stages=stages, GNU_time_measurements=measurements, raw_execution_streams_reauthenticated=streams, strict_returning_memory_streams=len(memory), physical_mutations=sum(row['mutations'] for row in physical), physical_controls=sum(row['controls'] for row in physical), preservation=protected, history=dict(milestone27B='HISTORICAL_PARTIAL', missing_original_raw_proof_files=1044, original_C0='LOST', rebuilt_C0_strict_all_kinds_process_memory='NOT_PASS_REACHABLE_GLIB_LLVM_GLOBALS', new_27B_delivery_G5='PASS_RETAINED', current_27C_delivery_G7='PASS_RETAINED_SEPARATE_FROM_IMMUTABLE_PREPUBLICATION_PENDING', release_owner_decision='REQUIRED_FOR_MILESTONE28; NOT_WAIVED'), LLVM='23.1.4_BYTE_AUTHENTICATED', E25_A_v1='d77c02f3144ab5dc3da41eb310b29cd02629b49876042934ea5071a1549ac66e', generic_ceiling=256, SSA_work=8000000, release_credit=False))
 	print('ENGINEERING_G0_G7_PASS_G8_PENDING', flush=True)
 
@@ -521,6 +604,8 @@ def package():
 	for name in ('build-identity.json', 'snapshot.json', 'result.json', 'link.json'):
 		destination = snapshot/'seed'/name; destination.parent.mkdir(parents=True, exist_ok=True)
 		shutil.copy2(PRIOR/name, destination)
+	assert sha(SEED) == SEED_SHA
+	shutil.copy2(SEED, snapshot/'seed/astrac-O2')
 	for obj in load(PRIOR/'build-identity.json')['objects']:
 		path = Path(obj)
 		for source in (path, path.with_suffix('.identity.json')): shutil.copy2(source, snapshot/'seed'/source.name)
@@ -613,9 +698,28 @@ def delivery():
 			commands.append(dict(name=label, argv=argv, result=outcome, receipt_sha256=sha(runtime/label/'result.json') if (runtime/label/'result.json').exists() else None))
 			write(runtime/'commands.json', commands)
 			assert outcome['status'] == 'EXPECTED_OUTCOME', (label, outcome)
+		negative = runtime/(mode+'-range')/'range-slice-escape-negative.astra'
+		negative_identity = load(runtime/(mode+'-range')/'identity.json')
+		assert sha(negative) == negative_identity['inputs'][str(negative)]
+		marker = b'27D_POST_PUBLICATION_NEGATIVE_MEMORY_REFUSAL\n'
+		destination = build/(mode+'-negative-memory.ll'); destination.write_bytes(marker)
+		argv = ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', product['path'], '--emit-llvm', '-o', destination, negative]
+		label = mode+'-negative-compiler-memory'
+		outcome = execute(argv, runtime/label, expected=1, timeout=300, env=environment())
+		assert outcome['status'] == 'EXPECTED_OUTCOME' and destination.read_bytes() == marker
+		log = (runtime/label/'stderr').read_bytes()
+		assert b': error:' in log and all(value in log for value in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+		commands.append(dict(name=label, argv=list(map(str, argv)), result=outcome)); write(runtime/'commands.json', commands)
 	consumer = load(RUNTIME/'stage3-O2-regression/source-owner-consumers/result.json')
+	consumer_root = RUNTIME/'stage3-O2-regression/source-owner-consumers'
+	assert model['files']['payload/runtime/stage3-O2-regression/source-owner-consumers/result.json']['sha256'] == sha(consumer_root/'result.json')
+	assert model['files']['payload/runtime/stage3-O2-regression/source-owner-consumers/identity.json']['sha256'] == sha(consumer_root/'identity.json') == consumer['identity_sha256']
+	consumer_identity = load(consumer_root/'identity.json')
+	for group in ('sources', 'actual_sources', 'providers', 'tools'):
+		assert all(sha(path) == value for path, value in consumer_identity[group].items())
 	for mode, product in consumer['products'].items():
 		assert sha(product['path']) == product['sha256']
+		assert model['files']['payload/build/stage3-O2-regression/source-owner-consumers/component-'+mode]['sha256'] == product['sha256']
 		for memory in (False, True):
 			label = 'source-owner-'+mode+('-memory' if memory else '-native')
 			argv = [product['path']]
