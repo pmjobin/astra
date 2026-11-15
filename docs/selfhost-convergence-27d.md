@@ -199,9 +199,11 @@ The corrected reader reauthenticated those 176 complete results and executed
 the remaining 204. Executed recipe snapshots, original failure description and
 all command streams remain available. F, tools and compiler products did not
 change; neither failure was a compiler or native-program failure.
-The first final-audit attempt also stopped on a local variable reused for suite
-and generation identities. Its exact recipe and failure are retained; the audit
-uses separate variables before completing the final checks.
+The first two final-audit attempts also stopped on a local variable reused for
+suite/generation identities and a timing filename difference between the
+maintained runner (`time`) and test primitive (`time.txt`). Their exact recipes
+and failures are retained. The corrected audit keeps separate variables and
+authenticates each timing file against its original result digest.
 
 ## Preservation and delivery
 

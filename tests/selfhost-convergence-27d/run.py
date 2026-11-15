@@ -462,7 +462,7 @@ def check_streams(directory):
 		data = load(path)
 		if not isinstance(data, dict) or 'stdout_sha256' not in data: continue
 		assert data['status'] == 'EXPECTED_OUTCOME' and not data['timed_out'], path
-		for stream, name in (('stdout', 'stdout'), ('stderr', 'stderr'), ('time', 'time.txt')):
+		for stream, name in (('stdout', 'stdout'), ('stderr', 'stderr'), ('time', 'time' if 'metrics' in data else 'time.txt')):
 			assert sha(path.parent/name) == data[stream+'_sha256'], path
 		count += 1
 	return count
@@ -563,7 +563,7 @@ def audit():
 		result = load(path)
 		if not isinstance(result, dict) or 'stdout_sha256' not in result: continue
 		metrics = {}
-		for line in path.with_name('time.txt').read_text().splitlines():
+		for line in path.with_name('time' if 'metrics' in result else 'time.txt').read_text().splitlines():
 			for key in ('User time (seconds)', 'System time (seconds)', 'Elapsed (wall clock) time (h:mm:ss or m:ss)', 'Maximum resident set size (kbytes)', 'Exit status'):
 				if line.strip().startswith(key+':'): metrics[key] = line.strip()[len(key)+1:].strip()
 		costs.append(dict(execution=str(path.parent.relative_to(RUNTIME)), result_sha256=sha(path), GNU_time=metrics, monotonic_wall_seconds=result['seconds'], actual_exit=result['exit'], expected_exit=result['expected_exit']))
