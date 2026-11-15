@@ -4,6 +4,7 @@
 // callback effects and the normal/error traversal obligations.
 int lazy_call_action(CheckedIndex index, SyntaxNodeId node) {
 	if (index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || !checked_modern_source(index, node)) return 0;
+	if (index.bindings.program.arena.get_node_receiver_place(node).index == 0 && index.bindings.program.arena.get_token_receiver(node).index == 0) return 0;
 	var token = index.bindings.program.arena.get_token_identifier(node);
 	if (index.bindings.program.arena.token_is(token, "iter")) return 1;
 	if (index.bindings.program.arena.token_is(token, "map")) return 2;
@@ -15,7 +16,10 @@ int lazy_call_action(CheckedIndex index, SyntaxNodeId node) {
 
 SymbolId lazy_iter_root(CheckedIndex index, SyntaxNodeId node) {
 	var receiver = index.bindings.program.arena.get_node_receiver_place(node);
-	if (receiver.index == 0) return checked_target(index, node, index.bindings.program.arena.get_token_receiver(node));
+	if (receiver.index == 0) {
+		var token = index.bindings.program.arena.get_token_receiver(node); if (token.index < 1) return type_symbol(0);
+		return checked_target(index, node, token);
+	}
 	int depth = 0;
 	while (index.bindings.program.arena.kind(receiver) == SyntaxKind.ParenthesizedExpressionSyntax() && depth < 32) {
 		receiver = index.bindings.program.arena.get_node_expression(receiver);
@@ -33,7 +37,8 @@ bool lazy_iter_source(CheckedIndex index, SyntaxNodeId node) {
 
 int lazy_receiver_flags(CheckedIndex index, SyntaxNodeId node) {
 	var receiver = index.bindings.program.arena.get_node_receiver_place(node); if (receiver.index > 0) return index.uses[receiver.index].flags;
-	var symbol = checked_target(index, node, index.bindings.program.arena.get_token_receiver(node)); if (symbol.index < 1 || symbol.index >= len(index.symbol_flags)) return -1;
+	var token = index.bindings.program.arena.get_token_receiver(node); if (token.index < 1) return -1;
+	var symbol = checked_target(index, node, token); if (symbol.index < 1 || symbol.index >= len(index.symbol_flags)) return -1;
 	return index.symbol_flags[symbol.index];
 }
 
