@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Private example glue for the qualified GNU/Linux arguments.c transport.
+// Each returned message owns its validated UTF-8 copy; no argv borrow escapes.
+extern(C) int astrac_argument_count();
+
+extern(C) int astrac_argument_length(int index);
+
+extern(C) int astrac_argument_byte(int index, int offset);
+
+owned Utf8Message systems_argument(int index) throws Error {
+	int length = astrac_argument_length(index);
+	if (length < 0) {
+		throw new Error("invalid process argument");
+	}
+	var bytes = new u8[length];
+	int offset = 0;
+	while (offset < length) {
+		int byte = astrac_argument_byte(index, offset);
+		if (byte < 0) {
+			throw new Error("process argument changed");
+		}
+		bytes[offset] = byte as u8;
+		offset = offset + 1;
+	}
+	var text = utf8_message(bytes);
+	return move text;
+}
+
+// Match the original argv-main startup policy: reject invalid UTF-8 anywhere,
+// including argv0 and surplus arguments, before checking argument count or I/O.
+bool systems_arguments_valid() {
+	try {
+		int count = astrac_argument_count();
+		int index = 0;
+		while (index < count) {
+			var argument = systems_argument(index);
+			index = index + 1;
+		}
+		return true;
+	} catch (Error error) { return false; }
+}

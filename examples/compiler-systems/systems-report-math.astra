@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
 namespace ReportMath;
 public u64 checksum(FileBytes bytes) throws FileError {
 	u64 hash = 14695981039346656037;
-	int i = 0;
-	while (i < bytes.byte_count()) {
+	foreach (var i in 0..bytes.byte_count()) {
 		hash = (hash ^ (bytes.byte_at(i) as u64)) * 1099511628211;
-		i = i + 1;
 	}
 	return hash;
 }
