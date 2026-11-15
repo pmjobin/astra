@@ -237,6 +237,101 @@ def regress(stage, mode):
 	assert all(row['result']['status'] == 'EXPECTED_OUTCOME' for row in results)
 
 
+def fixed_corpus():
+	"""Replay Stage3 on the exact absolute inputs already compiled by Stage2."""
+	assert authenticate()[0] == load(RUNTIME/'fixed-source.json')['source_rows']
+	runtime = RUNTIME/'fixed-path-corpus'; build = BUILD/'fixed-path-corpus'
+	runtime.mkdir(exist_ok=False); build.mkdir(exist_ok=False)
+	commands = []; comparisons = []; raw_inputs = {}
+	def run(name, argv, expected=0, overrides=None, memory=False):
+		argv = list(map(str, argv))
+		outcome = execute(argv, runtime/name, expected=expected, timeout=900, env=dict(environment(), **(overrides or {})))
+		commands.append(dict(name=name, argv=argv, result=outcome, environment_overrides=overrides or {}))
+		write(runtime/'commands.json', commands)
+		assert outcome['status'] == 'EXPECTED_OUTCOME', (name, outcome)
+		stdout = (runtime/name/'stdout').read_bytes(); stderr = (runtime/name/'stderr').read_bytes()
+		if memory:
+			assert all(marker in stderr for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'))
+			stderr = re.sub(rb'^==\d+==[^\n]*\n', b'', stderr, flags=re.M)
+		return stdout, stderr
+	for host in ('O0', 'O2'):
+		left = load(RUNTIME/'stage2/result.json')['products'][host]
+		right = load(RUNTIME/'stage3/result.json')['products'][host]
+		assert sha(left['path']) == left['sha256'] and sha(right['path']) == right['sha256']
+		for suite in ('named', 'match', 'range', 'format', 'collection', 'old-native', 'workloads', 'legacy'):
+			old = RUNTIME/('stage2-'+host+'-regression')/suite
+			result = load(old/'result.json'); recorded = load(old/'commands.json')
+			by_name = {row['name']:row for row in recorded}
+			identity = load(old/'identity.json') if (old/'identity.json').exists() else {}
+			sources = {**identity.get('inputs', {}), **identity.get('sources', {}), **result.get('source_inputs', {})}
+			products = {**identity.get('products', {}), **result.get('products', {})}
+			if (old/'products.json').exists(): products.update(load(old/'products.json'))
+			if (old/'programs.json').exists():
+				for program in load(old/'programs.json'):
+					sources.update(program['sources']); products.update(program['products'])
+			for original in recorded:
+				argv = original['argv']
+				if argv[0] != left['path'] or argv[1] != '-c': continue
+				assert argv[2] in ('-O0', '-O2') and argv[3] == '-o'
+				assert original['result']['status'] == 'EXPECTED_OUTCOME'
+				inputs = argv[5:]
+				assert inputs and all(sha(path) == sources[path] for path in inputs)
+				assert sha(argv[4]) == products[argv[4]]
+				prefix = original['name'].removesuffix('-compile')
+				label = host+'-'+suite+'-'+prefix
+				bucket = build/host/suite; bucket.mkdir(parents=True, exist_ok=True)
+				obj = bucket/Path(argv[4]).name; target = bucket/prefix
+				actual = [right['path'], *argv[1:4], str(obj), *inputs]
+				run(label+'-compile', actual)
+				assert obj.read_bytes() == Path(argv[4]).read_bytes(), ('fixed-path object difference', label)
+				link = by_name[prefix+'-link']['argv']; output_index = link.index('-o')+1
+				old_target = link[output_index]
+				assert sha(old_target) == products[old_target]
+				helpers = {path:sha(path) for path in link if path.endswith('.o') and path != argv[4]}
+				linked = [str(obj) if part == argv[4] else str(target) if index == output_index else part for index, part in enumerate(link)]
+				run(label+'-link', linked)
+				assert target.read_bytes() == Path(old_target).read_bytes(), ('fixed-path ELF difference', label)
+				if suite == 'workloads':
+					native = next(row for row in recorded if 'result' in row and row['argv'][0] == old_target and row['result']['expected_exit'] == 0)
+					expected = tuple((old/native['name']/stream).read_bytes() for stream in ('stdout', 'stderr'))
+					expected_file = Path(native['argv'][2]).read_bytes()
+					for memory in (False, True):
+						name = label+('-memory' if memory else '-native')
+						destination = build/(name+'.output')
+						overrides = dict(native.get('environment_overrides', {}), CS_IO_REPORT=str(build/(name+'-io.json')))
+						invocation = [str(target), native['argv'][1], str(destination)]
+						if memory: invocation = ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *invocation]
+						assert run(name, invocation, overrides=overrides, memory=memory) == expected
+						assert destination.read_bytes() == expected_file
+				else:
+					native = by_name[prefix+'-native']; expected_exit = native['result']['expected_exit']
+					expected = tuple((old/native['name']/stream).read_bytes() for stream in ('stdout', 'stderr'))
+					assert run(label+'-native', [target], expected_exit) == expected
+					assert run(label+'-memory', ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', target], expected_exit, memory=True) == expected
+				key = (host, suite, tuple(inputs))
+				if key not in raw_inputs:
+					old_ir = None
+					for row in recorded:
+						arguments = row['argv']
+						if '--emit-llvm' not in arguments: continue
+						at = arguments.index('--emit-llvm')
+						if arguments[at+1:at+2] == ['-o'] and arguments[at+3:] == inputs:
+							old_ir = arguments[at+2]; break
+					assert old_ir is not None
+					assert sha(old_ir) == products[old_ir]
+					ir = bucket/Path(old_ir).name
+					run(label+'-LLVM', [right['path'], '--emit-llvm', '-o', ir, *inputs])
+					assert ir.read_bytes() == Path(old_ir).read_bytes(), ('fixed-path raw LLVM difference', label)
+					run(label+'-LLVM-verify', ['opt', '-passes=verify', '-disable-output', ir])
+					raw_inputs[key] = dict(path=str(ir), sha256=sha(ir), Stage2_path=old_ir, bitwise_equal=True)
+				assert all(sha(path) == digest for path, digest in helpers.items())
+				comparisons.append(dict(host_profile=host, target_profile=argv[2], suite=suite, case=prefix, Stage2_producer=left['path'], Stage3_producer=right['path'], sources={path:sources[path] for path in inputs}, exact_source_argument_identity=True, original_compile_argv=argv, actual_compile_argv=actual, Stage2_object=argv[4], Stage3_object=str(obj), object_sha256=sha(obj), Stage2_ELF=old_target, Stage3_ELF=str(target), ELF_sha256=sha(target), bitwise_object_equal=True, bitwise_ELF_equal=True, cached_C_support_objects=helpers, raw_LLVM=raw_inputs[key]))
+				write(runtime/'comparisons.json', comparisons)
+			print('FIXED_PATH', host, suite, 'PASS', flush=True)
+	assert comparisons and all(sha(path) == digest for row in comparisons for path, digest in row['sources'].items())
+	write(runtime/'result.json', dict(status='FIXED_PATH_STAGE2_STAGE3_CORPUS_BYTE_AND_NATIVE_MEMORY_PASS', fixed_source_sha256=sha(RUNTIME/'fixed-source.json'), program_profiles=len(comparisons), exact_raw_LLVM_modules=len(raw_inputs), comparison_sha256=sha(runtime/'comparisons.json'), commands_sha256=sha(runtime/'commands.json'), source_selection='Exact Stage2 absolute source argument lists and recorded bytes; only producer and output destination change. C support objects are authenticated caches, never reused Astra objects or ELFs.', artifact_normalization='NONE'))
+
+
 def convergence():
 	assert authenticate()[0] == load(RUNTIME/'fixed-source.json')['source_rows']
 	pairs = []
@@ -519,13 +614,14 @@ def delivery():
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
-	p.add_argument('command', choices=('intake', 'modes', 'generate', 'observe', 'regress', 'compare', 'audit', 'package', 'delivery'))
+	p.add_argument('command', choices=('intake', 'modes', 'generate', 'observe', 'regress', 'fixed-corpus', 'compare', 'audit', 'package', 'delivery'))
 	p.add_argument('--stage', type=int, choices=(1, 2, 3))
 	p.add_argument('--mode', choices=('O0', 'O2'), default='O2')
 	a = p.parse_args()
 	if a.command == 'intake': intake()
 	elif a.command == 'modes': language_modes()
 	elif a.command == 'compare': convergence()
+	elif a.command == 'fixed-corpus': fixed_corpus()
 	elif a.command == 'audit': audit()
 	elif a.command == 'package': package()
 	elif a.command == 'delivery': delivery()
