@@ -130,6 +130,7 @@ bool range_value_facts_verified(CheckedIndex index) {
 
 int range_query_action(CheckedIndex index, SyntaxNodeId node) {
 	if (index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax() || !checked_modern_source(index, node)) return 0;
+	if (index.bindings.program.arena.get_node_receiver_place(node).index == 0 && index.bindings.program.arena.get_token_receiver(node).index == 0) return 0;
 	var token = index.bindings.program.arena.get_token_identifier(node);
 	if (index.bindings.program.arena.token_is(token, "is_empty")) return 1;
 	if (index.bindings.program.arena.token_is(token, "contains")) return 2;
@@ -137,9 +138,11 @@ int range_query_action(CheckedIndex index, SyntaxNodeId node) {
 }
 
 TypeId range_query_receiver(CheckedIndex index, SyntaxNodeId node) {
+	if (node.index < 1 || node.index >= len(index.uses) || index.bindings.program.arena.kind(node) != SyntaxKind.CallExpressionSyntax()) return no_type();
 	var receiver = index.bindings.program.arena.get_node_receiver_place(node);
 	if (receiver.index > 0) return index.uses[receiver.index].type;
-	var target = checked_target(index, node, index.bindings.program.arena.get_token_receiver(node));
+	var token = index.bindings.program.arena.get_token_receiver(node); if (token.index < 1) return no_type();
+	var target = checked_target(index, node, token);
 	if (target.index > 0) return index.symbol_types[target.index];
 	return no_type();
 }
@@ -206,7 +209,7 @@ bool range_query_verified(CheckedIndex index, SyntaxNodeId node) {
 }
 
 bool range_step_call(CheckedIndex index, SyntaxNodeId node) {
-	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "step_by");
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && (index.bindings.program.arena.get_node_receiver_place(node).index > 0 || index.bindings.program.arena.get_token_receiver(node).index > 0) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "step_by");
 }
 
 TypeId checked_range_step(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {

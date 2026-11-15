@@ -2,7 +2,7 @@
 // Materialization is explicit ownership under the existing default allocator.
 // Size/count and allocation failures retain the existing fatal buffer policy.
 bool range_collect_call(CheckedIndex index, SyntaxNodeId node) {
-	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_array");
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && (index.bindings.program.arena.get_node_receiver_place(node).index > 0 || index.bindings.program.arena.get_token_receiver(node).index > 0) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_array");
 }
 
 TypeId checked_range_collect(CheckedIndex index, SyntaxNodeId node, int depth) throws Error {
@@ -109,15 +109,20 @@ int range_fixed_count(CheckedIndex index, SyntaxNodeId receiver) {
 }
 
 bool range_fixed_call(CheckedIndex index, SyntaxNodeId node) {
-	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_fixed");
+	return index.bindings.program.arena.kind(node) == SyntaxKind.CallExpressionSyntax() && checked_modern_source(index, node) && (index.bindings.program.arena.get_node_receiver_place(node).index > 0 || index.bindings.program.arena.get_token_receiver(node).index > 0) && index.bindings.program.arena.token_is(index.bindings.program.arena.get_token_identifier(node), "collect_fixed");
 }
 
 TypeId checked_range_fixed(CheckedIndex index, SyntaxNodeId node, TypeId expected, int depth) throws Error {
+	var receiver = index.bindings.program.arena.get_node_receiver_place(node); var actual = no_type();
+	if (receiver.index > 0) actual = checked_expression(index, receiver, no_type(), depth + 1);
+	else {
+		actual = range_query_receiver(index, node);
+	}
+	if (!range_sequence_type_verified(index.types, actual)) return no_type();
 	if (!recover_storage_fixed(index, expected) || !type_integer(checked_kind(index, index.types.argument(index.types, expected, 0).type))) {
 		index.fail(index.bindings.program.arena.header(node).span, "collect_fixed requires an explicit fixed integer array destination"); return no_type();
 	}
-	var receiver = index.bindings.program.arena.get_node_receiver_place(node); var actual = checked_expression(index, receiver, no_type(), depth + 1);
-	if (!range_sequence_type_verified(index.types, actual) || index.types.argument(index.types, actual, 0).type.index != index.types.argument(index.types, expected, 0).type.index || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node) || range_fixed_count(index, receiver) != index.types.row(expected).extent) {
+	if (receiver.index < 1 || index.types.argument(index.types, actual, 0).type.index != index.types.argument(index.types, expected, 0).type.index || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_argument_names(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_type_arguments(node)) != 0 || index.bindings.program.arena.list_count(index.bindings.program.arena.get_list_qualifier_arguments(node)) != 0 || index.bindings.program.arena.get_bool_signal_emission(node) || range_fixed_count(index, receiver) != index.types.row(expected).extent) {
 		index.fail(index.bindings.program.arena.header(node).span, "collect_fixed requires literal bounds and positive stride proving the exact destination count"); return no_type();
 	}
 	var use = index.uses[node.index]; use.flags = 0; use.deferred = 19; index.uses[node.index] = use;
