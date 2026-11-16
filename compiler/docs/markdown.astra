@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// A deliberately small safe Markdown display: paragraphs, headings, fenced
+// code and checked symbol links. Raw HTML and external URLs remain plain text.
+void api_markdown_message(CheckedIndex checked, borrowed Utf8Message message, bool internal, Utf8ByteBuilder output) throws Error {
+	api_markdown(checked, message.text, internal, output);
+}
+
+void api_inline(CheckedIndex checked, string text, bool internal, Utf8ByteBuilder output) throws Error {
+	int at = 0;
+	int begin = 0;
+	while (at < text.byte_length) {
+		if (api_text_at(text, at, "{@link ")) {
+			var before = api_text_range(text, begin, at);
+			api_html_text(output, before.text);
+			int end = at + 7;
+			while (end < text.byte_length && astra_host_text_byte(text, end) != 125) end = end + 1;
+			if (end == text.byte_length) {
+				throw new Error("api docs: unclosed symbol link");
+			}
+			var name = api_text_range(text, at + 7, end);
+			int target = api_link_target(checked, name.text, internal);
+			var id = api_id(checked, target);
+			source_append_text(output, "<a href=\"#s");
+			syntax_write_hex(output, id.text);
+			source_append_text(output, "\">");
+			api_html_text(output, name.text);
+			source_append_text(output, "</a>");
+			at = end + 1;
+			begin = at;
+		} else {
+			at = at + 1;
+		}
+	}
+	var remainder = api_text_range(text, begin, text.byte_length);
+	api_html_text(output, remainder.text);
+}
+
+void api_markdown(CheckedIndex checked, string markdown, bool internal, Utf8ByteBuilder output) throws Error {
+	bool code = false;
+	int begin = 0;
+	while (begin < markdown.byte_length) {
+		int end = begin;
+		while (end < markdown.byte_length && astra_host_text_byte(markdown, end) != 10) end = end + 1;
+		var line = api_text_range(markdown, begin, end);
+		if (api_text_at(line.text, 0, "```")) {
+			if (code) source_append_text(output, "</code></pre>");
+			else {
+				source_append_text(output, "<pre><code>");
+			}
+			code = !code;
+		} else {
+			if (code) {
+				api_html_text(output, line.text);
+				source_append_text(output, "\n");
+			} else {
+				bool heading = api_text_at(line.text, 0, "# ");
+				if (heading) source_append_text(output, "<h3>");
+				else {
+					source_append_text(output, "<p>");
+				}
+				int offset = 0;
+				if (heading) offset = 2;
+				var body = api_text_range(line.text, offset, line.text.byte_length);
+				api_inline(checked, body.text, internal, output);
+				if (heading) source_append_text(output, "</h3>");
+				else {
+					source_append_text(output, "</p>");
+				}
+			}
+		}
+		begin = end + 1;
+	}
+	if (code) {
+		throw new Error("api docs: unclosed code fence");
+	}
+}

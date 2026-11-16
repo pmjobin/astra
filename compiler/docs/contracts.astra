@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Additional documentation contracts read only checked owner-bound tables.
+TypeId api_error_type(CheckedIndex checked, int number) {
+	var signature = checked.symbol_signatures[number];
+	if (signature.index != 0) return checked.signature(checked, signature).error;
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	var node = checked.bindings.program.arena.get_node_throws_class(symbol.node);
+	if (node.index != 0) return checked.type_use(checked, node).type;
+	return no_type();
+}
+
+string api_foreign_contract(CheckedIndex checked, int number) {
+	var symbol = type_symbol(number);
+	if (checked_c_text_signature(checked, symbol)) return "checked_C_utf8_i32_noescape";
+	if (checked_c_counted_signature(checked, symbol, true)) return "checked_C_u8_i32_noescape";
+	if (checked_c_scalar_abi_signature(checked, symbol, true)) return "checked_C_scalar";
+	var declaration = checked.bindings.symbol(symbol);
+	if (checked.bindings.program.arena.computed_is_c_import(declaration.node) || checked.bindings.program.arena.computed_is_c_export(declaration.node)) return "unproven_foreign_profile";
+	return "native_or_not_foreign";
+}
+
+void api_constraints(CheckedIndex checked, int number, Utf8ByteBuilder output) throws Error {
+	var declaration = checked.bindings.symbol(type_symbol(number));
+	var clauses = checked.bindings.program.arena.get_list_where_clauses(declaration.node);
+	source_append_text(output, "[");
+	int clause_number = 0;
+	while (clause_number < checked.bindings.program.arena.list_count(clauses)) {
+		var clause = checked.bindings.program.arena.node_at(clauses, clause_number);
+		var parameter_token = checked.bindings.program.arena.get_token_type_parameter(clause);
+		var parameter_name = checked.bindings.program.arena.token_message(parameter_token);
+		int parameter = 1;
+		int selected = 0;
+		while (parameter <= checked.generic_symbols) {
+			var symbol = checked.bindings.symbol(type_symbol(parameter));
+			if (symbol.kind == 9 && symbol.owner.index == number && checked.bindings.program.arena.token_is(symbol.token, parameter_name.text)) selected = parameter;
+			parameter = parameter + 1;
+		}
+		if (selected == 0) {
+			throw new Error("api docs: generic constraint has no checked parameter");
+		}
+		if (clause_number > 0) source_append_text(output, ",");
+		source_append_text(output, "{\"parameter\":");
+		api_json_string(output, parameter_name.text);
+		source_append_text(output, ",\"capabilities\":[");
+		var capabilities = checked.bindings.program.arena.get_list_capabilities(clause);
+		int capability_number = 0;
+		while (capability_number < checked.bindings.program.arena.list_count(capabilities)) {
+			var token = checked.bindings.program.arena.token_at(capabilities, capability_number);
+			var name = checked.bindings.program.arena.token_message(token);
+			if (!checked_parameter_capability(checked, checked.symbol_types[selected], name.text)) {
+				throw new Error("api docs: unchecked generic capability");
+			}
+			if (capability_number > 0) source_append_text(output, ",");
+			api_json_string(output, name.text);
+			capability_number = capability_number + 1;
+		}
+		source_append_text(output, "]}");
+		clause_number = clause_number + 1;
+	}
+	source_append_text(output, "]");
+}

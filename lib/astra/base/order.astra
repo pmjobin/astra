@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 // Stable selection: propagate the first NaN, and select a on ordered ties.
+/// Selects the smaller ordered value. Ties preserve the first operand.
+/// The first NaN is propagated for a floating specialization.
+/// @param a The first ordered value.
+/// @param b The second ordered value.
+/// @return The selected value, with the checked specialization's value contract.
+/// See {@link max} for the corresponding maximum.
+///
+/// ```astra name=minimum mode=run category=freestanding exit=42 library=lib/astra/base/order.astra
+/// int main() { return min<int>(42, 57); }
+/// ```
+///
+/// ```astra name=minimum-type-error mode=compile_fail category=freestanding diagnostic=argument library=lib/astra/base/order.astra
+/// int main() { return min<int>(true, 57); }
+/// ```
 T min<T>(T a, T b) where T : Ordered {
 	if (!(a <= a)) return a;
 	if (!(b <= b)) return b;
@@ -7,6 +21,10 @@ T min<T>(T a, T b) where T : Ordered {
 	return a;
 }
 
+/// Selects the larger ordered value; see {@link min} for NaN and tie behavior.
+/// @param a The first ordered value.
+/// @param b The second ordered value.
+/// @return The selected value.
 T max<T>(T a, T b) where T : Ordered {
 	if (!(a <= a)) return a;
 	if (!(b <= b)) return b;

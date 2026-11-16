@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+/// Executable documentation for the currently supported native contracts.
+/// @return The catalog's scalar marker.
+///
+/// ```astra name=owning-and-borrowed-field mode=run category=hosted exit=42
+/// language astra27b;
+/// class Item { int value; init(int value) { this.value = value; } }
+/// class Holder {
+///  readonly Item root;
+///  readonly borrowed Item view;
+///  init(owned Item incoming) { this.root = move incoming; this.view = this.root; }
+/// }
+/// int read(Item value) { return value.value; }
+/// int main() { var item = new Item(42); var holder = new Holder(move item); return read(holder.view); }
+/// ```
+///
+/// ```astra name=shared-weak-noescape mode=run category=hosted exit=42
+/// language astra27b;
+/// class Item { int value; init(int value) { this.value = value; } }
+/// int read(Item value) { return value.value; }
+/// int inspect(shared Item value) { return read(shared_borrow(value)); }
+/// int main() {
+///  var item = new Item(42);
+///  var strong = shared_acquire(move item);
+///  weak shared Item observer = shared_downgrade(strong);
+///  var alive = weak_upgrade(observer);
+///  if (alive != null) return inspect(alive);
+///  return 1;
+/// }
+/// ```
+///
+/// ```astra name=named-transfer mode=run category=hosted exit=42
+/// language astra27b;
+/// class Item { int value; init(int value) { this.value = value; } }
+/// int combine(owned Item first, owned Item last) { return first.value + last.value; }
+/// int main() { var left = new Item(20); var right = new Item(22); return combine(last: move right, first: move left); }
+/// ```
+///
+/// ```astra name=throw-catch mode=run category=hosted exit=42 library=lib/astra/base/errors.astra
+/// int risky(bool fail) throws Error { if (fail) { throw new Error("checked example"); } return 1; }
+/// int main() { try { return risky(true); } catch (Error error) { return 42; } }
+/// ```
+///
+/// ```astra name=generic-match mode=run category=freestanding exit=42
+/// language astra27b;
+/// enum Choice { First, Last }
+/// T identity<T>(T value) { return value; }
+/// int main() { return match (Choice.Last()) { case Choice.First() => 1; case Choice.Last() => identity<int>(42); }; }
+/// ```
+///
+/// ```astra name=range-thirteen mode=run category=hosted exit=42
+/// language astra27b;
+/// int main() { var values = (20..=80).step_by(5).collect_array(); if (len(values) != 13) return 1; return values[0] + values[12] - 58; }
+/// ```
+int api_documentation_example_catalog() { return 42; }

@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode (text_abi = "utf8-i32")]
+extern(C) int astrac_doc_publish(borrowed string path, borrowed string text);
+
+// An explicit relative source root is the current directory. Reject traversal
+// and absolute input names so neither output can disclose host/user paths.
+bool api_relative_path(string path) {
+	if (path.byte_length == 0 || astra_host_text_byte(path, 0) == 47) return false;
+	int at = 0;
+	int begin = 0;
+	while (at <= path.byte_length) {
+		if (at == path.byte_length || astra_host_text_byte(path, at) == 47) {
+			if (at - begin == 2 && astra_host_text_byte(path, begin) == 46 && astra_host_text_byte(path, begin + 1) == 46) return false;
+			begin = at + 1;
+		} else {
+			if (astra_host_text_byte(path, at) == 92 || astra_host_text_byte(path, at) < 32) return false;
+		}
+		at = at + 1;
+	}
+	return true;
+}
+
+int astrac_doc_run() {
+	try {
+		int count = astrac_argument_count();
+		var paths = new Vector<Utf8Message>(count);
+		int output_index = 0;
+		bool html = false;
+		bool internal = false;
+		bool positional = false;
+		int at = 2;
+		while (at < count) {
+			var argument = astrac_argument(at);
+			bool handled = false;
+			if (!positional && argument.text == "--help") {
+				println("Usage: astrac doc [--format json|html] [--internal] --output FILE [--] SOURCE...\nSources are relative to the current directory, without '..'. Output parents must exist. Examples are never executed by doc. JSON schema: astra-api-docs/1.");
+				return 0;
+			}
+			if (!positional && argument.text == "--") {
+				handled = true;
+				positional = true;
+			}
+			if (!handled && !positional && argument.text == "--internal") {
+				handled = true;
+				internal = true;
+			}
+			if (!handled && !positional && argument.text == "--format") {
+				handled = true;
+				at = at + 1;
+				if (at >= count) {
+					throw new Error("api docs: --format requires json or html");
+				}
+				var format = astrac_argument(at);
+				if (format.text != "json" && format.text != "html") {
+					throw new Error("api docs: --format requires json or html");
+				}
+				html = format.text == "html";
+			}
+			if (!handled && !positional && argument.text == "--output") {
+				handled = true;
+				at = at + 1;
+				if (at >= count || output_index != 0) {
+					throw new Error("api docs: exactly one output file required");
+				}
+				var path = astrac_argument(at);
+				if (path.text.byte_length == 0) {
+					throw new Error("api docs: empty output path");
+				}
+				output_index = at;
+			}
+			if (!handled) {
+				if (!positional && argument.text.byte_length > 0 && astra_host_text_byte(argument.text, 0) == 45) {
+					throw new Error("api docs: unsupported option");
+				}
+				if (!api_relative_path(argument.text)) {
+					throw new Error("api docs: source must be relative without traversal");
+				}
+				assert_that(paths.append(move argument));
+			}
+			at = at + 1;
+		}
+		if (paths.count() == 0 || output_index == 0) {
+			throw new Error("api docs: sources and --output required");
+		}
+		var output = astrac_argument(output_index);
+		var program = astrac_load(paths, output);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) {
+			astrac_diagnostic(checked);
+			return 1;
+		}
+		var document = api_document(checked, internal, html);
+		if (astrac_doc_publish(output.text, document.text) != 0) {
+			throw new Error("api docs: unsafe output or publication failure (existing non-generated files are preserved)");
+		}
+		return 0;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 1;
+	}
+}

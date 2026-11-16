@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// This parser handles documentation markup only. Declaration and contract
+// authority stays with the originating checked Binder/type tables.
+owned Utf8Message api_text_range(string text, int first, int last) throws Error {
+	var bytes = new u8[last - first];
+	int at = first;
+	while (at < last) {
+		bytes[at - first] = astra_host_text_byte(text, at) as u8;
+		at = at + 1;
+	}
+	var result = utf8_message(bytes);
+	return move result;
+}
+
+bool api_text_at(string text, int at, string prefix) {
+	if (at < 0 || prefix.byte_length > text.byte_length - at) return false;
+	int index = 0;
+	while (index < prefix.byte_length) {
+		if (astra_host_text_byte(text, at + index) != astra_host_text_byte(prefix, index)) return false;
+		index = index + 1;
+	}
+	return true;
+}
+
+int api_link_target(CheckedIndex checked, string target, bool internal) throws Error {
+	int result = 0;
+	int number = 1;
+	while (number <= checked.generic_symbols) {
+		var symbol = checked.bindings.symbol(type_symbol(number));
+		if (api_declaration(symbol.kind) && (internal || api_public(checked, number))) {
+			var name = checked.bindings.names.text(symbol.canonical);
+			if (name.text == target) {
+				if (result != 0) {
+					throw new Error("api docs: ambiguous link; overloaded targets require a unique canonical declaration");
+				}
+				result = number;
+			}
+		}
+		number = number + 1;
+	}
+	if (result == 0) {
+		throw new Error("api docs: unresolved or invisible link");
+	}
+	return result;
+}
+
+owned Utf8Message api_links(CheckedIndex checked, borrowed Utf8Message markdown, bool documented, int number, bool internal) throws Error {
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "[");
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	var parameters = checked.bindings.program.arena.get_list_parameters(symbol.node);
+	int count = checked.bindings.program.arena.list_count(parameters);
+	var seen = new bool[count];
+	bool result_seen = false;
+	bool error_seen = false;
+	bool fence = false;
+	int links = 0;
+	int begin = 0;
+	while (begin < markdown.text.byte_length) {
+		int end = begin;
+		while (end < markdown.text.byte_length && astra_host_text_byte(markdown.text, end) != 10) end = end + 1;
+		var line = api_text_range(markdown.text, begin, end);
+		if (api_text_at(line.text, 0, "```")) fence = !fence;
+		if (!fence && api_text_at(line.text, 0, "@param ")) {
+			int name_end = 7;
+			while (name_end < line.text.byte_length && astra_host_text_byte(line.text, name_end) != 32) name_end = name_end + 1;
+			var name = api_text_range(line.text, 7, name_end);
+			int found = -1;
+			int at = 0;
+			while (at < count) {
+				var node = checked.bindings.program.arena.node_at(parameters, at);
+				var token = checked.bindings.program.arena.get_token_name(node);
+				if (checked.bindings.program.arena.token_is(token, name.text)) found = at;
+				at = at + 1;
+			}
+			if (found < 0 || name_end == line.text.byte_length) {
+				throw new Error("api docs: @param must name an actual parameter and include text");
+			}
+			if (seen[found]) {
+				throw new Error("api docs: duplicate @param");
+			}
+			seen[found] = true;
+		}
+		if (!fence && api_text_at(line.text, 0, "@return")) {
+			if (result_seen || !api_text_at(line.text, 0, "@return ") || line.text.byte_length <= 8) {
+				throw new Error("api docs: malformed or duplicate @return");
+			}
+			result_seen = true;
+		}
+		if (!fence && api_text_at(line.text, 0, "@throws ")) {
+			if (error_seen) {
+				throw new Error("api docs: duplicate @throws");
+			}
+			var error = api_error_type(checked, number);
+			if (error.index == 0) {
+				throw new Error("api docs: @throws on a nonthrowing declaration");
+			}
+			int name_end = 8;
+			while (name_end < line.text.byte_length && astra_host_text_byte(line.text, name_end) != 32) name_end = name_end + 1;
+			var name = api_text_range(line.text, 8, name_end);
+			var actual = checked_type_name(checked, error);
+			if (name.text != actual.text || name_end == line.text.byte_length) {
+				throw new Error("api docs: @throws does not match the checked error type");
+			}
+			error_seen = true;
+		}
+		if (!fence) {
+			int at = 0;
+			while (at < line.text.byte_length) {
+				if (api_text_at(line.text, at, "{@link ")) {
+					int end_link = at + 7;
+					while (end_link < line.text.byte_length && astra_host_text_byte(line.text, end_link) != 125) end_link = end_link + 1;
+					if (end_link == line.text.byte_length || end_link == at + 7 || links == 256) {
+						throw new Error("api docs: malformed link or link limit exceeded");
+					}
+					var name = api_text_range(line.text, at + 7, end_link);
+					int target = api_link_target(checked, name.text, internal);
+					var id = api_id(checked, target);
+					if (links > 0) source_append_text(output, ",");
+					api_json_string(output, id.text);
+					links = links + 1;
+					at = end_link;
+				}
+				at = at + 1;
+			}
+		}
+		begin = end + 1;
+	}
+	if (fence) {
+		throw new Error("api docs: unterminated fenced example");
+	}
+	var type = checked.symbol_types[number];
+	if (documented && type.index != 0 && checked.types.row(type).kind == 25) {
+		var result = checked.types.argument(checked.types, type, 0);
+		if (result.type.index != 14 && !result_seen) {
+			throw new Error("api docs: documented nonvoid callable requires @return");
+		}
+		if (result.type.index == 14 && result_seen) {
+			throw new Error("api docs: @return on a void callable");
+		}
+		int at = 0;
+		while (at < count) {
+			if (!seen[at]) {
+				throw new Error("api docs: documented callable has an undocumented parameter");
+			}
+			at = at + 1;
+		}
+	}
+	source_append_text(output, "]");
+	var result = output.snapshot();
+	return move result;
+}

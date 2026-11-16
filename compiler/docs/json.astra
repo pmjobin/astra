@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+void api_json_string(Utf8ByteBuilder output, string text) {
+	source_append_text(output, "\"");
+	int at = 0;
+	while (at < text.byte_length) {
+		int byte = astra_host_text_byte(text, at);
+		if (byte == 34 || byte == 92) {
+			syntax_append_byte(output, 92);
+			syntax_append_byte(output, byte);
+		} else {
+			if (byte < 32) {
+				source_append_text(output, "\\u00");
+				int high = byte / 16;
+				int low = byte % 16;
+				if (high < 10) syntax_append_byte(output, high + 48);
+				else {
+					syntax_append_byte(output, high + 87);
+				}
+				if (low < 10) syntax_append_byte(output, low + 48);
+				else {
+					syntax_append_byte(output, low + 87);
+				}
+			} else {
+				syntax_append_byte(output, byte);
+			}
+		}
+		at = at + 1;
+	}
+	source_append_text(output, "\"");
+}
+
+void api_json_message(Utf8ByteBuilder output, borrowed Utf8Message message) {
+	api_json_string(output, message.text);
+}
+
+void api_hex_message(Utf8ByteBuilder output, borrowed Utf8Message message) {
+	syntax_write_hex(output, message.text);
+}
+
+bool api_messages_equal(borrowed Utf8Message first, borrowed Utf8Message last) {
+	return first.text == last.text;
+}
+
+void api_html_text(Utf8ByteBuilder output, string text) {
+	int at = 0;
+	while (at < text.byte_length) {
+		int byte = astra_host_text_byte(text, at);
+		if (byte == 38) source_append_text(output, "&amp;");
+		if (byte == 60) source_append_text(output, "&lt;");
+		if (byte == 62) source_append_text(output, "&gt;");
+		if (byte == 34) source_append_text(output, "&quot;");
+		if (byte == 39) source_append_text(output, "&#39;");
+		if (byte != 38 && byte != 60 && byte != 62 && byte != 34 && byte != 39) syntax_append_byte(output, byte);
+		at = at + 1;
+	}
+}
+
+string api_kind(int kind) {
+	if (kind == 1) return "function";
+	if (kind == 2) return "constant";
+	if (kind == 3) return "struct";
+	if (kind == 4) return "class";
+	if (kind == 5) return "enum";
+	if (kind == 6) return "field";
+	if (kind == 10) return "namespace";
+	if (kind == 11) return "method";
+	if (kind == 12) return "lifecycle";
+	if (kind == 13) return "variant";
+	if (kind == 14) return "property";
+	if (kind == 16) return "async_runtime";
+	return "payload";
+}
+
+bool api_public(CheckedIndex checked, int number) {
+	int remaining = 128;
+	int current = number;
+	while (current != 0 && remaining > 0) {
+		var symbol = checked.bindings.symbol(type_symbol(current));
+		if (symbol.restricted || checked.bindings.program.arena.get_token_private_keyword(symbol.node).index != 0) return false;
+		current = symbol.owner.index;
+		remaining = remaining - 1;
+	}
+	return current == 0;
+}
+
+owned Utf8Message api_id(CheckedIndex checked, int number) throws Error {
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	var name = checked.bindings.names.text(symbol.canonical);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "v1:");
+	append_int(output, syntax_source_language_profile(checked.bindings.program.arena, symbol.span.source));
+	source_append_text(output, ":");
+	source_append_text(output, api_kind(symbol.kind));
+	source_append_text(output, ":");
+	source_append_text(output, name.text);
+	source_append_text(output, ":");
+	checked_name(checked, checked.symbol_types[number], output, 0);
+	var result = output.snapshot();
+	return move result;
+}
+
+void api_type(CheckedIndex checked, TypeId type, int flags, Utf8ByteBuilder output, int depth) throws Error {
+	if (depth > 128) {
+		throw new Error("api docs: type depth exceeded");
+	}
+	if (type.index == 0) {
+		source_append_text(output, "{\"status\":\"unproven\"}");
+		return;
+	}
+	var row = checked.types.descriptor(checked.types, type);
+	var name = checked_type_name(checked, type);
+	source_append_text(output, "{\"name\":");
+	api_json_string(output, name.text);
+	source_append_text(output, ",\"kind\":");
+	append_int(output, row.kind);
+	source_append_text(output, ",\"effective_flags\":");
+	append_int(output, flags);
+	source_append_text(output, ",\"ownership\":");
+	api_json_string(output, api_ownership(row.kind, flags));
+	source_append_text(output, ",\"shared\":");
+	if (row.kind == 27 || class_storage_intrinsic(checked, type)) source_append_text(output, "true");
+	else {
+		source_append_text(output, "false");
+	}
+	source_append_text(output, ",\"weak\":");
+	if (row.kind == 28) source_append_text(output, "true");
+	else {
+		source_append_text(output, "false");
+	}
+	source_append_text(output, ",\"extent\":");
+	append_int(output, row.extent);
+	source_append_text(output, ",\"arguments\":[");
+	int at = 0;
+	while (at < row.count) {
+		if (at > 0) source_append_text(output, ",");
+		var edge = checked.types.argument(checked.types, type, at);
+		api_type(checked, edge.type, edge.flags, output, depth + 1);
+		at = at + 1;
+	}
+	source_append_text(output, "]}");
+}
+
+string api_ownership(int kind, int flags) {
+	if ((flags & 4) != 0) return "owned";
+	if ((flags & 2) != 0) return "borrowed_noescape";
+	if (kind == 31 || kind == 22) return "legacy_borrowed_parameter_or_unqualified_nominal";
+	if (kind == 20) return "raw_pointer";
+	return "value";
+}

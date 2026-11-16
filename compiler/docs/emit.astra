@@ -1,0 +1,246 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astrac_doc_sha256(borrowed u8[] input, borrowed u8[] digest);
+
+int api_hash_fill(u8[] input, u8[] digest) {
+	return astrac_doc_sha256(input, digest);
+}
+
+owned Utf8Message api_digest(u8[] input) throws Error {
+	var digest = new u8[32];
+	if (api_hash_fill(input, digest) != 0) {
+		throw new Error("api docs: SHA256 failed");
+	}
+	var output = new Utf8ByteBuilder();
+	int at = 0;
+	while (at < 32) {
+		int value = digest[at] as int;
+		int high = value / 16;
+		int low = value % 16;
+		if (high < 10) syntax_append_byte(output, high + 48);
+		else {
+			syntax_append_byte(output, high + 87);
+		}
+		if (low < 10) syntax_append_byte(output, low + 48);
+		else {
+			syntax_append_byte(output, low + 87);
+		}
+		at = at + 1;
+	}
+	var result = output.snapshot();
+	return move result;
+}
+
+void api_location(CheckedIndex checked, SyntaxSpan span, Utf8ByteBuilder output) throws Error {
+	var backing = checked.bindings.program.arena.source_span(span);
+	var path = backing.path();
+	source_append_text(output, "{\"path\":");
+	api_json_string(output, path.text);
+	source_append_text(output, ",\"start\":");
+	append_int(output, span.start);
+	source_append_text(output, ",\"end\":");
+	append_int(output, span.end);
+	source_append_text(output, "}");
+}
+
+owned Utf8Message api_signature(CheckedIndex checked, int number) throws Error {
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	var name = checked.bindings.names.text(symbol.canonical);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, name.text);
+	source_append_text(output, " : ");
+	checked_name(checked, checked.symbol_types[number], output, 0);
+	var error = api_error_type(checked, number);
+	if (error.index != 0) {
+		source_append_text(output, " throws ");
+		checked_name(checked, error, output, 0);
+	}
+	var result = output.snapshot();
+	return move result;
+}
+
+void api_symbol_json(CheckedIndex checked, ApiComments comments, int number, bool internal, Utf8ByteBuilder output) throws Error {
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	var id = api_id(checked, number);
+	var name = checked.bindings.names.text(symbol.canonical);
+	var signature = api_signature(checked, number);
+	source_append_text(output, "{\"id\":");
+	api_json_string(output, id.text);
+	source_append_text(output, ",\"canonical_name\":");
+	api_json_string(output, name.text);
+	source_append_text(output, ",\"kind\":");
+	api_json_string(output, api_kind(symbol.kind));
+	source_append_text(output, ",\"visibility\":");
+	if (api_public(checked, number)) api_json_string(output, "public");
+	else {
+		if (symbol.restricted) api_json_string(output, "internal");
+		else {
+			api_json_string(output, "private");
+		}
+	}
+	source_append_text(output, ",\"source_location\":");
+	api_location(checked, checked.bindings.program.arena.header(symbol.node).span, output);
+	source_append_text(output, ",\"signature\":");
+	api_json_string(output, signature.text);
+	source_append_text(output, ",\"type_contract\":");
+	api_type(checked, checked.symbol_types[number], checked.symbol_flags[number], output, 0);
+	source_append_text(output, ",\"throws\":");
+	var error = api_error_type(checked, number);
+	if (error.index != 0) api_type(checked, error, 0, output, 0);
+	else {
+		source_append_text(output, "null");
+	}
+	source_append_text(output, ",\"parameters\":[");
+	var parameters = checked.bindings.program.arena.get_list_parameters(symbol.node);
+	int parameter = 0;
+	while (parameter < checked.bindings.program.arena.list_count(parameters)) {
+		var node = checked.bindings.program.arena.node_at(parameters, parameter);
+		var binding = checked.node_symbols[node.index];
+		var parameter_symbol = checked.bindings.symbol(binding);
+		var parameter_name = checked.bindings.names.text(parameter_symbol.name);
+		if (parameter > 0) source_append_text(output, ",");
+		source_append_text(output, "{\"name\":");
+		api_json_string(output, parameter_name.text);
+		source_append_text(output, ",\"type_contract\":");
+		api_type(checked, checked.symbol_types[binding.index], checked.symbol_flags[binding.index], output, 0);
+		source_append_text(output, "}");
+		parameter = parameter + 1;
+	}
+	source_append_text(output, "],\"type_parameters\":[");
+	int type_parameter = 1;
+	bool separator = false;
+	while (type_parameter <= checked.generic_symbols) {
+		var declaration = checked.bindings.symbol(type_symbol(type_parameter));
+		if (declaration.kind == 9 && declaration.owner.index == number) {
+			var type_parameter_name = checked.bindings.names.text(declaration.name);
+			if (separator) source_append_text(output, ",");
+			api_json_string(output, type_parameter_name.text);
+			separator = true;
+		}
+		type_parameter = type_parameter + 1;
+	}
+	source_append_text(output, "]");
+	source_append_text(output, ",\"generic_constraints\":");
+	api_constraints(checked, number, output);
+	source_append_text(output, ",\"attributes\":{\"foreign_import\":");
+	if (checked.bindings.program.arena.computed_is_c_import(symbol.node)) source_append_text(output, "true");
+	else {
+		source_append_text(output, "false");
+	}
+	source_append_text(output, ",\"foreign_export\":");
+	if (checked.bindings.program.arena.computed_is_c_export(symbol.node)) source_append_text(output, "true");
+	else {
+		source_append_text(output, "false");
+	}
+	source_append_text(output, ",\"concurrency_policy\":");
+	append_int(output, checked.bindings.program.arena.get_concurrency_concurrency_policy(symbol.node).kinds);
+	source_append_text(output, ",\"foreign_contract\":");
+	api_json_string(output, api_foreign_contract(checked, number));
+	source_append_text(output, "},\"availability\":{\"profile\":");
+	append_int(output, syntax_source_language_profile(checked.bindings.program.arena, symbol.span.source));
+	source_append_text(output, ",\"qualification\":\"checked_semantics; native lowering and liveness are separate proofs\"},\"documentation\":{\"markdown\":");
+	api_json_message(output, comments.bodies[number]);
+	source_append_text(output, ",\"start\":");
+	append_int(output, comments.starts[number]);
+	source_append_text(output, ",\"end\":");
+	append_int(output, comments.ends[number]);
+	source_append_text(output, "},\"links\":");
+	var links = api_links(checked, comments.bodies[number], comments.ends[number] != 0, number, internal);
+	source_append_text(output, links.text);
+	source_append_text(output, "}");
+}
+
+owned Utf8Message api_document(CheckedIndex checked, bool internal, bool html) throws Error {
+	if (!checked.complete || checked.failed() || !checked.validate() || !generic_verify(checked)) {
+		throw new Error("api docs: unchecked semantic model");
+	}
+	var comments = api_comments(checked);
+	var keys = new Vector<Utf8Message>(checked.generic_symbols);
+	var numbers = new int[checked.generic_symbols];
+	int number = 1;
+	int used = 0;
+	while (number <= checked.generic_symbols) {
+		var symbol = checked.bindings.symbol(type_symbol(number));
+		if (api_declaration(symbol.kind) && (internal || api_public(checked, number))) {
+			var id = api_id(checked, number);
+			assert_that(keys.append(move id));
+			numbers[used] = number;
+			used = used + 1;
+		}
+		number = number + 1;
+	}
+	var order = source_path_order(keys);
+	var output = new Utf8ByteBuilder();
+	if (html) {
+		source_append_text(output, "<!doctype html>\n<!-- astra-api-docs/1 -->\n<html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\"><title>Astra API reference</title><style>body{font:1rem/1.6 system-ui;max-width:80rem;margin:auto;padding:1rem;color:#182638;background:#fafcfe}nav{display:flex;flex-wrap:wrap;gap:1rem}section{border-top:1px solid #bbc;padding:1rem 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#164d9b}:focus{outline:3px solid #a50}</style><header><h1>Astra API reference</h1><p>astra-api-docs/1 · Checked semantic contracts. Native lowering and liveness require separate qualification.</p></header><nav aria-label=\"Symbols\">");
+	} else {
+		source_append_text(output, "{\"format\":\"astra-api-docs/1\",\"schema_version\":1,\"compiler\":\"astrac 28A1 development\",\"provenance\":\"explicit authenticated source buffers; checked semantics\",\"inputs\":[");
+		int file = 1;
+		while (file <= checked.bindings.program.arena.source_count) {
+			SyntaxSourceId source_id = {index = file};
+			var source = checked.bindings.program.arena.source(source_id);
+			var path = source_path(shared_borrow(source));
+			var bytes = api_source_bytes(shared_borrow(source));
+			var hash = api_digest(bytes);
+			if (file > 1) source_append_text(output, ",");
+			source_append_text(output, "{\"path\":");
+			api_json_string(output, path.text);
+			source_append_text(output, ",\"sha256\":");
+			api_json_string(output, hash.text);
+			source_append_text(output, "}");
+			file = file + 1;
+		}
+		source_append_text(output, "],\"symbols\":[");
+	}
+	int at = 0;
+	while (at < used) {
+		number = numbers[order[at]];
+		if (at > 0 && api_messages_equal(keys.entries[order[at - 1]], keys.entries[order[at]])) {
+			throw new Error("api docs: canonical symbol ID collision");
+		}
+		if (html) {
+			var declaration = checked.bindings.symbol(type_symbol(number));
+			var name = checked.bindings.names.text(declaration.canonical);
+			source_append_text(output, "<a href=\"#s");
+			api_hex_message(output, keys.entries[order[at]]);
+			source_append_text(output, "\">");
+			api_html_text(output, name.text);
+			source_append_text(output, "</a>");
+		} else {
+			if (at > 0) source_append_text(output, ",");
+			api_symbol_json(checked, comments, number, internal, output);
+		}
+		at = at + 1;
+	}
+	if (html) {
+		source_append_text(output, "</nav><main>");
+		at = 0;
+		while (at < used) {
+			number = numbers[order[at]];
+			var signature = api_signature(checked, number);
+			source_append_text(output, "<section id=\"s");
+			api_hex_message(output, keys.entries[order[at]]);
+			source_append_text(output, "\"><h2><code>");
+			api_html_text(output, signature.text);
+			source_append_text(output, "</code></h2>");
+			api_markdown_message(checked, comments.bodies[number], internal, output);
+			source_append_text(output, "<details><summary>Resolved contract</summary><pre>");
+			var contract = new Utf8ByteBuilder();
+			api_symbol_json(checked, comments, number, internal, contract);
+			var text = contract.snapshot();
+			api_html_text(output, text.text);
+			source_append_text(output, "</pre></details></section>");
+			at = at + 1;
+		}
+		source_append_text(output, "</main></html>\n");
+	} else {
+		source_append_text(output, "]}\n");
+	}
+	var result = output.snapshot();
+	return move result;
+}
+
+owned u8[] api_source_bytes(borrowed SourceBuffer source) throws Error {
+	var result = source.copy_range(0, source.length);
+	return move result;
+}

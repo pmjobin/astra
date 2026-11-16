@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:astra:api-docs:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schema_version",
+    "compiler",
+    "provenance",
+    "inputs",
+    "symbols"
+  ],
+  "properties": {
+    "format": {
+      "const": "astra-api-docs/1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "compiler": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/symbol"
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000-\\u001f]+$"
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "contract": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "const": "unproven"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "effective_flags",
+            "ownership",
+            "shared",
+            "weak",
+            "extent",
+            "arguments"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "effective_flags": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ownership": {
+              "enum": [
+                "owned",
+                "borrowed_noescape",
+                "legacy_borrowed_parameter_or_unqualified_nominal",
+                "raw_pointer",
+                "value"
+              ]
+            },
+            "shared": {
+              "type": "boolean"
+            },
+            "weak": {
+              "type": "boolean"
+            },
+            "extent": {
+              "type": "integer"
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/contract"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "canonical_name",
+        "kind",
+        "visibility",
+        "source_location",
+        "signature",
+        "type_contract",
+        "throws",
+        "parameters",
+        "type_parameters",
+        "generic_constraints",
+        "attributes",
+        "availability",
+        "documentation",
+        "links"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^v1:[01]:"
+        },
+        "canonical_name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "function",
+            "constant",
+            "struct",
+            "class",
+            "enum",
+            "field",
+            "namespace",
+            "method",
+            "lifecycle",
+            "variant",
+            "property",
+            "async_runtime",
+            "payload"
+          ]
+        },
+        "visibility": {
+          "enum": [
+            "public",
+            "internal",
+            "private"
+          ]
+        },
+        "source_location": {
+          "$ref": "#/$defs/location"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "type_contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "throws": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/contract"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "type_contract"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type_contract": {
+                "$ref": "#/$defs/contract"
+              }
+            }
+          }
+        },
+        "type_parameters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "foreign_import",
+            "foreign_export",
+            "concurrency_policy",
+            "foreign_contract"
+          ],
+          "properties": {
+            "foreign_import": {
+              "type": "boolean"
+            },
+            "foreign_export": {
+              "type": "boolean"
+            },
+            "concurrency_policy": {
+              "type": "integer"
+            },
+            "foreign_contract": {
+              "enum": [
+                "checked_C_utf8_i32_noescape",
+                "checked_C_u8_i32_noescape",
+                "checked_C_scalar",
+                "unproven_foreign_profile",
+                "native_or_not_foreign"
+              ]
+            }
+          }
+        },
+        "availability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profile",
+            "qualification"
+          ],
+          "properties": {
+            "profile": {
+              "enum": [
+                0,
+                1
+              ]
+            },
+            "qualification": {
+              "type": "string"
+            }
+          }
+        },
+        "documentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "markdown",
+            "start",
+            "end"
+          ],
+          "properties": {
+            "markdown": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "links": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string"
+          }
+        },
+        "generic_constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "parameter",
+              "capabilities"
+            ],
+            "properties": {
+              "parameter": {
+                "type": "string"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Shared argument, source loading and diagnostics; no backend dependency.
+extern(C) int astrac_argument_count();
+
+extern(C) int astrac_argument_length(int index);
+
+extern(C) int astrac_argument_byte(int index, int offset);
+
+owned Utf8Message astrac_argument(int index) throws Error {
+	int length = astrac_argument_length(index);
+	if (length < 0) {
+		throw new Error("astrac: invalid process arguments");
+	}
+	var bytes = new u8[length];
+	int i = 0;
+	while (i < length) {
+		int byte = astrac_argument_byte(index, i);
+		if (byte < 0) {
+			throw new Error("astrac: process arguments changed");
+		}
+		bytes[i] = byte as u8;
+		i = i + 1;
+	}
+	var text = utf8_message(bytes);
+	return move text;
+}
+
+void astrac_diagnostic(CheckedIndex checked) throws Error {
+	var span = checked.error_span;
+	int message = checked.error_message;
+	if (message == 0) {
+		span = checked.bindings.error_span;
+		message = checked.bindings.error_message;
+	}
+	var backing = checked.bindings.program.arena.source_span(span);
+	var path = backing.path();
+	var text = checked.bindings.names.text(message);
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, path.text);
+	source_append_text(output, ":");
+	append_int(output, span.start);
+	source_append_text(output, ":");
+	append_int(output, span.end);
+	source_append_text(output, ": error: ");
+	source_append_text(output, text.text);
+	var diagnostic = output.snapshot();
+	println_stderr(diagnostic.text);
+}
+
+void astrac_copy_path(borrowed Utf8Message input, Utf8ByteBuilder output) {
+	assert_that(source_append_text(output, input.text));
+}
+
+owned SyntaxProgram astrac_load(Vector<Utf8Message> paths, Utf8Message output) throws Error {
+	var entries = new Vector<SourceEntry>(paths.count());
+	var destination = source_normalize_path(output.text);
+	int i = 0;
+	while (i < paths.count()) {
+		var text = new Utf8ByteBuilder();
+		astrac_copy_path(paths.entries[i], text);
+		var original = text.snapshot();
+		var path = source_normalize_path(original.text);
+		if (output.text.byte_length > 0 && source_path_compare(path, destination) == 0) {
+			throw new Error("astrac: output is an input source");
+		}
+		var file = read_file(path.text);
+		var bytes = new u8[file.byte_count()];
+		int at = 0;
+		while (at < len(bytes)) {
+			bytes[at] = file.byte_at(at) as u8;
+			at = at + 1;
+		}
+		var buffer = source_buffer(path.text, move bytes, false);
+		var retained = shared_acquire(move buffer);
+		var entry = new SourceEntry(move retained);
+		assert_that(entries.append(move entry));
+		i = i + 1;
+	}
+	var sources = source_set(move entries);
+	var program = syntax_program(move sources);
+	return move program;
+}
+

@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Diagnostic consumer only; a refusal is never promoted to acceptance.
+int main() {
+	try {
+		var paths = new Vector<Utf8Message>(astrac_argument_count());
+		int at = 1;
+		while (at < astrac_argument_count()) {
+			var argument = astrac_argument(at);
+			assert_that(paths.append(move argument));
+			at = at + 1;
+		}
+		var empty = syntax_text("");
+		var program = astrac_load(paths, empty);
+		var bindings = binding_index(move program, 0);
+		var checked = checked_build_effects_profile(move bindings, 0);
+		if (checked.failed()) {
+			astrac_diagnostic(checked);
+			return 1;
+		}
+		var flow = recover_flow_lower(move checked, 8192);
+		var output = new Utf8ByteBuilder();
+		source_append_text(output, "FLOW_STATUS ");
+		append_int(output, flow.data.status);
+		source_append_text(output, " NODE ");
+		append_int(output, flow.data.boundary.index);
+		if (flow.data.boundary.index != 0) {
+			source_append_text(output, " SPAN ");
+			binding_write_span(flow.checked.bindings, flow.checked.bindings.program.arena.header(flow.data.boundary).span, output);
+		}
+		var text = output.snapshot();
+		println(text.text);
+		api_probe_bit("types", recover_types_verify(flow.types, flow.checked));
+		api_probe_bit("storage", recover_storage_verify(flow.storage, flow.checked, flow.data.symbols));
+		api_probe_bit("mutations", recover_mutations_verified(flow.data));
+		api_probe_bit("fields", recover_fields_verify(flow.fields, flow.checked, flow.storage, flow.data));
+		api_probe_bit("slots", recover_slot_places_verified(flow));
+		api_probe_bit("arrays", recover_array_places_verified(flow));
+		api_probe_bit("payloads", recover_payload_calls_verified(flow));
+		api_probe_bit("string-results", recover_literal_string_results(flow.data));
+		api_probe_bit("text-views", recover_text_views_verified(flow));
+		if (flow.data.status != 0 || !recover_flow_verify(flow)) return 2;
+		return 0;
+	} catch (Error error) { println_stderr(error.message); return 1; }
+}
+
+void api_probe_bit(string name, bool valid) throws Error {
+	var output = new Utf8ByteBuilder();
+	source_append_text(output, "PROOF ");
+	source_append_text(output, name);
+	source_append_text(output, " ");
+	int bit = 0;
+	if (valid) bit = 1;
+	append_int(output, bit);
+	var text = output.snapshot();
+	println(text.text);
+}
