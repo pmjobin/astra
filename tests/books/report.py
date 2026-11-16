@@ -47,7 +47,7 @@ def main():
 			files[prefix+'/'+str(rel)] = dict(bytes=len(data),sha256=digest,blob='blobs/'+digest)
 			blobs[digest] = data
 	for root in sorted((WORK/'runtime').glob('books28a2-*')):
-		if root==runtime or root.name=='books28a2-tools': continue
+		if root==runtime or root.name=='books28a2-tools' or root.name.startswith('books28a2-report-'): continue
 		if root.is_dir(): collect(root,'runtime/'+root.name)
 		elif root.is_file():
 			digest = sha(root); data = root.read_bytes(); files['runtime/'+root.name]=dict(bytes=len(data),sha256=digest,blob='blobs/'+digest); blobs[digest]=data
