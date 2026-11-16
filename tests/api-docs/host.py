@@ -23,6 +23,16 @@ def main():
 	lib = ctypes.CDLL(str(obj))
 	lib.astrac_doc_sha256.argtypes = [ctypes.c_void_p, ctypes.c_int32, ctypes.c_void_p, ctypes.c_int32]
 	lib.astrac_doc_publish.argtypes = [ctypes.c_void_p, ctypes.c_int32, ctypes.c_void_p, ctypes.c_int32]
+	lib.astrac_doc_build_id.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+	identity_output = ctypes.create_string_buffer(b'X'*64, 64)
+	assert lib.astrac_doc_build_id(identity_output, 64) < 0 and identity_output.raw == b'X'*64
+	assert lib.astrac_doc_build_id(None, 64) < 0 and lib.astrac_doc_build_id(identity_output, 63) < 0
+	known_identity = '0123456789abcdef'*4
+	identified = a.build/'doc-host-identified.so'
+	subprocess.run(['cc', '-std=c11', '-shared', '-fPIC', '-O2', '-Wall', '-Wextra', '-Werror', '-DASTRA_DOC_BUILD_SHA256="'+known_identity+'"', ROOT/'compiler/docs/host.c', '-o', identified], check=True)
+	identified_lib = ctypes.CDLL(str(identified))
+	identified_lib.astrac_doc_build_id.argtypes = [ctypes.c_void_p, ctypes.c_int32]
+	assert identified_lib.astrac_doc_build_id(identity_output, 64) == 0 and identity_output.raw == known_identity.encode()
 	for count in (0, 1, 3, 55, 56, 63, 64, 65, 119, 120, 127, 128, 1000000):
 		data = bytes((i*31+7) % 256 for i in range(count))
 		out = ctypes.create_string_buffer(32)

@@ -71,16 +71,23 @@ string api_kind(int kind) {
 	return "payload";
 }
 
-bool api_public(CheckedIndex checked, int number) {
+int api_visibility(CheckedIndex checked, int number) {
 	int remaining = 128;
 	int current = number;
+	int visibility = 1;
 	while (current != 0 && remaining > 0) {
 		var symbol = checked.bindings.symbol(type_symbol(current));
-		if (symbol.restricted || checked.bindings.program.arena.get_token_private_keyword(symbol.node).index != 0) return false;
+		if (symbol.restricted && visibility == 1) visibility = 2;
+		if (checked.bindings.program.arena.kind(symbol.node) == SyntaxKind.StructFieldDeclarationSyntax() && checked.bindings.program.arena.get_token_private_keyword(symbol.node).index != 0) visibility = 3;
 		current = symbol.owner.index;
 		remaining = remaining - 1;
 	}
-	return current == 0;
+	if (current != 0) return 3;
+	return visibility;
+}
+
+bool api_public(CheckedIndex checked, int number) {
+	return api_visibility(checked, number) == 1;
 }
 
 owned Utf8Message api_id(CheckedIndex checked, int number) throws Error {
@@ -94,7 +101,7 @@ owned Utf8Message api_id(CheckedIndex checked, int number) throws Error {
 	source_append_text(output, ":");
 	source_append_text(output, name.text);
 	source_append_text(output, ":");
-	checked_name(checked, checked.symbol_types[number], output, 0);
+	api_name(checked, checked.symbol_types[number], output, 0);
 	var result = output.snapshot();
 	return move result;
 }
@@ -108,7 +115,7 @@ void api_type(CheckedIndex checked, TypeId type, int flags, Utf8ByteBuilder outp
 		return;
 	}
 	var row = checked.types.descriptor(checked.types, type);
-	var name = checked_type_name(checked, type);
+	var name = api_type_name(checked, type);
 	source_append_text(output, "{\"name\":");
 	api_json_string(output, name.text);
 	source_append_text(output, ",\"kind\":");
@@ -131,9 +138,10 @@ void api_type(CheckedIndex checked, TypeId type, int flags, Utf8ByteBuilder outp
 	append_int(output, row.extent);
 	source_append_text(output, ",\"arguments\":[");
 	int at = 0;
-	while (at < row.count) {
+	int count = api_type_argument_count(checked, type);
+	while (at < count) {
 		if (at > 0) source_append_text(output, ",");
-		var edge = checked.types.argument(checked.types, type, at);
+		var edge = api_type_argument(checked, type, at);
 		api_type(checked, edge.type, edge.flags, output, depth + 1);
 		at = at + 1;
 	}

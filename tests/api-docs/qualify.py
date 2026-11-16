@@ -21,10 +21,14 @@ def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for name in ('products', 'link', 'toolchain', 'build', 'runtime'):
 		p.add_argument('--'+name, type=Path, required=True)
+	p.add_argument('--mode', choices=('O0', 'O2'), action='append', help='Explicit host profiles; final qualification requires both')
 	a = p.parse_args()
 	products = json.loads(a.products.read_text())['products']
-	assert set(products) == {'O0', 'O2'}
+	selected = set(a.mode or ('O0', 'O2'))
+	assert selected <= set(products)
+	products = {mode:products[mode] for mode in ('O0', 'O2') if mode in selected}
 	assert all(row['status'] == 'BUILT_NOT_QUALIFIED' and sha(row['path']) == row['sha256'] for row in products.values())
+	assert all(sha(row[kind]['path']) == row[kind]['sha256'] for row in products.values() for kind in ('native', 'doc'))
 	build = output_path(a.build, WORK/'build')
 	runtime = output_path(a.runtime, WORK/'runtime')
 	build.mkdir(parents=True, exist_ok=False)
@@ -37,12 +41,27 @@ def main():
 	env.pop('LD_PRELOAD', None)
 	env.pop('VALGRIND_OPTS', None)
 	assert subprocess.check_output(['llvm-config', '--version'], env=env).strip() == b'23.1.4'
+	debugger_source = Path(__file__).with_name('gdb-host.py')
+	debugger_bin = runtime/'tool-bin'
+	debugger_bin.mkdir()
+	debugger = debugger_bin/'gdb'
+	debugger.write_bytes(debugger_source.read_bytes())
+	debugger.chmod(0o755)
+	env['PATH'] = str(debugger_bin)+os.pathsep+env['PATH']
+	host_env = dict(env)
+	host_env.pop('LD_LIBRARY_PATH', None)
+	debugger_tools = {str(Path('/usr/bin/gdb').resolve()):sha(Path('/usr/bin/gdb').resolve()), str(debugger_source):sha(debugger_source)}
+	for word in subprocess.check_output(['ldd', '/usr/bin/gdb'], text=True, env=host_env).split():
+		if word.startswith('/') and Path(word).is_file(): debugger_tools[str(Path(word).resolve())] = sha(Path(word).resolve())
+	write(runtime/'debugger-environment.json', dict(host_tools=debugger_tools, wrapper_sha256=sha(debugger), inferior_environment={key:env[key] for key in ('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH')}, scope='Task-local wrapper only; installed GDB, capsule, C0 and historical test recipes remain unchanged'))
 	c0 = WORK/'build/selfhost27b/c0-recovery-safealloc2/astrac'
 	assert sha(c0) == '19d744c828551b2184f06552740db1beb5b6eeb326b8e98ba56d2dfa5bca31b6'
 	oracle = WORK/'runtime/selfhost27c-dev20/inputs.json'
 	plans = []
 	for mode, product in products.items():
-		identity = ['--compiler', product['path'], '--compiler-sha256', product['sha256']]
+		# Historical recipes instrument this exact complete compiler image without
+		# an exec boundary. Launcher/docs isolation is qualified by native.py.
+		identity = ['--compiler', product['native']['path'], '--compiler-sha256', product['native']['sha256']]
 		linked = [*identity, '--c0', str(c0), '--c0-sha256', sha(c0), '--link', str(a.link)]
 		for feature in ('named', 'match', 'range', 'format', 'collection'):
 			plans.append((mode+'-'+feature, MODERN/'named.py', [*linked, '--oracle-library-inputs', str(oracle), '--feature', feature]))
@@ -55,6 +74,7 @@ def main():
 			plans.append((mode+'-physical-'+feature, MODERN/'physical.py', [*identity, '--feature', feature]))
 		if mode == 'O2':
 			plans.append((mode+'-source-owner', MODERN/'component.py', [*linked, '--producer-kind', 'astra', '--layer', 'semantic', '--mode', 'O0', '--mode', 'O2', '--semantic-oracle-inputs', str(oracle)]))
+	plans.sort(key=lambda plan:0 if plan[0].endswith('-source-owner') else 1)
 	write(runtime/'plans.json', [dict(label=label, recipe=str(recipe), recipe_sha256=sha(recipe), options=options) for label,recipe,options in plans])
 	def job(plan):
 		label, recipe, options = plan
@@ -66,8 +86,9 @@ def main():
 	with ThreadPoolExecutor(max_workers=4) as pool:
 		results = list(pool.map(job, plans))
 	assert all(sha(row['path']) == row['sha256'] for row in products.values())
+	assert all(sha(row[kind]['path']) == row[kind]['sha256'] for row in products.values() for kind in ('native', 'doc'))
 	passed = all(row['result']['status'] == 'EXPECTED_OUTCOME' and row['receipt_sha256'] for row in results)
-	write(runtime/'result.json', dict(status='CURRENT_CONSOLIDATED_NATIVE_ABI_OWNER_PHYSICAL_PASS' if passed else 'CURRENT_CONSOLIDATED_NATIVE_ABI_OWNER_PHYSICAL_FAILURE', products=products, suites=results, plans_sha256=sha(runtime/'plans.json'), LLVM='23.1.4', historical_scope='Rebuilt C0 is an authenticated comparison seed only; its memory NOT_PASS and the 1044 lost historical records remain separate. This run is current engineering evidence, not restoration or a release qualification.'))
+	write(runtime/'result.json', dict(status='CURRENT_CONSOLIDATED_NATIVE_ABI_OWNER_PHYSICAL_PASS' if passed else 'CURRENT_CONSOLIDATED_NATIVE_ABI_OWNER_PHYSICAL_FAILURE', profiles=list(products), products=products, suites=results, plans_sha256=sha(runtime/'plans.json'), LLVM='23.1.4', historical_scope='Rebuilt C0 is an authenticated comparison seed only; its memory NOT_PASS and the 1044 lost historical records remain separate. This run covers the explicit host profiles; final qualification requires both. It is current engineering evidence, not restoration or a release qualification.'))
 	assert passed
 
 

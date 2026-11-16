@@ -34,6 +34,7 @@ def main():
 	p.add_argument('--compiler-sha256', required=True)
 	p.add_argument('--runtime', type=Path, required=True)
 	p.add_argument('--toolchain', type=Path, required=True)
+	p.add_argument('--build-identity', type=Path, required=True)
 	a = p.parse_args()
 	sha = lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
 	assert a.compiler.is_absolute() and sha(a.compiler) == a.compiler_sha256
@@ -47,7 +48,7 @@ def main():
 	env.pop('VALGRIND_OPTS', None)
 	def run(label, arguments, expected=0, memory=False):
 		argv = [a.compiler, 'doc', *arguments]
-		if memory: argv = ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
+		if memory: argv = ['valgrind', '--trace-children=yes', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
 		start = time.monotonic()
 		timing = a.runtime/(label+'.time')
 		r = subprocess.run(['/usr/bin/time', '-v', '-o', timing, '--', *map(str, argv)], capture_output=True, cwd=a.runtime, env=env, timeout=180)
@@ -71,7 +72,6 @@ int add(int first, int last) { return first + last; }
 /// <script>alert("unsafe")</script>
 /// @return The answer.
 int answer() { return add(20, 22); }
-internal int hidden() { return 7; }
 ''')
 	other = source('types.astra', '''language astra27b;
 /// An explicitly shared object.
@@ -99,12 +99,16 @@ int inspect(borrowed Child value) { return value.value; }
 int consume(owned Child value) { return value.value; }
 int observe(weak shared Child value) { return 0; }
 ''')
+	visibility = source('visibility.astra', 'namespace Visibility; internal int hidden() { return 7; }\n')
 	run('help', ['--help'])
-	run('json-first', ['--format', 'json', '--output', 'first.json', main, other])
-	run('json-shuffled', ['--format', 'json', '--output', 'second.json', other, main])
+	run('json-first', ['--format', 'json', '--output', 'first.json', main, other, visibility])
+	run('json-shuffled', ['--format', 'json', '--output', 'second.json', visibility, other, main])
 	assert (a.runtime/'first.json').read_bytes() == (a.runtime/'second.json').read_bytes()
 	doc = json.loads((a.runtime/'first.json').read_text())
 	assert doc['format'] == 'astra-api-docs/1' and doc['schema_version'] == 1
+	identity = json.loads(a.build_identity.read_text())
+	assert identity['fingerprint'] == hashlib.sha256(json.dumps(identity['material'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+	assert doc['build'] == dict(kind='source-toolchain-sha256', fingerprint=identity['fingerprint'])
 	assert all(row['sha256'] == sha(a.runtime/row['path']) for row in doc['inputs'])
 	syms = {row['canonical_name']:row for row in doc['symbols']}
 	assert not any(row['canonical_name'].endswith(('hidden', 'secret')) for row in doc['symbols'])
@@ -119,23 +123,24 @@ int observe(weak shared Child value) { return 0; }
 	jsonschema.Draft202012Validator(json.loads((ROOT/'docs/api/schema.json').read_text())).validate(doc)
 	assert syms['SharedItem']['type_contract']['shared']
 	assert syms['Holder.root']['type_contract']['ownership'] == 'owned'
+	assert syms['Holder.root']['owner'] == syms['Holder']['id']
 	assert syms['Holder.view']['type_contract']['ownership'] == 'borrowed_noescape'
 	assert syms['inspect']['parameters'][0]['type_contract']['ownership'] == 'borrowed_noescape'
 	assert syms['consume']['parameters'][0]['type_contract']['ownership'] == 'owned'
 	assert syms['observe']['parameters'][0]['type_contract']['weak']
 	assert [row['id'] for row in doc['symbols']] == sorted(row['id'] for row in doc['symbols'])
 	assert '/home/' not in (a.runtime/'first.json').read_text()
-	run('internal', ['--internal', '--output', 'internal.json', main, other])
+	run('internal', ['--internal', '--output', 'internal.json', main, other, visibility])
 	internal = json.loads((a.runtime/'internal.json').read_text())
 	assert any(row['canonical_name'].endswith('hidden') and row['visibility'] == 'internal' for row in internal['symbols'])
-	run('html', ['--format', 'html', '--output', 'api.html', main, other])
+	run('html', ['--format', 'html', '--output', 'api.html', main, other, visibility])
 	markup = (a.runtime/'api.html').read_text()
 	parsed = Links()
 	parsed.feed(markup)
 	assert not parsed.scripts and len(parsed.ids) == len(set(parsed.ids))
 	assert all(link.startswith('#') and link[1:] in parsed.ids for link in parsed.links)
 	assert '&lt;script&gt;' in markup and '<script>' not in markup
-	run('rebuild', ['--format', 'html', '--output', 'api.html', main, other])
+	run('rebuild', ['--format', 'html', '--output', 'api.html', main, other, visibility])
 	assert (a.runtime/'api.html').read_text() == markup
 	user_output = a.runtime/'user-output.json'
 	user_output.write_bytes(b'USER_OUTPUT\n')
@@ -161,6 +166,12 @@ int observe(weak shared Child value) { return 0; }
 	crlf = source('crlf.astra', b'/// UTF-8 caf\xc3\xa9\r\n/// @return Forty-two.\r\nint answer() { return 42; }\r\n')
 	run('crlf', ['--output', 'crlf.json', crlf])
 	assert json.loads((a.runtime/'crlf.json').read_text())['symbols'][0]['documentation']['markdown'] == 'UTF-8 café\n@return Forty-two.'
+	generic = source('generic-record.astra', 'struct Box<T> { T value; }\nint read_int(Box<int> value) { return value.value; }\nbool read_bool(Box<bool> value) { return value.value; }\nint main() { Box<int> value = { value = 42 }; return read_int(value); }\n')
+	run('generic-specializations', ['--output', 'generic-record.json', generic])
+	generic_rows = {row['canonical_name']:row for row in json.loads((a.runtime/'generic-record.json').read_text())['symbols']}
+	for name,argument in (('read_int', 'int'), ('read_bool', 'bool')):
+		contract = generic_rows[name]['parameters'][0]['type_contract']
+		assert contract['name'] == 'Box<'+argument+'>' and contract['arguments'][0]['name'] == argument
 	privacy = source('privacy.astra', 'int body() { const int implementation_detail = 17; return implementation_detail; }\n')
 	for suffix,options in (('public', []), ('internal', ['--internal'])):
 		name = 'privacy-'+suffix+'.json'
@@ -173,8 +184,10 @@ int observe(weak shared Child value) { return 0; }
 		'missing-result': ('/// Missing result contract.\nint main() { return 42; }', b'@return'),
 		'duplicate-param': ('/// @param a first\n/// @param a second\n/// @return result\nint twice(int a) { return a+a; }', b'duplicate @param'),
 		'unknown-param': ('/// @param missing text\n/// @return result\nint once(int a) { return a; }', b'@param'),
+		'malformed-param': ('/// @parama text\n/// @return result\nint once(int a) { return a; }', b'malformed @param'),
+		'malformed-throws': ('/// @throwsError text\n/// @return result\nint once() { return 1; }', b'malformed @throws'),
 		'missing-link': ('/// {@link absent}\n/// @return result\nint main() { return 42; }', b'unresolved'),
-		'invisible-link': ('internal int secret() { return 42; }\n/// {@link secret}\n/// @return result\nint main() { return 42; }', b'invisible'),
+		'invisible-link': ('namespace Visibility; internal int secret() { return 42; }\n/// {@link Visibility.secret}\n/// @return result\nint main() { return 42; }', b'invisible'),
 		'bad-fence': ('/// ```astra name=x mode=run category=freestanding exit=42\n/// int main() { return 42; }\n/// @return result\nint main() { return 42; }', b'fence'),
 		'large': ('/// '+('x'*65537)+'\nint main() { return 42; }', b'65536'),
 		'nul': (b'/// bad\0comment\nint main() { return 42; }', b'error:'),
@@ -186,11 +199,12 @@ int observe(weak shared Child value) { return 0; }
 		(a.runtime/output).write_bytes(b'PRESERVED_SENTINEL\n')
 		r = run(name, ['--output', output, path], expected=1)
 		assert diagnostic in r.stderr and (a.runtime/output).read_bytes() == b'PRESERVED_SENTINEL\n'
-	run('strict-memory', ['--output', 'memory.json', main, other], memory=True)
+	run('strict-memory', ['--output', 'memory.json', main, other, visibility], memory=True)
 	run('negative-memory', ['--output', 'negative-memory.json', 'missing-link.astra'], expected=1, memory=True)
 	assert not list(a.runtime.glob('*.o')) and not list(a.runtime.glob('*.ll'))
 	assert sha(a.compiler) == a.compiler_sha256
-	result = dict(status='FOCUSED_NATIVE_DOCS_ACCEPTANCE_PASS', compiler_sha256=a.compiler_sha256, source_sha256=sha(__file__), commands_sha256=sha(a.runtime/'commands.json'), negatives=len(negative), symbols=len(doc['symbols']), scope='Focused current native extraction/render/association/schema/memory; complete normal compiler and example qualification remain separate')
+	images = {str(path):sha(path) for path in (a.compiler.with_name(a.compiler.name+'.native'), a.compiler.with_name(a.compiler.name+'.doc')) if path.is_file()}
+	result = dict(status='FOCUSED_NATIVE_DOCS_ACCEPTANCE_PASS', compiler_sha256=a.compiler_sha256, paired_images=images, build_identity_sha256=sha(a.build_identity), source_sha256=sha(__file__), commands_sha256=sha(a.runtime/'commands.json'), negatives=len(negative), symbols=len(doc['symbols']), scope='Focused current native extraction/render/association/schema/memory; complete normal compiler and example qualification remain separate')
 	(a.runtime/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(json.dumps(result))
 

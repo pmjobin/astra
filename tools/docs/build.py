@@ -3,6 +3,7 @@
 """Build the production documentation frontend or complete compiler out of source."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -69,8 +70,11 @@ def main():
 		witness.chmod(0o444)
 	identity = dict(producer=dict(path=str(a.compiler), sha256=a.compiler_sha256), full=a.full, source_revision=subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip(), sources={str(n):sha(n) for n in inputs}, providers=providers, tools=tools, recipe_sha256=sha(__file__), host_source_sha256=sha(ROOT/'compiler/docs/host.c'), exact_toolchain_receipt=str(toolchain_path), toolchain_receipt_sha256=sha(toolchain_path), environment={key:env.get(key) for key in ('PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'LC_ALL')})
 	write(runtime/'identity.json', identity)
+	material = dict(format='astra-docs-build/1', producer_sha256=a.compiler_sha256, sources={str(Path(n).relative_to(ROOT)):h for n,h in identity['sources'].items()}, providers={Path(n).name:h for n,h in providers.items()}, tools=tools, host_source_sha256=identity['host_source_sha256'], recipe_sha256=identity['recipe_sha256'], LLVM='23.1.4')
+	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+	write(runtime/'docs-build-identity.json', dict(fingerprint=fingerprint, material=material, scope='Source/toolchain build fingerprint, distinct from executable SHA-256; O0/O2 share this metadata'))
 	host = build/'docs-host.o'
-	argv = ['cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', ROOT/'compiler/docs/host.c', '-o', host]
+	argv = ['cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-DASTRA_DOC_BUILD_SHA256="'+fingerprint+'"', '-c', ROOT/'compiler/docs/host.c', '-o', host]
 	r = execute(argv, runtime/'host', env=env)
 	assert r['status'] == 'EXPECTED_OUTCOME', r
 	def profile(mode):

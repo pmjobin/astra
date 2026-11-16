@@ -91,7 +91,7 @@ def main():
 	source_inputs = {}
 	def run(label, argv, expected=0, memory=False):
 		if memory:
-			argv = ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
+			argv = ['valgrind', '--trace-children=yes', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
 		start = time.monotonic()
 		timing = a.runtime/(label+'.time')
 		r = subprocess.run(['/usr/bin/time', '-v', '-o', timing, '--', *map(str, argv)], capture_output=True, timeout=120, env=env, cwd=ROOT)
@@ -99,6 +99,7 @@ def main():
 		(a.runtime/(label+'.stderr')).write_bytes(r.stderr)
 		commands.append(dict(label=label, argv=list(map(str, argv)), exit=r.returncode, expected=expected, seconds=time.monotonic()-start, stdout_sha256=hashlib.sha256(r.stdout).hexdigest(), stderr_sha256=hashlib.sha256(r.stderr).hexdigest(), time_sha256=sha(timing)))
 		(a.runtime/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
+		print(label, r.returncode, round(time.monotonic()-start, 3), flush=True)
 		assert r.returncode == expected, (label, r.returncode, r.stderr.decode(errors='replace'))
 		if memory:
 			assert all(marker in r.stderr for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)')), label

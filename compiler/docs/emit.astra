@@ -2,6 +2,23 @@
 [CCode (buffer_abi = "u8-i32")]
 extern(C) int astrac_doc_sha256(borrowed u8[] input, borrowed u8[] digest);
 
+[CCode (buffer_abi = "u8-i32")]
+extern(C) int astrac_doc_build_id(borrowed u8[] output);
+
+int api_build_id_fill(u8[] output) {
+	return astrac_doc_build_id(output);
+}
+
+owned Utf8Message api_build_identity() throws Error {
+	var bytes = new u8[64];
+	if (api_build_id_fill(bytes) != 0) {
+		var absent = syntax_text("unavailable");
+		return move absent;
+	}
+	var result = utf8_message(bytes);
+	return move result;
+}
+
 int api_hash_fill(u8[] input, u8[] digest) {
 	return astrac_doc_sha256(input, digest);
 }
@@ -49,11 +66,11 @@ owned Utf8Message api_signature(CheckedIndex checked, int number) throws Error {
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, name.text);
 	source_append_text(output, " : ");
-	checked_name(checked, checked.symbol_types[number], output, 0);
+	api_name(checked, checked.symbol_types[number], output, 0);
 	var error = api_error_type(checked, number);
 	if (error.index != 0) {
 		source_append_text(output, " throws ");
-		checked_name(checked, error, output, 0);
+		api_name(checked, error, output, 0);
 	}
 	var result = output.snapshot();
 	return move result;
@@ -68,12 +85,18 @@ void api_symbol_json(CheckedIndex checked, ApiComments comments, int number, boo
 	api_json_string(output, id.text);
 	source_append_text(output, ",\"canonical_name\":");
 	api_json_string(output, name.text);
+	source_append_text(output, ",\"owner\":");
+	if (symbol.owner.index == 0) source_append_text(output, "null");
+	else {
+		var owner_id = api_id(checked, symbol.owner.index);
+		api_json_string(output, owner_id.text);
+	}
 	source_append_text(output, ",\"kind\":");
 	api_json_string(output, api_kind(symbol.kind));
 	source_append_text(output, ",\"visibility\":");
 	if (api_public(checked, number)) api_json_string(output, "public");
 	else {
-		if (symbol.restricted) api_json_string(output, "internal");
+		if (api_visibility(checked, number) == 2) api_json_string(output, "internal");
 		else {
 			api_json_string(output, "private");
 		}
@@ -91,7 +114,7 @@ void api_symbol_json(CheckedIndex checked, ApiComments comments, int number, boo
 		source_append_text(output, "null");
 	}
 	source_append_text(output, ",\"parameters\":[");
-	var parameters = checked.bindings.program.arena.get_list_parameters(symbol.node);
+	var parameters = api_parameters(checked, symbol.node);
 	int parameter = 0;
 	while (parameter < checked.bindings.program.arena.list_count(parameters)) {
 		var node = checked.bindings.program.arena.node_at(parameters, parameter);
@@ -123,17 +146,17 @@ void api_symbol_json(CheckedIndex checked, ApiComments comments, int number, boo
 	source_append_text(output, ",\"generic_constraints\":");
 	api_constraints(checked, number, output);
 	source_append_text(output, ",\"attributes\":{\"foreign_import\":");
-	if (checked.bindings.program.arena.computed_is_c_import(symbol.node)) source_append_text(output, "true");
+	if (api_foreign_import(checked, symbol.node)) source_append_text(output, "true");
 	else {
 		source_append_text(output, "false");
 	}
 	source_append_text(output, ",\"foreign_export\":");
-	if (checked.bindings.program.arena.computed_is_c_export(symbol.node)) source_append_text(output, "true");
+	if (api_foreign_export(checked, symbol.node)) source_append_text(output, "true");
 	else {
 		source_append_text(output, "false");
 	}
 	source_append_text(output, ",\"concurrency_policy\":");
-	append_int(output, checked.bindings.program.arena.get_concurrency_concurrency_policy(symbol.node).kinds);
+	append_int(output, api_concurrency(checked, symbol.node));
 	source_append_text(output, ",\"foreign_contract\":");
 	api_json_string(output, api_foreign_contract(checked, number));
 	source_append_text(output, "},\"availability\":{\"profile\":");
@@ -161,7 +184,7 @@ owned Utf8Message api_document(CheckedIndex checked, bool internal, bool html) t
 	int used = 0;
 	while (number <= checked.generic_symbols) {
 		var symbol = checked.bindings.symbol(type_symbol(number));
-		if (api_declaration(symbol.kind) && (internal || api_public(checked, number))) {
+		if (api_declaration(checked, number) && (internal || api_public(checked, number))) {
 			var id = api_id(checked, number);
 			assert_that(keys.append(move id));
 			numbers[used] = number;
@@ -174,7 +197,10 @@ owned Utf8Message api_document(CheckedIndex checked, bool internal, bool html) t
 	if (html) {
 		source_append_text(output, "<!doctype html>\n<!-- astra-api-docs/1 -->\n<html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\"><title>Astra API reference</title><style>body{font:1rem/1.6 system-ui;max-width:80rem;margin:auto;padding:1rem;color:#182638;background:#fafcfe}nav{display:flex;flex-wrap:wrap;gap:1rem}section{border-top:1px solid #bbc;padding:1rem 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#164d9b}:focus{outline:3px solid #a50}</style><header><h1>Astra API reference</h1><p>astra-api-docs/1 · Checked semantic contracts. Native lowering and liveness require separate qualification.</p></header><nav aria-label=\"Symbols\">");
 	} else {
-		source_append_text(output, "{\"format\":\"astra-api-docs/1\",\"schema_version\":1,\"compiler\":\"astrac 28A1 development\",\"provenance\":\"explicit authenticated source buffers; checked semantics\",\"inputs\":[");
+		source_append_text(output, "{\"format\":\"astra-api-docs/1\",\"schema_version\":1,\"compiler\":\"astrac API docs 28A1 development\",\"build\":{\"kind\":\"source-toolchain-sha256\",\"fingerprint\":");
+		var build_identity = api_build_identity();
+		api_json_string(output, build_identity.text);
+		source_append_text(output, "},\"provenance\":\"SHA-256 of actual checked source buffers; paths relative to the explicit source root; executable identities in the separate authenticated build receipt\",\"inputs\":[");
 		int file = 1;
 		while (file <= checked.bindings.program.arena.source_count) {
 			SyntaxSourceId source_id = {index = file};

@@ -15,8 +15,22 @@ class ApiComments {
 	}
 }
 
-bool api_declaration(int kind) {
+bool api_declaration_kind(int kind) {
 	return kind >= 1 && kind <= 6 || kind >= 10 && kind <= 14 || kind == 16 || kind == 17;
+}
+
+bool api_declaration(CheckedIndex checked, int number) {
+	var symbol = checked.bindings.symbol(type_symbol(number));
+	if (!api_declaration_kind(symbol.kind)) return false;
+	int current = symbol.owner.index;
+	int remaining = 128;
+	while (current != 0 && remaining > 0) {
+		var parent = checked.bindings.symbol(type_symbol(current));
+		if (parent.kind != 3 && parent.kind != 4 && parent.kind != 5 && parent.kind != 10 && parent.kind != 13) return false;
+		current = parent.owner.index;
+		remaining = remaining - 1;
+	}
+	return current == 0;
 }
 
 // One physical line break is adjacency; a blank line or ordinary comment is
@@ -85,7 +99,7 @@ owned ApiComments api_comments(CheckedIndex checked) throws Error {
 			symbol = 1;
 			while (symbol <= checked.generic_symbols) {
 				var declaration = checked.bindings.symbol(type_symbol(symbol));
-				if (api_declaration(declaration.kind)) {
+				if (api_declaration(checked, symbol)) {
 					var span = checked.bindings.program.arena.header(declaration.node).span;
 					if (span.source.index == file && span.start >= last) {
 						if (target == 0) target = symbol;

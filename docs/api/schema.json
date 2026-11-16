@@ -7,6 +7,7 @@
     "format",
     "schema_version",
     "compiler",
+    "build",
     "provenance",
     "inputs",
     "symbols"
@@ -48,6 +49,30 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/symbol"
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "fingerprint"
+      ],
+      "properties": {
+        "kind": {
+          "const": "source-toolchain-sha256"
+        },
+        "fingerprint": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "const": "unavailable"
+            }
+          ]
+        }
       }
     }
   },
@@ -152,6 +177,7 @@
       "required": [
         "id",
         "canonical_name",
+        "owner",
         "kind",
         "visibility",
         "source_location",
@@ -342,6 +368,17 @@
               }
             }
           }
+        },
+        "owner": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^v1:[01]:"
+            }
+          ]
         }
       }
     }

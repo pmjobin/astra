@@ -27,7 +27,7 @@ int api_link_target(CheckedIndex checked, string target, bool internal) throws E
 	int number = 1;
 	while (number <= checked.generic_symbols) {
 		var symbol = checked.bindings.symbol(type_symbol(number));
-		if (api_declaration(symbol.kind) && (internal || api_public(checked, number))) {
+		if (api_declaration(checked, number) && (internal || api_public(checked, number))) {
 			var name = checked.bindings.names.text(symbol.canonical);
 			if (name.text == target) {
 				if (result != 0) {
@@ -48,7 +48,7 @@ owned Utf8Message api_links(CheckedIndex checked, borrowed Utf8Message markdown,
 	var output = new Utf8ByteBuilder();
 	source_append_text(output, "[");
 	var symbol = checked.bindings.symbol(type_symbol(number));
-	var parameters = checked.bindings.program.arena.get_list_parameters(symbol.node);
+	var parameters = api_parameters(checked, symbol.node);
 	int count = checked.bindings.program.arena.list_count(parameters);
 	var seen = new bool[count];
 	bool result_seen = false;
@@ -61,6 +61,12 @@ owned Utf8Message api_links(CheckedIndex checked, borrowed Utf8Message markdown,
 		while (end < markdown.text.byte_length && astra_host_text_byte(markdown.text, end) != 10) end = end + 1;
 		var line = api_text_range(markdown.text, begin, end);
 		if (api_text_at(line.text, 0, "```")) fence = !fence;
+		if (!fence && api_text_at(line.text, 0, "@param") && !api_text_at(line.text, 0, "@param ")) {
+			throw new Error("api docs: malformed @param tag");
+		}
+		if (!fence && api_text_at(line.text, 0, "@throws") && !api_text_at(line.text, 0, "@throws ")) {
+			throw new Error("api docs: malformed @throws tag");
+		}
 		if (!fence && api_text_at(line.text, 0, "@param ")) {
 			int name_end = 7;
 			while (name_end < line.text.byte_length && astra_host_text_byte(line.text, name_end) != 32) name_end = name_end + 1;
@@ -98,7 +104,7 @@ owned Utf8Message api_links(CheckedIndex checked, borrowed Utf8Message markdown,
 			int name_end = 8;
 			while (name_end < line.text.byte_length && astra_host_text_byte(line.text, name_end) != 32) name_end = name_end + 1;
 			var name = api_text_range(line.text, 8, name_end);
-			var actual = checked_type_name(checked, error);
+			var actual = api_type_name(checked, error);
 			if (name.text != actual.text || name_end == line.text.byte_length) {
 				throw new Error("api docs: @throws does not match the checked error type");
 			}
@@ -130,6 +136,9 @@ owned Utf8Message api_links(CheckedIndex checked, borrowed Utf8Message markdown,
 		throw new Error("api docs: unterminated fenced example");
 	}
 	var type = checked.symbol_types[number];
+	if (result_seen && (type.index == 0 || checked.types.row(type).kind != 25)) {
+		throw new Error("api docs: @return requires a resolved callable");
+	}
 	if (documented && type.index != 0 && checked.types.row(type).kind == 25) {
 		var result = checked.types.argument(checked.types, type, 0);
 		if (result.type.index != 14 && !result_seen) {

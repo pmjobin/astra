@@ -12,6 +12,22 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
+#ifndef ASTRA_DOC_BUILD_SHA256
+#define ASTRA_DOC_BUILD_SHA256 "unavailable"
+#endif
+
+int astrac_doc_build_id(unsigned char *output, int32_t bytes) {
+	const char *identity = ASTRA_DOC_BUILD_SHA256;
+	size_t length = strlen(identity);
+	if (!output || bytes != 64) return -EINVAL;
+	if (length != 64) return -ENODATA;
+	for (size_t at = 0; at < length; ++at) {
+		if (!((identity[at] >= '0' && identity[at] <= '9') || (identity[at] >= 'a' && identity[at] <= 'f'))) return -EINVAL;
+	}
+	memcpy(output,identity,length);
+	return 0;
+}
+
 static uint32_t rotate(uint32_t value, unsigned shift) {
 	return (value >> shift) | (value << (32 - shift));
 }

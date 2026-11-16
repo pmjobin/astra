@@ -21,10 +21,14 @@ def main():
 	p.add_argument('--toolchain', type=Path, required=True)
 	p.add_argument('--runtime', type=Path, required=True)
 	p.add_argument('--build', type=Path, required=True)
+	p.add_argument('--mode', choices=('O0', 'O2'), action='append', help='Explicit host profiles; final qualification requires both')
 	a = p.parse_args()
 	products = json.loads(a.products.read_text())['products']
-	assert set(products) == {'O0', 'O2'}
+	selected = set(a.mode or ('O0', 'O2'))
+	assert selected <= set(products)
+	products = {mode:products[mode] for mode in ('O0', 'O2') if mode in selected}
 	assert all(row['status'] == 'BUILT_NOT_QUALIFIED' and sha(row['path']) == row['sha256'] for row in products.values())
+	assert all(sha(row[kind]['path']) == row[kind]['sha256'] for row in products.values() for kind in ('native', 'doc'))
 	runtime = output_path(a.runtime, WORK/'runtime')
 	build = output_path(a.build, WORK/'build')
 	runtime.mkdir(parents=True, exist_ok=False)
@@ -41,7 +45,7 @@ def main():
 	emitted = {}
 	def run(label, argv, expected=0, memory=False, extra_env=None):
 		if memory:
-			argv = ['valgrind', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
+			argv = ['valgrind', '--trace-children=yes', '--default-suppressions=no', '--error-exitcode=99', '--leak-check=full', '--show-leak-kinds=all', '--errors-for-leak-kinds=all', *argv]
 		argv = ['env', '-C', runtime, *argv]
 		local = dict(env, **(extra_env or {}))
 		result = execute(argv, runtime/label, expected=expected, timeout=300, env=local)
@@ -61,7 +65,7 @@ def main():
 		compiler = Path(product['path'])
 		# Every imported LLVM API is an observed trap. A normal help invocation
 		# must trip LLVMShutdown, proving that the interposer is active.
-		undefined = subprocess.check_output(['nm', '-u', compiler], text=True)
+		undefined = subprocess.check_output(['nm', '-u', product['native']['path']], text=True)
 		names = sorted(set(re.findall(r'\b(LLVM[A-Za-z0-9_]+)(?:@[^\s]+)?\s*$', undefined, re.M)))
 		assert 'LLVMShutdown' in names and 'LLVMContextCreate' in names
 		trap_source = runtime/(host_mode+'-llvm-trap.c')
@@ -72,6 +76,8 @@ def main():
 		emitted[str(trap)] = sha(trap)
 		run(host_mode+'-trap-control', [compiler, '--help'], expected=91, extra_env={'LD_PRELOAD':str(trap)})
 		assert b'LLVM_CALL:LLVMShutdown' in (runtime/(host_mode+'-trap-control')/'stderr').read_bytes()
+		run(host_mode+'-doc-backend-guard-control', [product['doc']['path'], '--help'], expected=127)
+		assert b'forbidden LLVM backend call' in (runtime/(host_mode+'-doc-backend-guard-control')/'stderr').read_bytes()
 		doc_output = build/(host_mode+'-doc.json')
 		run(host_mode+'-docs-no-LLVM', [compiler, 'doc', '--output', doc_output, 'documented.astra'], extra_env={'LD_PRELOAD':str(trap)})
 		assert not (runtime/(host_mode+'-docs-no-LLVM')/'stderr').read_bytes()
@@ -82,7 +88,7 @@ def main():
 			destination = build/(host_mode+'-'+variant+'.json')
 			run(host_mode+'-'+variant+'-docs', [compiler, 'doc', '--output', destination, variant+'.astra'])
 			document = json.loads(destination.read_text())
-			semantic.append([{key:row[key] for key in ('id', 'canonical_name', 'signature', 'type_contract', 'throws', 'parameters', 'type_parameters', 'generic_constraints', 'attributes', 'availability')} for row in document['symbols']])
+			semantic.append([{key:row[key] for key in ('id', 'canonical_name', 'owner', 'signature', 'type_contract', 'throws', 'parameters', 'type_parameters', 'generic_constraints', 'attributes', 'availability')} for row in document['symbols']])
 			emitted[str(destination)] = sha(destination)
 		assert semantic[0] == semantic[1]
 		for target_mode in ('O0', 'O2'):
@@ -106,7 +112,8 @@ def main():
 			assert objects[0] == objects[1], (host_mode, target_mode, 'comments changed object bytes')
 	assert all(sha(path) == h for path,h in {**sources, **emitted}.items())
 	assert all(sha(row['path']) == row['sha256'] for row in products.values())
-	write(runtime/'result.json', dict(status='CURRENT_COMPLETE_COMPILER_DOCS_ISOLATION_AND_COMMENT_EQUIVALENCE_PASS', products=products, sources=sources, emit_products=emitted, commands_sha256=sha(runtime/'commands.json'), toolchain_receipt_sha256=sha(a.toolchain), scope='Both complete compiler profiles, actual LLVM interposition with positive control, semantic/IR/object equivalence with and without doc trivia, native execution and strict all-kinds memory. Broader ABI/owner/physical suites remain separate.'))
+	assert all(sha(row[kind]['path']) == row[kind]['sha256'] for row in products.values() for kind in ('native', 'doc'))
+	write(runtime/'result.json', dict(status='CURRENT_COMPLETE_COMPILER_DOCS_ISOLATION_AND_COMMENT_EQUIVALENCE_PASS', profiles=list(products), products=products, sources=sources, emit_products=emitted, commands_sha256=sha(runtime/'commands.json'), toolchain_receipt_sha256=sha(a.toolchain), scope='Explicit complete compiler profiles, actual LLVM interposition with positive control, semantic/IR/object equivalence with and without doc trivia, native execution and strict all-kinds memory. Final qualification requires both host profiles and the separate broader ABI/owner/physical suites.'))
 
 
 if __name__ == '__main__':

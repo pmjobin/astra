@@ -48,6 +48,13 @@ owned Utf8Message source_normalize_path(string path) throws Error {
 	return move result;
 }
 
+/// Retains source bytes and builds their physical line index.
+/// The buffer owns its bytes; observations retain the exact source identity.
+/// @param path The source name, normalized by the existing source-path facade.
+/// @param content Bytes transferred into the new buffer.
+/// @param native_interface Whether this input declares a native interface.
+/// @return The owning source buffer; see {@link SourceBuffer}.
+/// @throws Error The source name cannot be represented as valid UTF-8.
 owned SourceBuffer source_buffer(string path, owned u8[] content, bool native_interface) throws Error {
 	assert_that(len(content) < 2147483647);
 	var starts = new int[len(content) + 1];
@@ -72,6 +79,9 @@ owned SourceBuffer source_buffer(string path, owned u8[] content, bool native_in
 	return move result;
 }
 
+/// Owns a source name, raw bytes and line boundaries.
+/// Byte offsets preserve UTF-8 source identity across parser and semantic views.
+/// Construct a buffer with {@link source_buffer}; copying bytes is an explicit operation.
 class SourceBuffer {
 	private owned Utf8Message filename;
 	private owned u8[] content;

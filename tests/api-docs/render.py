@@ -40,7 +40,10 @@ def main():
 	row = dict(id='v1:0:function:answer:Fn<int>', canonical_name='answer', kind='function', signature='answer : Fn<int>', visibility='public', documentation=dict(markdown='<script>bad()</script> $(touch EXECUTED) <img src=x onerror=bad()>'), source_location=dict(path='api.astra', start=0, end=1), links=[], type_contract={}, throws=None, parameters=[], type_parameters=[], attributes={}, availability={})
 	other = copy.deepcopy(row)
 	other.update(id='v1:0:function:other:Fn<int>', canonical_name='other', links=[row['id']])
+	row['owner'] = None
+	other['owner'] = row['id']
 	document = dict(format='astra-api-docs/1', schema_version=1, compiler='fixture', provenance='authored adversarial fixture; no extraction credit', inputs=[], symbols=[row, other])
+	document['build'] = dict(kind='source-toolchain-sha256', fingerprint='unavailable')
 	raw = module.render(document)
 	assert raw == module.render(document)
 	inspect = Inspect()
@@ -48,6 +51,15 @@ def main():
 	assert len(inspect.ids) == len(set(inspect.ids))
 	assert all(value.startswith('#') and value[1:] in inspect.ids for value in inspect.links)
 	assert b'&lt;script&gt;' in raw and b'<script>' not in raw
+	rich = copy.deepcopy(document)
+	rich['symbols'][0]['type_contract'] = dict(kind=25, name='Fn<int,int>', arguments=[dict(name='int', effective_flags=0)])
+	rich['symbols'][0]['parameters'] = [dict(name='value', type_contract=dict(name='int', effective_flags=0))]
+	rich['symbols'][0]['links'] = [other['id']]
+	rich['symbols'][0]['documentation']['markdown'] = '@param value <script>bad()</script>\n@return See {@link other}.'
+	rich_output = module.render(rich, stylesheet='body { color: #123; } </style><script>bad()</script>')
+	assert b'<script>' not in rich_output and b'&lt;script&gt;' in rich_output
+	assert b'<p class="contract-note"><code>int</code> \xe2\x80\x94 See <a href="#' in rich_output and b'Compiler contract details' in rich_output
+	Inspect().feed(rich_output.decode())
 	output = a.runtime/'api.html'
 	module.publish(output, raw)
 	new = copy.deepcopy(document)
@@ -68,6 +80,8 @@ def main():
 		lambda doc:doc.update(schema_version=2),
 		lambda doc:doc.update(schema_version=True),
 		lambda doc:doc['symbols'][0].update(documentation=None),
+		lambda doc:doc['symbols'][0].update(owner=row['id']),
+		lambda doc:doc['symbols'][0].update(owner='missing'),
 		lambda doc:doc['symbols'].append(copy.deepcopy(row)),
 		lambda doc:doc['symbols'][0]['links'].append('missing'),
 		lambda doc:doc['symbols'][0]['source_location'].update(path='/host/private'),
