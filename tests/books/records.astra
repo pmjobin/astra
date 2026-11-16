@@ -1,0 +1,21 @@
+language astra27b;
+struct Sample {
+	int value;
+	int weight;
+}
+
+T identity<T>(T value) {
+	return value;
+}
+
+int weighted(Sample sample) {
+	return sample.value*sample.weight;
+}
+
+int main() {
+	int weight = 2;
+	var sample = Sample {value = 21, weight};
+	Sample copy = sample;
+	copy.value = 10;
+	return identity<int>(value: weighted(sample));
+}

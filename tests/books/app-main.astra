@@ -1,0 +1,21 @@
+language astra27b;
+[CCode(text_abi = "utf8-i32")]
+extern(C) int report_readings(borrowed string label, int count, int total);
+
+extern(C) int reading_count();
+
+extern(C) int read_reading(int index);
+
+int main() {
+	int count = reading_count();
+	if (count < 0) return 64;
+	var readings = new int[count];
+	int at = 0;
+	while (at < count) {
+		readings[at] = read_reading(at);
+		at += 1;
+	}
+	var summary = Readings.summarize(readings);
+	if (report_readings("readings", summary.count, summary.total) != 0) return 2;
+	return 42;
+}

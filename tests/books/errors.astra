@@ -1,0 +1,17 @@
+language astra27b;
+int positive(int value) throws Error {
+	if (value < 0) {
+		throw new Error("negative reading");
+	}
+	return value;
+}
+
+int main() {
+	try {
+		int rejected = positive(-1);
+		return rejected;
+	} catch (Error error) {
+		if (error.message == "negative reading") return 42;
+		return 1;
+	}
+}

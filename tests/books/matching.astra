@@ -1,0 +1,20 @@
+language astra27b;
+enum Problem {
+	Missing,
+	Invalid(int code)
+}
+
+enum Reading {
+	Value(int value),
+	Failure(Problem problem)
+}
+
+int decode(Reading reading) => match (reading) {
+	case Reading.Value(value) => value;
+	case Reading.Failure(Problem.Missing()) => 0;
+	case Reading.Failure(Problem.Invalid(code)) => code;
+};
+
+int main() {
+	return decode(Reading.Failure(Problem.Invalid(42)));
+}

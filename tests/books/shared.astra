@@ -1,0 +1,26 @@
+language astra27b;
+class Reading {
+	readonly int value;
+
+	init(int value) {
+		this.value = value;
+	}
+}
+
+int main() {
+	var unique = new Reading(42);
+	var retained = shared_acquire(move unique);
+	var copy = shared_clone(retained);
+	var observer = shared_downgrade(copy);
+	var upgraded = weak_upgrade(observer);
+	if (upgraded == null) return 1;
+	return shared_read(upgraded);
+}
+
+int shared_read(shared Reading value) {
+	return read(shared_borrow(value));
+}
+
+int read(Reading value) {
+	return value.value;
+}
