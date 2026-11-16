@@ -1,7 +1,8 @@
 # 28-A1 engineering evidence
 
-The source-derived documentation facility is implemented. Final qualification
-is still running; this file does not yet declare the campaign complete.
+The source-derived documentation facility and current native engineering
+qualification are complete. The installed publisher and subsequent ZIP-bound
+replay are the final delivery steps; their actual receipts remain separate.
 
 | Gate | Current evidence |
 | --- | --- |
@@ -11,8 +12,8 @@ is still running; this file does not yet declare the campaign complete.
 | G3 | PASS: machine schema, stable IDs, shuffled-input/fresh-process determinism; actual O0/O2 JSON bytes agree. |
 | G4 | PASS: additive paired CLI, LLVM-free documentation image, fatal backend guards and positive interposition controls; safe output and static HTML. |
 | G5 | PASS: actual min/max library and 150-declaration compiler-module pages; eight extracted examples checked with both hosts and O0/O2 targets, including compile-fail sentinels and strict memory. |
-| G6 | PENDING final source-owner consumer builds/execution; 22 other consolidated suites and both complete-compiler isolation/comment-equivalence qualifications have passed. |
-| G7 | PENDING final evidence/report; the authored after-publication recipe must subsequently bind the actual published ZIP hash. |
+| G6 | PASS: all 23 consolidated suites, including current source-owner O0/O2 builds, native execution and strict memory; both complete-compiler isolation/comment-equivalence qualifications pass. |
+| G7 | Documentation/preservation and after-delivery test step ready. Final report publication and the subsequent actual ZIP-bound receipt follow; no prepublication execution claim. |
 
 All current gates must pass for engineering PASS. A remaining failure requires
 PARTIAL without dropping its requirement. Publication-dependent checks receive
@@ -75,6 +76,8 @@ Actual full-object build resource records are:
 | --- | --- | ---: | ---: | ---: |
 | O0 | 40:15.15 | 2384.91 | 11.96 | 949012 |
 | O2 | 1:04:49 | 3846.45 | 12.25 | 989540 |
+| Source-owner consumer O0 | 27:40.90 | 1640.41 | 7.91 | 603352 |
+| Source-owner consumer O2 | 39:56.23 | 2369.37 | 8.07 | 624868 |
 
 These are actual GNU time records, not campaign totals. Controller and child
 measurements overlap and must not be summed into an invented session total.
