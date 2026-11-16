@@ -42,6 +42,11 @@ UTF-8/i32 or counted-buffer/i32 ABI predicates; their noescape assertion does no
 qualify a foreign implementation. Unsupported foreign profiles remain unproven.
 An unresolved type has `status: "unproven"`; it is never
 presented as a checked safety guarantee.
+Namespace and enum-variant declaration rows currently have no ordinary checked
+symbol `TypeId`; their `type_contract` is explicitly unproven. An enum variant's
+enclosing enum is still identified by `owner`, and its named payload types are
+resolved in `parameters`. Consumers must retain that distinction rather than
+inventing a callable type or treating an absent `TypeId` as a native safety proof.
 
 Qualifiers are contextual. Callable declaration flags qualify its result and
 declaration; the first recursive argument records the result channel directly.

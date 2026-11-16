@@ -166,6 +166,40 @@ int observe(weak shared Child value) { return 0; }
 	crlf = source('crlf.astra', b'/// UTF-8 caf\xc3\xa9\r\n/// @return Forty-two.\r\nint answer() { return 42; }\r\n')
 	run('crlf', ['--output', 'crlf.json', crlf])
 	assert json.loads((a.runtime/'crlf.json').read_text())['symbols'][0]['documentation']['markdown'] == 'UTF-8 café\n@return Forty-two.'
+	edge_text = '''language astra27b;
+// Ordinary trivia.
+/* An ordinary block. */
+//// An ordinary four-slash comment.
+/// A tagged choice.
+enum Choice {
+ /// The empty case.
+ Empty,
+ /// Carries a scalar value.
+ /// @param value The scalar payload.
+ Data(int value)
+}
+/// A nested API container.
+class Container {
+ /// A scalar property.
+ property int answer { get { return 42; } }
+ /// A normal method.
+ /// @return Forty-two.
+ int read() { return 42; }
+}
+'''
+	edge = source('association.astra', edge_text)
+	run('enum-property-association', ['--output', 'association.json', edge])
+	edge_rows = {row['canonical_name']:row for row in json.loads((a.runtime/'association.json').read_text())['symbols']}
+	assert edge_rows['Choice.Data']['owner'] == edge_rows['Choice']['id']
+	assert edge_rows['Choice.Data']['parameters'][0]['type_contract']['name'] == 'int'
+	assert edge_rows['Choice.Data']['type_contract'] == {'status':'unproven'}, 'variant declarations have no ordinary checked symbol TypeId; owner and payload contracts remain explicit'
+	assert edge_rows['Container.answer']['type_contract']['name'] == 'int'
+	assert edge_rows['Container.read']['owner'] == edge_rows['Container']['id']
+	for name,comment in [('Choice', '/// A tagged choice.'), ('Choice.Empty', '/// The empty case.'), ('Choice.Data', '/// Carries a scalar value.'), ('Container', '/// A nested API container.'), ('Container.answer', '/// A scalar property.'), ('Container.read', '/// A normal method.')]:
+		row = edge_rows[name]
+		assert row['documentation']['start'] == edge_text.encode().index(comment.encode())
+		assert row['documentation']['markdown'].startswith(comment[4:])
+		assert row['source_location']['start'] > row['documentation']['end']
 	generic = source('generic-record.astra', 'struct Box<T> { T value; }\nint read_int(Box<int> value) { return value.value; }\nbool read_bool(Box<bool> value) { return value.value; }\nint main() { Box<int> value = { value = 42 }; return read_int(value); }\n')
 	run('generic-specializations', ['--output', 'generic-record.json', generic])
 	generic_rows = {row['canonical_name']:row for row in json.loads((a.runtime/'generic-record.json').read_text())['symbols']}
@@ -178,10 +212,16 @@ int observe(weak shared Child value) { return 0; }
 		run('privacy-'+suffix, [*options, '--output', name, privacy])
 		assert not any('implementation_detail' in row['canonical_name'] for row in json.loads((a.runtime/name).read_text())['symbols']), 'function-local constants are not API declarations'
 	negative = {
+		'eof-stray': ('int main() { return 42; }\n/// No following declaration.\n', b'unattached'),
 		'blank': ('/// Wrong association.\n\nint main() { return 42; }', b'unattached'),
 		'ordinary-barrier': ('/// Wrong association.\n// barrier\nint main() { return 42; }', b'unattached'),
 		'nested-stray': ('int main() {\n/// Wrong association.\nreturn 42;\n}', b'unattached'),
 		'missing-result': ('/// Missing result contract.\nint main() { return 42; }', b'@return'),
+		'missing-param': ('/// @return Result.\nint once(int value) { return value; }', b'undocumented parameter'),
+		'void-result': ('/// @return A forbidden result.\nvoid empty() {}', b'void callable'),
+		'duplicate-result': ('/// @return First.\n/// @return Second.\nint main() { return 42; }', b'duplicate @return'),
+		'nonthrowing-tag': ('/// @throws Error A nonexistent error channel.\n/// @return Result.\nint main() { return 42; }', b'nonthrowing'),
+		'empty-link': ('/// {@link }\n/// @return Result.\nint main() { return 42; }', b'malformed link'),
 		'duplicate-param': ('/// @param a first\n/// @param a second\n/// @return result\nint twice(int a) { return a+a; }', b'duplicate @param'),
 		'unknown-param': ('/// @param missing text\n/// @return result\nint once(int a) { return a; }', b'@param'),
 		'malformed-param': ('/// @parama text\n/// @return result\nint once(int a) { return a; }', b'malformed @param'),
