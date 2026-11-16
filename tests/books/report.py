@@ -64,7 +64,7 @@ def main():
 		# Independently reopen and verify every logical mapping and each blob byte.
 	with tarfile.open(archive,'r:xz') as tar:
 		actual = json.load(tar.extractfile('INDEX.json')); assert actual==index
-		for digest,data in blobs.items(): assert tar.extractfile('blobs/'+digest).read()==data
+		for digest,data in sorted(blobs.items()): assert tar.extractfile('blobs/'+digest).read()==data
 		assert set(tar.getnames())=={'INDEX.json'}|{'blobs/'+digest for digest in blobs}
 	parts = []
 	data = archive.read_bytes()
