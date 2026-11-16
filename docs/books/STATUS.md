@@ -61,6 +61,13 @@ support. Early authoring failures and environment/browser harness corrections
 are preserved. The first quick attempt lacked independently saved fixture
 bytes; no historical witness was retroactively fabricated.
 
+The first final-audit collector stopped because it omitted parent controller
+receipts when counting the four preserved schema failures. The corrected audit
+rehashes both parent and inner streams; execution outcomes were not changed.
+Some early harness/collector failures exist as Codex tool responses rather than
+independently captured process streams. They receive no retroactive raw-log or
+source-witness claim.
+
 ## Preservation and delivery
 
 Compiler/library sources, checked ownership, public C ABI/E25-A-v1, generic 256,

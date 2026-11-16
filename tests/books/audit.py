@@ -25,6 +25,7 @@ def main():
 	p.add_argument('--runtime',type=Path,required=True)
 	a = p.parse_args()
 	runtime = output_path(a.runtime,RUNTIME); runtime.mkdir(parents=True,exist_ok=False)
+	(runtime/'executed-recipe.py.txt').write_bytes(Path(__file__).read_bytes())
 	entry = json.loads((RUNTIME/'books28a2-entry/entry.json').read_text())
 	assert entry['status']=='AUTHENTICATED_28A1_AFTER_PUBLICATION_G7_PASS'
 	native_dir = RUNTIME/'books28a2-native-final1'
@@ -66,27 +67,31 @@ def main():
 	assert all(sha(a.site/path)==digest for path,digest in visual['HTML'].items())
 	owner_products = json.loads((RUNTIME/'api-docs28a1-consolidated-O2/O2-source-owner/result.json').read_text())['products']
 	assert all(sha(row['path'])==row['sha256'] for row in owner_products.values())
-	commands = strict = failures = 0; costs = []
+	commands = strict = failures = 0; costs = []; record_sets = []
 	for base in (native_dir,reg_dir,docs_dir,RUNTIME/'books28a2-browser-final'):
 		for path in sorted(base.rglob('commands.json')):
-			for row in json.loads(path.read_text()):
-				name = row.get('label',row.get('name')); result = row.get('result',row)
-				if 'stdout_sha256' not in result: continue
-				commands += 1
-				if result['exit']!=result.get('expected_exit',result.get('expected')): failures += 1
-				for kind in ('stdout','stderr','time'):
-					leaf = path.parent/name/('time.txt' if kind=='time' else kind)
-					if not leaf.is_file(): leaf = path.parent/(name+('.time' if kind=='time' else '.'+kind))
-					assert sha(leaf)==result[kind+'_sha256'],leaf
-					if kind=='stderr' and b'Memcheck, a memory error detector' in leaf.read_bytes():
-						assert all(marker in leaf.read_bytes() for marker in (b'ERROR SUMMARY: 0 errors',b'in use at exit: 0 bytes in 0 blocks',b'(suppressed: 0 from 0)')),leaf
-						strict += 1
-					if kind=='time':
-						values = {}
-						for line in leaf.read_text().splitlines():
-							if ': ' in line:
-								key,value = line.strip().split(': ',1); values[key]=value
-						costs.append(dict(path=str(leaf.relative_to(RUNTIME)),wall_seconds=result.get('seconds'),user_seconds=values.get('User time (seconds)'),system_seconds=values.get('System time (seconds)'),maximum_RSS_KiB=values.get('Maximum resident set size (kbytes)'),role='controller (may include child CPU)' if name.endswith('-controller') else 'individual timed command; do not add to enclosing controller'))
+			record_sets.append((path.parent,json.loads(path.read_text())))
+	for directory,result in ((reg_dir,reg),(docs_dir,docs)):
+		record_sets.append((directory,[dict(label=row['label']+'-controller',result=row['result']) for row in result['suites']]))
+	for directory,rows in record_sets:
+		for row in rows:
+			name = row.get('label',row.get('name')); result = row.get('result',row)
+			if 'stdout_sha256' not in result: continue
+			commands += 1
+			if result['exit']!=result.get('expected_exit',result.get('expected')): failures += 1
+			for kind in ('stdout','stderr','time'):
+				leaf = directory/name/('time.txt' if kind=='time' else kind)
+				if not leaf.is_file(): leaf = directory/(name+('.time' if kind=='time' else '.'+kind))
+				assert sha(leaf)==result[kind+'_sha256'],leaf
+				if kind=='stderr' and b'Memcheck, a memory error detector' in leaf.read_bytes():
+					assert all(marker in leaf.read_bytes() for marker in (b'ERROR SUMMARY: 0 errors',b'in use at exit: 0 bytes in 0 blocks',b'(suppressed: 0 from 0)')),leaf
+					strict += 1
+				if kind=='time':
+					values = {}
+					for line in leaf.read_text().splitlines():
+						if ': ' in line:
+							key,value = line.strip().split(': ',1); values[key]=value
+					costs.append(dict(path=str(leaf.relative_to(RUNTIME)),wall_seconds=result.get('seconds'),user_seconds=values.get('User time (seconds)'),system_seconds=values.get('System time (seconds)'),maximum_RSS_KiB=values.get('Maximum resident set size (kbytes)'),role='controller (may include child CPU)' if name.endswith('-controller') else 'individual timed command; do not add to enclosing controller'))
 	assert failures==4,'Only the four preserved missing-schema-environment attempts may fail'
 	identity = json.loads((RUNTIME/'api-docs28a1-full3/identity.json').read_text())
 	assert len(identity['sources'])==239 and all(sha(path)==digest for path,digest in identity['sources'].items())
