@@ -40,3 +40,29 @@ or asynchronous error framework guarantee. The precise E25-A-v1 approval and
 independent effect/source/owner boundaries remain unchanged by documentation.
 Use the [ABI chapter](abi.md) and [limits matrix](limits.md) when deciding whether
 a source effect is in the qualified native domain.
+
+## Handler scope and error storage
+
+R-HANDLER-SCOPE. A handler covers the protected try body. Its own catch body
+inherits the outer handler stack, so a throw from a handler is not recursively
+caught by that same handler. Catch bindings refer to the actual caught owner;
+borrowing its message is valid only while that owner/backing remains live.
+Normal result storage and error storage are distinct ABI channels. A throwing
+call's result may be loaded only on its success edge.
+
+A derived Error retains the approved exception header before its own fields.
+Construction initializes the base before own-field statements. Destruction
+retires own fields before the parent chain, and dynamic destruction frees the
+object once after that chain returns. These facts have separate
+[source/layout](../../compiler/semantic/recover-error-layout.astra),
+[CFG error movement](../../compiler/cfg/recover-error-move.astra) and
+[physical destruction](../../compiler/backend/llvm/recover-error-check.astra)
+consumers. An ordinary class payload must not be substituted for Error storage.
+
+Empty owning Error values are permitted in admitted ordinary channels; throwing
+an empty error takes a fatal guard rather than dereferencing an absent header.
+This supplies no guarantee of cleanup on process termination. The
+[call-abort teaching program](../guide/text-errors.md#cleanup-when-a-later-argument-fails)
+checks only returning success/handler paths, with exact destructor observations
+and strict memory. The scope is synchronous native execution; general historical
+async/error bridges and `finally` are not promoted by these observations.

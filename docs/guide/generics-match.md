@@ -60,3 +60,38 @@ cleanup boundary. Generic source instances remain capped at 256, with the
 existing SSA work ceiling unchanged. No general pattern-reflection framework,
 runtime polymorphic iterator or user-defined operator system is introduced by
 these examples.
+
+## Constraints at concrete calls
+
+A Numeric constraint states exactly what addition needs. Begin with the concrete
+operation, then use one parameter consistently in the declaration, body and
+calls. Instantiate small and ordinary integers separately:
+
+```astra example=generic-contract
+language astra27b;
+T add<T>(T first, T last) where T: Numeric {
+	return first + last;
+}
+
+int main() {
+	u8 left = 20;
+	u8 right = 22;
+	u8 expected = 42;
+	if (add<u8>(last: right, first: left) != expected) return 1;
+	return add<int>(20, 22);
+}
+```
+
+The u8 expected local gives the comparison an explicit domain. It avoids relying
+on a generic result to contextualize a literal through every enclosing operation.
+The int call returns 42. Calling this same function with bool is rejected by
+its [capability constraint](../reference/generics.md#concrete-capability-rules),
+not silently treated as integer addition.
+
+Constraints are a finite set of admitted operations, not a reflection mechanism
+or permission to substitute arbitrary classes into a native body. An instance
+still passes ordinary ownership and native verification. Keep actual substitutions
+small and explain their costs: each distinct declaration/argument specialization
+uses compiler work, while repeated use of the same checked instance can reuse
+its identity. The implementation ceiling remains 256. Owning channels and
+copied record specialization require the [separate Reference rules](../reference/generics.md#concrete-capability-rules).

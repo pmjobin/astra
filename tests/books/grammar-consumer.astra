@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+language astra27b;
+// Real typed parser consumer. The C provider supplies immutable fixture bytes,
+// independent expected acceptance, and observations; it never parses Astra.
+extern(C) int grammar_count();
+
+extern(C) int grammar_size(int item);
+
+extern(C) int grammar_byte(int item, int offset);
+
+extern(C) int grammar_observe(int item, int failed);
+
+extern(C) void grammar_mark(int kind);
+
+extern(C) void grammar_finish();
+
+int main() {
+	try {
+		int item = 0;
+		while (item < grammar_count()) {
+			var bytes = new u8[grammar_size(item)];
+			int offset = 0;
+			while (offset < len(bytes)) {
+				bytes[offset] = grammar_byte(item, offset) as u8;
+				offset += 1;
+			}
+			var buffer = source_buffer("book-grammar-fixture", move bytes, false);
+			var retained = shared_acquire(move buffer);
+			var entry = new SourceEntry(move retained);
+			var entries = new Vector<SourceEntry>(1);
+			assert_that(entries.append(move entry));
+			var sources = source_set(move entries);
+			var program = syntax_program(move sources);
+			int failed = 0;
+			if (program.failed()) failed = 1;
+			if (grammar_observe(item, failed) != 1) return 1;
+			if (failed == 0) {
+				assert_that(syntax_program_languages_verified(program));
+				int node = 1;
+				while (node <= program.arena.node_count) {
+					SyntaxNodeId id = {index = node};
+					grammar_mark(syntax_kind_code(program.arena.kind(id)));
+					node += 1;
+				}
+			}
+			item += 1;
+		}
+		grammar_finish();
+		return 42;
+	} catch (Error error) {
+		println_stderr(error.message);
+		return 2;
+	}
+}

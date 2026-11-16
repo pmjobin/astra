@@ -42,3 +42,29 @@ exact resulting strings and handles the declared error. Unicode normalization,
 grapheme segmentation and regular expressions are not implied by validated
 UTF-8. Read the generated [library API](../api/library.html) for declaration-derived
 contracts; a handwritten duplicate of an API signature is not authoritative.
+
+## Bounded plans and exact scalar text
+
+R-FORMAT-DOMAIN. The current interpolation parser admits at most 64 operands
+and refuses nested interpolation. Fragment and hole boundaries are independently
+reconstructed from original UTF-8 bytes. A plan has no storable user type and
+must be the immediate argument of its admitted formatting consumer. Labels,
+extra generic arguments and arbitrary receivers do not substitute for that
+signature. `format_into` requires a stable named builder; text/message operands
+must retain their specified borrowing roots.
+
+Signed and unsigned integers use decimal digits without grouping or locale
+selection. Bool is `true` or `false`. Finite floats use exact hexadecimal text:
+a sign when negative, 0x, a leading 0 or 1, a point and fraction, then p and an
+explicit signed binary exponent. Trailing fractional zeroes are removed while
+retaining a fraction digit. Negative zero, subnormals and extrema preserve their
+IEEE bits. NaN and infinity fail this helper instead of silently becoming text.
+The [scalar implementation](../../lib/astra/text/scalar-format.astra) is distinct
+from the historical hosted decimal formatting provider.
+
+Formatting a plan evaluates each source operand once in written order before
+emitting the fragments. The sink operation can fail, and the owned-text path
+uses its declared Error runtime and cleanup. No atomic rollback of a partially
+written builder is promised. Reserve enough capacity when a measured no-growth
+interval matters, and check the boolean result. Valid UTF-8 describes encoding;
+it does not establish normalization, scalar indexing or grapheme boundaries.

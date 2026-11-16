@@ -58,3 +58,27 @@ Use two comparisons joined by `&&` in admitted code. Existing parser support is
 not execution proof. No generalized user-defined operators or implicit numeric
 promotion are specified here. Name/type checking may succeed before an independent
 owner, Core, CFG, SSA or physical verification boundary refuses the program.
+
+## Observing written order
+
+R-ORDER-TRACE. The [trace example](../guide/values.md#observing-evaluation-order)
+passes arguments in the written order last, first, middle. Its independent C
+observer records 312, while the callee receives formal values 1, 2, 3 and
+computes 123. The same program observes that skipped logical and conditional
+operands never call the observer. These two observations distinguish operand
+capture order from parameter placement and branch selection.
+
+R-CALL-ABORT. In a consuming call, evaluating an owner operand reserves the
+actual binder slot. The callee becomes responsible only at commitment. The
+Guide's [throwing-operand example](../guide/text-errors.md#cleanup-when-a-later-argument-fails)
+places the right owner first, the left owner second, and a potentially throwing
+marker last. Both successful entry and aborted entry retire each object once.
+The returning paths check destructor counts and sums independently, rather than
+using a successful final scalar alone as cleanup evidence.
+
+Receiver preparation, target/index preparation, argument capture and call entry
+are distinct boundaries. A compound indexed store validates its captured target
+before evaluating its RHS. Copying a textual destination into two expressions
+can change the number and order of effects. The retained source/Flow, Core,
+CFG, SSA and physical consumers preserve these distinctions; none can be
+replaced by the emitter's own trace or a trusted cached success bit.

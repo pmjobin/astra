@@ -1,0 +1,15 @@
+language astra27b;
+int main() {
+	u8 first = 254;
+	u8 last = 255;
+	var inclusive = (first..=last).collect_array();
+	var exclusive = (first..last).collect_array();
+	var empty = (3..3).collect_array();
+	var reversed = (5..2).collect_array();
+	if (len(inclusive) != 2 || inclusive[1] != 255 || len(exclusive) != 1) return 1;
+	if (len(empty) != 0 || len(reversed) != 0) return 2;
+	if (!(first..=last).contains(255) || (first..last).contains(255)) return 3;
+	int[3] values = (1..=6).step_by(2).collect_fixed();
+	if (values[0] != 1 || values[2] != 5) return 4;
+	return 42;
+}

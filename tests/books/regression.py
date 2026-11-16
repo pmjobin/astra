@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from threading import Lock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT.parent/'codex/work/astra'
@@ -16,12 +17,56 @@ sys.path.insert(0,str(ROOT/'tests/selfhost-ownership-syntax-27b'))
 from support import execute, output_path, sha, write
 
 
+def replay_bound_qualification(a):
+	assert a.qualification_sha256 and sha(a.qualification)==a.qualification_sha256
+	q = json.loads(a.qualification.read_text())
+	for key in ('products_manifest','toolchain','link','regression_plans'): assert sha(q[key]['path'])==q[key]['sha256']
+	plans = json.loads(Path(q['regression_plans']['path']).read_text())
+	expected = {mode+'-'+name for mode in ('O0','O2') for name in ('named','match','range','format','collection','ownership','intrinsic','C-client','physical-owner','physical-range','physical-enum','source-owner-memory','docs-focused','api-preview')}|{'docs-native'}
+	assert len(plans)==29 and {row['label'] for row in plans}==expected
+	b = output_path(a.build,WORK/'build'); r = output_path(a.runtime,WORK/'runtime')
+	b.mkdir(parents=True,exist_ok=False); r.mkdir(parents=True,exist_ok=False)
+	(r/'executed-recipe.py.txt').write_bytes(Path(__file__).read_bytes())
+	start = datetime.datetime.now(datetime.timezone.utc).isoformat()
+	t = json.loads(Path(q['toolchain']['path']).read_text()); assert all(sha(p)==h for p,h in t['tools'].items())
+	env = dict(os.environ,PYTHONDONTWRITEBYTECODE='1',CCACHE_DISABLE='1'); env.update({k:v for k,v in t['environment'].items() if v is not None}); env.pop('LD_PRELOAD',None); env.pop('VALGRIND_OPTS',None)
+	schema_path = WORK/'runtime/api-docs28a1-schema-test-environment/result.json'; schema = json.loads(schema_path.read_text())
+	assert schema['status']=='ACTUAL_PINNED_PYTHON_SCHEMA_POSITIVE_AND_NEGATIVE_PASS' and all(sha(p)==h for p,h in schema['loaded_dependency_bytes'].items())
+	env['PYTHONPATH'] = schema['PYTHONPATH']
+	debugger = r/'tool-bin/gdb'; debugger.parent.mkdir(); debugger.write_bytes((ROOT/'tests/api-docs/gdb-host.py').read_bytes()); debugger.chmod(0o755)
+	env['PATH'] = str(debugger.parent)+os.pathsep+env['PATH']
+	assert subprocess.check_output(['llvm-config','--version'],env=env).strip()==b'23.1.4'
+	assert all(sha(row['path'])==row['sha256'] for row in q['source_consumers'].values())
+	for plan in plans:
+		for flag,parent in (('--build',b),('--runtime',r)):
+			if flag in plan['argv']: plan['argv'][plan['argv'].index(flag)+1] = str(parent/plan['label'])
+	if a.docs_only: plans = [row for row in plans if row['label'].endswith(('-docs-focused','-api-preview'))]
+	write(r/'plans.json',plans)
+	results = []; lock = Lock()
+	def job(plan):
+		v = execute(plan['argv'],r/(plan['label']+'-controller'),expected=plan.get('expected',0),timeout=2400,env=env)
+		row = dict(label=plan['label'],argv=plan['argv'],result=v)
+		with lock:
+			results.append(row); write(r/'commands.json',results)
+		print(plan['label'],v['status'],round(v['seconds'],2),flush=True)
+		return row
+	with ThreadPoolExecutor(max_workers=2) as pool: list(pool.map(job,plans))
+	passed = all(row['result']['status']=='EXPECTED_OUTCOME' for row in results)
+	write(r/'result.json',dict(status=('CURRENT_BOOK_DOC_SCHEMA_PREVIEW_PASS' if a.docs_only else 'CURRENT_BOOK_NONREGRESSION_PASS') if passed else 'CURRENT_BOOK_NONREGRESSION_FAILURE',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),qualification_sha256=a.qualification_sha256,plans_sha256=sha(r/'plans.json'),commands_sha256=sha(r/'commands.json'),suites=results,scope='Only the explicitly hashed predecessor plans, rerouted to fresh external outputs. Exact unchanged products and historical C0 oracle inputs retain their original identities. Current raw/memory/mutation outcomes require the independent final audit; no historical reclassification or safety waiver.'))
+	assert passed
+
+
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--build',type=Path,required=True)
 	p.add_argument('--runtime',type=Path,required=True)
 	p.add_argument('--docs-only',action='store_true',help='Retry only schema/extraction lanes after an environment correction')
+	p.add_argument('--qualification',type=Path,help='Replay the exact hashed plans bound by an authenticated 28-A2 qualification')
+	p.add_argument('--qualification-sha256')
 	a = p.parse_args()
+	if a.qualification:
+		replay_bound_qualification(a)
+		return
 	build = output_path(a.build,WORK/'build'); runtime = output_path(a.runtime,WORK/'runtime')
 	build.mkdir(parents=True,exist_ok=False); runtime.mkdir(parents=True,exist_ok=False)
 	(runtime/'executed-recipe.py.txt').write_bytes(Path(__file__).read_bytes())

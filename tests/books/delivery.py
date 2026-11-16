@@ -27,8 +27,9 @@ def main():
 	assert sha(report_path) == a.report_sha256
 	with zipfile.ZipFile(report_path) as z:
 		report = json.loads(z.read('RESULT.json'))
-		assert report['project_id']=='astra' and report['milestone_id']=='ASTRA-RELEASE-28A2-LANGUAGE-REFERENCE-AND-GUIDE'
-		assert report['submission_sha256']=='641e588a2e2e17a0772fe15d66bb1907ad2f1da111a7083e937f072d664e0ed2'
+		r1 = report['milestone_id']=='ASTRA-RELEASE-28A2-R1-BOOK-COMPLETION'
+		assert report['project_id']=='astra' and (r1 or report['milestone_id']=='ASTRA-RELEASE-28A2-LANGUAGE-REFERENCE-AND-GUIDE')
+		assert report['submission_sha256']==('9e78499c69071e6972bbe98d7f7dd7a886567f45b9fbfd50f89548f713e0cc0b' if r1 else '641e588a2e2e17a0772fe15d66bb1907ad2f1da111a7083e937f072d664e0ed2')
 		assert z.read('evidence/QUALIFICATION.json') == a.qualification.read_bytes()
 		for name in report['changed_committed_paths']:
 			assert (ROOT/name).read_bytes() == subprocess.check_output(['git','show',report['final_commit']+':'+name],cwd=ROOT)
@@ -57,6 +58,24 @@ def main():
 		commands.append(dict(label=label,argv=list(map(str,argv)),result=result)); write(runtime/'commands.json',commands)
 		assert result['status']=='EXPECTED_OUTCOME',label
 	products = qualification['products_manifest']['path']; tools = qualification['toolchain']['path']
+	if r1:
+		assert qualification['format']=='astra-book-completion-qualification/1' and qualification['gates']['G8']=='PENDING_ACTUAL_LATER_PUBLICATION'
+		for name in ('books','grammar','limits'):
+			recipe = 'run.py' if name=='books' else name+'.py'
+			argv = ['python3','-B',ROOT/'tests/books'/recipe,'--products',products,'--toolchain',tools,'--build',build/name,'--runtime',runtime/name]
+			if name!='limits': argv += ['--link',qualification['link']['path']]
+			run(name,argv)
+		run('regression',['python3','-B',ROOT/'tests/books/regression.py','--qualification',a.qualification,'--qualification-sha256',sha(a.qualification),'--build',build/'regression','--runtime',runtime/'regression'])
+		api = build/'regression/O0-api-preview'
+		run('site',['python3','-B',ROOT/'tools/docs/books.py','--output',build/'site','--api-library',api/'library.json','--api-compiler',api/'compiler-source.json'])
+		run('render',['python3','-B',ROOT/'tests/books/render.py','--runtime',runtime/'render'])
+		run('browser',['python3','-B',ROOT/'tests/books/browser.py','--site',build/'site','--runtime',runtime/'browser'])
+		from completion import streams
+		records,memory,costs = streams([runtime])
+		write(runtime/'execution-costs.json',dict(commands=costs,scope='Nested timings overlap; never sum parent and child CPU.'))
+		assert sha(report_path)==a.report_sha256
+		write(runtime/'result.json',dict(status='AFTER_PUBLICATION_28A2_R1_REPLAY_EXECUTED_PENDING_INDEPENDENT_AUDIT',start_UTC=start.isoformat(),completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),report_sha256=a.report_sha256,engineering_status=report['status'],commands_sha256=sha(runtime/'commands.json'),command_records=len(records),strict_memory_streams=memory,scope='Actual later canonical-report-bound full books, typed grammar, boundary and ABI/owner/physical/docs replay. Independently inspect all outcomes, source identities and fresh browser screenshots before issuing a separate G8 receipt. This execution never reclassifies the immutable engineering PARTIAL or historical C0 exceptions.'))
+		return
 	run('books',['python3','-B',ROOT/'tests/books/run.py','--products',products,'--toolchain',tools,'--link',qualification['link']['path'],'--build',build/'books','--runtime',runtime/'books'])
 	assert json.loads((runtime/'books/result.json').read_text())['status']=='BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS'
 	run('docs-native',['python3','-B',ROOT/'tests/api-docs/native.py','--products',products,'--toolchain',tools,'--build',build/'docs-native','--runtime',runtime/'docs-native'])

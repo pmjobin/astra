@@ -43,3 +43,28 @@ insufficient. No WebAssembly, Windows, macOS, embedded interrupt, MMIO, DMA or
 device-memory acceptance is granted by the native host tests. Native structure
 layout is not a stable public serialized schema, and source debug metadata is
 not a release ABI commitment.
+
+## Counted import shape and independent obligations
+
+R-COUNTED-SIGNATURE. The admitted counted import is a top-level `extern(C)`
+function with no Astra body, export, async marker, generic/foreign policy or
+throwing channel. Exactly one CCode entry selects `text_abi = "utf8-i32"` or
+`buffer_abi = "u8-i32"`. At least one argument must use the corresponding borrowed
+counted type; a counted result is excluded. Other channels must meet the admitted
+scalar signature. Text bytes and byte-buffer bytes are paired with i32 counts,
+in declared channel order. The borrowed lifetime promise neither supplies LLVM
+alias attributes nor proves a foreign body's implementation.
+
+The [source signature consumer](../../compiler/semantic/foreign-text.astra) and
+[physical external-call consumer](../../compiler/backend/llvm/recover-foreign-check.astra)
+check different facts. The actual C client/provider tests must still observe
+argument/result order and exact bytes. Native private record, enum, Error and
+owner-slot layouts are not arbitrary C aggregate contracts; public E25-A-v1
+approval is preserved unchanged.
+
+`--check` still performs the retained Flow/Core/CFG/SSA admission before returning.
+`--dump-syntax` stops after parsing. `astrac doc` uses the separate semantic-only
+path with no LLVM backend calls. These commands therefore have different proof
+boundaries. Neither checking nor API extraction establishes an ELF link or a
+freestanding runtime profile. Select explicit sources/providers and verify the
+final imports and actual target execution when claiming no runtime dependencies.

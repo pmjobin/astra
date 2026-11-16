@@ -19,12 +19,17 @@ def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	for name in ('products','toolchain','link','build','runtime'): p.add_argument('--'+name,type=Path,required=True)
 	p.add_argument('--quick',action='store_true',help='Authoring semantic preflight only; no native acceptance credit')
+	p.add_argument('--case',action='append',help='Explicit case IDs for focused authoring; omission runs the entire manifest')
 	a = p.parse_args()
 	build = output_path(a.build,WORK/'build'); runtime = output_path(a.runtime,WORK/'runtime')
 	build.mkdir(parents=True,exist_ok=False); runtime.mkdir(parents=True,exist_ok=False)
 	(runtime/'executed-recipe.py.txt').write_bytes(Path(__file__).read_bytes())
 	start = datetime.datetime.now(datetime.timezone.utc).isoformat()
 	manifest = json.loads(Path(__file__).with_name('examples.json').read_text())
+	all_cases = manifest['cases']
+	if a.case:
+		assert len(a.case) == len(set(a.case)) and set(a.case) <= {row['id'] for row in all_cases}
+		manifest['cases'] = [row for row in all_cases if row['id'] in a.case]
 	files = {r['id']:ROOT/r['path'] for r in manifest['files']}
 	products = json.loads(a.products.read_text())['products']
 	assert set(products) == {'O0','O2'}
@@ -43,7 +48,7 @@ def main():
 		witness = runtime/'inputs'/Path(path).name
 		witness.parent.mkdir(parents=True,exist_ok=True)
 		witness.write_bytes(Path(path).read_bytes())
-	commands = []; results = []; emitted = {}
+	commands = []; results = []; emitted = {}; foreign_objects = {}
 	def run(label,argv,expected=0,memory=False):
 		if memory: argv = ['valgrind','--trace-children=yes','--default-suppressions=no','--error-exitcode=99','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=all',*argv]
 		result = execute(argv,runtime/label,expected=expected,timeout=300,env=env)
@@ -73,9 +78,12 @@ def main():
 		if not a.quick:
 			for key in case['files']:
 				if files[key].suffix != '.c': continue
+				if key in foreign_objects:
+					foreign.append(foreign_objects[key])
+					continue
 				obj = build/(key+'.o')
 				run(key+'-C-build',['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-c',files[key],'-o',obj])
-				foreign.append(obj); emitted[str(obj)] = sha(obj)
+				foreign.append(obj); emitted[str(obj)] = sha(obj); foreign_objects[key] = obj
 		for host_mode,product in products.items():
 			if a.quick and host_mode != 'O2': continue
 			compiler = product['path']
@@ -123,7 +131,7 @@ def main():
 		results.append(dict(id=name,mode=case['mode'],status='SEMANTIC_PREFLIGHT' if a.quick else 'EXPECTED_OUTCOMES_PASS'))
 		print(name,results[-1]['status'],flush=True)
 	assert all(sha(path) == digest for path,digest in {**inputs,**providers,**emitted}.items())
-	write(runtime/'result.json',dict(status='BOOK_SEMANTIC_PREFLIGHT_PASS' if a.quick else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,products=products,inputs=inputs,emit_products=emitted,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; expected exits, exact stdout, LLVM verify, refusal sentinels and unsuppressed compiler/program memory. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
+	write(runtime/'result.json',dict(status='BOOK_SEMANTIC_PREFLIGHT_PASS' if a.quick else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,full_manifest=not a.case,manifest_case_count=len(all_cases),products=products,inputs=inputs,emit_products=emitted,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; expected exits, exact stdout, LLVM verify, refusal sentinels and unsuppressed compiler/program memory. Explicit selections qualify only the listed cases. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
 
 
 if __name__ == '__main__':

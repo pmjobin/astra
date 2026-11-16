@@ -57,12 +57,22 @@ int main() {
 
 R-QUALIFICATION. [Rules](../books/rules.json) map chapter assertions to hashed
 source spans and positive/negative controls. [Inventory](../books/inventory.json)
-lists source units and syntax families; unreviewed families remain explicit.
-The grammar chapter is a parser-aligned summary, not an independently complete
-formal specification of every represented policy. A lack of exhaustive coverage
+lists source units and syntax families with hash-pinned role/surface review and
+actual parser controls. The versioned grammar has explicit precedence and
+ambiguity rules, with all 96 concrete families actually observed. Foreign-policy
+and historical-profile cross-products still require independent specification
+and qualification. A lack of exhaustive coverage
 must therefore keep G1/G2 PARTIAL until reviewed and tested, even when the two
 books are readable and their examples pass. The books must not narrow that
 acceptance condition to the size of their current fixture set.
+
+The [boundary recipe](../../tests/books/limits.py) generates discriminating pairs
+for 256/257 generic instances, eight/nine lazy stages and scalar captures,
+1,048,576/1,048,577 comprehension elements, and 64/65 interpolation operands.
+Interpolation is a parser-only control; no formatting runtime promise follows.
+The same recipe contrasts explicit borrowed legacy shared parameters with the
+legacy implicit consuming channel. The SSA 8,000,000 ceiling is source-bound;
+this campaign does not claim an unrun eight-million-instruction exhaustion test.
 
 ## History and later milestones
 
@@ -75,7 +85,10 @@ and [owner decision](../decisions/0170-rebuilt-c0-release-provenance.md).
 
 28-A1's immutable report retains its original G7 pending status; the separately
 dated real after-publication receipt is distinct. 28-A2 likewise leaves G8
-pending until its actual report exists. Performance/C++ comparisons are 28-B,
+pending until its actual report exists. R1 independently established the original
+28-A2 G8 after publication before making these edits; that separate receipt
+preserves the original engineering PARTIAL. R1 requires its own later G8.
+Performance/C++ comparisons are 28-B,
 developer experience 28-C, and release qualification 28-D. Print production is
 later Markdown-derived work. These books claim no PDF, hardback, deployment,
 RC, public tag or final release.

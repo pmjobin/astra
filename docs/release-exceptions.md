@@ -30,3 +30,15 @@ physical/ABI context remains bound earlier qualification evidence. The immutable
 28-A1 report's prepublication pending declaration remains unchanged. The new
 book campaign's [PARTIAL findings](books/STATUS.md) preserve all historical
 exceptions and require its own subsequent ZIP-bound G8.
+
+R1 independently established the original 28-A2 G8 before source edits. The
+canonical delivered report was 2,949,415 bytes, SHA-256
+`0d58b978a92d01f0ecdf6bfbcd0ff82423b0e5c0454920be05eed44655c2a01f`,
+published 2026-11-16 09:15:54 UTC. The separate replay ran 17:23:08–17:34:32 UTC
+that day; independent audit completed at 17:35:00 UTC. It rehashed 1,035 command
+records and 314 strict returning-memory streams, including actual host/target
+O0/O2 books, ABI/owners, LLVM physical refusals, docs and offline browser evidence.
+The receipt is transported as r1-predecessor-G8.json with the exact executed
+recipes and raw streams. This later G8 leaves the immutable original 28-A2
+engineering PARTIAL and its original prepublication G8 PENDING declaration
+unchanged. R1 has its own later publication gate; it receives no advance credit.

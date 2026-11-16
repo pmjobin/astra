@@ -104,3 +104,173 @@ sharing to express a real lifetime requirement, and remember that a weak observe
 does not keep a payload alive. No general cross-thread safety promise follows
 from either example. Strict memory verification covers returning executions;
 traps and fatal termination have different cleanup guarantees.
+
+## Owning fields and anchored borrows
+
+A holder can own a reading while keeping a readonly view of that same reading.
+This is useful when one field expresses responsibility and another expresses
+how an object is accessed. Read the constructor in order: it transfers the
+incoming owner into root, then initializes view from that root. It does not
+keep the constructor caller's temporary borrow.
+
+```astra example=ownership-defaults
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	readonly int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() { note_drop(this.value); }
+}
+
+class Holder {
+	readonly Reading root;
+	readonly borrowed Reading view;
+
+	init(owned Reading incoming) {
+		this.root = move incoming;
+		this.view = this.root;
+	}
+}
+
+Reading make(int value) {
+	var result = new Reading(value);
+	return move result;
+}
+
+int inspect(Reading reading) { return reading.value; }
+
+int work() {
+	Reading reading = make(42);
+	var holder = new Holder(move reading);
+	return inspect(holder.view);
+}
+
+int main() {
+	int result = work();
+	if (drop_count() != 1 || drop_sum() != 42) return 1;
+	return result;
+}
+```
+
+`make` demonstrates the modern default owning result. The declared local acquires
+it, and `Holder.root` owns it without an explicit owned field qualifier. In
+contrast, `inspect` borrows. Returning from work destroys the holder and its one
+reading. The independent observer must report one retirement with value 42.
+The [Reference table](../reference/ownership.md#effective-ownership-channels)
+spells out which defaults are contextual; it is not safe to extrapolate them
+to every foreign or generic type.
+
+```text
+work's holder owner
+    root: owns Reading(42) ---- cleanup retires Reading once
+    view: borrows root ------- inspection creates no new owner
+```
+
+Removing root and retaining only the constructor parameter's borrow fails the
+[stored-borrow control](../reference/shared.md#anchors-expiry-and-distinct-observer-storage).
+Reusing a moved local also has a [current native refusal](../reference/ownership.md#move-reservations-and-reinitialization-boundary).
+Give each acquisition a clear lexical owner rather than treating a null/moved
+slot as automatically reusable.
+
+## Observing expiry
+
+A weak observer is useful precisely when the observed object may disappear.
+This function returns an observer while letting its last strong owner retire:
+
+```astra example=weak-expiry
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() { note_drop(this.value); }
+}
+
+Weak<Reading> observe() {
+	var reading = new Reading(42);
+	var strong = shared_acquire(move reading);
+	var observer = shared_downgrade(strong);
+	return move observer;
+}
+
+int main() {
+	var observer = observe();
+	var expired = weak_upgrade(observer);
+	if (expired != null || drop_count() != 1 || drop_sum() != 42) return 1;
+	return 42;
+}
+```
+
+The upgrade in main must be null, but the observer itself is still a managed
+handle. The destructor counters show that the payload retired before the
+upgrade. Successful live upgrade, expired upgrade, and cleanup of the weak
+handle are three separate facts. Avoid making a cross-thread guarantee from
+this synchronous example.
+
+## Independent lifecycle observer
+
+Compile this small provider with the examples that declare its functions. It
+records retirement counts/sums and a decimal call trace. It allocates no storage
+and makes no claim about the compiler's internal owner state; the examples
+compare its observations with independently specified expected values.
+
+```c example=lifecycle
+#include <stdint.h>
+
+static int retired;
+static int total;
+static int trace;
+
+void note_drop(int value) {
+	++retired;
+	total += value;
+}
+
+int drop_count(void) {
+	return retired;
+}
+
+int drop_sum(void) {
+	return total;
+}
+
+int tick(int value) {
+	trace = trace * 10 + value;
+	return value;
+}
+
+int tick_trace(void) {
+	return trace;
+}
+```
+
+From the checkout, select the authenticated compiler and a fresh external output
+directory as in the first-program recipe. This complete command sequence includes
+both source inputs; change both optimization switches to O2 for the other target:
+
+```sh
+mkdir -p "$ASTRA_BOOK_BUILD/owner-observer"
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/owner-observer/app.o" tests/books/ownership-defaults.astra
+cc -std=c11 -O0 -c tests/books/lifecycle.c -o "$ASTRA_BOOK_BUILD/owner-observer/observer.o"
+cc -no-pie "$ASTRA_BOOK_BUILD/owner-observer/app.o" "$ASTRA_BOOK_BUILD/owner-observer/observer.o" -o "$ASTRA_BOOK_BUILD/owner-observer/app"
+"$ASTRA_BOOK_BUILD/owner-observer/app"
+```
+
+The final command returns status 42 and prints nothing. Its nonzero sentinel is
+intentional; run it separately from a shell that exits on any nonzero status.
+The automated book runner performs host and target O0/O2, LLVM verification,
+exit 42 with empty stdout, and strict returning compiler/program memory checks.

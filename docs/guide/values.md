@@ -55,3 +55,70 @@ nodes. An out-of-range literal example is in [Lexical structure](../reference/le
 Use it to recognize the difference between a source error and an environmental
 link failure. Numeric values, casts and overflow rules are specified in
 [Types](../reference/types.md).
+
+## Observing evaluation order
+
+Named arguments improve readability when several parameters share a type, but
+they do not reorder computation to match the declaration. Here the call writes
+last, first, middle. The C observer from [Objects](objects.md#independent-lifecycle-observer)
+records 312; the callee receives first=1, middle=2, last=3 and returns 123.
+
+```astra example=evaluation-order
+language astra27b;
+extern(C) int tick(int value);
+
+extern(C) int tick_trace();
+
+int choose(int first, int middle, int last) {
+	return first*100 + middle*10 + last;
+}
+
+int main() {
+	int value = choose(last: tick(3), first: tick(1), middle: tick(2));
+	if (value != 123 || tick_trace() != 312) return 1;
+	if (false && tick(9) == 9) return 2;
+	if (!(true || tick(8) == 8)) return 3;
+	int selected = false ? tick(7) : tick(4);
+	if (selected != 4 || tick_trace() != 3124) return 4;
+	return 42;
+}
+```
+
+The skipped logical operands leave the trace alone. The conditional evaluates
+only tick(4), so the final trace is 3124. If you rewrote this call into positional
+form without first capturing values in written order, you could change the
+program's effects. See the [Reference](../reference/expressions.md#observing-written-order).
+
+## Checking the numeric contract
+
+Use small concrete checks to learn how an exact numeric domain behaves. These
+checks intentionally include the signed minimum and a negative remainder:
+
+```astra example=numeric-contract
+language astra27b;
+int main() {
+	i8 signed_wrap = 127;
+	signed_wrap += 1;
+	u8 unsigned_wrap = 255;
+	unsigned_wrap += 1;
+	int minimum = -2147483648;
+	if (signed_wrap != -128 || unsigned_wrap != 0) return 1;
+	if (minimum / -1 != minimum || minimum % -1 != 0) return 2;
+	if (-7 / 3 != -2 || -7 % 3 != -1) return 3;
+	i32 signed_bits = -8;
+	u32 unsigned_bits = 0x8000_0000;
+	if ((signed_bits >> 1) != -4 || (unsigned_bits >> 31) != 1) return 4;
+	f64 fraction = 42.75d;
+	if ((fraction as int) != 42 || ((-fraction) as int) != -42) return 5;
+	return 42;
+}
+```
+
+The 8-bit additions wrap in their own domains. The signed division special case
+returns MIN and zero remainder, while -7 divided by 3 truncates toward zero.
+The signed right shift preserves the sign and the unsigned shift inserts zeroes.
+Float casts truncate toward zero after checking representability. Division by
+zero, an invalid dynamic shift or a nonfinite/out-of-range float cast takes a
+fatal path; it is not an ordinary Error you can repair in this program.
+The [numeric Reference](../reference/types.md#integer-edge-cases-and-conversion-domains)
+separates these cases and links the independent guards.

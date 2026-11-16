@@ -58,3 +58,78 @@ or runtime trap does not promise unwinding or destructor execution. In particula
 no strict “all resources retired on fatal termination” claim follows from
 returning-path Valgrind. C0's separate historical process-memory limitation is
 preserved in [Limits](limits.md); it is not a waiver of current owner checks.
+
+## Effective ownership channels
+
+R-DEFAULT-CHANNELS. In modern source, spelling and effective responsibility
+must be considered together. The declaration elaborator applies these defaults
+only to the admitted concrete native types. It does not strengthen a foreign
+pointer, interface, arbitrary symbolic type or unproved producer.
+
+| Position | Effective modern contract | Required evidence |
+| --- | --- | --- |
+| Native class field | Owning unless explicitly borrowed | Constructor initializes its actual field slot |
+| Native class result | Owning | A real owning result or proved absence, with source-local acquisition |
+| Ordinary native class parameter | Borrowing | Owner survives every use; no transfer at entry |
+| Ordinary shared or weak parameter | Borrowing | Modern effective channel; legacy shared defaults differ |
+| Acquiring local | Owning when initialized by a checked owning producer | Construction, owning call, move, selected conditional or match arm |
+| Scalar/copied record | Copied | Exact copyable shape; no concealed owner leaves |
+| Owning enum | Intrinsic ownership derived from its variants | Explicit owned/borrowed sum declarations are refused |
+| Readonly borrowed class field | Borrowed relationship | A proved readonly owning sibling initialized first |
+
+These are source contracts, not a claim that every combination lowers natively.
+In particular, an alias expression with a class TypeId cannot invent local
+acquisition. Generic record channels have explicit specialization exceptions;
+see [Generics](generics.md). The authoritative selectors are
+[checked_default_owner_type and checked_declared](../../compiler/semantic/elaborate.astra),
+with separate [local/result source consumers](../../compiler/semantic/recover-class-locals.astra).
+The Guide's [observed defaults program](../guide/objects.md#owning-fields-and-anchored-borrows)
+checks implicit field/result/local ownership and a borrowed parameter together.
+
+## Move reservations and reinitialization boundary
+
+R-REARM-BOUNDARY. A source slot can be dead, live, or reserved for a particular
+consuming operation. Reservation and commitment are different events. A later
+throwing argument can prevent the call from entering. The actual CFG must then
+preserve or retire the appropriate responsibilities; a pointer-shaped value or
+one convenient branch does not prove a slot live on all paths. SSA checks these
+states against the actual graph, independently of the lowering plan.
+
+The following attempted local rearm is currently refused with `Flow rejected`.
+It is intentionally a negative whole program, including its observer declarations.
+This edition therefore gives no general native promise that assigning a fresh
+construction to this moved local is accepted. Earlier rearm implementations and
+source state models retain their own historical scope.
+
+```astra example=negative-rearm
+language astra27b;
+extern(C) void note_drop(int value);
+extern(C) int drop_count();
+extern(C) int drop_sum();
+class Reading {
+	int value;
+	init(int value) { this.value = value; }
+	deinit() { note_drop(this.value); }
+}
+
+int consume(owned Reading reading) { return reading.value; }
+
+int work() {
+	var reading = new Reading(20);
+	int first = consume(move reading);
+	reading = new Reading(22);
+	return first + consume(move reading);
+}
+
+int main() {
+	int result = work();
+	if (drop_count() != 2 || drop_sum() != 42) return 1;
+	return result;
+}
+```
+
+A usable program can instead give each acquisition its own lexical owner. Do
+not remove `move`, copy the old owner or weaken Flow to make the negative pass.
+The [negative double move](#ownership-and-cleanup) and this refusal test different
+facts: an invalid second transfer versus the current admission boundary for
+reinitialization. The unchanged compiler source remains the authority.

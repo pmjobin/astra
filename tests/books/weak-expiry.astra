@@ -1,0 +1,28 @@
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() { note_drop(this.value); }
+}
+
+Weak<Reading> observe() {
+	var reading = new Reading(42);
+	var strong = shared_acquire(move reading);
+	var observer = shared_downgrade(strong);
+	return move observer;
+}
+
+int main() {
+	var observer = observe();
+	var expired = weak_upgrade(observer);
+	if (expired != null || drop_count() != 1 || drop_sum() != 42) return 1;
+	return 42;
+}

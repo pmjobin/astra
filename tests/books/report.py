@@ -22,10 +22,13 @@ def main():
 	p.add_argument('--qualification',type=Path,required=True)
 	p.add_argument('--site',type=Path,required=True)
 	p.add_argument('--runtime',type=Path,required=True)
+	p.add_argument('--campaign-prefix',default='books28a2-',help='Explicit runtime directory prefix; R1 uses books28a2-r1-')
+	p.add_argument('--entry-evidence',type=Path)
+	p.add_argument('--visual',type=Path,default=WORK/'runtime/books28a2-visual.json')
 	a = p.parse_args()
 	runtime = output_path(a.runtime,WORK/'runtime'); runtime.mkdir(parents=True,exist_ok=False)
 	qualification = json.loads(a.qualification.read_text()); assert qualification['status']=='PARTIAL'
-	files = {}; blobs = {}; excluded = []; links = []
+	files = {}; blobs = {}; excluded = []; links = []; large_generated = []
 	def collect(root,prefix):
 		for path in sorted(root.rglob('*')):
 			rel = path.relative_to(root)
@@ -43,17 +46,22 @@ def main():
 				blobs[digest] = data; links.append(observation)
 				continue
 			if not path.is_file(): continue
+			if path.name.startswith('vgcore.') and path.suffix!='.json':
+				large_generated.append(dict(path=prefix+'/'+str(rel),bytes=path.stat().st_size,sha256=sha(path),reason='Actual failed-consumer core retained in external runtime; size exceeds portable report budget. Its identity, source, commands and raw diagnostics are included. No qualification credit.'))
+				continue
 			data = path.read_bytes(); digest = sha(path)
 			files[prefix+'/'+str(rel)] = dict(bytes=len(data),sha256=digest,blob='blobs/'+digest)
 			blobs[digest] = data
-	for root in sorted((WORK/'runtime').glob('books28a2-*')):
+	assert a.campaign_prefix.startswith('books28a2-') and '/' not in a.campaign_prefix and '*' not in a.campaign_prefix
+	for root in sorted((WORK/'runtime').glob(a.campaign_prefix+'*')):
 		if root==runtime or root.name=='books28a2-tools' or root.name.startswith('books28a2-report-'): continue
 		if root.is_dir(): collect(root,'runtime/'+root.name)
 		elif root.is_file():
 			digest = sha(root); data = root.read_bytes(); files['runtime/'+root.name]=dict(bytes=len(data),sha256=digest,blob='blobs/'+digest); blobs[digest]=data
 	collect(WORK/'runtime/api-docs28a1-after-publication2','genuine-prior-G7')
+	if a.entry_evidence: collect(output_path(a.entry_evidence,WORK/'runtime'),'entry-authentication')
 	collect(a.site,'site')
-	index = dict(format='astra-book-evidence/1',files=files,symlink_observations=links,excluded_browser_state=sorted(set(excluded)),scope='All recorded task execution streams, source witnesses, failed attempts, inspected screenshots and final static site. Prior G7 is separate actual after-publication evidence. Intentional negative-test links are inert metadata, never followed. Browser caches/profiles and generated native binaries are excluded; product identities and build recipes remain explicit.')
+	index = dict(format='astra-book-evidence/1',files=files,symlink_observations=links,excluded_browser_state=sorted(set(excluded)),excluded_large_generated=large_generated,scope='All recorded selected-campaign execution streams, source witnesses, failed attempts, inspected screenshots and final static site. Earlier immutable evidence remains historical. Intentional negative-test links are inert metadata, never followed. Browser caches/profiles and generated native binaries/large cores are excluded explicitly; product identities and build recipes remain explicit.')
 	archive = runtime/'transport.tar.xz'
 	with tarfile.open(archive,'w:xz',preset=6,format=tarfile.PAX_FORMAT) as tar:
 		def add(name,data):
@@ -79,7 +87,7 @@ def main():
 	shutil.copyfile(ROOT/'docs/books/STATUS.md',runtime/'ENGINEERING.md')
 	for name in ('index.html','reference/print.html','guide/print.html'):
 		shutil.copyfile(a.site/name,runtime/('site-'+name.replace('/','-')))
-	visual = json.loads((WORK/'runtime/books28a2-visual.json').read_text())
+	visual = json.loads(a.visual.read_text())
 	for path in visual['screenshots']: shutil.copyfile(path,runtime/Path(path).name)
 	attachments = []
 	for path in sorted(runtime.iterdir()):

@@ -74,3 +74,58 @@ Choose a range when you need bounds, a lazy plan when you need deferred work,
 fixed materialization when the count is statically exact, and owning collection
 when runtime storage is required. Positive stride, bounds and lifetime checks
 are part of those choices, not optional debugging features.
+
+## Endpoints, empty results and fixed cardinality
+
+Check the inclusive endpoint at the maximum of a small unsigned domain. This
+is where a naive increment-after-last-element implementation would wrap:
+
+```astra example=range-edges
+language astra27b;
+int main() {
+	u8 first = 254;
+	u8 last = 255;
+	var inclusive = (first..=last).collect_array();
+	var exclusive = (first..last).collect_array();
+	var empty = (3..3).collect_array();
+	var reversed = (5..2).collect_array();
+	if (len(inclusive) != 2 || inclusive[1] != 255 || len(exclusive) != 1) return 1;
+	if (len(empty) != 0 || len(reversed) != 0) return 2;
+	if (!(first..=last).contains(255) || (first..last).contains(255)) return 3;
+	int[3] values = (1..=6).step_by(2).collect_fixed();
+	if (values[0] != 1 || values[2] != 5) return 4;
+	return 42;
+}
+```
+
+The inclusive result is 254,255; the exclusive result is only 254. Empty and
+reversed ranges allocate valid zero-length owning results in this tested path.
+The fixed stride result is 1,3,5: an inclusive bound need not itself occur when
+the stride does not land on it. Static collection must prove the exact count;
+see the [mismatched destination](../reference/collections.md#exact-materialization-and-finite-callable-bounds).
+A named count whose initializer is 3 still does not provide the literal proof
+required by the current comprehension implementation.
+
+## Scalar floating reductions
+
+Lazy reductions are not restricted to int. A named numeric array can supply
+borrowed elements to a finite scalar transformation:
+
+```astra example=numeric-pipeline
+language astra27b;
+int main() {
+	f64[3] values = {20.0d, 40.0d, 24.0d};
+	var plan = values.iter().map(value => value*0.5d);
+	f64 total = plan.sum();
+	if (total != 42.0d) return 1;
+	return total as int;
+}
+```
+
+The mapped values are 10,20,12 and the sum is exactly 42 for this data. The plan
+retains its named backing; it is not an owner of an independent copied array.
+The callback runs during consumption, and the final scalar has no borrowing
+relationship. This example grants no reassociation or arbitrary escaped closure.
+Keep chains within eight stages and captures within the finite checked domain.
+For a general decimal calculation, binary floating rounding remains relevant;
+these exactly representable values were chosen to give an unambiguous check.

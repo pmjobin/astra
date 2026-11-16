@@ -44,3 +44,45 @@ simple vector and typed-pointer programs. Older SIMD and foreign-framework
 manuals retain historical scope until exact forms receive current native
 qualification. The Guide's working numerical workload uses scalar calculations
 and fixed arrays, with expected data checked independently of the compiler.
+
+## Integer edge cases and conversion domains
+
+R-NUMERIC-EDGES. For exact signed width, division of MIN by -1 yields MIN and
+its remainder is zero. This wrap case is handled explicitly before any invalid
+LLVM division. Other signed division truncates toward zero, with remainder
+having the dividend's sign. Integer division by zero is fatal. Dynamic shifts
+are guarded before width normalization; the admissible count is from zero
+through width minus one. These rules apply to the checked source domain, not
+to an unchecked C expression or LLVM poison value.
+
+Floating arithmetic retains scalar width and ordinary IEEE comparisons.
+NaN does not compare equal to itself. Negative zero is observable, and this
+edition grants no reassociation or fast-math permission. Float-to-integer casts
+check the mathematical truncation interval before conversion; nonfinite or
+out-of-range values take a fatal path. Integer narrowing and widening follow
+the exact destination bit width and signed interpretation. Bounds checks do
+not substitute a narrowing conversion for a mathematical range check.
+
+The Guide's [numeric edge program](../guide/values.md#checking-the-numeric-contract)
+checks signed/unsigned wrap, MIN division/remainder, signed remainder, both
+right-shift forms and positive/negative truncation. The implementations include
+[integer guards](../../compiler/backend/llvm/recover-integer-check.astra),
+[shift guards](../../compiler/backend/llvm/recover-shift-check.astra) and
+[float conversion checks](../../compiler/backend/llvm/recover-float-integer-check.astra).
+
+Exact type identity also applies at a generic result. A completed `u8` value
+and an `int` local do not acquire a common promoted type:
+
+```astra example=negative-numeric-mix
+language astra27b;
+int main() {
+	u8 small = 20;
+	int wide = 22;
+	return small + wide;
+}
+```
+
+When a literal has insufficient surrounding context, introduce an explicitly
+typed expected value. The [generic teaching example](../guide/generics-match.md#constraints-at-concrete-calls)
+uses that approach. This makes the required domain visible without adding an
+implicit conversion rule.

@@ -43,3 +43,49 @@ higher-kinded polymorphism, automatic generic foreign interfaces and an open
 monomorphization ABI are unproven in this edition. Source instance IDs and
 generated specialization names are implementation details rather than portable
 serialized type identities.
+
+## Concrete capability rules
+
+R-CAPABILITY-SET. The current checked capability set is finite:
+
+| Capability | Concrete admission |
+| --- | --- |
+| Numeric, Ordered | Exact scalar numeric kinds |
+| Eq | Numeric, bool or the admitted opaque pointer kind |
+| Bitwise, Shift | Exact integer kinds |
+| Ownable | Concrete class kind, with separate transport/flow proof |
+| ExactHeapClass | Independently proved exact heap-class storage |
+
+A name outside this set cannot establish arbitrary user-defined operations.
+Every declared capability must hold for the concrete argument. The subject is
+a lexical type parameter of the original declaration, not a type chosen by
+matching a convenient spelling. The
+[independent constraint consumer](../../compiler/semantic/generic-check.astra)
+reconstructs those declaration/argument edges.
+
+The Guide's [constrained addition](../guide/generics-match.md#constraints-at-concrete-calls)
+instantiates both u8 and int. The same template refuses bool:
+
+```astra example=negative-generic-capability
+language astra27b;
+T add<T>(T first, T last) where T: Numeric { return first + last; }
+int main() {
+	bool result = add<bool>(true, false);
+	return 42;
+}
+```
+
+R-SPECIALIZATION. A concrete instance retains its original declaration,
+enclosing specialization and exact argument channels. Repeated equivalent
+requests reuse that identity; distinct arguments/declarations consume distinct
+instance obligations. The checked copier retains original tokens/spans and
+reconstructs copied syntax, binding and scope edges. Source identity is separate
+from target layout and native ABI proof.
+
+Explicit owned record parameters remain refused by the current C0-compatible
+source admission except for the designated generic record transport channels.
+A copied specialization can remove a symbolic owning channel only when that
+actual record is copyable. This is a constrained specialization rule, not
+permission to erase ownership for arbitrary T. Owning-record generic capability
+policies, open foreign generic ABIs and arbitrary native template bodies remain
+separate limitations. The 256 instance and 8,000,000 SSA ceilings remain unchanged.

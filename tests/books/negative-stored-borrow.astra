@@ -1,0 +1,12 @@
+language astra27b;
+class Reading { int value; init(int value) { this.value = value; } }
+class Holder {
+	readonly borrowed Reading view;
+	init(Reading incoming) { this.view = incoming; }
+}
+
+int main() {
+	var reading = new Reading(42);
+	var holder = new Holder(reading);
+	return holder.view.value;
+}

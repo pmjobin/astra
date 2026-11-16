@@ -42,3 +42,40 @@ does not restore moved state, and an owning handle alone does not prove that
 every possible payload projection is a permitted receiver root. The source-owned
 regression consumers and physical mutation controls verify these boundaries
 independently of layout caches or LLVM's structural verifier.
+
+## Anchors, expiry and distinct observer storage
+
+R-BORROW-ANCHOR. The admitted stored relationship has two distinct fields: a
+readonly owning class field and a readonly borrowed class field that is proved
+to refer to it. Initialize the owner first. The borrower does not perform a
+second destruction, and passing it to an ordinary borrowing function does not
+transfer the anchor. A constructor's external borrowed parameter, by itself,
+supplies no sufficiently long-lived sibling owner. This negative is refused in
+Flow rather than receiving a fabricated successful lifetime proof:
+
+```astra example=negative-stored-borrow
+language astra27b;
+class Reading { int value; init(int value) { this.value = value; } }
+class Holder {
+	readonly borrowed Reading view;
+	init(Reading incoming) { this.view = incoming; }
+}
+
+int main() {
+	var reading = new Reading(42);
+	var holder = new Holder(reading);
+	return holder.view.value;
+}
+```
+
+The [independent source consumer](../../compiler/semantic/class-storage-flow.astra)
+reconstructs field initialization, while
+[SSA's shared consumer](../../compiler/ssa/recover-shared.astra) follows the actual
+root version from payload definition to its use. Replacing a root, moving it,
+and using a nullable upgraded handle require their separate checked obligations.
+A readonly spelling alone is insufficient.
+
+The Guide now tests [expiry after the last strong owner retires](../guide/objects.md#observing-expiry).
+The weak control storage outlives the payload while observers remain. This is
+why observing one successful upgrade is not an expiry test, and why a weak
+handle still needs cleanup even though it cannot keep the payload alive.

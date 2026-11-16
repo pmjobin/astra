@@ -1,6 +1,6 @@
 # The Astra Language Reference
 
-Development edition 28-A2. This Reference describes the implemented native Astra
+Development edition 28-A2 R1. This Reference describes the implemented native Astra
 profile at compiler source baseline `9f5dfce1a7dbaa8fba93e783762563add34a1948`.
 The qualification target is GNU/Linux x86-64 with LLVM 23.1.4, at O0 and O2.
 This is a versioned engineering document, not a released language standard.
