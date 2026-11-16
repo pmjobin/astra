@@ -80,7 +80,7 @@ def main():
 		if disabled: (profile/'Default/Preferences').write_text(json.dumps({'profile':{'default_content_setting_values':{'javascript':2}}}))
 		dom = run(label,[*flags,'--user-data-dir='+str(profile),'--dump-dom',control.as_uri()])
 		assert ('<p id="probe">NO_SCRIPT</p>' if disabled else '<p id="probe">SCRIPT_RAN</p>') in dom
-	for label,size,page in [('reference-desktop','1280,900','reference/README.html'),('guide-mobile','390,844','guide/sequences.html'),('application-desktop','1280,900','guide/application.html')]:
+	for label,size,page in [('reference-desktop','1280,900','reference/README.html'),('guide-mobile','390,844','guide/sequences.html'),('application-desktop','1280,900','guide/application.html'),('pilot-start-desktop','1280,900','guide/getting-started.html'),('pilot-values-mobile','390,844','guide/values.html'),('pilot-records-desktop','1280,900','guide/records.html')]:
 		profile = runtime/(label+'-profile'); (profile/'Default').mkdir(parents=True)
 		(profile/'Default/Preferences').write_text(json.dumps({'profile':{'default_content_setting_values':{'javascript':2}}}))
 		png = runtime/(label+'.png')

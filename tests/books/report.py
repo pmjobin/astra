@@ -25,9 +25,10 @@ def main():
 	p.add_argument('--campaign-prefix',default='books28a2-',help='Explicit runtime directory prefix; R1 uses books28a2-r1-')
 	p.add_argument('--entry-evidence',type=Path)
 	p.add_argument('--visual',type=Path,default=WORK/'runtime/books28a2-visual.json')
+	p.add_argument('--engineering',type=Path,default=ROOT/'docs/books/STATUS.md',help='Durable scope and findings; the editorial pilot uses EDITORIAL-REVIEW.md')
 	a = p.parse_args()
 	runtime = output_path(a.runtime,WORK/'runtime'); runtime.mkdir(parents=True,exist_ok=False)
-	qualification = json.loads(a.qualification.read_text()); assert qualification['status']=='PARTIAL'
+	qualification = json.loads(a.qualification.read_text()); assert qualification['status'] in ('PASS','PARTIAL')
 	files = {}; blobs = {}; excluded = []; links = []; large_generated = []
 	def collect(root,prefix):
 		for path in sorted(root.rglob('*')):
@@ -84,7 +85,7 @@ def main():
 	write(runtime/'TRANSPORT.json',dict(format='astra-book-evidence-transport/1',archive=dict(bytes=len(data),sha256=sha(archive)),logical_files=len(files),symlink_observations=len(links),blobs=len(blobs),parts=parts,excluded_browser_state=sorted(set(excluded))))
 	shutil.copyfile(a.qualification,runtime/'QUALIFICATION.json')
 	shutil.copyfile(a.qualification.with_name('execution-costs.json'),runtime/'EXECUTION-COSTS.json')
-	shutil.copyfile(ROOT/'docs/books/STATUS.md',runtime/'ENGINEERING.md')
+	shutil.copyfile(a.engineering,runtime/'ENGINEERING.md')
 	for name in ('index.html','reference/print.html','guide/print.html'):
 		shutil.copyfile(a.site/name,runtime/('site-'+name.replace('/','-')))
 	visual = json.loads(a.visual.read_text())

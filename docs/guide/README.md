@@ -10,10 +10,13 @@ experience with ownership types or compiler internals.
 
 Read in order the first time. Each chapter starts with a problem, introduces the
 needed language, then points to the [Reference](../reference/README.md) for its
-precise bounds. Full program fences match the test-owned fixture bytes. Positive
-programs return 42 to make execution observable in a test harness; this is a
-deliberate teaching convention, not the usual zero-on-success application policy.
-Programs marked as negative examples must fail compilation and are never executed.
+precise bounds. The opening three chapters follow five readings from a checked
+sum to a loop and copied records, using exit 0 for successful checks. Full program fences and
+source downloads match test-owned fixture bytes. Some older experiments and later
+chapters deliberately return 42; follow their stated status checks rather than
+treating that nonzero sentinel as ordinary command success. Examples marked as
+compile failures are never executed; a deliberately failing runtime check is
+labeled separately.
 
 ## Contents
 

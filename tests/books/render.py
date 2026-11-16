@@ -35,10 +35,21 @@ def main():
 	refuse('missing-fragment',lambda:books.check_links({'x.html':b'<a href="#absent">bad</a>'}))
 	refuse('active-script',lambda:books.check_links({'x.html':b'<script>bad()</script>'}))
 	refuse('external-resource',lambda:books.check_links({'x.html':b'<img src="https://example.invalid/a.png">'}))
+	items = books.fixtures()[1]
+	link = '[Original source](../../tests/books/hello.astra)'
+	origin = 'docs/guide/glossary.md'
+	assert books.linked_examples(link,origin,items)==['hello']
+	for text in ('```text\n'+link+'\n```', '`'+link+'`', '[False](https://example.invalid/tests/books/hello.astra)', link.replace('hello.astra','missing.astra'), link.replace('hello.astra','hello.astra#fragment')):
+		assert books.linked_examples(text,origin,items)==[]
+	checks.append('only-real-fixture-download-links-count-as-publication')
 	read = books.source
 	def modified(addition):
 		books.source = lambda path: read(path)+(addition.encode() if path=='docs/guide/glossary.md' else b'')
 	try:
+		modified('\n'+link+'\n')
+		outputs,_ = books.build(api,api)
+		assert outputs['sources/tests/books/hello.astra.txt']==books.source('tests/books/hello.astra')
+		checks.append('linked-fixture-download-is-byte-exact')
 		modified('\n<script>alert(1)</script>\n')
 		outputs,_ = books.build(api,api)
 		assert b'&lt;script&gt;' in outputs['guide/glossary.html'] and b'<script>' not in outputs['guide/glossary.html']

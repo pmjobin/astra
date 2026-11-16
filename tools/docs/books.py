@@ -70,6 +70,26 @@ def fenced_examples(text, items):
 	return seen
 
 
+def linked_examples(text, origin, items):
+	"""Count explicit fixture downloads, excluding code and external lookalikes."""
+	paths = {row['path']:key for key,row in items.items()}
+	seen = []; fenced = False
+	for line in text.splitlines():
+		if line.startswith('```'):
+			fenced = not fenced
+			continue
+		if fenced: continue
+		for part in re.split(r'(`[^`\n]+`|\[[^\]\n]+\]\([^\s)]+\))',line):
+			if not re.fullmatch(r'\[[^\]\n]+\]\([^\s)]+\)',part): continue
+			url = urlsplit(part[1:-1].split('](',1)[1])
+			if url.scheme or url.netloc or url.query or url.fragment: continue
+			path = posixpath.normpath(posixpath.join(posixpath.dirname(origin),unquote(url.path)))
+			if path in paths:
+				source(path)
+				seen.append(paths[path])
+	return seen
+
+
 def inspect():
 	chapters = json.loads(source('docs/chapters.json'))
 	assert len({row['id'] for row in chapters['chapters']}) == len(chapters['chapters'])
@@ -86,6 +106,7 @@ def inspect():
 		assert content.startswith(b'# '), path
 		assert len(content.split()) >= 160, ('chapter too short for review', path)
 		seen.extend(fenced_examples(content.decode(), items))
+		seen.extend(linked_examples(content.decode(), path, items))
 		hashes[path] = digest(content)
 	assert set(items) <= set(seen), ('unpublished fixtures', set(items)-set(seen))
 	rules = json.loads(source('docs/books/rules.json'))

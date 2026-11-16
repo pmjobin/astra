@@ -1,124 +1,227 @@
 # Values, decisions and progress
 
-Suppose a reading processor must add a small series while excluding one
-calibration sample. We need exact numbers, a condition and a loop that makes
-progress. This complete program also demonstrates wrapping at an explicitly
-small integer width:
+The first program knew all five readings in advance. Now imagine the same
+calibration sequence growing longer: readings start at two, increase by two and
+stop at ten. A loop can express that pattern once. We will count the readings
+as well as add them, so an incorrect loop boundary has two chances to reveal
+itself.
 
-```astra example=values
+Keep the terminal environment from [Getting started](getting-started.md).
+The complete program is [pilot-loop.astra](../../tests/books/pilot-loop.astra):
+
+```astra example=pilot-loop
 language astra27b;
 int main() {
-	u8 wrapped = 255;
-	wrapped += 1;
 	int total = 0;
-	int i = 0;
-	while (i < 6) {
-		if (i != 2) {
-			total += i;
-		}
-		i += 1;
+	int count = 0;
+	int reading = 2;
+	while (reading <= 10) {
+		total += reading;
+		count += 1;
+		reading += 2;
 	}
-	bool between = 0 < total && total < 20;
-	return between && wrapped == 0 ? total+29 : 1;
+	if (count != 5 || total != 30) return 1;
+	return 0;
 }
 ```
 
-`u8` is an unsigned 8-bit value: incrementing 255 wraps to zero. `int` is a
-different exact type. The loop visits zero through five, skips two from its sum,
-and finishes with total 13. The final conditional returns 42 only when both
-the total's range and the wrapping result agree with the independent expectation.
-Any other outcome reaches exit 1.
+Build and run it with the same two-step recipe. The message appears only if
+compilation, linking and the program all succeed:
 
-The `while` condition is tested before each iteration. The update happens after
-the branch, so every repeating path advances. Braces around compound assignment
-are intentional: the parser's unbraced “simple statement” rule is narrower than
-“one line.” See [Control](../reference/control.md).
+```sh tutorial=values
+ASTRA_LESSON=pilot-loop
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    "tests/books/$ASTRA_LESSON.astra" &&
+cc -no-pie "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+"$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+printf '%s\n' 'Five readings; total 30 (exit 0).'
+```
 
-## Choosing types and expressions
+The Astra program itself still prints nothing. It returns 0 after checking
+both results. As before, use `-O2` to build the other tested target profile.
 
-Give externally meaningful values explicit types. Use `var` when the initializer
-already makes its checked type and ownership clear. A literal can fit its declared
-context; an already typed integer does not silently widen or change signedness.
-When you need a supported numeric conversion, write `as` and consider the
-destination's range. `bool` conditions are not integers disguised as truth values.
+## Follow one iteration
 
-The final `&&` is short-circuiting. Write a safety guard with a logical operator,
-not eager bitwise arithmetic. The conditional expression evaluates only its
-selected value arm. Parentheses can clarify a calculation, but do not change
-the underlying type or ownership contract.
+`while` tests its condition before entering the body. Initially, `reading` is
+2, so `reading <= 10` is true. `total += reading` adds the current reading to
+the old total and stores the result. `count += 1` records one accepted reading.
+Finally, `reading += 2` prepares the next value.
 
-Older manuals describe constants, comparison chains and `for`. The present native
-products refuse representative programs using those forms. This chapter uses
-typed locals, separate comparisons and `while`; the [Reference](../reference/declarations.md)
-retains the actual refusals rather than pretending the parser lacks those syntax
-nodes. An out-of-range literal example is in [Lexical structure](../reference/lexical.md).
-Use it to recognize the difference between a source error and an environmental
-link failure. Numeric values, casts and overflow rules are specified in
-[Types](../reference/types.md).
+| Reading used in this iteration | Total after adding it | Count |
+| --- | --- | --- |
+| 2 | 2 | 1 |
+| 4 | 6 | 2 |
+| 6 | 12 | 3 |
+| 8 | 20 | 4 |
+| 10 | 30 | 5 |
 
-## Observing evaluation order
+After the last row, `reading` becomes 12. The condition is tested again and the
+body is skipped. Twelve is not added. Starting above ten would likewise give
+zero iterations; a `while` body does not run once unconditionally.
 
-Named arguments improve readability when several parameters share a type, but
-they do not reorder computation to match the declaration. Here the call writes
-last, first, middle. The C observer from [Objects](objects.md#independent-lifecycle-observer)
-records 312; the callee receives first=1, middle=2, last=3 and returns 123.
+The final `if` uses `||`, meaning “or”: either a wrong count or a wrong total
+is enough to fail the check. Conditions have type `bool`. A number such as
+`count` is not itself a truth value; compare it with another number to ask a
+question about it.
 
-```astra example=evaluation-order
+Keep the braces around the loop and the body of an `if` that updates values.
+They make the scope and progress visible, and the parser's unbraced statement
+forms are narrower than “anything that fits on one line.” This lesson uses the
+currently executable `while` form. Historical `for` examples and comparison
+chains have different native-admission limits; see [Control](../reference/control.md).
+
+## Decide which readings to keep
+
+Suppose the reading six was a calibration sample and should not contribute to
+the report. Before changing the code, predict both new results. Removing six
+leaves 2, 4, 8 and 10: four readings totaling twenty-four.
+
+Exercise: add a condition around the two accumulation statements, then update
+the final check. Keep the progress step outside that condition. Here is the
+[complete tested answer](../../tests/books/pilot-filter.astra):
+
+```astra example=pilot-filter
 language astra27b;
-extern(C) int tick(int value);
-
-extern(C) int tick_trace();
-
-int choose(int first, int middle, int last) {
-	return first*100 + middle*10 + last;
-}
-
 int main() {
-	int value = choose(last: tick(3), first: tick(1), middle: tick(2));
-	if (value != 123 || tick_trace() != 312) return 1;
-	if (false && tick(9) == 9) return 2;
-	if (!(true || tick(8) == 8)) return 3;
-	int selected = false ? tick(7) : tick(4);
-	if (selected != 4 || tick_trace() != 3124) return 4;
-	return 42;
+	int total = 0;
+	int count = 0;
+	int reading = 2;
+	while (reading <= 10) {
+		if (reading != 6) {
+			total += reading;
+			count += 1;
+		}
+		reading += 2;
+	}
+	if (count != 4 || total != 24) return 1;
+	return 0;
 }
 ```
 
-The skipped logical operands leave the trace alone. The conditional evaluates
-only tick(4), so the final trace is 3124. If you rewrote this call into positional
-form without first capturing values in written order, you could change the
-program's effects. See the [Reference](../reference/expressions.md#observing-written-order).
+Why does the position of `reading += 2` matter? If it were inside the `if`,
+reaching six would skip the update as well as the addition. The next iteration
+would see six again. In the answer, every iteration advances whether the
+reading is accepted or rejected.
+
+Run this complete answer:
+
+```sh tutorial=filter-answer
+ASTRA_LESSON=pilot-filter
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    "tests/books/$ASTRA_LESSON.astra" &&
+cc -no-pie "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+"$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+printf '%s\n' 'Four readings; total 24 (exit 0).'
+```
+
+Its expected exit status is 0. You have changed the selection rule while keeping
+the traversal rule intact.
+
+## Choose a numeric domain deliberately
+
+`int` is Astra's signed 32-bit integer type, also spelled `i32`. It easily holds
+these small totals. There are other widths and unsigned types, but an already
+typed value does not silently become a different integer type when used in an
+expression. This invalid program makes the distinction visible:
+
+```astra example=negative-numeric-mix
+language astra27b;
+int main() {
+	u8 small = 20;
+	int wide = 22;
+	return small + wide;
+}
+```
+
+Compile [the negative example](../../tests/books/negative-numeric-mix.astra) and
+check the expected status:
+
+```sh tutorial=mixed-type-error
+ASTRA_STATUS=0
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/rejected-mix.o" \
+    tests/books/negative-numeric-mix.astra || ASTRA_STATUS=$?
+test "$ASTRA_STATUS" -eq 1
+```
+
+It must exit 1; the diagnostic includes `operator '+' requires compatible exact operand types`.
+The `u8` variable and the `int` variable are different domains even though their
+particular values would fit in either.
+
+If this calculation should use `int`, convert the small value explicitly before
+adding. The [tested repair](../../tests/books/pilot-conversion.astra) is:
+
+```astra example=pilot-conversion
+language astra27b;
+int main() {
+	u8 small = 20;
+	int wide = 22;
+	int total = (small as int) + wide;
+	if (total != 42) return 1;
+	return 0;
+}
+```
+
+`as int` requests the conversion. Here every possible `u8` value fits in `int`.
+That reasoning matters: writing a cast does not establish that an arbitrary
+value fits a smaller destination. Run the complete repair:
+
+```sh tutorial=conversion-answer
+ASTRA_LESSON=pilot-conversion
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    "tests/books/$ASTRA_LESSON.astra" &&
+cc -no-pie "$ASTRA_BOOK_BUILD/$ASTRA_LESSON.o" \
+    -o "$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+"$ASTRA_BOOK_BUILD/$ASTRA_LESSON" &&
+printf '%s\n' 'Converted sum is 42 (exit 0).'
+```
+
+It checks the result 42 and returns ordinary success, 0. Forty-two here is data
+being checked, not the process's success code.
+
+A literal has a different role from an already typed variable. In `u8 small =
+20`, the destination supplies the literal's type. It must fit that type. The
+separate [out-of-range example](../../tests/books/negative-literal.astra) uses
+`u8 reading = 256` and fails with `integer literal is out of range for 'u8'`.
+Changing the destination to hold the value is a design decision; automatic
+narrowing is not a repair.
 
 ## Checking the numeric contract
 
-Use small concrete checks to learn how an exact numeric domain behaves. These
-checks intentionally include the signed minimum and a negative remainder:
+For our bounded input, the total fits comfortably in `int`. For a larger data
+set, choose input limits and numeric widths before trusting the sum. Integer
+addition, subtraction and multiplication wrap at their declared width; they
+do not automatically raise a recoverable overflow exception.
 
-```astra example=numeric-contract
-language astra27b;
-int main() {
-	i8 signed_wrap = 127;
-	signed_wrap += 1;
-	u8 unsigned_wrap = 255;
-	unsigned_wrap += 1;
-	int minimum = -2147483648;
-	if (signed_wrap != -128 || unsigned_wrap != 0) return 1;
-	if (minimum / -1 != minimum || minimum % -1 != 0) return 2;
-	if (-7 / 3 != -2 || -7 % 3 != -1) return 3;
-	i32 signed_bits = -8;
-	u32 unsigned_bits = 0x8000_0000;
-	if ((signed_bits >> 1) != -4 || (unsigned_bits >> 31) != 1) return 4;
-	f64 fraction = 42.75d;
-	if ((fraction as int) != 42 || ((-fraction) as int) != -42) return 5;
-	return 42;
-}
-```
+The optional [numeric edge experiment](../../tests/books/numeric-contract.astra)
+checks signed and unsigned wrapping, division/remainder, shifts and floating
+conversion. It deliberately exits 42 when its checks pass. Read it alongside
+[Types and numerical values](../reference/types.md), which explains fatal
+operations such as division by zero and out-of-range floating-to-integer casts.
+The [earlier accumulation experiment](../../tests/books/values.astra) combines
+a skipped sample with an 8-bit wrapping check. Both remain complete tested
+sources; neither is needed to understand the loop above.
 
-The 8-bit additions wrap in their own domains. The signed division special case
-returns MIN and zero remainder, while -7 divided by 3 truncates toward zero.
-The signed right shift preserves the sign and the unsigned shift inserts zeroes.
-Float casts truncate toward zero after checking representability. Division by
-zero, an invalid dynamic shift or a nonfinite/out-of-range float cast takes a
-fatal path; it is not an ordinary Error you can repair in this program.
-The [numeric Reference](../reference/types.md#integer-edge-cases-and-conversion-domains)
-separates these cases and links the independent guards.
+## Observing evaluation order
+
+One further experiment becomes useful when functions have visible effects.
+`&&` and `||` short-circuit: the right operand runs only if it is needed.
+Likewise, a conditional expression evaluates only its selected value arm.
+Named arguments change which parameter receives a value, not the order in
+which the argument expressions run.
+
+The [evaluation-order source](../../tests/books/evaluation-order.astra) calls
+arguments in the written order last, first, middle. Its independent
+[C observer](../../tests/books/lifecycle.c) records 312; the function receives
+first=1, middle=2, last=3 and computes 123. Skipped logical operands leave the
+trace alone, and the selected conditional operand extends it to 3124. This
+optional experiment needs that real provider and deliberately exits 42. The
+[observer build recipe](objects.md#independent-lifecycle-observer) shows how to
+link it; the [Reference](../reference/expressions.md#observing-written-order)
+explains the precise order rules.
+
+For now, the important habit is to predict what changes on each step. You can
+trace the five readings, explain why the loop stops, and filter a reading without
+losing progress. Next, [Records and small calculations](records.md) gives
+related values a name and puts one calculation behind a function.
