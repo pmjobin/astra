@@ -88,3 +88,50 @@ replays real native/book/docs/physical/source-consumer checks and preserves the
 engineering PARTIAL status. No PDF, hardback, release, push, tag or deployment
 is claimed. Next tracks remain 28-B performance/C++ comparisons, 28-C developer
 experience and 28-D release qualification; print production remains later.
+
+## Read the complete offline product from the report
+
+The direct HTML evidence attachments are previews. The full linked site is
+transported losslessly with its local assets and API pages. Save the following
+standard-library recipe as `read-site.py`, then run
+`python3 read-site.py astra-report-current.zip NEW_OUTPUT_DIRECTORY` and open
+`NEW_OUTPUT_DIRECTORY/index.html`. The destination must be new. This byte check
+does not run a compiler or close G8.
+
+```python
+import base64
+import hashlib
+import io
+import json
+from pathlib import Path, PurePosixPath
+import sys
+import tarfile
+import zipfile
+
+digest = lambda value: hashlib.sha256(value).hexdigest()
+with zipfile.ZipFile(sys.argv[1]) as report:
+	transport = json.loads(report.read('evidence/TRANSPORT.json'))
+	pieces = []
+	for part in transport['parts']:
+		encoded = report.read('evidence/'+part['path'])
+		assert len(encoded) == part['bytes'] and digest(encoded) == part['sha256']
+		pieces.append(base64.b64decode(json.loads(encoded)['base64'], validate=True))
+	raw = b''.join(pieces)
+	assert len(raw) == transport['archive']['bytes']
+	assert digest(raw) == transport['archive']['sha256']
+output = Path(sys.argv[2])
+output.mkdir(parents=True, exist_ok=False)
+with tarfile.open(fileobj=io.BytesIO(raw), mode='r:xz') as archive:
+	index = json.load(archive.extractfile('INDEX.json'))
+	for name, row in index['files'].items():
+		if not name.startswith('site/'):
+			continue
+		relative = PurePosixPath(name).relative_to('site')
+		assert not relative.is_absolute() and '..' not in relative.parts
+		assert row['blob'] == 'blobs/'+row['sha256']
+		data = archive.extractfile(row['blob']).read()
+		assert len(data) == row['bytes'] and digest(data) == row['sha256']
+		path = output.joinpath(*relative.parts)
+		path.parent.mkdir(parents=True, exist_ok=True)
+		path.write_bytes(data)
+```
