@@ -32,6 +32,7 @@ def verify_bundle(path):
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
 	p.add_argument('--verify', type=Path)
+	p.add_argument('--compare-to', type=Path, help='Require byte identity with the producing job bundle')
 	p.add_argument('--approval', type=Path)
 	p.add_argument('--github-output', type=Path)
 	p.add_argument('--collect-evidence', type=Path)
@@ -62,6 +63,8 @@ def main():
 		write(out/'EVIDENCE.json', dict(format='astra-development-text-evidence/1', files=rows, scope='Text observations only; no compiler, object, package, private oracle or dependency binary'))
 		return
 	if a.verify:
+		if a.compare_to:
+			require(sha(a.verify) == sha(a.compare_to), 'transferred bundle differs from producing job')
 		print(json.dumps(verify_bundle(a.verify), indent=2))
 		if a.approval or a.github_output:
 			require(a.approval and a.github_output, 'approval path and output must be paired')

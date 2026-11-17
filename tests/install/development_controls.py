@@ -33,6 +33,11 @@ def main():
 	valid = archive('valid', payload)
 	verify_bundle(valid)
 	controls = []
+	other = archive('other-valid', dict(payload, **{'MANIFEST.json':json.dumps(dict(index, extra='different producing job')).encode()}))
+	verify_bundle(other)
+	result = subprocess.run([sys.executable, '-B', ROOT/'tools/ci/development_bundle.py', '--verify', other, '--compare-to', valid], capture_output=True)
+	require(result.returncode != 0 and b'differs from producing job' in result.stderr, 'self-consistent replacement bundle accepted')
+	controls.append('wrong-producing-job-bundle-refused')
 	for name, changed in [('changed-package', dict(payload, **{'control.deb':b'CHANGED'})), ('missing-package', {k:v for k, v in payload.items() if k != 'control.deb'}), ('extra-member', dict(payload, extra=b'x')), ('stable-label', dict(payload, **{'MANIFEST.json':json.dumps(dict(index, qualification='RELEASE_QUALIFIED')).encode()}))]:
 		try:
 			verify_bundle(archive(name, changed))

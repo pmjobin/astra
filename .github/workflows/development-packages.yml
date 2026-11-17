@@ -69,4 +69,4 @@ jobs:
           path: ${{ runner.temp }}/astra-dev-downloaded
       - name: Verify every transferred member and raw package SHA-256
         if: success() && steps.distribution.outputs.approved == 'true' && github.actor == github.repository_owner
-        run: python3 -B tools/ci/development_bundle.py --verify "$RUNNER_TEMP/astra-dev-downloaded/delivery.zip"
+        run: python3 -B tools/ci/development_bundle.py --verify "$RUNNER_TEMP/astra-dev-downloaded/delivery.zip" --compare-to "$RUNNER_TEMP/astra-dev-build/delivery.zip"
