@@ -176,6 +176,7 @@ jobs:
           ASTRA_JOB_OUTCOMES: ${{ toJSON(needs) }}
         run: python3 -B tools/ci/consolidate.py --output "$RUNNER_TEMP/QUALIFICATION.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: qualification-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/QUALIFICATION.json
