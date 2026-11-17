@@ -19,6 +19,8 @@ jobs:
           clean: false
       - name: Trust refusal controls
         run: python3 -B tests/install/security.py --output "$RUNNER_TEMP/astra-refusals"
+      - name: Exact Book fixtures and source contracts
+        run: python3 -B tools/docs/books.py --check
       - name: Record runner and require distributed seed
         run: python3 -B tools/ci/preflight.py --require-distribution --output "$RUNNER_TEMP/astra-preflight.json"
       - name: Native build prerequisites

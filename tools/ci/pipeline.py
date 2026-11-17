@@ -51,12 +51,17 @@ def main():
 		if value is not None:
 			env[key] = value
 	for mode, product in row['products'].items():
+		label = run_name+'-'+mode+'-c-client'
+		run([sys.executable, '-B', ROOT/'tests/selfhost-convergence-27d/c-client.py', '--compiler', product['native']['path'], '--compiler-sha256', product['native']['sha256'], '--link', work/'bootstrap-logs/link.json', '--build', legacy/'build'/label, '--runtime', legacy/'runtime'/label], logs/label, env, timeout=1800)
+		shutil.copytree(legacy/'runtime'/label, logs/(label+'-evidence'))
 		for feature, recipe, extra in [('owners', 'selfhost-ownership-syntax-27b', []), ('range', 'selfhost-expressive-language-27c', ['--feature', 'range']), ('enum', 'selfhost-expressive-language-27c', ['--feature', 'enum'])]:
 			label = run_name+'-'+mode+'-'+feature
 			run([sys.executable, '-B', ROOT/'tests'/recipe/'physical.py', '--compiler', product['native']['path'], '--compiler-sha256', product['native']['sha256'], *extra, '--build', legacy/'build'/label, '--runtime', legacy/'runtime'/label], logs/label, env, timeout=1800)
 			shutil.copytree(legacy/'runtime'/label, logs/(label+'-evidence'))
 	run([sys.executable, '-B', ROOT/'tests/books/run.py', '--products', products, '--toolchain', work/'bootstrap-logs/toolchain.json', '--link', work/'bootstrap-logs/link.json', '--build', legacy/'build'/(run_name+'-books'), '--runtime', legacy/'runtime'/(run_name+'-books')], logs/'books', env, timeout=3600)
 	shutil.copytree(legacy/'runtime'/(run_name+'-books'), logs/'books-evidence')
+	run([sys.executable, '-B', ROOT/'tests/api-docs/native.py', '--products', products, '--toolchain', work/'bootstrap-logs/toolchain.json', '--build', legacy/'build'/(run_name+'-docs'), '--runtime', legacy/'runtime'/(run_name+'-docs')], logs/'docs', env, timeout=1800)
+	shutil.copytree(legacy/'runtime'/(run_name+'-docs'), logs/'docs-evidence')
 	script('handoff.py', ['--products', products, '--identity', work/'bootstrap-logs/identity.json', '--output', work/'handoff.json'])
 	script('package.py', ['--object', work/'bootstrap/stage2/astrac-O2.o', '--handoff', work/'handoff.json', '--llvm', llvm, '--library', library, '--library-receipt', receipt, '--kind', 'deb', '--build', work/'package', '--runtime', work/'package-logs'])
 	write(work/'result.json', dict(status='PARTIAL_REQUIRES_SEPARATE_INSTALL_AND_WINDOWS', source_commit=head, bootstrap_receipt=identify(products), package_receipt=identify(work/'package-logs/result.json'), hosted_run_id=os.environ.get('GITHUB_RUN_ID'), gates=dict(native_linux='BUILT_AND_REGRESSION_TESTED', clean_install='PENDING_SEPARATE_JOB', native_windows='BLOCKED_PORT_AND_SEED'), release_authorized=False))

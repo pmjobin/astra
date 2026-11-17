@@ -15,18 +15,18 @@ needs them; compiler internals are not prerequisites.
 
 ## What you need before starting
 
-This is a development checkout edition. The first lesson requires the existing
-authenticated Astra compiler products, their manifests, the exact LLVM 23.1.4
-toolchain, Python 3.11 or later, and a host C compiler/linker. Later lessons use
-the existing hosted provider objects; the final link experiment also uses `nm`
-and `readelf`. The recipes use the established `~/Workspace/astra` checkout and
-external `~/Workspace/codex/work/astra` directories.
+The 28-C1 development packages provide `astrac`, private LLVM 23.1.4,
+source examples, library/provider sources and matching local documentation.
+Choose the Ubuntu 24.04 x86-64 DEB or Fedora 45 x86-64 RPM described in
+[Getting started](getting-started.md#install-the-development-package).
+The package manager supplies Python and a C compiler/linker. Windows is not
+yet available. These are unsigned local engineering artifacts, with checksums
+in their qualification report; no public release is implied.
 
-A clone alone does not supply the compiler, seed, external toolchain or provider
-artifacts. [Getting started](getting-started.md#prepare-the-development-environment)
-checks those prerequisites before compiling. If they are missing, resolve that
-environment first; there is no one-command installer hidden elsewhere in this
-book. [Tooling](tooling.md) explains the existing contributor build routes.
+The first lesson uses the installed public command and a fresh workspace.
+[Tooling](tooling.md#contributor-appendix) retains the authenticated contributor
+setup for rebuilding and qualifying the compiler. A source clone alone does
+not supply a bootstrap seed.
 
 ## Follow the readings
 

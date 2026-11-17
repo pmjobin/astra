@@ -23,7 +23,7 @@ def main():
 	require(repo == 'pmjobin/astra' and os.environ['GITHUB_REF'] == 'refs/heads/main' and os.environ['GITHUB_ACTOR'] == os.environ['GITHUB_REPOSITORY_OWNER'], 'owner/default-branch preparation required')
 	run = json.loads(subprocess.check_output(['gh', 'api', 'repos/'+repo+'/actions/runs/'+a.run_id]))
 	require(run['head_sha'] == a.candidate and run['status'] == 'completed' and run['conclusion'] == 'success', 'candidate has no successful completed qualification run')
-	require(run['event'] in ('schedule', 'workflow_dispatch') and run['path'] == '.github/workflows/nightly.yml' and run['head_repository']['full_name'] == repo, 'untrusted qualification origin')
+	require(run['event'] in ('schedule', 'workflow_dispatch') and run['path'] == '.github/workflows/nightly.yml' and run['head_repository']['full_name'] == repo and run['head_branch'] == 'main', 'untrusted qualification origin')
 	qualification = json.loads(a.qualification.read_text())
 	require(qualification['status'] == 'PASS' and qualification['source_commit'] == a.candidate and str(qualification['run_id']) == a.run_id, 'qualification is partial, stale or belongs to another candidate')
 	require(set(qualification['gates']) == {'C'+str(n) for n in range(9)} and all(v == 'PASS' for v in qualification['gates'].values()), 'required acceptance gates remain open')

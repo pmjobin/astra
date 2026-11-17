@@ -5,10 +5,9 @@ useful tooling question is small and concrete: can you inspect the model's
 public contract, change its calculation, and check the result without guessing
 which sources or compiler were used?
 
-The development tools below work with the authenticated environment established
-in Getting started. They do not install Astra or discover packages. The same
-explicit inputs that make the application understandable also make its
-build and documentation reproducible.
+The commands below use the installed tutorial workspace from Getting started.
+API extraction runs without loading LLVM. The installed Python renderer converts
+its versioned JSON to local HTML; it needs no network service.
 
 ## Inspect the model you just used
 
@@ -45,27 +44,104 @@ so you can compare a working answer with your own edit.
 "$ASTRA_HOST" doc --output "$ASTRA_BOOK_BUILD/filtered-api.json" tests/books/guide-app-filter.astra
 python3 -B tools/docs/render.py "$ASTRA_BOOK_BUILD/filtered-api.json" \
     --output "$ASTRA_BOOK_BUILD/filtered-api.html"
-ASTRA_CHECK_RUNTIME=$(mktemp -d "$ASTRA_WORK/runtime/guide-check.XXXXXX")
-python3 -B tests/books/run.py --products "$ASTRA_PRODUCTS" \
-    --toolchain "$ASTRA_TOOLCHAIN" --link "$ASTRA_LINK" \
-    --build "$ASTRA_BOOK_BUILD/tooling-check" --runtime "$ASTRA_CHECK_RUNTIME/run" \
-    --case guide-app-filter
+"$ASTRA_HOST" -c -O2 -o "$ASTRA_BOOK_BUILD/tooling-check.o" \
+    tests/books/guide-app-filter.astra tests/books/app-main.astra
+cc -no-pie "$ASTRA_BOOK_BUILD/tooling-check.o" "$ASTRA_BOOK_BUILD/readings-provider.o" \
+    -o "$ASTRA_BOOK_BUILD/tooling-check"
+ASTRA_STATUS=0
+ASTRA_READINGS_INPUT="$PWD/tests/books/readings.txt" "$ASTRA_BOOK_BUILD/tooling-check" \
+    || ASTRA_STATUS=$?
+test "$ASTRA_STATUS" -eq 42
 ```
 
-The final line of runner output is `guide-app-filter EXPECTED_OUTCOMES_PASS`.
-This selected case checks count 4/total 24, input refusals, both compiler hosts
-and both target optimization levels, as well as the existing memory and native
-checks. It takes longer than checking syntax. Its logs and result live in the
-fresh runtime directory named by `ASTRA_CHECK_RUNTIME`; the sources stay in
-the checkout.
+The report is `readings: count=4 total=24` with a final newline and exit 42,
+the application's documented test sentinel. The API contract still describes
+the same record and borrowing function; execution checks the changed calculation.
 
-When drafting a change, `--quick` on this runner supplies only semantic preflight;
-it does not execute a program and cannot replace a native result. You can select
-other registered cases with `--case`, using the exact IDs in the
-[example manifest](../../tests/books/examples.json). A complete unselected run
-is a contributor qualification task, not a prerequisite for every small edit.
+## Find the matching books and remove the package
 
-## Distinguish a setup failure from a source error
+Open `/usr/share/astra/books/index.html` for the installed Guide, Reference and
+library/compiler API. These pages and their source downloads are generated from
+the package's source revision. `/usr/share/astra/PROVENANCE.json` identifies that
+revision and the compiler/bootstrap inputs. The Reference's formal 28-A2-R1
+coverage remains PARTIAL with 222 unclosed witnesses; packaging does not close
+that ledger.
+
+The package includes all 63 Book fixtures as source. It installs no prebuilt
+lesson object files. System `cc` builds C providers in your lesson workspace.
+The complete Guide and Reference support browser Find and print styles; a
+designed PDF is not supplied.
+
+To reinstall the same verified package, use `sudo apt-get install --reinstall`
+with its DEB filename, or `sudo dnf reinstall` with its RPM filename. To remove
+Astra, use the matching command:
+
+```console uninstall=deb
+sudo apt-get remove astra-development
+```
+
+```console uninstall=rpm
+sudo dnf --setopt=clean_requirements_on_remove=False remove astra-development
+```
+
+Removal deletes the compiler and its private files. Your own workspace and the
+system C compiler/Python remain. Cross-version upgrades have not been qualified.
+
+## Contributor appendix
+
+The following retained recipes describe the authenticated 28-A2 development
+workspace and its historical manifests. They are for compiler contributors;
+the installed lessons above do not need this workspace. Their original
+qualification remains tied to the earlier report, not to an installed 28-C1
+compiler. Current package generation and CI recipes are described in
+[the engineering instructions](../../tools/ci/README.md).
+
+### Historical development environment
+
+This edition runs on GNU/Linux x86-64 with LLVM **23.1.4**, an authenticated
+Astra compiler, Python 3.11 or later for the setup helper, and a host C linker
+(`cc`). A fresh Git working tree also needs
+the project's qualified external compiler products and their manifests. Cloning
+the sources alone does not create them. There is no installer supplied by this
+chapter; [Tooling](tooling.md) identifies the existing build and linking recipes
+if you need to reproduce the development environment.
+
+The following commands use the established workspace layout. Run them in a
+terminal and keep that terminal open for the next chapters. This recipe assumes
+the checkout and external products are already at the paths shown below; a
+relocated environment needs its own qualified paths and build recipe.
+
+Use a dedicated POSIX-compatible shell for these lessons. The first line enables
+`set -eu`, so an unhandled failed command or unset variable stops the recipe.
+The deliberate failure examples capture their statuses explicitly. If a real
+setup or build failure ends the shell, correct it and start a fresh lesson session.
+
+```console contributor=setup
+set -eu
+cd "$HOME/Workspace/astra"
+export ASTRA_WORK="$HOME/Workspace/codex/work/astra"
+export ASTRA_PRODUCTS="$ASTRA_WORK/runtime/api-docs28a1-products.json"
+export ASTRA_TOOLCHAIN="$ASTRA_WORK/runtime/selfhost27c-dev21/build-identity.json"
+ASTRA_BOOK_BUILD=$(mktemp -d "$ASTRA_WORK/build/guide-pilot.XXXXXX")
+export ASTRA_BOOK_BUILD
+python3 -B tests/books/environment.py \
+    --products "$ASTRA_PRODUCTS" --toolchain "$ASTRA_TOOLCHAIN" \
+    --output "$ASTRA_BOOK_BUILD/environment.sh" &&
+    . "$ASTRA_BOOK_BUILD/environment.sh"
+```
+
+The [setup helper](../../tests/books/environment.py) checks the selected manifest,
+compiler and tool bytes, then writes a small shell environment file in the new
+build directory. The final line loads it and sets `ASTRA_HOST` to the selected
+compiler. It neither installs a compiler nor chooses an unverified substitute.
+If it reports an unavailable environment, stop here and resolve the named
+missing file or identity mismatch. That is a setup problem, not an error in
+our six-line Astra program.
+
+`ASTRA_BOOK_BUILD` is an unused directory outside the source tree. Each invocation
+of the setup commands creates another one, so earlier work is preserved.
+
+### Distinguish a contributor setup failure from a source error
 
 An environment helper refusal happens before your program is compiled. It may
 name a missing product or a changed tool identity. Do not repair that by removing
@@ -74,7 +150,7 @@ checks or substituting a convenient executable with the same banner.
 This controlled exercise alters a copy of the product manifest by adding a
 newline. The JSON still parses, but the authenticated file bytes differ:
 
-```sh tutorial=toolchain-mismatch
+```console contributor=toolchain-mismatch
 python3 - "$ASTRA_PRODUCTS" "$ASTRA_BOOK_BUILD/changed-products.json" <<'COPY'
 from pathlib import Path
 import sys
@@ -99,7 +175,7 @@ The diagnostic in `environment-error.txt` names the manifest mismatch. The
 complete repair is to select the original authenticated input again, with a
 new output filename:
 
-```sh tutorial=environment-repair
+```console contributor=environment-repair
 python3 -B tests/books/environment.py \
     --products "$ASTRA_PRODUCTS" --toolchain "$ASTRA_TOOLCHAIN" --link "$ASTRA_LINK" \
     --output "$ASTRA_BOOK_BUILD/rechecked-environment.sh"
@@ -111,10 +187,10 @@ needs the existing authenticated compiler products, seed, LLVM capsule and
 providers. The repository's [build recipe](../../tools/docs/build.py) and
 [paired-image linker](../../tools/docs/link.py) are contributor tools for
 reproducing those products with explicit identities and external outputs.
-They are not a bundled installer; improving that initial setup remains separate
-work.
+The 28-C1 package route uses the current explicit bootstrap, distribution and
+clean-install receipts; these older manifests remain historical inputs.
 
-## Read and share the local books
+### Rebuild and check the local books
 
 The complete Guide and Reference HTML have ordinary links and browser Find.
 They need no client-side JavaScript for prose, navigation or searching a complete
@@ -124,7 +200,7 @@ does not supply a designed PDF.
 A quick source check verifies the book's fixture fences and links to its source
 contracts:
 
-```sh tutorial=book-source-check
+```console contributor=book-source-check
 python3 -B tools/docs/books.py --check
 ```
 

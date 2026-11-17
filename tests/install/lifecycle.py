@@ -56,6 +56,7 @@ def main():
 			run('memory-tool', ['dnf', 'install', '-y', 'valgrind'])
 	private = Path('/usr/lib/astra')
 	run('installed-smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', *(['--memory'] if a.memory else [])], contains=b'INSTALLED_NATIVE_SMOKE_PASS')
+	run('installed-guide', ['python3', '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'], contains=b'installed Guide shell blocks passed')
 	library = private/'llvm/libLLVM.so.23.1'
 	held = library.with_suffix('.held')
 	library.rename(held)
@@ -87,7 +88,7 @@ def main():
 		run('uninstall', ['dnf', '--setopt=clean_requirements_on_remove=False', 'remove', '-y', 'astra-development'])
 	require(shutil.which('astrac') is None and not private.exists(), 'uninstall left compiler files')
 	require(shutil.which('cc') is not None and shutil.which('python3') is not None, 'uninstall removed external prerequisites')
-	result = dict(status='CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', kind=a.kind, package_sha256=a.sha256, os_release=Path('/etc/os-release').read_text(), command_receipts_sha256=sha(a.output/'commands.json'), smoke_sha256=sha(a.output/'smoke/result.json'), negative_controls=['missing LLVM', 'tampered LLVM', 'tampered compiler', 'doc without LLVM'], upgrade='Same-version reinstall tested; cross-version upgrade not claimed', signed=False)
+	result = dict(status='CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', kind=a.kind, package_sha256=a.sha256, os_release=Path('/etc/os-release').read_text(), command_receipts_sha256=sha(a.output/'commands.json'), smoke_sha256=sha(a.output/'smoke/result.json'), guide_sha256=sha(a.output/'guide/result.json'), negative_controls=['missing LLVM', 'tampered LLVM', 'tampered compiler', 'doc without LLVM'], upgrade='Same-version reinstall tested; cross-version upgrade not claimed', signed=False)
 	(a.output/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(result['status'])
 

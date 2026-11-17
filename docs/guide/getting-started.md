@@ -34,50 +34,66 @@ This program prints nothing. Its integer result goes to the shell as an exit
 status. We will let the shell display a message; text output from Astra will
 come later, with its actual library or C-provider dependencies.
 
-## Prepare the development environment
+## Install the development package
 
-This edition runs on GNU/Linux x86-64 with LLVM **23.1.4**, an authenticated
-Astra compiler, Python 3.11 or later for the setup helper, and a host C linker
-(`cc`). A fresh Git working tree also needs
-the project's qualified external compiler products and their manifests. Cloning
-the sources alone does not create them. There is no installer supplied by this
-chapter; [Tooling](tooling.md) identifies the existing build and linking recipes
-if you need to reproduce the development environment.
+The local 28-C1 engineering artifacts target **Ubuntu 24.04 x86-64** (DEB)
+and **Fedora 45 x86-64** (RPM). Obtain the package and its SHA-256 from the
+same reviewed engineering report. There is no public download or signed release
+for this milestone. Windows installation is **not yet available**.
 
-The following commands use the established workspace layout. Run them in a
-terminal and keep that terminal open for the next chapters. This recipe assumes
-the checkout and external products are already at the paths shown below; a
-relocated environment needs its own qualified paths and build recipe.
+Check the package's SHA-256 against the report before running the matching
+installation block. A checksum downloaded beside an untrusted package is not an
+independent source of trust. The package manager installs Python 3.11 or later,
+the C compiler/linker and system libraries. LLVM **23.1.4** is a private bundled
+library; the distribution's default LLVM is not used.
 
-Use a dedicated POSIX-compatible shell for these lessons. The first line enables
-`set -eu`, so an unhandled failed command or unset variable stops the recipe.
-The deliberate failure examples capture their statuses explicitly. If a real
-setup or build failure ends the shell, correct it and start a fresh lesson session.
+On Ubuntu, in the directory containing the package:
+
+```console install=deb
+sha256sum 'astra-development_0.0.3~dev28c1-1_amd64.deb'
+sudo apt-get update
+sudo apt-get install ./astra-development_0.0.3~dev28c1-1_amd64.deb
+```
+
+On Fedora, in the directory containing the package:
+
+```console install=rpm
+sha256sum astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+sudo dnf install ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+```
+
+The public command is `astrac`. `astrac --version` reports
+`0.0.3-dev28c1`, GNU/Linux x86-64, E25-A-v1 and LLVM 23.1.4.
+`astrac --help` describes the supported switches. The checked launcher reports
+an installation error if its native compiler or private LLVM bytes are missing
+or changed; reinstall the original package to repair it.
+
+## Prepare a lesson workspace
+
+Open a POSIX-compatible shell and keep it for the following chapters. The
+installed tutorial contains the exact Book examples, library sources and C
+provider sources. Work products go in a fresh temporary directory; no developer
+checkout, seed or historical product manifest is required.
 
 ```sh tutorial=setup
 set -eu
-cd "$HOME/Workspace/astra"
-export ASTRA_WORK="$HOME/Workspace/codex/work/astra"
-export ASTRA_PRODUCTS="$ASTRA_WORK/runtime/api-docs28a1-products.json"
-export ASTRA_TOOLCHAIN="$ASTRA_WORK/runtime/selfhost27c-dev21/build-identity.json"
-ASTRA_BOOK_BUILD=$(mktemp -d "$ASTRA_WORK/build/guide-pilot.XXXXXX")
-export ASTRA_BOOK_BUILD
-python3 -B tests/books/environment.py \
-    --products "$ASTRA_PRODUCTS" --toolchain "$ASTRA_TOOLCHAIN" \
-    --output "$ASTRA_BOOK_BUILD/environment.sh" &&
-    . "$ASTRA_BOOK_BUILD/environment.sh"
+cd /usr/share/astra/tutorial
+export ASTRA_HOST=astrac
+ASTRA_WORK=$(mktemp -d "${TMPDIR:-/tmp}/astra-guide.XXXXXX")
+export ASTRA_WORK
+export ASTRA_BOOK_BUILD="$ASTRA_WORK/build"
+mkdir "$ASTRA_BOOK_BUILD"
+astrac --version
 ```
 
-The [setup helper](../../tests/books/environment.py) checks the selected manifest,
-compiler and tool bytes, then writes a small shell environment file in the new
-build directory. The final line loads it and sets `ASTRA_HOST` to the selected
-compiler. It neither installs a compiler nor chooses an unverified substitute.
-If it reports an unavailable environment, stop here and resolve the named
-missing file or identity mismatch. That is a setup problem, not an error in
-our six-line Astra program.
+The source directory is read-only for ordinary users. Copy an example into your
+own directory before editing it. Temporary work survives until you remove the
+printed directory or the operating system cleans temporary files. To keep an
+exercise, copy it to your usual project directory.
 
-`ASTRA_BOOK_BUILD` is an unused directory outside the source tree. Each invocation
-of the setup commands creates another one, so earlier work is preserved.
+A contributor rebuilding the compiler uses a different, authenticated source
+setup. The original recipe remains in the
+[contributor appendix](tooling.md#contributor-appendix).
 
 ## Compile, link and observe
 

@@ -10,6 +10,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 
 from bootstrap import PROVIDERS
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
@@ -27,6 +28,8 @@ def main():
 	require(sha(a.object) == handoff['products'][a.mode]['object_sha256'], 'native object mismatch')
 	for name, digest in handoff['sources'].items():
 		require(sha(ROOT/name) == digest, 'packaging source differs from generation: '+name)
+	for name, digest in handoff['package_sources'].items():
+		require(sha(ROOT/name) == digest, 'packaging input differs from frozen handoff: '+name)
 	lock = json.loads((ROOT/'tools/ci/llvm-linux.json').read_text())
 	for name, pin in lock['files'].items():
 		verify(a.llvm/name, pin)
@@ -45,7 +48,7 @@ def main():
 	(private/'llvm').mkdir()
 	shutil.copyfile(a.library, private/'llvm/libLLVM.so.23.1')
 	cc = Path(shutil.which('cc')).resolve()
-	material = dict(format='astra-package-build/1', source_commit=handoff['source_commit'], source_inputs=handoff['sources'], handoff_sha256=sha(a.handoff), LLVM='23.1.4', llvm_library_sha256=sha(a.library), llvm_provenance_sha256=sha(a.library_receipt), cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
+	material = dict(format='astra-package-build/1', compiler_source_commit=handoff['source_commit'], package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM='23.1.4', llvm_library_sha256=sha(a.library), llvm_provenance_sha256=sha(a.library_receipt), cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
 	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 	write(runtime/'docs-build-identity.json', dict(fingerprint=fingerprint, material=material))
 	objects = []
@@ -77,11 +80,34 @@ def main():
 	(bin_dir/'astrac').chmod(0o755)
 	share = stage/'usr/share/astra'
 	share.mkdir(parents=True)
-	shutil.copytree(ROOT/'tests/install', share/'install', ignore=shutil.ignore_patterns('__pycache__'))
-	# Public provider sources remove dependence on historic developer .o files.
-	shutil.copytree(ROOT/'lib/astra', share/'lib', ignore=shutil.ignore_patterns('__pycache__', 'meson.build'))
-	shutil.copytree(ROOT/'lib/runtime/platform', share/'providers', ignore=shutil.ignore_patterns('meson.build'))
-	shutil.copytree(ROOT/'docs/guide', share/'guide')
+	(share/'install').mkdir()
+	for path in (ROOT/'tests/install').iterdir():
+		if path.suffix in ('.astra', '.c') or path.name == 'smoke.py':
+			shutil.copyfile(path, share/'install'/path.name)
+			# Public tutorial sources remove dependence on historic developer objects.
+	kit = share/'tutorial'
+	shutil.copytree(ROOT/'lib/astra', kit/'lib/astra', ignore=shutil.ignore_patterns('__pycache__', 'meson.build'))
+	shutil.copytree(ROOT/'lib/runtime/platform', kit/'lib/runtime/platform', ignore=shutil.ignore_patterns('meson.build'))
+	fixtures = json.loads((ROOT/'tests/books/examples.json').read_text())
+	for name in [row['path'] for row in fixtures['files']]+['tests/books/examples.json', 'tests/books/tutorial.py', 'tests/books/tutorial.json', 'tools/docs/render.py', 'tools/docs/api.css', 'docs/chapters.json']:
+		target = kit/name
+		target.parent.mkdir(parents=True, exist_ok=True)
+		shutil.copyfile(ROOT/name, target)
+	shutil.copytree(ROOT/'docs/guide', kit/'docs/guide')
+	api = {}
+	for name, sources in {'library':['lib/astra/base/order.astra'], 'compiler-source':['compiler/source/source.astra', *sorted(n for n in handoff['sources'] if n.startswith('lib/astra/') and n.endswith('.astra'))]}.items():
+		api[name] = build/(name+'.json')
+		run([doc, 'doc', '--output', api[name], *sources], runtime/('api-'+name), env, cwd=ROOT, timeout=600)
+		require(json.loads(api[name].read_text())['format'] == 'astra-api-docs/1', 'unrecognized API format')
+	sys.path.insert(0, str(ROOT/'tools/docs'))
+	import books
+	pages, book_receipt = books.build(api['library'], api['compiler-source'])
+	require(pages == books.build(api['library'], api['compiler-source'])[0], 'non-deterministic books')
+	for name, data in pages.items():
+		target = share/'books'/name
+		target.parent.mkdir(parents=True, exist_ok=True)
+		target.write_bytes(data)
+	write(runtime/'books.json', book_receipt)
 	licenses = stage/'usr/share/licenses/astra-development'
 	licenses.mkdir(parents=True)
 	shutil.copyfile(ROOT/'LICENSE.txt', licenses/'LICENSE.txt')
@@ -93,6 +119,9 @@ def main():
 			path.chmod(0o755)
 		elif path.is_file() and path not in (bin_dir/'astrac', private/'astrac', native, doc):
 			path.chmod(0o644)
+	for path in stage.rglob('*'):
+		if path.is_file():
+			require(b'/home/pmjobin' not in path.read_bytes(), 'developer home path in payload: '+str(path.relative_to(stage)))
 	if a.kind == 'deb':
 		control = stage/'DEBIAN'
 		control.mkdir()
@@ -107,7 +136,7 @@ def main():
 			(top/name).mkdir(parents=True)
 		spec = top/'SPECS/astra.spec'
 		spec.write_text('%global debug_package %{nil}\n%global __provides_exclude ^libLLVM.*\n%global __requires_exclude ^libLLVM.*\n%global __os_install_post %{nil}\nName: astra-development\nVersion: 0.0.3\nRelease: 0.dev28c1.1\nSummary: Astra native development compiler\nLicense: Apache-2.0 WITH LLVM-exception AND MIT\nBuildArch: x86_64\nRequires: python3 >= 3.11, gcc, glibc-devel, binutils\n%description\nUnsigned engineering artifact with private LLVM 23.1.4.\n%install\nmkdir -p "%{buildroot}"\ncp -a '+shlex.quote(str(stage))+'/. "%{buildroot}/"\n%files\n/usr/bin/astrac\n/usr/lib/astra\n/usr/share/astra\n/usr/share/licenses/astra-development\n')
-		run(['rpmbuild', '-bb', '--define', '_topdir '+str(top), spec], runtime/'package', env, timeout=600)
+		run(['rpmbuild', '-bb', '--define', '_topdir '+str(top), '--define', '_buildhost astra-build.invalid', '--define', 'use_source_date_epoch_as_buildtime 1', '--define', 'clamp_mtime_to_source_date_epoch 1', spec], runtime/'package', env, timeout=600)
 		artifacts = list((top/'RPMS').rglob('*.rpm'))
 		require(len(artifacts) == 1, 'ambiguous RPM output')
 		artifact = build/artifacts[0].name

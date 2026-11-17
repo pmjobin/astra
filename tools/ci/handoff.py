@@ -4,6 +4,7 @@
 import argparse
 import json
 from pathlib import Path
+import subprocess
 
 from common import ROOT, require, sha, write
 
@@ -28,7 +29,13 @@ def main():
 		require(sha(row['object']) == row['object_sha256'], 'generation object mismatch')
 		require(sha(row['path']) == row['sha256'], 'generation executable mismatch')
 		rows[mode] = dict(object_sha256=row['object_sha256'], compiler_sha256=row['sha256'])
-	write(a.output, dict(format='astra-native-handoff/1', status='AUTHENTICATED_GENERATION_INPUT', source_commit=identity.get('source_commit', identity.get('source_revision')), sources=sources, products=rows, producer=identity.get('seed', identity.get('producer')), generation_receipt_sha256=sha(a.products), identity_sha256=sha(a.identity), qualification='Current installed and regression tests required; build alone gives no PASS'))
+	paths = ['docs', 'tools/ci', 'tools/docs', 'tools/release', 'tests/install', 'tests/books', 'lib', 'LICENSE.txt']
+	require(not subprocess.check_output(['git', 'diff', 'HEAD', '--', *paths], cwd=ROOT), 'commit package inputs before handoff')
+	tracked = subprocess.check_output(['git', 'ls-files', '--', *paths], cwd=ROOT, text=True).splitlines()
+	package_sources = {name:sha(ROOT/name) for name in tracked}
+	package_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+	package_tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip()
+	write(a.output, dict(format='astra-native-handoff/1', status='AUTHENTICATED_GENERATION_INPUT', source_commit=identity.get('source_commit', identity.get('source_revision')), sources=sources, products=rows, package_commit=package_commit, package_tree=package_tree, package_sources=package_sources, producer=identity.get('seed', identity.get('producer')), generation_receipt_sha256=sha(a.products), identity_sha256=sha(a.identity), qualification='Current installed and regression tests required; build alone gives no PASS'))
 
 
 if __name__ == '__main__':

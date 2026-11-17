@@ -51,21 +51,25 @@ accepted, so this is an executable check of the failure path too.
 
 `Error` comes from [base/errors.astra](../../lib/astra/base/errors.astra), which
 nominates the exception root. It is not an invisible built-in package. Its
-hosted text support is another explicit input. First authenticate the existing
-provider objects and load their paths:
+hosted text support is another explicit input. Compile its installed C provider
+sources and name the resulting objects:
 
 ```sh tutorial=hosted-providers
-export ASTRA_LINK="$ASTRA_WORK/runtime/selfhost27c-dev21/link.json"
-python3 -B tests/books/environment.py \
-    --products "$ASTRA_PRODUCTS" --toolchain "$ASTRA_TOOLCHAIN" --link "$ASTRA_LINK" \
-    --output "$ASTRA_BOOK_BUILD/hosted-environment.sh"
-. "$ASTRA_BOOK_BUILD/hosted-environment.sh"
+for ASTRA_PROVIDER in args-posix files-posix text-posix text-ops-posix diagnostics-trap; do
+    cc -std=c11 -O2 -Wall -Wextra -Werror -c \
+        "lib/runtime/platform/$ASTRA_PROVIDER.c" \
+        -o "$ASTRA_BOOK_BUILD/$ASTRA_PROVIDER.o"
+done
+export ASTRA_PROVIDER_ARGS="$ASTRA_BOOK_BUILD/args-posix.o"
+export ASTRA_PROVIDER_FILES="$ASTRA_BOOK_BUILD/files-posix.o"
+export ASTRA_PROVIDER_TEXT="$ASTRA_BOOK_BUILD/text-posix.o"
+export ASTRA_PROVIDER_TEXT_OPS="$ASTRA_BOOK_BUILD/text-ops-posix.o"
+export ASTRA_PROVIDER_DIAGNOSTICS="$ASTRA_BOOK_BUILD/diagnostics-trap.o"
 ```
 
-This rechecks the development tool and provider identities. The five
-`ASTRA_PROVIDER_*` variables below name real, authenticated C object files;
-the recipe does not rebuild them or install a runtime. The selected provider
-bundle includes support for arguments, files, text, text operations and diagnostics.
+The five `ASTRA_PROVIDER_*` variables name the C objects just compiled in your
+workspace. The provider sources supply arguments, files, text, text operations
+and diagnostics.
 Only the dependencies actually used by this program matter to its behavior.
 
 ```sh tutorial=validation
