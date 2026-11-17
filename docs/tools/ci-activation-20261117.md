@@ -6,7 +6,8 @@ remains byte-exact, SHA-256
 The starting source was `611da1360aa769b354a9693de5cf543fbfab35ac`, tree
 `ed1349bb71fc4d005da358a1b309d34aeaceb0c4`. The inspected remote is
 `git@github.com:pmjobin/astra.git`, public repository ID 1440814852. Existing
-history, peer work, installed tooling and branch protection were preserved.
+history, peer work and installed tooling were preserved. Initial branch policy
+was inspected; the owner's follow-up explicitly authorizes the protection below.
 
 The owner separately approved public distribution of only the exact
 2,388,496-byte bootstrap ELF with SHA-256
@@ -65,8 +66,11 @@ Artifacts have bounded retention; the committed seed is the durable input.
 ## Gates and remaining decisions
 
 Both source/trust controls and native seed smoke must pass for a green smoke
-workflow. GitHub branch-protection required checks were not configured or
-changed; main was unprotected at inspection. Push and PR triggers are active
+workflow. Main was initially unprotected. At the owner's request it now requires
+`Source and trust controls` and `Authenticated Linux seed smoke`, both bound to
+GitHub Actions app ID 15368, with strict freshness. Admin enforcement is enabled
+and force pushes/deletion remain disallowed. Blocked strict/Windows jobs are not
+required functional smoke contexts. Push and PR triggers are active
 on the branch. Default-branch scheduling/manual availability follows ordinary
 PR review/merge; no protection or dispatch policy was bypassed.
 
@@ -77,7 +81,28 @@ authorized. Windows ran a real hosted feasibility check and remains BLOCKED
 without a native compiler/CRT/seed/installer chain. Its failure does not gate
 basic Linux smoke. Nightly consolidation writes PARTIAL and exits 78. The
 first run exposed a missing `always()` on its ledger upload; the follow-up
-retains that failure artifact while keeping the strict gate red.
+retains that failure artifact while keeping the strict gate red. The temporary
+activation push trigger was subsequently removed: strict qualification is now
+scheduled/manual only, so ordinary branch pushes no longer launch it.
+
+The original 44048246842 logs were inspected directly. Linux preflight returned
+78 after recording the missing independent C0/runtime and frozen source closure.
+Windows recorded its five native-port/installer blockers and its PowerShell step
+exited **1**, not 78. Consolidation explicitly wrote PARTIAL and returned 78 after
+failed prerequisites. LLVM strict memory was not exercised in that run because
+preflight stopped first; its prior NOT_PASS remains disclosed. Node.js warnings
+were not the causes of those failures.
+
+Routine dependency maintenance updates checkout to v7.0.1
+(`3d3c42e5aac5ba805825da76410c181273ba90b1`), upload-artifact to v7.0.2
+(`cf430e030ddbb5b0abf93d22962f4752f3646cd9`) and download-artifact to v8.0.2
+(`9000827ccba6bdab643e8b6fd33ac0654aef8333`). Official stable release tags were
+resolved to these full commits, their signatures verified and `action.yml`
+checked for `node24`. The existing attest v3.0.0 pin already uses Node.js 24;
+it remains owner-gated and unchanged. `tools/ci/actions.json` records the audit.
+The smoke artifact roundtrip exercises checkout/upload/download in hosted CI
+and independently verifies the actual native products, fixtures and log hashes.
+No Node.js tooling dependency was added to Astra and no attestation was signed.
 
 Release preparation was not dispatched. Rebuilt C0 remains
 ACCEPTED_WITH_DISCLOSURE with historical memory NOT_PASS; original C0/1,044

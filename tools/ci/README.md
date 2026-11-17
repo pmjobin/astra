@@ -29,8 +29,18 @@ Strict nightly remains separate. It checks independent C0/runtime and frozen
 Windows is a strict-nightly gate, not a dependency of basic Linux smoke.
 Consolidation preserves its PARTIAL ledger and exits 78 while these release
 requirements remain open. Release preparation remains separately owner-gated.
-The activation branch has a narrow nightly push trigger so genuine blocked
-outcomes can be observed before default-branch workflow dispatch is available.
+Strict qualification now has scheduled/manual triggers only. Development pushes
+and PRs run functional Linux smoke, independently of Windows or private oracle
+availability. Main protection requires `Source and trust controls` and
+`Authenticated Linux seed smoke`, bound to the GitHub Actions app; blocked
+qualification jobs are not required smoke checks.
+
+`actions.json` records the audited Node.js 24 pins: checkout v7.0.1, upload-artifact
+v7.0.2 and download-artifact v8.0.2, with verified upstream tag/commit signatures.
+The existing attest v3.0.0 pin already uses Node.js 24 and remains unchanged.
+Smoke uploads and downloads its actual evidence with these actions and uses
+`verify_smoke.py` to rehash products, source fixtures and command streams. No
+Node.js installation, package manifest or application tooling was added to Astra.
 
 The sections below retain the original campaign scope and historical results;
 their earlier lack of distribution/hosted execution is historical, not a claim
@@ -189,8 +199,8 @@ read-only; checkout never persists credentials. There is no
 Nightly concurrency preserves the current run rather than cancelling it.
 
 The reviewed action revisions are recorded in the workflow files:
-`actions/checkout` v4, `actions/upload-artifact` v4,
-`actions/download-artifact` v4 and the supported `actions/attest` v3, each pinned
+`actions/checkout` v7, `actions/upload-artifact` v7,
+`actions/download-artifact` v8 and the supported `actions/attest` v3, each pinned
 to its actual full commit SHA. Their official metadata and action definitions
 are retained with campaign evidence. Review updates deliberately; do not follow
 floating tags at execution time.

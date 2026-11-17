@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 / Node.js 24
         with:
           persist-credentials: false
       - name: Actual runner identity
@@ -23,7 +23,7 @@ jobs:
         run: python3 -B tests/install/security.py --output "$RUNNER_TEMP/astra-refusals"
       - name: Exact Book fixtures and source contracts
         run: python3 -B tools/docs/books.py --check
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
         if: always()
         with:
           name: source-controls-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 / Node.js 24
         with:
           persist-credentials: false
       - name: Actual runner and workflow identity
@@ -54,7 +54,7 @@ jobs:
         env:
           ASTRA_JOB_STATUS: ${{ job.status }}
         run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-smoke-final.json" --work "$RUNNER_TEMP/astra-pr"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
         if: always()
         with:
           name: linux-smoke-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -68,3 +68,10 @@ jobs:
             ${{ runner.temp }}/astra-pr/result.json
           retention-days: 7
           if-no-files-found: error
+      - name: Download the actual smoke artifact with the Node.js 24 action
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 / Node.js 24
+        with:
+          name: linux-smoke-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/astra-smoke-downloaded
+      - name: Independently verify transferred smoke products and logs
+        run: python3 -B tools/ci/verify_smoke.py --input "$RUNNER_TEMP/astra-smoke-downloaded" --output "$RUNNER_TEMP/astra-smoke-roundtrip.json"
