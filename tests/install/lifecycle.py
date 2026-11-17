@@ -4,7 +4,9 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+import pwd
 import re
 import shutil
 import subprocess
@@ -65,6 +67,12 @@ def main():
 		require(sha(Path('/qa')/name) == sha(Path('/usr/share/astra/tutorial/docs/guide')/name), 'installed Guide differs from replayed installation recipe')
 	run('installed-smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', '/build/smoke', *(['--memory'] if a.memory else [])], contains=b'INSTALLED_NATIVE_SMOKE_PASS')
 	run('installed-guide', ['python3', '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'], contains=b'installed Guide shell blocks passed')
+	user = pwd.getpwnam('nobody')
+	require(user.pw_uid != 0, 'ordinary-user acceptance must not run as root')
+	user_build = Path('/build/ordinary-user')
+	user_build.mkdir()
+	os.chown(user_build, user.pw_uid, user.pw_gid)
+	run('ordinary-user-native', ['sudo', '-u', 'nobody', '/bin/sh', '-eu', '-c', 'astrac --version; astrac -c -O2 -o main.o /usr/share/astra/install/main.astra; cc -no-pie main.o -o main; ./main'], cwd=user_build, contains=b'0.0.3-dev28c1')
 	library = private/'llvm/libLLVM.so.23.1'
 	held = library.with_suffix('.held')
 	library.rename(held)
