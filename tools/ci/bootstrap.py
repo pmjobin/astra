@@ -44,8 +44,10 @@ def main():
 	p.add_argument('--commit', required=True)
 	p.add_argument('--stages', type=int, choices=(1, 2, 3), default=2)
 	p.add_argument('--jobs', type=int, choices=(1, 2), default=2)
+	p.add_argument('--profiles', nargs='+', choices=('O0', 'O2'), default=['O0', 'O2'])
 	p.add_argument('--timeout', type=int, default=7200)
 	a = p.parse_args()
+	require(len(a.profiles) == len(set(a.profiles)) and (a.stages == 1 or 'O2' in a.profiles), 'invalid generation profiles')
 	require(re.fullmatch('[0-9a-f]{40}', a.commit) and git('rev-parse', 'HEAD') == a.commit, 'checkout identity mismatch')
 	require(not git('diff', 'HEAD', '--', 'compiler', 'lib', 'tools/ci'), 'commit build inputs first')
 	seed_lock = seed_manifest(a.seed_manifest)
@@ -123,17 +125,17 @@ def main():
 			print('Stage', stage, mode, 'built', product['native']['sha256'], flush=True)
 			return mode, product
 		with ThreadPoolExecutor(max_workers=a.jobs) as pool:
-			products = dict(pool.map(profile, ('O0', 'O2')))
+			products = dict(pool.map(profile, a.profiles))
 		for row in identities.values():
 			verify(row['path'], row)
 		verify(previous, producer)
 		result = dict(stage=stage, producer=producer, products=products, identity_sha256=sha(runtime/'identity.json'))
 		write(stage_runtime/'result.json', result)
 		stages.append(result)
-		previous = Path(products['O2']['path'])
+		previous = Path(products[a.profiles[-1] if 'O2' not in products else 'O2']['path'])
 	comparisons = []
 	for left, right in zip(stages, stages[1:]):
-		for mode in ('O0', 'O2'):
+		for mode in a.profiles:
 			for kind in ('object_sha256', 'sha256', 'native', 'doc'):
 				x, y = left['products'][mode][kind], right['products'][mode][kind]
 				comparisons.append(dict(stages=[left['stage'], right['stage']], profile=mode, kind=kind, equal=x['sha256'] == y['sha256'] if isinstance(x, dict) else x == y))
