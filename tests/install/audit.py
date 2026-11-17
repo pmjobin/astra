@@ -15,8 +15,6 @@ sys.path.insert(0, str(ROOT/'tools/ci'))
 from common import external, identify, require, sha, write
 sys.path.insert(0, str(ROOT/'tests/selfhost-ownership-syntax-27b'))
 from audit import preservation
-sys.path.insert(0, str(ROOT/'tests/books'))
-from completion import streams
 
 BASE = '1c66336d5e6ff6b0a137e83102630be0557066e6'
 TREE = 'e2d992d8e7f807284b0de3484057dad3696a6fc2'
@@ -35,10 +33,53 @@ def memory_stream(path):
 	data = path.read_bytes()
 	pids = set(re.findall(rb'^==([0-9]+)== Memcheck,', data, re.M))
 	require(bool(pids), 'no actual Memcheck process: '+str(path))
+	passed = True
 	for pid in pids:
 		lines = b'\n'.join(line for line in data.splitlines() if line.startswith(b'=='+pid+b'=='))
-		require(b'ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)' in lines and b'in use at exit: 0 bytes in 0 blocks' in lines, 'strict memory failed: '+str(path))
-	return len(pids)
+		errors = re.findall(rb'ERROR SUMMARY: ([0-9,]+) errors', lines)
+		live = re.findall(rb'in use at exit: ([0-9,]+) bytes in ([0-9,]+) blocks', lines)
+		passed = passed and bool(errors) and bool(live) and all(value == b'0' for value in errors) and all(a == b == b'0' for a, b in live) and b'(suppressed: 0 from 0)' in lines
+	return dict(path=str(path), sha256=sha(path), processes=len(pids), passed=passed)
+
+
+def streams(bases):
+	"""Authenticate failed and passing observations without turning failures into PASS."""
+	commands, memory, costs = [], {}, {}
+	def inspect(path):
+		data = path.read_bytes()
+		if re.search(rb'^==[0-9]+== Memcheck,', data, re.M):
+			memory[str(path)] = memory_stream(path)
+		if path.name == 'time.txt' or path.suffix == '.time':
+			fields = {}
+			for line in data.decode().splitlines():
+				if ': ' in line:
+					key, value = line.strip().split(': ', 1)
+					fields[key] = value
+			costs[str(path)] = dict(path=str(path), sha256=sha(path), user_seconds=fields.get('User time (seconds)'), system_seconds=fields.get('System time (seconds)'), maximum_RSS_KiB=fields.get('Maximum resident set size (kbytes)'))
+	for base in bases:
+		for index in sorted(base.rglob('commands.json')):
+			for row in load(index):
+				label = row.get('label', row.get('name'))
+				result = row.get('result', row)
+				if 'stdout_sha256' not in result:
+					continue
+				for kind in ('stdout', 'stderr', 'time'):
+					if kind+'_sha256' not in result:
+						continue
+					candidates = [index.parent/label/('time.txt' if kind == 'time' else kind), index.parent/(label+('.time' if kind == 'time' else '.'+kind)), index.parent/(label+'-controller')/('time.txt' if kind == 'time' else kind)]
+					leaf = next((path for path in candidates if path.is_file()), None)
+					require(leaf is not None and sha(leaf) == result[kind+'_sha256'], 'recorded stream changed: '+str(index)+' '+label)
+					inspect(leaf)
+				commands.append(dict(index=str(index), label=label, exit=result['exit'], expected=result.get('expected_exit', result.get('expected')), timed_out=result.get('timed_out', False)))
+		for index in sorted(base.rglob('command.json')):
+			row = load(index)
+			require(row['status'] != 'RUNNING', 'unfinished command: '+str(index))
+			for name, item in row.get('streams', {}).items():
+				leaf = index.parent/name
+				require(sha(leaf) == item['sha256'], 'controller stream changed')
+				inspect(leaf)
+			commands.append(dict(index=str(index), exit=row.get('exit'), expected=row.get('expected_exit'), status=row['status']))
+	return commands, list(memory.values()), list(costs.values())
 
 
 def main():
@@ -79,7 +120,7 @@ def main():
 				require(sha(image['path']) == image['sha256'], 'generated image changed')
 			require(sha(product['object']) == product['object_sha256'], 'generated object changed')
 	reg = load(a.regression/'result.json')
-	require(reg['status'] == 'CURRENT_LOCAL_CONSOLIDATED_REGRESSION_PASS' and len(reg['suites']) == 9, 'consolidated current suite incomplete')
+	require(reg['status'] in ('CURRENT_LOCAL_CONSOLIDATED_REGRESSION_PASS', 'CURRENT_LOCAL_CONSOLIDATED_REGRESSION_FAILED') and len(reg['suites']) == 9, 'consolidated current suite incomplete')
 	for mode, product in reg['products'].items():
 		final = bootstrap['products'][mode]
 		for key in ('sha256', 'object_sha256'):
@@ -88,23 +129,47 @@ def main():
 			require(product[key]['sha256'] == final[key]['sha256'], 'qualified image differs from converged generation')
 	for row in reg['suites']:
 		receipt = a.regression/row['label']/'result.json'
-		require(row['completed'] and sha(receipt) == row['receipt_sha256'] and load(receipt)['status'] == row['status'], 'suite receipt changed')
-	books = load(a.regression/'books/result.json')
-	require(books['full_manifest'] and len(books['cases']) == 63 and all(row['status'] == 'EXPECTED_OUTCOMES_PASS' for row in books['cases']), 'Book native matrix incomplete')
+		if row['completed']:
+			require(sha(receipt) == row['receipt_sha256'] and load(receipt)['status'] == row['status'], 'suite receipt changed')
+		else:
+			require(load(a.regression/(row['label']+'-controller')/'command.json')['status'] == 'FAILED', 'failed suite lacks actual failed controller')
+	remaining = load(a.campaign/'books-remaining/result.json')
+	require(remaining['status'] == 'DIAGNOSTIC_CASE_COVERAGE_NOT_FULL_QUALIFICATION', 'remaining Book observations absent')
+	all_ids = {row['id'] for row in old_fixtures['cases']}
+	require(set(remaining['previously_started']) | {row['case'] for row in remaining['cases']} == all_ids, 'Book case coverage absent')
+	book_passed = set(re.findall(r'^([a-z0-9-]+) EXPECTED_OUTCOMES_PASS$', (a.regression/'books-controller/stdout').read_text(), re.M))
+	for row in remaining['cases']:
+		if row['passed']:
+			receipt = a.campaign/'books-remaining'/row['case']/'result.json'
+			require(sha(receipt) == row['receipt_sha256'] and load(receipt)['status'] == 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS', 'Book case receipt changed')
+			book_passed.add(row['case'])
+	api_repairs = {}
+	for mode in ('O0', 'O2'):
+		receipt = a.campaign/('api-repair-'+mode)/'result.json'
+		require(load(receipt)['status'] == 'CURRENT_COMPILER_REAL_API_PREVIEWS_PASS', 'API preview repair remains unqualified')
+		api_repairs[mode] = identify(receipt)
 	physical = 0
 	for path in (a.regression/'native').glob('*physical-*/result.json'):
 		row = load(path)
 		require(row['status'] == 'SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS', 'independent physical suite failed')
 		physical += row['mutations']
 	require(physical == 46, 'independent physical mutation coverage differs')
-	commands, memory, costs = streams([a.regression])
+	commands, memory, costs = streams([a.regression, a.campaign/'books-remaining', *[a.campaign/('api-repair-'+mode) for mode in ('O0', 'O2')]])
 	require(bool(memory), 'no strict-memory evidence')
-	for row in memory:
-		memory_stream(Path(row['path']))
+	failed_memory = [row for row in memory if not row['passed']]
+	failed_suites = [row['label'] for row in reg['suites'] if not row['completed'] and row['label'] not in ('O0-api', 'O2-api')]
+	c7 = not failed_memory and not failed_suites and book_passed == all_ids
 	packages = {}
 	for kind in ('deb', 'rpm'):
 		package = getattr(a, kind+'_package')
 		build = load(getattr(a, kind+'_build_receipt'))
+		identity_path = getattr(a, kind+'_build_receipt').parent/'docs-build-identity.json'
+		require(sha(identity_path) == build['build_identity_sha256'], 'package build identity changed')
+		material = load(identity_path)['material']
+		require(material['compiler_mode'] == 'O2' and material['compiler_object_sha256'] == bootstrap['products']['O2']['object_sha256'] and material['LLVM'] == '23.1.4', 'package object is not the converged O2 source product')
+		for name, item in build['payload'].items():
+			path = package.parent/'payload'/name
+			require(sha(path) == item['sha256'] and path.stat().st_size == item['bytes'], 'package payload changed')
 		installed = getattr(a, kind+'_install')
 		result = load(installed/'result.json')
 		require(sha(package) == build['artifact']['sha256'] == result['package_sha256'], 'package transport mismatch')
@@ -126,15 +191,24 @@ def main():
 					path = directory/(row['name']+'.'+stream)
 					require(sha(path) == row[stream+'_sha256'], 'installed command stream changed')
 				if row.get('strict_memory'):
-					memory_stream(directory/(row['name']+'.stderr'))
+					require(memory_stream(directory/(row['name']+'.stderr'))['passed'], 'installed smoke memory failed')
 		packages[kind] = dict(artifact=identify(package), build_receipt=identify(getattr(a, kind+'_build_receipt')), installation=identify(installed/'result.json'), smoke=identify(installed/'lifecycle/smoke/result.json'), guide=identify(installed/'lifecycle/guide/result.json'))
 	formatted = load(a.format)
 	require(formatted['changed'] == 0 and all(row['before_sha256'] == row['after_sha256'] == sha(ROOT/row['path']) for row in formatted['rows']), 'format receipt stale')
+	refusals = load(a.campaign/'refusal-final/result.json')
+	require(refusals['status'] == 'BOOTSTRAP_REFUSALS_PASS' and len(refusals['checks']) == 17 and all(row['refused'] for row in refusals['checks']), 'trust refusal controls incomplete')
+	require(refusals['recipe_sha256'] == sha(ROOT/'tests/install/security.py'), 'refusal recipe changed')
+	workflow = load(a.campaign/'workflow-validation.json')
+	require(workflow['status'] == 'LOCAL_ACTIONLINT_PASS_NOT_HOSTED' and all(sha(ROOT/name) == digest for name, digest in workflow['sources'].items()), 'workflow lint evidence stale')
+	windows = load(a.campaign/'windows-feasibility/result.json')
+	require(not windows['native_compiler'] and not windows['installer_exe'] and not windows['hosted_run'], 'Windows disposition mismatch')
+	require(load(a.campaign/'github-workflows-readonly/stdout')['total_count'] == 0, 'read-only GitHub observation differs')
 	output = external(a.output)
 	write(output/'execution-costs.json', dict(commands=costs, scope='Actual individual GNU time observations; overlapping controllers and children are not summed.'))
-	result = dict(format='astra-installer-qualification/1', status='PARTIAL', audited_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(), final_commit=git('rev-parse', 'HEAD'), final_tree=git('rev-parse', 'HEAD^{tree}'), base_commit=BASE, base_tree=TREE, gates={'C0':'PASS_EXACT_INTAKE_AND_ACTUAL_PREDECESSOR_PUBLICATION', 'C1':'PARTIAL_LINUX_CONVERGED_SEED_DISTRIBUTION_AND_WINDOWS_OPEN', 'C2':'PASS_NATIVE_LINUX_DEB_AND_RPM', 'C3':'BLOCKED_NATIVE_WINDOWS_COMPILER_AND_EXE_UNIMPLEMENTED', 'C4':'PARTIAL_LINUX_CLEAN_INSTALL_NATIVE_PASS_WINDOWS_OPEN', 'C5':'BLOCKED_NO_HOSTED_WORKFLOW_EXECUTION_OR_DISTRIBUTED_SEED', 'C6':'PASS_INSTALLED_LINUX_GUIDE_AND_EXPLICIT_WINDOWS_UNAVAILABILITY', 'C7':'PASS_SCOPED_CURRENT_LINUX_REGRESSION_AND_PRESERVATION', 'C8':'PREPUBLICATION_COMPLETE_PENDING_INSTALLED_CANONICAL_PUBLISHER'}, seed_capsule=identify(a.seed), bootstrap=identify(a.bootstrap/'result.json'), regression=identify(a.regression/'result.json'), packages=packages, physical_mutations=physical, book_cases=63, book_host_target_profiles=252, installed_guide_blocks_per_platform=43, regression_commands=len(commands), strict_memory_streams=memory, formatter=identify(a.format), preservation=preserved, limitations=['No native Windows compiler chain or setup EXE; no native Windows execution', 'Read-only GitHub access worked but no workflows were remotely installed or run; no push authorized', 'Seed capsule is local; committed URL remains null and hosted acquisition refuses', 'Unsigned development packages; no signatures, public release, tag or deployment', 'Clean containers share the host kernel; cross-version upgrade remains unqualified', 'Current grammar dump preflight is not a fresh typed-source grammar regeneration', 'Rebuilt C0 ACCEPTED_WITH_DISCLOSURE; strict all-kinds C0 memory NOT_PASS; original C0 and 1044 proofs lost', 'Formal 28-A2-R1 PARTIAL and 222 semantic witnesses remain open'])
+	write(output/'STREAMS.json', dict(commands=commands, memory=memory, failed_commands=[row for row in commands if row.get('exit') != row.get('expected') or row.get('timed_out')], scope='Raw stream integrity is independent of observed success; failures remain failures.'))
+	result = dict(format='astra-installer-qualification/1', status='PARTIAL', audited_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(), final_commit=git('rev-parse', 'HEAD'), final_tree=git('rev-parse', 'HEAD^{tree}'), base_commit=BASE, base_tree=TREE, gates={'C0':'PASS_EXACT_INTAKE_AND_ACTUAL_PREDECESSOR_PUBLICATION', 'C1':'PARTIAL_LINUX_CONVERGED_SEED_DISTRIBUTION_AND_WINDOWS_OPEN', 'C2':'PASS_NATIVE_LINUX_DEB_AND_RPM', 'C3':'BLOCKED_NATIVE_WINDOWS_COMPILER_AND_EXE_UNIMPLEMENTED', 'C4':'PARTIAL_LINUX_CLEAN_INSTALL_NATIVE_PASS_WINDOWS_OPEN', 'C5':'BLOCKED_NO_HOSTED_WORKFLOW_EXECUTION_OR_DISTRIBUTED_SEED', 'C6':'PASS_INSTALLED_LINUX_GUIDE_AND_EXPLICIT_WINDOWS_UNAVAILABILITY', 'C7':'PASS_SCOPED_CURRENT_LINUX_REGRESSION_AND_PRESERVATION' if c7 else 'PARTIAL_CURRENT_STRICT_MEMORY_FAILURES_REMAIN', 'C8':'PREPUBLICATION_COMPLETE_PENDING_INSTALLED_CANONICAL_PUBLISHER'}, seed_capsule=identify(a.seed), bootstrap=identify(a.bootstrap/'result.json'), regression=identify(a.regression/'result.json'), packages=packages, physical_mutations=physical, book_cases_attempted=len(all_ids), book_cases_strict_pass=sorted(book_passed), book_cases_unqualified=sorted(all_ids-book_passed), installed_guide_blocks_per_platform=43, regression_commands=len(commands), strict_memory_streams=len(memory), failed_memory_streams=failed_memory, failed_suites=failed_suites, repaired_api_previews=api_repairs, stream_audit=identify(output/'STREAMS.json'), formatter=identify(a.format), preservation=preserved, limitations=['Current broader compiler strict memory is NOT_PASS; unsuppressed optimizer diagnostics are retained, with no suppression or dependency substitution', 'No native Windows compiler chain or setup EXE; no native Windows execution', 'Read-only GitHub access worked but no workflows were remotely installed or run; no push authorized', 'Seed capsule is local; committed URL remains null and hosted acquisition refuses', 'Unsigned development packages; no signatures, public release, tag or deployment', 'Clean containers share the host kernel; cross-version upgrade remains unqualified', 'Current grammar dump preflight is not a fresh typed-source grammar regeneration', 'Rebuilt C0 ACCEPTED_WITH_DISCLOSURE; strict all-kinds C0 memory NOT_PASS; original C0 and 1044 proofs lost', 'Formal 28-A2-R1 PARTIAL and 222 semantic witnesses remain open'])
 	write(output/'QUALIFICATION.json', result)
-	print(json.dumps(dict(status=result['status'], physical_mutations=physical, book_profiles=252, command_records=len(commands), strict_memory_streams=len(memory))))
+	print(json.dumps(dict(status=result['status'], physical_mutations=physical, book_cases_strict_pass=len(book_passed), failed_memory_streams=len(failed_memory), command_records=len(commands), strict_memory_streams=len(memory))))
 
 
 if __name__ == '__main__':
