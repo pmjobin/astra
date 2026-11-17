@@ -93,6 +93,9 @@ def main():
 				stream.truncate(original)
 				# Same-version reinstall checks package-manager replacement without changing
 				# the native source/product identity. Cross-version upgrades remain separate.
+	with (private/'astrac.native').open('ab') as stream:
+		stream.write(b'REINSTALL_REPAIR_CONTROL')
+	run('pre-reinstall-corruption', ['astrac', '--version'], expected=127, contains=b'identity mismatch')
 	guide('reinstall', 'tooling.md')
 	run('after-reinstall', ['astrac', '--version'], contains=b'0.0.3-dev28c1')
 	guide('uninstall', 'tooling.md')

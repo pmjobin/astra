@@ -111,6 +111,8 @@ def main():
 		require(result['status'] == 'CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', 'clean install/lifecycle not accepted')
 		lifecycle = load(installed/'lifecycle/result.json')
 		require(lifecycle['package_sha256'] == sha(package) and sha(installed/'lifecycle/result.json') == result['lifecycle_sha256'], 'lifecycle binding mismatch')
+		names = {row['name'] for row in load(installed/'lifecycle/commands.json')}
+		require({'ordinary-user-native', 'pre-reinstall-corruption', 'reinstall', 'after-reinstall', 'uninstall'} <= names, 'ordinary-user or repair/removal controls missing')
 		smoke = load(installed/'lifecycle/smoke/result.json')
 		require(smoke['status'] == 'INSTALLED_NATIVE_SMOKE_PASS' and smoke['clean_host'] and smoke['strict_memory'], 'installed native/memory scope incomplete')
 		guide = load(installed/'lifecycle/guide/result.json')
