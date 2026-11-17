@@ -122,6 +122,12 @@ def main():
 	licenses.mkdir(parents=True)
 	shutil.copyfile(ROOT/'LICENSE.txt', licenses/'LICENSE.txt')
 	shutil.copytree(ROOT/'tools/release/licenses/llvm-23.1.4', licenses/'llvm-23.1.4')
+	notices = licenses/'llvm-23.1.4/third-party/THIRD-PARTY-NOTICES.txt'
+	require(notices.is_file() and b'xxHash' in notices.read_bytes() and b'Unicode' in notices.read_bytes(), 'bundled LLVM third-party notices missing')
+	if a.kind == 'deb':
+		copyright_path = stage/'usr/share/doc/astra-development/copyright'
+		copyright_path.parent.mkdir(parents=True)
+		copyright_path.write_bytes((licenses/'LICENSE.txt').read_bytes()+b'\n\nBundled LLVM/Polly dependency notices:\n\n'+notices.read_bytes())
 	write(private/'INSTALL.json', dict(format='astra-installation/1', version='0.0.3-dev28c1', LLVM='23.1.4', files={str(path.relative_to(private)):dict(bytes=path.stat().st_size, sha256=sha(path)) for path in private.rglob('*') if path.is_file()}, source_commit=handoff['source_commit'], handoff_sha256=sha(a.handoff), qualification='DEVELOPMENT_ARTIFACT_REQUIRES_INSTALL_AND_REGRESSION_RECEIPTS'))
 	write(share/'PROVENANCE.json', material)
 	for path in stage.rglob('*'):
@@ -150,7 +156,7 @@ def main():
 		for name in ('BUILD', 'BUILDROOT', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS'):
 			(top/name).mkdir(parents=True)
 		spec = top/'SPECS/astra.spec'
-		spec.write_text('%global debug_package %{nil}\n%global __provides_exclude ^libLLVM.*\n%global __requires_exclude ^libLLVM.*\n%global __os_install_post %{nil}\nName: astra-development\nVersion: 0.0.3\nRelease: 0.dev28c1.1\nSummary: Astra native development compiler\nLicense: Apache-2.0 WITH LLVM-exception AND MIT\nBuildArch: x86_64\nRequires: python3 >= 3.11, gcc, glibc-devel, binutils\n%description\nUnsigned engineering artifact with private LLVM 23.1.4.\n%install\nmkdir -p "%{buildroot}"\ncp -a '+shlex.quote(str(stage))+'/. "%{buildroot}/"\n%files\n/usr/bin/astrac\n/usr/lib/astra\n/usr/share/astra\n/usr/share/licenses/astra-development\n')
+		spec.write_text('%global debug_package %{nil}\n%global __provides_exclude ^libLLVM.*\n%global __requires_exclude ^libLLVM.*\n%global __os_install_post %{nil}\nName: astra-development\nVersion: 0.0.3\nRelease: 0.dev28c1.1\nSummary: Astra native development compiler\nLicense: Apache-2.0 WITH LLVM-exception AND MIT AND LicenseRef-LLVM-Third-Party\nBuildArch: x86_64\nRequires: python3 >= 3.11, gcc, glibc-devel, binutils\n%description\nUnsigned engineering artifact with private LLVM 23.1.4.\n%install\nmkdir -p "%{buildroot}"\ncp -a '+shlex.quote(str(stage))+'/. "%{buildroot}/"\n%files\n/usr/bin/astrac\n/usr/lib/astra\n/usr/share/astra\n/usr/share/licenses/astra-development\n')
 		run(['rpmbuild', '-bb', '--define', '_topdir '+str(top), '--define', '_buildhost astra-build.invalid', '--define', 'use_source_date_epoch_as_buildtime 1', '--define', 'clamp_mtime_to_source_date_epoch 1', spec], runtime/'package', env, timeout=600)
 		artifacts = list((top/'RPMS').rglob('*.rpm'))
 		require(len(artifacts) == 1, 'ambiguous RPM output')
