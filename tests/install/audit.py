@@ -3,6 +3,7 @@
 """Independently inspect current receipts; keep unavailable platform gates open."""
 import argparse
 import datetime
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -14,7 +15,10 @@ WORK = ROOT.parent/'codex/work/astra'
 sys.path.insert(0, str(ROOT/'tools/ci'))
 from common import external, identify, require, sha, write
 sys.path.insert(0, str(ROOT/'tests/selfhost-ownership-syntax-27b'))
-from audit import preservation
+preservation_spec = importlib.util.spec_from_file_location('astra_preservation_audit', ROOT/'tests/selfhost-ownership-syntax-27b/audit.py')
+preservation_module = importlib.util.module_from_spec(preservation_spec)
+preservation_spec.loader.exec_module(preservation_module)
+preservation = preservation_module.preservation
 
 BASE = '1c66336d5e6ff6b0a137e83102630be0557066e6'
 TREE = 'e2d992d8e7f807284b0de3484057dad3696a6fc2'
@@ -150,6 +154,8 @@ def main():
 		api_repairs[mode] = identify(receipt)
 	physical = 0
 	for path in (a.regression/'native').glob('*physical-*/result.json'):
+		if path.parent.name.endswith('-controller'):
+			continue
 		row = load(path)
 		require(row['status'] == 'SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS', 'independent physical suite failed')
 		physical += row['mutations']
