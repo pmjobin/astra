@@ -48,7 +48,7 @@ def main():
 	(private/'llvm').mkdir()
 	shutil.copyfile(a.library, private/'llvm/libLLVM.so.23.1')
 	cc = Path(shutil.which('cc')).resolve()
-	material = dict(format='astra-package-build/1', compiler_source_commit=handoff['source_commit'], package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM='23.1.4', llvm_library_sha256=sha(a.library), llvm_provenance_sha256=sha(a.library_receipt), cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
+	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM='23.1.4', llvm_library_sha256=sha(a.library), llvm_provenance_sha256=sha(a.library_receipt), cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
 	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 	write(runtime/'docs-build-identity.json', dict(fingerprint=fingerprint, material=material))
 	objects = []
@@ -123,9 +123,14 @@ def main():
 		if path.is_file():
 			require(b'/home/pmjobin' not in path.read_bytes(), 'developer home path in payload: '+str(path.relative_to(stage)))
 	if a.kind == 'deb':
+		payload_files = sorted(path for path in stage.rglob('*') if path.is_file())
+		installed_size = sum((path.stat().st_size+1023)//1024 for path in payload_files)
 		control = stage/'DEBIAN'
 		control.mkdir()
 		(control/'control').write_text('Package: astra-development\nVersion: 0.0.3~dev28c1-1\nArchitecture: amd64\nMaintainer: Astra contributors <noreply@localhost>\nSection: devel\nPriority: optional\nDepends: libc6 (>= 2.39), libstdc++6, libgcc-s1, libxml2, libzstd1, zlib1g, python3 (>= 3.11), gcc, libc6-dev, binutils\nDescription: Astra native development compiler with pinned LLVM 23.1.4\n Unsigned engineering artifact. No public release qualification.\n')
+		with (control/'control').open('a') as stream:
+			stream.write('Installed-Size: '+str(installed_size)+'\n')
+		(control/'md5sums').write_text(''.join(hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()+'  '+str(path.relative_to(stage))+'\n' for path in payload_files))
 		artifact = build/'astra-development_0.0.3~dev28c1-1_amd64.deb'
 		run(['dpkg-deb', '--root-owner-group', '--build', stage, artifact], runtime/'package', env, timeout=600)
 		run(['dpkg-deb', '--info', artifact], runtime/'metadata', env)

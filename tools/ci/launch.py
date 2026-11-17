@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Installed development CLI; authenticate private images before native exec."""
 import hashlib

@@ -70,7 +70,7 @@ jobs:
       - name: Fresh Ubuntu install and native acceptance
         env:
           EXPECTED_SHA: ${{ needs.linux.outputs.deb_sha256 }}
-        run: python3 -B tools/ci/clean_install.py --kind deb --package "$RUNNER_TEMP/installer/astra-development_0.0.3~dev28c1-1_amd64.deb" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install"
+        run: python3 -B tools/ci/clean_install.py --kind deb --package "$RUNNER_TEMP/installer/astra-development_0.0.3~dev28c1-1_amd64.deb" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install" --build "$RUNNER_TEMP/astra-install-build"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -132,7 +132,7 @@ jobs:
       - name: Fresh Fedora install and native acceptance
         env:
           EXPECTED_SHA: ${{ needs.rpm.outputs.rpm_sha256 }}
-        run: python3 -B tools/ci/clean_install.py --kind rpm --package "$RUNNER_TEMP/installer/astra-development-0.0.3-0.dev28c1.1.x86_64.rpm" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install"
+        run: python3 -B tools/ci/clean_install.py --kind rpm --package "$RUNNER_TEMP/installer/astra-development-0.0.3-0.dev28c1.1.x86_64.rpm" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install" --build "$RUNNER_TEMP/astra-install-build"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

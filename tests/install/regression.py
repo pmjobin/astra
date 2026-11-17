@@ -35,8 +35,8 @@ def main():
 		path = Path(shutil.which(name, path=env['PATH']))
 		verify(path, lock['files']['bin/'+name])
 		tools['tools'][str(path)] = sha(path)
-	# Older suites explicitly record LIBRARY_PATH even when they link no LLVM.
-	# Derive a new receipt; leave the generation's original receipt unchanged.
+		# Older suites explicitly record LIBRARY_PATH even when they link no LLVM.
+		# Derive a new receipt; leave the generation's original receipt unchanged.
 	tools['environment']['LIBRARY_PATH'] = tools['environment']['LD_LIBRARY_PATH']
 	tools['generation_receipt_sha256'] = sha(a.toolchain)
 	toolchain = runtime/'qualification-toolchain.json'

@@ -52,14 +52,14 @@ On Ubuntu, in the directory containing the package:
 ```console install=deb
 sha256sum 'astra-development_0.0.3~dev28c1-1_amd64.deb'
 sudo apt-get update
-sudo apt-get install ./astra-development_0.0.3~dev28c1-1_amd64.deb
+sudo apt-get install -y --no-install-recommends ./astra-development_0.0.3~dev28c1-1_amd64.deb
 ```
 
 On Fedora, in the directory containing the package:
 
 ```console install=rpm
 sha256sum astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
-sudo dnf install ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+sudo dnf install -y ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
 ```
 
 The public command is `astrac`. `astrac --version` reports

@@ -72,16 +72,25 @@ lesson object files. System `cc` builds C providers in your lesson workspace.
 The complete Guide and Reference support browser Find and print styles; a
 designed PDF is not supplied.
 
-To reinstall the same verified package, use `sudo apt-get install --reinstall`
-with its DEB filename, or `sudo dnf reinstall` with its RPM filename. To remove
-Astra, use the matching command:
+To reinstall the same verified package, run the matching command from the
+directory containing that package:
+
+```console reinstall=deb
+sudo apt-get install -y --reinstall ./astra-development_0.0.3~dev28c1-1_amd64.deb
+```
+
+```console reinstall=rpm
+sudo dnf reinstall -y ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+```
+
+To remove Astra, use the matching command:
 
 ```console uninstall=deb
-sudo apt-get remove astra-development
+sudo apt-get remove -y astra-development
 ```
 
 ```console uninstall=rpm
-sudo dnf --setopt=clean_requirements_on_remove=False remove astra-development
+sudo dnf --setopt=clean_requirements_on_remove=False remove -y astra-development
 ```
 
 Removal deletes the compiler and its private files. Your own workspace and the

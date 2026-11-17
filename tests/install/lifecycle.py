@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import time
@@ -32,37 +33,44 @@ def main():
 	require(sha(a.package) == a.sha256, 'installer bytes differ from builder output')
 	require(shutil.which('astrac') is None and not Path('/usr/lib/astra').exists(), 'host already has Astra')
 	commands = []
-	def run(name, argv, expected=0, contains=None):
+	def run(name, argv, expected=0, contains=None, cwd=None):
 		start = time.monotonic()
-		result = subprocess.run(list(map(str, argv)), capture_output=True, timeout=900)
+		result = subprocess.run(list(map(str, argv)), capture_output=True, timeout=900, cwd=cwd)
 		for label, data in (('stdout', result.stdout), ('stderr', result.stderr)):
 			(a.output/(name+'.'+label)).write_bytes(data)
-		commands.append(dict(name=name, argv=list(map(str, argv)), exit=result.returncode, seconds=time.monotonic()-start, stdout_sha256=sha(a.output/(name+'.stdout')), stderr_sha256=sha(a.output/(name+'.stderr'))))
+		commands.append(dict(name=name, argv=list(map(str, argv)), cwd=str(cwd) if cwd else None, exit=result.returncode, expected=expected, seconds=time.monotonic()-start, stdout_sha256=sha(a.output/(name+'.stdout')), stderr_sha256=sha(a.output/(name+'.stderr'))))
 		(a.output/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 		require(result.returncode == expected, name+': wrong exit')
 		if contains:
 			require(contains in result.stdout+result.stderr, name+': expected message missing')
 		return result.stdout
+	def guide(name, chapter):
+		body = Path('/qa/'+chapter).read_text()
+		matches = re.findall(r'^```console '+name+'='+a.kind+r'\n(.*?)^```$', body, re.M|re.S)
+		require(len(matches) == 1, 'missing or ambiguous published installation block')
+		(a.output/(name+'.source.sh')).write_text(matches[0])
+		return run(name, ['/bin/sh', '-eu', '-c', matches[0]], cwd=a.package.parent)
+	output = guide('install', 'getting-started.md')
+	require(a.sha256.encode() in output, 'published checksum command did not report expected artifact')
 	if a.kind == 'deb':
-		run('repositories', ['apt-get', 'update'])
-		run('install', ['apt-get', 'install', '-y', '--no-install-recommends', a.package])
 		run('metadata', ['dpkg-query', '-W', '-f', '${Package} ${Version} ${Architecture}\n', 'astra-development'], contains=b'0.0.3~dev28c1-1 amd64')
 		if a.memory:
 			run('memory-tool', ['apt-get', 'install', '-y', '--no-install-recommends', 'valgrind'])
 	else:
-		run('install', ['dnf', 'install', '-y', a.package])
 		run('metadata', ['rpm', '-q', '--qf', '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n', 'astra-development'], contains=b'0.0.3-0.dev28c1.1 x86_64')
 		if a.memory:
 			run('memory-tool', ['dnf', 'install', '-y', 'valgrind'])
 	private = Path('/usr/lib/astra')
-	run('installed-smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', *(['--memory'] if a.memory else [])], contains=b'INSTALLED_NATIVE_SMOKE_PASS')
+	for name in ('getting-started.md', 'tooling.md'):
+		require(sha(Path('/qa')/name) == sha(Path('/usr/share/astra/tutorial/docs/guide')/name), 'installed Guide differs from replayed installation recipe')
+	run('installed-smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', '/build/smoke', *(['--memory'] if a.memory else [])], contains=b'INSTALLED_NATIVE_SMOKE_PASS')
 	run('installed-guide', ['python3', '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'], contains=b'installed Guide shell blocks passed')
 	library = private/'llvm/libLLVM.so.23.1'
 	held = library.with_suffix('.held')
 	library.rename(held)
 	try:
 		run('missing-llvm-refusal', ['astrac', '--version'], expected=127, contains=b'installation unavailable')
-		run('doc-without-llvm', ['astrac', 'doc', '--output', a.output/'no-llvm.json', '/usr/share/astra/install/api.astra'])
+		run('doc-without-llvm', ['astrac', 'doc', '--output', '/build/no-llvm.json', '/usr/share/astra/install/api.astra'])
 	finally:
 		held.rename(library)
 	for name in ('llvm/libLLVM.so.23.1', 'astrac.native'):
@@ -77,15 +85,9 @@ def main():
 				stream.truncate(original)
 				# Same-version reinstall checks package-manager replacement without changing
 				# the native source/product identity. Cross-version upgrades remain separate.
-	if a.kind == 'deb':
-		run('reinstall', ['apt-get', 'install', '-y', '--reinstall', a.package])
-	else:
-		run('reinstall', ['dnf', 'reinstall', '-y', a.package])
+	guide('reinstall', 'tooling.md')
 	run('after-reinstall', ['astrac', '--version'], contains=b'0.0.3-dev28c1')
-	if a.kind == 'deb':
-		run('uninstall', ['apt-get', 'remove', '-y', 'astra-development'])
-	else:
-		run('uninstall', ['dnf', '--setopt=clean_requirements_on_remove=False', 'remove', '-y', 'astra-development'])
+	guide('uninstall', 'tooling.md')
 	require(shutil.which('astrac') is None and not private.exists(), 'uninstall left compiler files')
 	require(shutil.which('cc') is not None and shutil.which('python3') is not None, 'uninstall removed external prerequisites')
 	result = dict(status='CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', kind=a.kind, package_sha256=a.sha256, os_release=Path('/etc/os-release').read_text(), command_receipts_sha256=sha(a.output/'commands.json'), smoke_sha256=sha(a.output/'smoke/result.json'), guide_sha256=sha(a.output/'guide/result.json'), negative_controls=['missing LLVM', 'tampered LLVM', 'tampered compiler', 'doc without LLVM'], upgrade='Same-version reinstall tested; cross-version upgrade not claimed', signed=False)
