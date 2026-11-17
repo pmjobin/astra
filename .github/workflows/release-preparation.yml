@@ -1,0 +1,73 @@
+name: Astra owner candidate preparation
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Exact fully qualified source commit SHA
+        required: true
+        type: string
+      qualification_run:
+        description: Completed successful nightly run ID for that exact commit
+        required: true
+        type: string
+      attest:
+        description: Owner authorizes GitHub candidate-metadata attestation
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: astra-owner-preparation
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'pmjobin/astra' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 / Node.js 24
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 / Node.js 24
+        with:
+          name: qualification-${{ inputs.candidate }}-${{ inputs.qualification_run }}
+          path: ${{ runner.temp }}/qualification
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.qualification_run }}
+      - name: Require all native gates from the exact trusted run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ inputs.candidate }}
+          QUALIFICATION_RUN: ${{ inputs.qualification_run }}
+        run: python3 -B tools/ci/prepare.py --candidate "$CANDIDATE" --run-id "$QUALIFICATION_RUN" --qualification "$RUNNER_TEMP/qualification/QUALIFICATION.json" --output "$RUNNER_TEMP/candidate"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
+        with:
+          name: owner-candidate-${{ inputs.candidate }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/candidate
+          retention-days: 14
+          if-no-files-found: error
+  attest:
+    needs: prepare
+    if: inputs.attest
+    environment: release-preparation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 / Node.js 24
+        with:
+          name: owner-candidate-${{ inputs.candidate }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1
+        with:
+          subject-path: ${{ runner.temp }}/candidate/candidate.json
+          predicate-type: https://github.com/pmjobin/astra/qualification/v1
+          predicate-path: ${{ runner.temp }}/candidate/candidate.json
+          push-to-registry: false

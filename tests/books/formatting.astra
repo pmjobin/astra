@@ -1,0 +1,16 @@
+language astra27b;
+int main() {
+	try {
+		var builder = new Utf8ByteBuilder();
+		if (!builder.reserve(64)) return 1;
+		int value = 42;
+		if (!format_into(builder, $"reading {value}")) return 2;
+		var snapshot = builder.snapshot();
+		if (snapshot.text != "reading 42") return 3;
+		var message = format_text($"value {value}");
+		if (message.text != "value 42") return 4;
+		return 42;
+	} catch (Error error) {
+		return 5;
+	}
+}

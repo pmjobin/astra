@@ -1,0 +1,42 @@
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() { note_drop(this.value); }
+}
+
+int mark(bool fail) throws Error {
+	if (fail) {
+		throw new Error("operand failure");
+	}
+	return 0;
+}
+
+int eat(owned Reading left, owned Reading right, int marker) {
+	return left.value + right.value + marker;
+}
+
+int attempt(bool fail) {
+	var left = new Reading(20);
+	var right = new Reading(22);
+	try {
+		return eat(right: move right, left: move left, marker: mark(fail));
+	} catch (Error error) {
+		if (error.message == "operand failure") return 42;
+		return 1;
+	}
+}
+
+int main() {
+	if (attempt(false) != 42 || drop_count() != 2 || drop_sum() != 42) return 1;
+	if (attempt(true) != 42 || drop_count() != 4 || drop_sum() != 84) return 2;
+	return 42;
+}

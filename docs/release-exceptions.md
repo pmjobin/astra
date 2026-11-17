@@ -18,3 +18,27 @@ post-publication check completed at 2026-11-15 23:36:26 UTC after publication at
 28-A1 independently authenticated that receipt, its complete evidence transport,
 live F/Stage1–3 products and raw checks before changing source. This does not
 rewrite the earlier report or confer release credit.
+
+28-A2 independently authenticated the separate 28-A1 G7 before book edits.
+That receipt ran 2026-11-16 07:15:07–07:15:53 UTC after canonical publication at
+07:08:45 UTC, bound to delivered ZIP SHA
+`1acc88af43839d90a52ec88b6ff4898e9305ffefd97988136ff28f8ceb40081f`.
+Receipt SHA-256 is
+`59b7e19c1329d5c612835eed7c6385475dd38490939307377fd1faf1ea25dac4`.
+Its 153 recorded commands and 20 strict-memory streams reauthenticate; its
+physical/ABI context remains bound earlier qualification evidence. The immutable
+28-A1 report's prepublication pending declaration remains unchanged. The new
+book campaign's [PARTIAL findings](books/STATUS.md) preserve all historical
+exceptions and require its own subsequent ZIP-bound G8.
+
+R1 independently established the original 28-A2 G8 before source edits. The
+canonical delivered report was 2,949,415 bytes, SHA-256
+`0d58b978a92d01f0ecdf6bfbcd0ff82423b0e5c0454920be05eed44655c2a01f`,
+published 2026-11-16 09:15:54 UTC. The separate replay ran 17:23:08–17:34:32 UTC
+that day; independent audit completed at 17:35:00 UTC. It rehashed 1,035 command
+records and 314 strict returning-memory streams, including actual host/target
+O0/O2 books, ABI/owners, LLVM physical refusals, docs and offline browser evidence.
+The receipt is transported as r1-predecessor-G8.json with the exact executed
+recipes and raw streams. This later G8 leaves the immutable original 28-A2
+engineering PARTIAL and its original prepublication G8 PENDING declaration
+unchanged. R1 has its own later publication gate; it receives no advance credit.

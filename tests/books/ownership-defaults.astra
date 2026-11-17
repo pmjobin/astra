@@ -1,0 +1,43 @@
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	readonly int value;
+
+	init(int value) { this.value = value; }
+
+	deinit() { note_drop(this.value); }
+}
+
+class Holder {
+	readonly Reading root;
+	readonly borrowed Reading view;
+
+	init(owned Reading incoming) {
+		this.root = move incoming;
+		this.view = this.root;
+	}
+}
+
+Reading make(int value) {
+	var result = new Reading(value);
+	return move result;
+}
+
+int inspect(Reading reading) { return reading.value; }
+
+int work() {
+	Reading reading = make(42);
+	var holder = new Holder(move reading);
+	return inspect(holder.view);
+}
+
+int main() {
+	int result = work();
+	if (drop_count() != 1 || drop_sum() != 42) return 1;
+	return result;
+}

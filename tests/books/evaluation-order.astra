@@ -1,0 +1,18 @@
+language astra27b;
+extern(C) int tick(int value);
+
+extern(C) int tick_trace();
+
+int choose(int first, int middle, int last) {
+	return first*100 + middle*10 + last;
+}
+
+int main() {
+	int value = choose(last: tick(3), first: tick(1), middle: tick(2));
+	if (value != 123 || tick_trace() != 312) return 1;
+	if (false && tick(9) == 9) return 2;
+	if (!(true || tick(8) == 8)) return 3;
+	int selected = false ? tick(7) : tick(4);
+	if (selected != 4 || tick_trace() != 3124) return 4;
+	return 42;
+}

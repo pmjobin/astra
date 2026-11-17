@@ -1,0 +1,26 @@
+language astra27b;
+struct Sample {
+	int value;
+	int weight;
+}
+
+int weighted(Sample sample) {
+	return sample.value*sample.weight;
+}
+
+int main() {
+	int total = 0;
+	int reading = 2;
+	while (reading <= 10) {
+		int weight = 1;
+		var sample = Sample {value = reading, weight};
+		total += weighted(sample);
+		reading += 2;
+	}
+	var original = Sample {value = 6, weight = 1};
+	Sample copy = original;
+	copy.weight = 2;
+	if (weighted(sample: original) != 6 || weighted(copy) != 12) return 1;
+	if (total != 30) return 2;
+	return 0;
+}

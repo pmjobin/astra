@@ -1,0 +1,21 @@
+language astra27b;
+int first(borrowed int[] values) {
+	return values[0];
+}
+
+int main() {
+	var samples = (2..=10).step_by(2).collect_array();
+	int total = 0;
+	int at = 0;
+	while (at < len(samples)) {
+		total += samples[at];
+		at += 1;
+	}
+	int traversed = 0;
+	foreach (var sample in 0..3) {
+		traversed += sample;
+	}
+	int[3] calibration = (2..=6).step_by(2).collect_fixed();
+	if (len(samples[1..4]) != 3 || first(samples[1..4]) != 4 || calibration[2] != 6 || traversed != 3) return 1;
+	return total+12;
+}

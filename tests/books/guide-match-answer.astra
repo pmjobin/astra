@@ -1,0 +1,40 @@
+language astra27b;
+enum Problem {
+	Missing,
+	Invalid(int code)
+}
+
+enum Reading {
+	Value(int value),
+	Failure(Problem problem)
+}
+
+struct Contribution {
+	int value;
+	int accepted;
+}
+
+Contribution contribution(Reading reading) => match (reading) {
+	case Reading.Value(value) => Contribution {value, accepted = 1};
+	case Reading.Failure(Problem.Missing()) => Contribution {value = 0, accepted = 0};
+	case Reading.Failure(Problem.Invalid(code)) => Contribution {value = 0, accepted = 0};
+};
+
+int main() {
+	int count = 0;
+	int total = 0;
+	int value = 2;
+	while (value <= 10) {
+		var item = contribution(Reading.Value(value));
+		count += item.accepted;
+		total += item.value;
+		value += 2;
+	}
+	var missing = contribution(Reading.Failure(Problem.Missing()));
+	var invalid = contribution(Reading.Failure(Problem.Invalid(64)));
+	var zero = contribution(Reading.Value(0));
+	if (count != 5 || total != 30) return 1;
+	if (missing.accepted != 0 || invalid.accepted != 0) return 2;
+	if (zero.accepted != 1 || zero.value != 0) return 3;
+	return 0;
+}

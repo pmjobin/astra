@@ -1,0 +1,10 @@
+language astra27b;
+int main() {
+	int bias = 1;
+	var pipeline = (0..6).map(i => i+bias).filter(value => value>3);
+	bias = 100;
+	int total = pipeline.sum();
+	var squares = [for (var i in 0..3) => i*i];
+	if (total != 15 || len(squares) != 3 || squares[2] != 4) return 1;
+	return total+27;
+}

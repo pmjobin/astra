@@ -1,0 +1,28 @@
+language astra27b;
+class Reading {
+	readonly int value;
+
+	init(int value) {
+		this.value = value;
+	}
+
+	property int reading => this.value;
+}
+
+owned Reading make_reading(int value) {
+	var reading = new Reading(value);
+	return move reading;
+}
+
+int inspect(Reading reading) {
+	return reading.reading*2;
+}
+
+int consume(owned Reading reading) {
+	return inspect(reading);
+}
+
+int main() {
+	var reading = make_reading(21);
+	return consume(move reading);
+}

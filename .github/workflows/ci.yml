@@ -1,0 +1,77 @@
+name: Astra Linux smoke
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: astra-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-checks:
+    name: Source and trust controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 / Node.js 24
+        with:
+          persist-credentials: false
+      - name: Actual runner identity
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-source-runner.json"
+      - name: Trust refusal controls
+        run: python3 -B tests/install/security.py --output "$RUNNER_TEMP/astra-refusals"
+      - name: Exact Book fixtures and source contracts
+        run: python3 -B tools/docs/books.py --check
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
+        if: always()
+        with:
+          name: source-controls-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/astra-source-runner.json
+            ${{ runner.temp }}/astra-refusals
+          retention-days: 7
+          if-no-files-found: error
+  linux-smoke:
+    name: Authenticated Linux seed smoke
+    needs: source-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 / Node.js 24
+        with:
+          persist-credentials: false
+      - name: Actual runner and workflow identity
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-smoke-runner.json"
+      - name: Record runner and require distributed seed
+        run: python3 -B tools/ci/preflight.py --require-distribution --output "$RUNNER_TEMP/astra-preflight.json"
+      - name: Native build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++ libxml2-dev libzstd-dev zlib1g-dev zstd time
+      - name: Authenticated native seed smoke
+        run: python3 -B tools/ci/pipeline.py --lane pr --work "$RUNNER_TEMP/astra-pr"
+      - name: Preserve actual smoke outcome
+        if: always()
+        env:
+          ASTRA_JOB_STATUS: ${{ job.status }}
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-smoke-final.json" --work "$RUNNER_TEMP/astra-pr"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
+        if: always()
+        with:
+          name: linux-smoke-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/astra-preflight.json
+            ${{ runner.temp }}/astra-smoke-runner.json
+            ${{ runner.temp }}/astra-smoke-final.json
+            ${{ runner.temp }}/astra-pr/logs
+            ${{ runner.temp }}/astra-pr/seed-smoke
+            ${{ runner.temp }}/astra-pr/llvm-library-logs
+            ${{ runner.temp }}/astra-pr/result.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Download the actual smoke artifact with the Node.js 24 action
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 / Node.js 24
+        with:
+          name: linux-smoke-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/astra-smoke-downloaded
+      - name: Independently verify transferred smoke products and logs
+        run: python3 -B tools/ci/verify_smoke.py --input "$RUNNER_TEMP/astra-smoke-downloaded" --output "$RUNNER_TEMP/astra-smoke-roundtrip.json"

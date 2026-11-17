@@ -1,0 +1,17 @@
+language astra27b;
+int main() {
+	i8 signed_wrap = 127;
+	signed_wrap += 1;
+	u8 unsigned_wrap = 255;
+	unsigned_wrap += 1;
+	int minimum = -2147483648;
+	if (signed_wrap != -128 || unsigned_wrap != 0) return 1;
+	if (minimum / -1 != minimum || minimum % -1 != 0) return 2;
+	if (-7 / 3 != -2 || -7 % 3 != -1) return 3;
+	i32 signed_bits = -8;
+	u32 unsigned_bits = 0x8000_0000;
+	if ((signed_bits >> 1) != -4 || (unsigned_bits >> 31) != 1) return 4;
+	f64 fraction = 42.75d;
+	if ((fraction as int) != 42 || ((-fraction) as int) != -42) return 5;
+	return 42;
+}
