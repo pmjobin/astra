@@ -38,6 +38,17 @@ jobs:
                   if path.exists():
                       out.write('```json\n' + json.dumps(json.loads(path.read_text()), indent=2) + '\n```\n')
           PY
+      - name: Preserve bounded text observations even when a build or install fails
+        if: always()
+        run: python3 -B tools/ci/development_bundle.py --collect-evidence "$RUNNER_TEMP/astra-dev-runtime" --output "$RUNNER_TEMP/astra-dev-text-evidence"
+      - name: Upload text observations only
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 / Node.js 24
+        with:
+          name: development-text-evidence-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/astra-dev-text-evidence
+          retention-days: 7
+          if-no-files-found: error
       - name: Check separate owner disposition against the reviewed source
         id: distribution
         run: python3 -B tools/ci/development_bundle.py --verify "$RUNNER_TEMP/astra-dev-build/delivery.zip" --approval .github/development-build-request.json --github-output "$GITHUB_OUTPUT"

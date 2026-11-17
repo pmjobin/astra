@@ -70,6 +70,7 @@ def main():
 	run('doc-memory', [private/'astrac.doc', 'doc', '--output', a.build/'api.json', fixtures/'api.astra'], memory=True)
 	failed = [row['name'] for row in commands if row['memory_status'] == 'NOT_PASS']
 	result = dict(status='NOT_PASS' if failed else 'FOCUSED_STRICT_MEMORY_PASS', failed_cases=failed, original_LLVM_historical_strict_memory='NOT_PASS', derivative_used=False, library_sha256=sha(library), native_sha256=sha(private/'astrac.native'), commands_sha256=sha(a.output/'commands.json'), scope='Fresh installed original LLVM and compiler. No suppressions; no full release or dependency disposition.')
+	result.update(recipe_sha256=sha(__file__), products={path.name:dict(bytes=path.stat().st_size, sha256=sha(path)) for path in a.build.iterdir() if path.is_file()})
 	(a.output/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(result['status'], ', '.join(failed))
 	return 99 if failed else 0

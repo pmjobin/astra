@@ -34,9 +34,33 @@ def main():
 	p.add_argument('--verify', type=Path)
 	p.add_argument('--approval', type=Path)
 	p.add_argument('--github-output', type=Path)
+	p.add_argument('--collect-evidence', type=Path)
 	for key in ('deb', 'rpm', 'deb_install', 'rpm_install', 'handoff', 'deb_receipt', 'rpm_receipt', 'licenses', 'evidence', 'output'):
 		p.add_argument('--'+key.replace('_', '-'), type=Path)
 	a = p.parse_args()
+	if a.collect_evidence:
+		require(a.output and not a.output.resolve().is_relative_to(a.collect_evidence.resolve()), 'evidence export must be outside its input')
+		out = external(a.output)
+		rows = {}
+		total = 0
+		for path in sorted(a.collect_evidence.rglob('*')):
+			require(not path.is_symlink(), 'symlink in evidence')
+			if not path.is_file() or not (path.suffix == '.json' or path.name in ('stdout', 'stderr', 'time.txt') or path.suffix in ('.stdout', '.stderr', '.time')):
+				continue
+			data = path.read_bytes()
+			total += len(data)
+			require(len(data) <= 16*1024**2 and total <= 128*1024**2, 'text evidence exceeds explicit budget')
+			data.decode('utf-8')
+			if path.suffix == '.json':
+				json.loads(data)
+			require(not data.startswith((b'\x7fELF', b'MZ', b'!<arch>\n')), 'binary evidence refused')
+			name = str(path.relative_to(a.collect_evidence))
+			target = out/name
+			target.parent.mkdir(parents=True, exist_ok=True)
+			target.write_bytes(data)
+			rows[name] = dict(bytes=len(data), sha256=sha(path))
+		write(out/'EVIDENCE.json', dict(format='astra-development-text-evidence/1', files=rows, scope='Text observations only; no compiler, object, package, private oracle or dependency binary'))
+		return
 	if a.verify:
 		print(json.dumps(verify_bundle(a.verify), indent=2))
 		if a.approval or a.github_output:
