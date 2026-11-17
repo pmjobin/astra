@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import sys
 
 from common import write
 
@@ -15,7 +16,8 @@ def main():
 	a = p.parse_args()
 	needs = json.loads(os.environ['ASTRA_JOB_OUTCOMES'])
 	write(a.output, dict(format='astra-ci-qualification/1', status='PARTIAL', source_commit=os.environ['GITHUB_SHA'], run_id=os.environ['GITHUB_RUN_ID'], run_url='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID'], jobs={name:row['result'] for name, row in needs.items()}, blockers=['Native Windows seed/compiler/installer and native execution remain unavailable', 'Installed canonical milestone qualification is a separate owner workflow'], public_release=False))
+	return 78
 
 
 if __name__ == '__main__':
-	main()
+	sys.exit(main())

@@ -1,8 +1,44 @@
 # Astra 28-C1 bootstrap and installer engineering
 
-This campaign adds local Linux packaging and fail-closed Actions recipes. It is
-not a public release. Windows is unavailable; hosted execution and distributed
-seed acquisition are unqualified. The installed canonical 28-C1 report records
+## Hosted smoke activation
+
+The owner approved public distribution of the exact 2,388,496-byte frozen 27-D
+seed ELF, SHA-256 `560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4afd77052325addf1f1c6`.
+`seeds/` contains only that ELF, its source license and provenance. It is the
+Stage3 O2 compiler produced by Stage2 O2; no new compiler generation is implied.
+`seed-linux.json` acquires its raw bytes from an immutable Git commit URL and
+checks both size and hash. The distinct capsule and private C0 oracle are not
+published. No GitHub Release or installer distribution is involved.
+
+`ci.yml` now runs independent source/trust checks and a Linux-only seed smoke on
+normal push and pull-request events. Its read-only token is never persisted by
+checkout, and no private credential is supplied. Smoke compiles and links fresh
+O0/O2 arithmetic and owning C ABI programs, checks their actual exit/output and
+five deterministic drops, and verifies type/owner refusals with absent/sentinel
+outputs. It records zero current compiler generations and makes no compiler
+strict-memory claim: the original LLVM artifact remains NOT_PASS.
+
+`runner.py` records actual checkout/tree/workflow hashes, runner image versions,
+run URLs and smoke input/product identities. Uploaded smoke evidence includes
+test products and command logs, never the seed acquisition directory or private
+qualification inputs. Downloaded artifact ZIPs must be hashed independently.
+Short CI artifact retention is not used to distribute the bootstrap seed.
+
+Strict nightly remains separate. It checks independent C0/runtime and frozen
+27-C source inputs before expensive builds; missing inputs remain BLOCKED.
+Windows is a strict-nightly gate, not a dependency of basic Linux smoke.
+Consolidation preserves its PARTIAL ledger and exits 78 while these release
+requirements remain open. Release preparation remains separately owner-gated.
+The activation branch has a narrow nightly push trigger so genuine blocked
+outcomes can be observed before default-branch workflow dispatch is available.
+
+The sections below retain the original campaign scope and historical results;
+their earlier lack of distribution/hosted execution is historical, not a claim
+about subsequent activation runs.
+
+The original campaign added local Linux packaging and fail-closed Actions recipes.
+It is not a public release. Windows remains unavailable; later hosted smoke
+activation does not qualify the complete release pipeline. The immutable 28-C1 report records
 the actual final gate outcomes, artifact hashes and retained failed attempts.
 The [28-C1 findings](../../docs/tools/installer-campaign-28c1.md) record the
 tested Linux artifacts and a confirmed broader LLVM optimizer memory failure.
@@ -18,12 +54,12 @@ verifies the owner-supplied 27D report, its segmented archive, the exact seed
 blob and Stage3 receipt, then constructs a reproducible local capsule containing
 the binary, source archive, provenance, license and toolchain manifest.
 
-The seed's URL is deliberately null. `preflight.py --require-distribution` and
-`pipeline.py` fail before bootstrapping if a runner cannot acquire the trusted
-seed. An owner must authorize a durable distribution location and review a
-manifest update before hosted use. Downloaded checksum files cannot replace the
-committed digest. The URL must identify the raw pinned seed ELF; the local
-capsule is a separate audit transport, not an interchangeable download. There is no lookup of a host `astrac`, rolling release or cache.
+The seed's URL now identifies the owner-approved raw ELF at an immutable Git
+commit. `preflight.py --require-distribution` and `pipeline.py` still fail closed
+when distribution is unavailable or the bytes differ. Downloaded checksum files
+cannot replace the committed digest. The local capsule is a separate audit
+transport, not an interchangeable download. There is no lookup of a host
+`astrac`, rolling release or cache.
 
 `llvm-linux.json` pins the official LLVM **23.1.4** archive and every selected
 member. The archive supplies static LLVM archives, not a usable `libLLVM`
@@ -184,7 +220,7 @@ installer generator produce an EXE and undergo independent Windows Server 2025
 install/PATH/O0/O2/C ABI/doc/uninstall tests. No fake setup EXE, Wine equivalence,
 cross-target-only success or code-signing claim is supplied here.
 
-After explicit authorization to make the workflow revision available remotely
-and distribute the seed, trigger the nightly for its exact commit. Preserve
-real run URLs and artifact digests, investigate hosted limits, and complete
-native Windows qualification before enabling any release-preparation PASS.
+Hosted smoke is authorized for the reviewed CI branch and exact approved seed.
+Preserve real run URLs and artifact digests. Independent private qualification
+inputs, the original LLVM memory issue and native Windows qualification remain
+strict-nightly blockers before any release-preparation PASS.

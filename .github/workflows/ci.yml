@@ -1,58 +1,70 @@
-name: Astra pull request checks
+name: Astra Linux smoke
 on:
   pull_request:
   push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: astra-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  linux:
+  source-checks:
+    name: Source and trust controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Actual runner identity
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-source-runner.json"
+      - name: Trust refusal controls
+        run: python3 -B tests/install/security.py --output "$RUNNER_TEMP/astra-refusals"
+      - name: Exact Book fixtures and source contracts
+        run: python3 -B tools/docs/books.py --check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: source-controls-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/astra-source-runner.json
+            ${{ runner.temp }}/astra-refusals
+          retention-days: 7
+          if-no-files-found: error
+  linux-smoke:
+    name: Authenticated Linux seed smoke
+    needs: source-checks
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          clean: false
-      - name: Trust refusal controls
-        run: python3 -B tests/install/security.py --output "$RUNNER_TEMP/astra-refusals"
-      - name: Exact Book fixtures and source contracts
-        run: python3 -B tools/docs/books.py --check
+      - name: Actual runner and workflow identity
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-smoke-runner.json"
       - name: Record runner and require distributed seed
         run: python3 -B tools/ci/preflight.py --require-distribution --output "$RUNNER_TEMP/astra-preflight.json"
       - name: Native build prerequisites
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++ libxml2-dev libzstd-dev zlib1g-dev zstd time
       - name: Authenticated native seed smoke
         run: python3 -B tools/ci/pipeline.py --lane pr --work "$RUNNER_TEMP/astra-pr"
+      - name: Preserve actual smoke outcome
+        if: always()
+        env:
+          ASTRA_JOB_STATUS: ${{ job.status }}
+        run: python3 -B tools/ci/runner.py --output "$RUNNER_TEMP/astra-smoke-final.json" --work "$RUNNER_TEMP/astra-pr"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: pr-linux-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: linux-smoke-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/astra-preflight.json
-            ${{ runner.temp }}/astra-refusals
+            ${{ runner.temp }}/astra-smoke-runner.json
+            ${{ runner.temp }}/astra-smoke-final.json
             ${{ runner.temp }}/astra-pr/logs
+            ${{ runner.temp }}/astra-pr/seed-smoke
+            ${{ runner.temp }}/astra-pr/llvm-library-logs
             ${{ runner.temp }}/astra-pr/result.json
-          retention-days: 7
-          if-no-files-found: error
-  windows-probe:
-    runs-on: windows-2025
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-          clean: false
-      - name: Native Windows feasibility gate
-        shell: pwsh
-        run: python -B tools/ci/preflight.py --require-distribution --output "$env:RUNNER_TEMP/astra-windows.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: pr-windows-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/astra-windows.json
           retention-days: 7
           if-no-files-found: error

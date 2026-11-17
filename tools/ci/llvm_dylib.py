@@ -33,7 +33,7 @@ def main():
 	# zstd dependency through this distro's native linker instead.
 	system = ['-lzstd' if n.endswith('/libzstd.a') else n for n in system]
 	require(set(system) <= {'-lrt', '-ldl', '-lm', '-lz', '-lzstd', '-lxml2'}, 'unexpected LLVM system dependency')
-	cxx = Path(shutil.which('g++')).resolve()
+	cxx = Path(shutil.which('g++', path='/usr/bin:/bin')).resolve()
 	out = build/'libLLVM.so.23.1'
 	run([cxx, '-shared', '-Wl,-soname,libLLVM.so.23.1', '-Wl,--whole-archive', *libraries, '-Wl,--no-whole-archive', *system, '-o', out], runtime/'link', env, timeout=600)
 	run(['strip', '--strip-debug', out], runtime/'strip-debug', env)

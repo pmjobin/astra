@@ -39,7 +39,7 @@ def main():
 	library, receipt = work/'llvm-library/libLLVM.so.23.1', work/'llvm-library-logs/result.json'
 	script('seed_probe.py', ['--seed', seed, '--library', library, '--library-receipt', receipt, '--output', work/'seed-smoke'])
 	if a.lane == 'pr':
-		write(work/'result.json', dict(status='PR_SMOKE_ONLY', seed=identify(seed), source_commit=subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip()))
+		write(work/'result.json', dict(status='PR_SEED_NATIVE_SMOKE_PASS', seed=identify(seed), library=identify(library), smoke_receipt=identify(work/'seed-smoke/result.json'), source_commit=subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip(), current_compiler_generations_built=0, release_qualified=False, original_llvm_strict_memory='NOT_PASS', qualification_inputs_required=False))
 		return
 	head = subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip()
 	script('bootstrap.py', ['--seed', seed, '--llvm', llvm, '--library', library, '--library-receipt', receipt, '--commit', head, '--build', work/'bootstrap', '--runtime', work/'bootstrap-logs', '--stages', '2', '--jobs', '2'], timeout=18000)
