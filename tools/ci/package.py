@@ -56,6 +56,8 @@ def main():
 	shutil.copyfile(a.library, private/'llvm/libLLVM.so.23.1')
 	cc = Path(shutil.which('cc')).resolve()
 	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM='23.1.4', llvm_library_sha256=sha(a.library), llvm_provenance_sha256=sha(a.library_receipt), cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
+	if a.development:
+		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=deb_version if a.kind == 'deb' else '0.0.3-'+rpm_release)
 	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 	write(runtime/'docs-build-identity.json', dict(fingerprint=fingerprint, material=material))
 	objects = []
@@ -139,8 +141,6 @@ def main():
 	write(share/'PROVENANCE.json', material)
 	if a.development:
 		(share/'DEV-UNQUALIFIED.txt').write_text('DEVELOPMENT_UNQUALIFIED / UNSAFE_OR_UNQUALIFIED_DEVELOPMENT\nOriginal official LLVM 23.1.4: strict unsuppressed memory NOT_PASS.\nNo diagnostic InstCombine replacement is included or approved.\nSingle compiler generation; full convergence and independent C0 qualification remain required for release.\nUnsigned development package. No public release, Windows qualification or release approval.\nPackage source: '+handoff['package_commit']+'\nCompiler source: '+handoff['source_commit']+'\n')
-		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=deb_version if a.kind == 'deb' else '0.0.3-'+rpm_release)
-		write(share/'PROVENANCE.json', material)
 	for path in stage.rglob('*'):
 		if path.is_dir():
 			path.chmod(0o755)
