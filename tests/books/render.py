@@ -73,6 +73,9 @@ def main():
 				assert 'rel="'+relation+'" href="'+target+'"' in page
 			else: assert 'rel="'+relation+'"' not in page
 	checks.append('all-guide-previous-next-links-follow-chapter-registry')
+	for row in books.fixtures()[0]['files']:
+		assert first['sources/'+row['path']+'.txt'] == books.source(row['path'])
+	checks.append('every-manifest-fixture-download-is-byte-exact')
 	assert first == books.build(api,api)[0]
 	write(runtime/'result.json',dict(status='BOOK_RENDERER_HOSTILE_INPUT_AND_REPRODUCIBILITY_PASS',checks=checks,renderer_sha256=sha(ROOT/'tools/docs/books.py'),stylesheet_sha256=sha(ROOT/'tools/docs/books.css'),local_links=receipt['local_links'],scope='Standard-library source/render controls; no native compiler or browser acceptance inferred.'))
 	print(len(checks),'renderer controls passed')

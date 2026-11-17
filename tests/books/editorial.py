@@ -237,7 +237,7 @@ def main():
 	for row in manifest['files']:
 		assert outputs['sources/'+row['path']+'.txt'] == (ROOT/row['path']).read_bytes()
 	render = load(a.render/'result.json')
-	assert render['status'] == 'BOOK_RENDERER_HOSTILE_INPUT_AND_REPRODUCIBILITY_PASS' and len(render['checks']) == 17
+	assert render['status'] == 'BOOK_RENDERER_HOSTILE_INPUT_AND_REPRODUCIBILITY_PASS' and len(render['checks']) == 18
 	assert render['renderer_sha256'] == sha(ROOT/'tools/docs/books.py') and render['stylesheet_sha256'] == sha(ROOT/'tools/docs/books.css')
 	browser = load(a.browser/'result.json'); visual = load(a.visual)
 	assert browser['status'] == 'BOOK_BROWSER_EXECUTED_PENDING_VISUAL_INSPECTION'

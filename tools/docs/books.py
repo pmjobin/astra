@@ -284,6 +284,10 @@ def build(api_library, api_compiler):
 	for name,path in [('library',api_library),('compiler',api_compiler)]:
 		assert path.is_file() and not path.is_symlink()
 		outputs['api/'+name+'.html'] = render(json.loads(path.read_text()))
+	for row in fixtures()[0]['files']:
+		# Complete fenced sources need stable downloads without explicit prose links.
+		path = row['path']
+		assets['sources/'+path+'.txt'] = source(path)
 	outputs.update(assets)
 	links = check_links(outputs)
 	receipt.update(outputs={name:digest(data) for name,data in sorted(outputs.items())}, local_links=links, api_inputs={name:digest(path.read_bytes()) for name,path in [('library',api_library),('compiler',api_compiler)]})

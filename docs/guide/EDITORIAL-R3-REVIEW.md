@@ -112,9 +112,18 @@ All 29 current regression suites passed, including both compiler profiles,
 the C ABI client, ownership and 46 independent physical mutations. Fresh O0/O2
 API extraction agrees byte for byte. All 46 published shell blocks passed their
 verbatim replay, including exact expected diagnostics and the two setup-refusal
-controls. The renderer passed 17 controls; the complete local Guide/Reference/API
+controls. The renderer passed 18 controls; the complete local Guide/Reference/API
 site is deterministic and has 2,136 checked local links and exact fixture
 downloads.
+
+The first independent audit caught five original negative fixtures that were
+published in complete code fences but had no standalone download asset. The
+exporter now includes every one of the 66 manifest sources, with an explicit
+byte-equality control. The failed audit receipt remains in
+`books28a2-r3-audit1-controller`. This packaging correction leaves the registered
+chapter manuscript and native fixture bytes unchanged. All 35 replacement HTML
+pages are byte-identical to the inspected site, including their embedded CSS;
+`visual-final3.json` records that comparison before reusing the visual evidence.
 
 All 17 actual Chromium screenshots were inspected: every Guide entry, the
 Reference front page, both API pages and print-media emulation. The captured
@@ -125,7 +134,7 @@ styles. This is viewport inspection and print CSS evidence, not a PDF,
 manufactured book, novice study or accessibility certification.
 
 The unchanged guarded formatter checked all 25 task-owned source files with zero
-changes (`books28a2-r3-entry/format-final3.json`). Two preliminary invocations had
+changes (`books28a2-r3-entry/format-final5.json`). Two preliminary invocations had
 incompatible Python executable/shared-library versions; selecting the matching
 pinned executable and library resolved the environment error without changing
 the formatter or its workflow. The final independent `tests/books/editorial.py`
