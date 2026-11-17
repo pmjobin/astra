@@ -46,6 +46,10 @@ def main():
 	def modified(addition):
 		books.source = lambda path: read(path)+(addition.encode() if path=='docs/guide/glossary.md' else b'')
 	try:
+		modified('\n**<script>unsafe</script>**\n')
+		outputs,_ = books.build(api,api)
+		assert b'<strong>&lt;script&gt;unsafe&lt;/script&gt;</strong>' in outputs['guide/glossary.html']
+		checks.append('strong-text-escaped-without-active-markup')
 		modified('\n'+link+'\n')
 		outputs,_ = books.build(api,api)
 		assert outputs['sources/tests/books/hello.astra.txt']==books.source('tests/books/hello.astra')
@@ -59,6 +63,16 @@ def main():
 		modified('\n# Glossary, index and edition history\n')
 		refuse('duplicate-heading',lambda:books.build(api,api))
 	finally: books.source = read
+	order = [row for row in json.loads(books.source('docs/chapters.json'))['chapters'] if row.get('book') == 'guide']
+	assert [row['number'] for row in order] == list(range(13))
+	for at,row in enumerate(order):
+		page = first[str(Path(row['source']).with_suffix('.html'))].decode()
+		for offset,relation in ((-1,'prev'),(1,'next')):
+			if 0 <= at+offset < len(order):
+				target = Path(order[at+offset]['source']).with_suffix('.html').name
+				assert 'rel="'+relation+'" href="'+target+'"' in page
+			else: assert 'rel="'+relation+'"' not in page
+	checks.append('all-guide-previous-next-links-follow-chapter-registry')
 	assert first == books.build(api,api)[0]
 	write(runtime/'result.json',dict(status='BOOK_RENDERER_HOSTILE_INPUT_AND_REPRODUCIBILITY_PASS',checks=checks,renderer_sha256=sha(ROOT/'tools/docs/books.py'),stylesheet_sha256=sha(ROOT/'tools/docs/books.css'),local_links=receipt['local_links'],scope='Standard-library source/render controls; no native compiler or browser acceptance inferred.'))
 	print(len(checks),'renderer controls passed')

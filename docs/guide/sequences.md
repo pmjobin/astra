@@ -1,131 +1,180 @@
 # Sequences without hidden costs
 
-A range is a useful recipe for readings; an array is storage for them. Keep
-those ideas separate so that allocation and borrowing remain visible:
+Generating one reading per loop was enough to compute a sum. A file reader will
+instead obtain a group of values that other functions need to inspect. Before
+choosing a container, ask two questions: do we need storage at all, and who will
+own it? A range describes values; an array stores them; a borrowed slice gives
+access to part of existing storage.
 
-```astra example=collections
+This chapter expresses the familiar five readings in each form. Then we will
+change the stride and predict exactly which values remain. No new I/O machinery
+is needed; keep the terminal environment from the preceding chapters.
+
+## Store readings and borrow a window
+
+The [complete program](../../tests/books/guide-sequences.astra) has one ordinary
+summing function and several ways to supply or calculate data:
+
+```astra example=guide-sequences
 language astra27b;
-int first(borrowed int[] values) {
-	return values[0];
-}
-
-int main() {
-	var samples = (2..=10).step_by(2).collect_array();
+int sum(borrowed int[] values) {
 	int total = 0;
 	int at = 0;
-	while (at < len(samples)) {
-		total += samples[at];
+	while (at < len(values)) {
+		total += values[at];
 		at += 1;
 	}
-	int traversed = 0;
-	foreach (var sample in 0..3) {
-		traversed += sample;
+	return total;
+}
+
+int main() {
+	int[5] fixed = (2..=10).step_by(2).collect_fixed();
+	var readings = (2..=10).step_by(2).collect_array();
+	if (sum(fixed[0..5]) != 30 || sum(readings) != 30) return 1;
+	if (sum(readings[1..4]) != 18) return 2;
+	var selected = (2..=10).step_by(2).filter(value => value != 6);
+	if (selected.sum() != 24) return 3;
+	return 0;
+}
+```
+
+Start with the two materializations. `2..=10` includes both endpoints;
+`.step_by(2)` yields 2, 4, 6, 8, 10. `collect_fixed()` fills an explicitly typed
+`int[5]` destination. Its element count must be provable from literal bounds
+and stride. `collect_array()` creates owning storage whose length is carried
+at runtime. Both contain the same values, but they have different storage
+contracts.
+
+`sum` takes `borrowed int[]`: it reads an array view during the call and does not
+acquire the storage. `len(values)` gives the view's length. A runtime owning
+array can supply this parameter directly. A fixed array does not silently become
+that parameter type; `fixed[0..5]` explicitly supplies an immediate view of all
+five elements.
+
+The middle slice, `readings[1..4]`, starts at index one and stops before index
+four. It contains 4, 6, 8, so its sum is eighteen. Slice bounds are half-open even
+though the earlier generation range was inclusive. Index zero is the first
+element; the last valid index is one less than the length.
+
+```sh tutorial=sequences
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/sequences.o" tests/books/guide-sequences.astra
+cc -no-pie "$ASTRA_BOOK_BUILD/sequences.o" -o "$ASTRA_BOOK_BUILD/sequences"
+"$ASTRA_BOOK_BUILD/sequences"
+printf '%s\n' 'Stored total 30; middle 18; filtered total 24 (exit 0).'
+```
+
+The shell prints that summary after the silent Astra checks return 0. The array
+owner remains in `main` throughout each borrowing call and is cleaned up when
+its scope ends. A returned integer has no borrowing relationship to that array.
+
+## A view is not an independently stored owner
+
+It is tempting to write a local variable for every intermediate value. The
+current view domain is narrower: consume a range view immediately in an admitted
+length, index or borrowing call. The complete
+[retained-view mistake](../../tests/books/negative-view.astra) tries to store
+`values[0..2]` in a local before asking for its length:
+
+```sh tutorial=view-error
+ASTRA_STATUS=0
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/rejected-view.o" \
+    tests/books/negative-view.astra || ASTRA_STATUS=$?
+test "$ASTRA_STATUS" -eq 1
+test ! -e "$ASTRA_BOOK_BUILD/rejected-view.o"
+```
+
+The diagnostic includes `consumed immediately`. The working repair is the
+immediate `sum(readings[1..4])` call above. Do not describe the rejected local
+as an owning copy: no materialization was requested. The supported slice is
+readonly and must remain rooted in actual live backing. Dynamic bounds are
+checked; an invalid access traps rather than becoming a recoverable `Error`.
+
+## Delay a calculation until it is consumed
+
+The last part of our program needs only a filtered total. It builds a lazy plan
+with `filter(value => value != 6)`, then consumes that plan with `sum()`. The
+lambda takes one value and returns a Boolean decision. The five generated
+values become four accepted values, totaling twenty-four, just as in the
+[early filtering exercise](values.md#decide-which-readings-to-keep).
+
+Constructing the plan checks its body and retains the required receiver and
+captures; it does not yet run the body for every element. Consumption performs
+the work. Adding `.collect_array()` would explicitly materialize owning storage
+instead of merely reducing to a scalar.
+
+The [lazy capture experiment](../../tests/books/lazy.astra) makes another useful
+prediction possible. It captures `bias = 1` while constructing a map, changes
+the local to 100, then consumes the plan. Its copied scalar capture remains one:
+values one through six are filtered to four, five and six, total fifteen.
+Its comprehension separately materializes three squares. The whole experiment
+returns the intentional sentinel 42.
+
+A borrowed array receiver retains its named backing, not a new independent array.
+The [floating reduction experiment](../../tests/books/numeric-pipeline.astra)
+uses that relationship to map 20, 40, 24 to 10, 20, 12 and check 42. These values
+are exactly representable; arbitrary decimal arithmetic still involves rounding.
+Current chains and captures have finite checked limits, including eight stages;
+these examples do not introduce general escaping closures or an iterator protocol
+for every container. See [Collections](../reference/collections.md).
+
+## Change the stride, then check the edges
+
+Exercise: sample every fourth value starting at two, through an inclusive bound
+of ten. How many values are there, and what should the fixed destination's size
+be? Also check what happens for the empty half-open range `3..3` and the reversed
+range `5..2`.
+
+The [complete answer](../../tests/books/guide-stride.astra) checks the actual
+elements as well as their sum:
+
+```astra example=guide-stride
+language astra27b;
+int main() {
+	int[3] readings = (2..=10).step_by(4).collect_fixed();
+	if (readings[0] != 2 || readings[1] != 6 || readings[2] != 10) return 1;
+	int total = 0;
+	foreach (var value in (2..=10).step_by(4)) {
+		total += value;
 	}
-	int[3] calibration = (2..=6).step_by(2).collect_fixed();
-	if (len(samples[1..4]) != 3 || first(samples[1..4]) != 4 || calibration[2] != 6 || traversed != 3) return 1;
-	return total+12;
-}
-```
-
-The inclusive range produces 2, 4, 6, 8 and 10. `collect_array()` allocates their
-owning storage. Indexed `while` sums it to 30. The separate `foreach` consumes
-an admitted range, whose element binding is immutable. This avoids assuming
-that every array supports the historical iterator protocol.
-
-`collect_fixed()` materializes exactly three values into a known destination.
-It is different from an owning runtime collection. `samples[1..4]` is a
-half-open readonly borrowed view containing 4, 6 and 8. The program consumes it
-immediately in `len` and the borrowing helper. General retained view locals
-currently fail; the [Reference](../reference/collections.md) includes that negative.
-
-## Delay work deliberately
-
-When a sequence will be filtered or reduced, constructing intermediate owning
-arrays can be unnecessary. A lazy pipeline records its receiver and admitted
-captures, then performs mapping/filtering during consumption:
-
-```astra example=lazy
-language astra27b;
-int main() {
-	int bias = 1;
-	var pipeline = (0..6).map(i => i+bias).filter(value => value>3);
-	bias = 100;
-	int total = pipeline.sum();
-	var squares = [for (var i in 0..3) => i*i];
-	if (total != 15 || len(squares) != 3 || squares[2] != 4) return 1;
-	return total+27;
-}
-```
-
-The copied capture is `bias = 1` when the pipeline is constructed. Assigning
-100 later does not change that capture. Consumption maps zero through five to
-one through six, filters out values below four and sums to 15. The independent
-check also verifies a three-element comprehension's length and last value.
-The expected exit is 42; no stdout is expected.
-
-Lazy construction does not mean every later consumer is allocation-free.
-`sum` reduces values; `collect_array` creates owning storage. A comprehension
-also creates owning storage in this supported bounded domain. The regression
-suite separately observes callback order, deferred execution and allocation
-counts. No escaping closure, coroutine, arbitrary owned capture or generalized
-iterator protocol is promised by this example.
-
-Choose a range when you need bounds, a lazy plan when you need deferred work,
-fixed materialization when the count is statically exact, and owning collection
-when runtime storage is required. Positive stride, bounds and lifetime checks
-are part of those choices, not optional debugging features.
-
-## Endpoints, empty results and fixed cardinality
-
-Check the inclusive endpoint at the maximum of a small unsigned domain. This
-is where a naive increment-after-last-element implementation would wrap:
-
-```astra example=range-edges
-language astra27b;
-int main() {
-	u8 first = 254;
-	u8 last = 255;
-	var inclusive = (first..=last).collect_array();
-	var exclusive = (first..last).collect_array();
 	var empty = (3..3).collect_array();
 	var reversed = (5..2).collect_array();
-	if (len(inclusive) != 2 || inclusive[1] != 255 || len(exclusive) != 1) return 1;
-	if (len(empty) != 0 || len(reversed) != 0) return 2;
-	if (!(first..=last).contains(255) || (first..last).contains(255)) return 3;
-	int[3] values = (1..=6).step_by(2).collect_fixed();
-	if (values[0] != 1 || values[2] != 5) return 4;
-	return 42;
+	if (total != 18 || len(empty) != 0 || len(reversed) != 0) return 2;
+	return 0;
 }
 ```
 
-The inclusive result is 254,255; the exclusive result is only 254. Empty and
-reversed ranges allocate valid zero-length owning results in this tested path.
-The fixed stride result is 1,3,5: an inclusive bound need not itself occur when
-the stride does not land on it. Static collection must prove the exact count;
-see the [mismatched destination](../reference/collections.md#exact-materialization-and-finite-callable-bounds).
-A named count whose initializer is 3 still does not provide the literal proof
-required by the current comprehension implementation.
+The values are 2, 6, 10: count three, total eighteen. `foreach` consumes this
+admitted integer sequence; it does not mean every array supports that syntax.
+The empty and reversed ranges both produce zero-length owning arrays. There is
+no first element to read from either.
 
-## Scalar floating reductions
-
-Lazy reductions are not restricted to int. A named numeric array can supply
-borrowed elements to a finite scalar transformation:
-
-```astra example=numeric-pipeline
-language astra27b;
-int main() {
-	f64[3] values = {20.0d, 40.0d, 24.0d};
-	var plan = values.iter().map(value => value*0.5d);
-	f64 total = plan.sum();
-	if (total != 42.0d) return 1;
-	return total as int;
-}
+```sh tutorial=stride-answer
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/stride.o" tests/books/guide-stride.astra
+cc -no-pie "$ASTRA_BOOK_BUILD/stride.o" -o "$ASTRA_BOOK_BUILD/stride"
+"$ASTRA_BOOK_BUILD/stride"
+printf '%s\n' 'Stride four: 2, 6, 10; total 18; empty bounds checked (exit 0).'
 ```
 
-The mapped values are 10,20,12 and the sum is exactly 42 for this data. The plan
-retains its named backing; it is not an owner of an independent copied array.
-The callback runs during consumption, and the final scalar has no borrowing
-relationship. This example grants no reassociation or arbitrary escaped closure.
-Keep chains within eight stages and captures within the finite checked domain.
-For a general decimal calculation, binary floating rounding remains relevant;
-these exactly representable values were chosen to give an unambiguous check.
+A stride must be positive. The [zero-stride mistake](../../tests/books/negative-stride.astra)
+is a compilation refusal, not a request for an endless sequence. A fixed count
+must also agree: the [wrong-size destination](../../tests/books/negative-fixed-count.astra)
+requests four slots for three values and is refused with `exact destination count`.
+Use the answer's `int[3]` for its three generated values. A named variable whose
+initializer happens to be a literal does not supply every static proof;
+the [dynamic comprehension control](../../tests/books/negative-dynamic-comprehension.astra)
+shows that boundary.
+
+| Need | Choice | Responsibility |
+| --- | --- | --- |
+| Generate bounded values | Range | Captured endpoints, no element storage |
+| Store a statically exact count | Fixed array | Fixed local storage |
+| Keep a runtime collection | Owning array | Allocation and cleanup |
+| Inspect part of existing storage | Immediate slice | Borrow backing that remains alive |
+| Transform or select before reducing | Lazy plan | Retain admitted receiver/captures until consumption |
+
+The [original collections program](../../tests/books/collections.astra) and
+[endpoint experiment](../../tests/books/range-edges.astra) remain further tested
+readings, including the maximum `u8` endpoint and an inclusive bound a stride
+does not land on. Their exit-42 checks are separate from our new exit-0 lessons.
+Next, [Generics and matching](generics-match.md) asks how much of a calculation
+can be shared between types, and how to represent more than one kind of result.

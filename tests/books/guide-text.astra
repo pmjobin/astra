@@ -1,0 +1,20 @@
+language astra27b;
+[CCode(text_abi = "utf8-i32")]
+extern(C) int show_text(borrowed string text);
+
+int main() {
+	try {
+		int count = 5;
+		int total = 2 + 4 + 6 + 8 + 10;
+		var builder = new Utf8ByteBuilder();
+		if (!builder.reserve(64)) return 1;
+		if (!format_into(builder, $"readings: count={count} total={total}")) return 2;
+		var snapshot = builder.snapshot();
+		if (snapshot.text != "readings: count=5 total=30") return 3;
+		var message = format_text($"readings: count={count} total={total}");
+		if (message.text != snapshot.text) return 4;
+		return show_text(message.text);
+	} catch (Error error) {
+		return 5;
+	}
+}

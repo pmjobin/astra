@@ -1,0 +1,29 @@
+language astra27b;
+enum Problem {
+	Missing,
+	Invalid(int code)
+}
+
+enum Reading {
+	Value(int value),
+	Failure(Problem problem)
+}
+
+int contribution(Reading reading) => match (reading) {
+	case Reading.Value(value) => value;
+	case Reading.Failure(Problem.Missing()) => 0;
+	case Reading.Failure(Problem.Invalid(code)) => 0;
+};
+
+int main() {
+	int total = 0;
+	int value = 2;
+	while (value <= 10) {
+		total += contribution(Reading.Value(value));
+		value += 2;
+	}
+	if (total != 30) return 1;
+	if (contribution(Reading.Failure(Problem.Missing())) != 0) return 2;
+	if (contribution(Reading.Failure(Problem.Invalid(64))) != 0) return 3;
+	return 0;
+}

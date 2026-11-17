@@ -1,0 +1,13 @@
+language astra27b;
+int main() {
+	int[3] readings = (2..=10).step_by(4).collect_fixed();
+	if (readings[0] != 2 || readings[1] != 6 || readings[2] != 10) return 1;
+	int total = 0;
+	foreach (var value in (2..=10).step_by(4)) {
+		total += value;
+	}
+	var empty = (3..3).collect_array();
+	var reversed = (5..2).collect_array();
+	if (total != 18 || len(empty) != 0 || len(reversed) != 0) return 2;
+	return 0;
+}

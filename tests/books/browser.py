@@ -50,7 +50,25 @@ CDP = r'''
  if(chapterBreak!=='page' || codeWrap!=='pre-wrap') throw Error('print pagination/code wrapping missing');
  await evaluate('scrollTo(0,0)');
  const shot=await cmd('Page.captureScreenshot',{format:'png'});
- console.log(JSON.stringify({first,focused,next,mobile,printMedia:media,chapterBreak,codeWrap,printScreenshot:shot.data}));
+ await cmd('Emulation.setEmulatedMedia',{media:''});
+ const chapters=JSON.parse(process.argv[2]);
+ const chapterChecks=[];
+ for (let at=0;at<chapters.length;at++) {
+  const chapter=chapters[at];
+  await cmd('Page.navigate',{url:chapter.url});
+  let loaded=false;
+  for(let i=0;i<200;i++) {
+   if(await evaluate('document.readyState === "complete" && document.URL === '+JSON.stringify(chapter.url))) { loaded=true; break; }
+   await new Promise(r=>setTimeout(r,50));
+  }
+  if(!loaded) throw Error('chapter did not load: '+chapter.url);
+  const actual=await evaluate('({width:innerWidth,scroll:document.documentElement.scrollWidth,nav:[...document.querySelectorAll(".desktop-toc nav ol a")].map(a=>a.textContent),previous:document.querySelector("a[rel=prev]")?.href||null,next:document.querySelector("a[rel=next]")?.href||null,text:document.querySelector("main").textContent.length})');
+  if(actual.scroll>actual.width || actual.text<500) throw Error('unreadable mobile chapter: '+chapter.url);
+  if(JSON.stringify(actual.nav)!==JSON.stringify(chapters.map(c=>c.title))) throw Error('chapter navigation order differs');
+  if(actual.previous!==(chapters[at-1]?.url||null) || actual.next!==(chapters[at+1]?.url||null)) throw Error('previous/next chapter mismatch');
+  chapterChecks.push({url:chapter.url,...actual});
+ }
+ console.log(JSON.stringify({first,focused,next,mobile,printMedia:media,chapterBreak,codeWrap,chapterChecks,printScreenshot:shot.data}));
  ws.close();
 })().catch(error => { console.error(error.stack); process.exitCode=1; });
 '''
@@ -80,12 +98,16 @@ def main():
 		if disabled: (profile/'Default/Preferences').write_text(json.dumps({'profile':{'default_content_setting_values':{'javascript':2}}}))
 		dom = run(label,[*flags,'--user-data-dir='+str(profile),'--dump-dom',control.as_uri()])
 		assert ('<p id="probe">NO_SCRIPT</p>' if disabled else '<p id="probe">SCRIPT_RAN</p>') in dom
-	for label,size,page in [('reference-desktop','1280,900','reference/README.html'),('guide-mobile','390,844','guide/sequences.html'),('application-desktop','1280,900','guide/application.html'),('pilot-start-desktop','1280,900','guide/getting-started.html'),('pilot-values-mobile','390,844','guide/values.html'),('pilot-records-desktop','1280,900','guide/records.html')]:
+	chapters = [row for row in json.loads((ROOT/'docs/chapters.json').read_text())['chapters'] if row.get('book') == 'guide']
+	pages = [('reference-desktop','1280,900','reference/README.html'),('api-library-desktop','1280,900','api/library.html'),('api-compiler-desktop','1280,900','api/compiler.html')]
+	pages += [(row['id'],'390,844' if row['number'] % 2 else '1280,900',str(Path(row['source']).with_suffix('.html'))) for row in chapters]
+	for label,size,page in pages:
 		profile = runtime/(label+'-profile'); (profile/'Default').mkdir(parents=True)
 		(profile/'Default/Preferences').write_text(json.dumps({'profile':{'default_content_setting_values':{'javascript':2}}}))
 		png = runtime/(label+'.png')
 		dom = run(label,[*flags,'--user-data-dir='+str(profile),'--window-size='+size,'--screenshot='+str(png),'--dump-dom',(a.site/page).as_uri()])
-		assert 'id="content"' in dom and 'Astra 28-A2</title>' in dom and png.read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
+		title = 'Astra API reference</title>' if page.startswith('api/') else 'Astra 28-A2</title>'
+		assert 'id="content"' in dom and title in dom and png.read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
 		screenshots[str(png)] = sha(png)
 	profile = runtime/'keyboard-profile'; (profile/'Default').mkdir(parents=True)
 	(profile/'Default/Preferences').write_text(json.dumps({'profile':{'default_content_setting_values':{'javascript':2}}}))
@@ -102,7 +124,8 @@ def main():
 			with urlopen('http://127.0.0.1:'+str(port)+'/json/list',timeout=10) as response: pages = json.load(response)
 			page = next(row for row in pages if row['type']=='page' and row['url'].startswith('file:'))
 			(runtime/'keyboard-recipe.js.txt').write_text(CDP)
-			result = json.loads(run('keyboard-and-print',['node','-e',CDP,page['webSocketDebuggerUrl']]))
+			chapter_inputs = [dict(url=(a.site/Path(row['source']).with_suffix('.html')).as_uri(),title=row['title']) for row in chapters]
+			result = json.loads(run('keyboard-and-print',['node','-e',CDP,page['webSocketDebuggerUrl'],json.dumps(chapter_inputs)]))
 			png = runtime/'print-preview.png'; png.write_bytes(base64.b64decode(result.pop('printScreenshot'),validate=True))
 			screenshots[str(png)] = sha(png)
 		finally:

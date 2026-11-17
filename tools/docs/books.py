@@ -182,10 +182,11 @@ def build(api_library, api_compiler):
 		assert not url.fragment or path in routes or path.endswith('.html'), target
 		return posixpath.relpath(route, posixpath.dirname(routes[origin]))+('#'+url.fragment if url.fragment else '')
 	def inline(origin, text):
-		parts = re.split(r'(`[^`\n]+`|\[[^\]\n]+\]\([^\s)]+\))', text)
+		parts = re.split(r'(`[^`\n]+`|\[[^\]\n]+\]\([^\s)]+\)|\*\*[^*\n]+\*\*)', text)
 		result = []
 		for part in parts:
 			if part.startswith('`'): result.append('<code>'+html.escape(part[1:-1])+'</code>')
+			elif part.startswith('**') and part.endswith('**'): result.append('<strong>'+html.escape(part[2:-2])+'</strong>')
 			elif re.fullmatch(r'\[[^\]\n]+\]\([^\s)]+\)', part):
 				label,target = part[1:-1].split('](', 1)
 				result.append('<a href="'+html.escape(resolve(origin,target),quote=True)+'">'+html.escape(label)+'</a>')
@@ -249,7 +250,14 @@ def build(api_library, api_compiler):
 		nav = '<nav aria-label="Books"><a href="'+relative('index.html')+'">Library</a><ol>'
 		nav += ''.join('<li><a href="'+relative(routes['docs/'+r['source']])+'">'+html.escape(r['title'])+'</a></li>' for r in rows if r['book'] == row['book'])
 		nav += '</ol><a href="'+relative(row['book']+'/print.html')+'">Print / complete book</a><p>Search the complete book with your browser’s Find command, or use the subject index.</p></nav>'
-		outputs[route] = shell(row['title'], nav, markdown(origin))
+		sequence = [r for r in rows if r['book'] == row['book']]
+		at = sequence.index(row)
+		adjacent = []
+		for offset,label in ((-1,'Previous'),(1,'Next')):
+			if 0 <= at+offset < len(sequence):
+				target = sequence[at+offset]
+				adjacent.append('<a rel="'+('prev' if offset < 0 else 'next')+'" href="'+relative(routes['docs/'+target['source']])+'">'+label+': '+html.escape(target['title'])+'</a>')
+		outputs[route] = shell(row['title'], nav, markdown(origin)+'<nav aria-label="Chapter sequence">'+' · '.join(adjacent)+'</nav>')
 	for book in ('reference','guide'):
 		selected = [r for r in rows if r['book'] == book]
 		# Compose using the same chapter-relative directory, prefixing anchors.

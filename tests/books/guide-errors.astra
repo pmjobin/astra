@@ -1,0 +1,24 @@
+language astra27b;
+int validated(int value) throws Error {
+	if (value < 0) {
+		throw new Error("negative reading");
+	}
+	return value;
+}
+
+int main() {
+	int total = 0;
+	try {
+		int value = 2;
+		while (value <= 10) {
+			total += validated(value);
+			value += 2;
+		}
+		if (total != 30) return 1;
+		int rejected = validated(-1);
+		return 2;
+	} catch (Error error) {
+		if (error.message != "negative reading" || total != 30) return 3;
+		return 0;
+	}
+}

@@ -18,6 +18,8 @@ PINS = {
 	'toolchain': 'ad4d53dee8592908049d1dfadf8f8108bfe4d9b8e4d3641fc235b305ef2f1f9e',
 }
 KEYS = {'PATH', 'CC', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS', 'LIBRARY_PATH', 'CPATH', 'C_INCLUDE_PATH', 'LD_LIBRARY_PATH', 'LC_ALL', 'LANG'}
+LINK_PIN = '9ba7ba15c3f7fba9f1b1c27f457118e4d0b427a29aca60ca5ce1f2ce8105d95c'
+PROVIDERS = {'args-posix.o': 'ARGS', 'files-posix.o': 'FILES', 'text-posix.o': 'TEXT', 'text-ops-posix.o': 'TEXT_OPS', 'diagnostics-trap.o': 'DIAGNOSTICS'}
 
 
 def sha(path):
@@ -35,6 +37,7 @@ def main():
 	p.add_argument('--products', type=Path, required=True)
 	p.add_argument('--toolchain', type=Path, required=True)
 	p.add_argument('--host', choices=('O0', 'O2'), default='O0')
+	p.add_argument('--link', type=Path, help='Also authenticate and expose the selected hosted provider objects')
 	p.add_argument('--output', type=Path, required=True)
 	a = p.parse_args()
 	for key, expected in PINS.items():
@@ -59,6 +62,17 @@ def main():
 	require(subprocess.check_output(['llvm-config', '--version'], env=env).strip() == b'23.1.4', 'LLVM must be exactly 23.1.4')
 	require(shutil.which('cc', path=env['PATH']) is not None, 'a host C linker command (cc) is required')
 	lines.append('export ASTRA_HOST='+shlex.quote(product['path']))
+	if a.link:
+		require(sha(a.link) == LINK_PIN, 'link manifest differs from the qualified development edition')
+		objects = json.loads(a.link.read_text())['objects']
+		selected = set()
+		for path, expected in objects.items():
+			require(sha(path) == expected, 'provider changed: '+path)
+			name = Path(path).name
+			if name in PROVIDERS:
+				selected.add(name)
+				lines.append('export ASTRA_PROVIDER_'+PROVIDERS[name]+'='+shlex.quote(path))
+		require(selected == set(PROVIDERS), 'hosted provider set is incomplete')
 	out = a.output
 	require(out.is_absolute() and out.resolve().is_relative_to(WORK/'build'), 'output must be an absolute path below '+str(WORK/'build'))
 	require(not any(p.is_symlink() for p in (out, *out.parents)), 'output must not traverse a symbolic link')

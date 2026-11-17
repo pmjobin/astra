@@ -44,11 +44,17 @@ def main():
 	providers = {path:digest for path,digest in json.loads(a.link.read_text())['objects'].items() if Path(path).name not in ('llvm-capi.o','arguments.o')}
 	assert all(sha(path) == digest for path,digest in providers.items())
 	inputs = {str(path):sha(path) for path in (*files.values(),a.products,a.toolchain,a.link,Path(__file__).with_name('examples.json'),Path(__file__))}
-	for path in inputs:
-		witness = runtime/'inputs'/Path(path).name
+	witnesses = {}
+	def preserve_input(path):
+		original = Path(path)
+		relative = Path('repository')/original.relative_to(ROOT) if original.is_relative_to(ROOT) else Path('external')/original.relative_to(WORK)
+		witness = runtime/'inputs'/relative
 		witness.parent.mkdir(parents=True,exist_ok=True)
-		witness.write_bytes(Path(path).read_bytes())
-	commands = []; results = []; emitted = {}; foreign_objects = {}
+		if witness.exists(): assert witness.read_bytes() == original.read_bytes()
+		else: witness.write_bytes(original.read_bytes())
+		witnesses[str(original)] = str(witness.relative_to(runtime))
+	for path in inputs: preserve_input(path)
+	commands = []; results = []; emitted = {}; foreign_objects = {}; diagnostics = {}
 	def run(label,argv,expected=0,memory=False):
 		if memory: argv = ['valgrind','--trace-children=yes','--default-suppressions=no','--error-exitcode=99','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=all',*argv]
 		result = execute(argv,runtime/label,expected=expected,timeout=300,env=env)
@@ -74,6 +80,9 @@ def main():
 		libraries = [ROOT/path for path in case.get('libraries',[])]
 		inputs.update({str(path):sha(path) for path in libraries})
 		inputs.update({str(ROOT/path):sha(ROOT/path) for path in case.get('data',[])})
+		inputs.update({str(ROOT/row['data']):sha(ROOT/row['data']) for row in case.get('extra_runs',[])})
+		for path in inputs:
+			if path not in witnesses: preserve_input(path)
 		foreign = []
 		if not a.quick:
 			for key in case['files']:
@@ -99,6 +108,13 @@ def main():
 					_,err = run(label+'-reject',argv,1,memory=not a.quick)
 					assert case['diagnostic'].lower().encode() in err.lower(),(name,err)
 					assert obj.read_bytes() == sentinel
+					fresh = build/(label+'-absent.o')
+					fresh_argv = [compiler,'-c','-'+target_mode,'-o',fresh,*sources,*libraries]
+					out,diagnostic = run(label+'-reject-absent',fresh_argv,1)
+					assert not fresh.exists() and out == b''
+					assert case['diagnostic'].lower().encode() in diagnostic.lower()
+					if name in diagnostics: assert diagnostics[name] == diagnostic.decode(),(name,'host/target diagnostic drift')
+					else: diagnostics[name] = diagnostic.decode()
 					continue
 				run(label+'-compile',argv,memory=not a.quick)
 				if a.quick: continue
@@ -114,12 +130,22 @@ def main():
 					invocation = [exe]
 					if case.get('data'):
 						invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/case['data'][0]),exe]
+					out,err = run(label+'-plain-execute',invocation,case['exit'])
+					assert out == case.get('stdout','').encode() and err == case.get('stderr','').encode(),(label,out,err)
 					out,_ = run(label+'-execute',invocation,case['exit'],memory=True)
 					assert out == case.get('stdout','').encode(),(label,out)
 					if case.get('data'):
 						for number,path in enumerate([ROOT/case['data'][1],runtime/'absent-input.txt']):
+							out,err = run(label+'-plain-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64)
+							assert out == b'' and err == b''
 							out,_ = run(label+'-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64,memory=True)
 							assert out == b''
+					for number,row in enumerate(case.get('extra_runs',[])):
+						invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/row['data']),exe]
+						out,err = run(label+'-plain-extra-'+str(number),invocation,row['exit'])
+						assert out == row['stdout'].encode() and err == row['stderr'].encode()
+						out,_ = run(label+'-extra-'+str(number),invocation,row['exit'],memory=True)
+						assert out == row['stdout'].encode()
 					if case.get('freestanding'):
 						startup = runtime/'start.S'
 						startup.write_text('.text\n.globl _start\n_start:\n call main\n mov %eax,%edi\n mov $60,%eax\n syscall\n.section .note.GNU-stack,"",@progbits\n')
@@ -131,7 +157,7 @@ def main():
 		results.append(dict(id=name,mode=case['mode'],status='SEMANTIC_PREFLIGHT' if a.quick else 'EXPECTED_OUTCOMES_PASS'))
 		print(name,results[-1]['status'],flush=True)
 	assert all(sha(path) == digest for path,digest in {**inputs,**providers,**emitted}.items())
-	write(runtime/'result.json',dict(status='BOOK_SEMANTIC_PREFLIGHT_PASS' if a.quick else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,full_manifest=not a.case,manifest_case_count=len(all_cases),products=products,inputs=inputs,emit_products=emitted,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; expected exits, exact stdout, LLVM verify, refusal sentinels and unsuppressed compiler/program memory. Explicit selections qualify only the listed cases. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
+	write(runtime/'result.json',dict(status='BOOK_SEMANTIC_PREFLIGHT_PASS' if a.quick else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,full_manifest=not a.case,manifest_case_count=len(all_cases),products=products,inputs=inputs,input_witnesses=witnesses,build=str(build),emit_products=emitted,diagnostics=diagnostics,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; exact plain stdout/stderr and exits, identical complete refusal diagnostics across all four profiles, LLVM verify, absent outputs and preserved refusal sentinels, unsuppressed compiler/program memory. Explicit selections qualify only the listed cases. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
 
 
 if __name__ == '__main__':

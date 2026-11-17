@@ -24,6 +24,7 @@ def main():
 	p.add_argument('--runtime',type=Path,required=True)
 	p.add_argument('--campaign-prefix',default='books28a2-',help='Explicit runtime directory prefix; R1 uses books28a2-r1-')
 	p.add_argument('--entry-evidence',type=Path)
+	p.add_argument('--no-historical-g7',action='store_true',help='A later campaign can bind its own executed predecessor instead of reattaching the old 28-A1 replay')
 	p.add_argument('--visual',type=Path,default=WORK/'runtime/books28a2-visual.json')
 	p.add_argument('--engineering',type=Path,default=ROOT/'docs/books/STATUS.md',help='Durable scope and findings; the editorial pilot uses EDITORIAL-REVIEW.md')
 	a = p.parse_args()
@@ -59,7 +60,7 @@ def main():
 		if root.is_dir(): collect(root,'runtime/'+root.name)
 		elif root.is_file():
 			digest = sha(root); data = root.read_bytes(); files['runtime/'+root.name]=dict(bytes=len(data),sha256=digest,blob='blobs/'+digest); blobs[digest]=data
-	collect(WORK/'runtime/api-docs28a1-after-publication2','genuine-prior-G7')
+	if not a.no_historical_g7: collect(WORK/'runtime/api-docs28a1-after-publication2','genuine-prior-G7')
 	if a.entry_evidence: collect(output_path(a.entry_evidence,WORK/'runtime'),'entry-authentication')
 	collect(a.site,'site')
 	index = dict(format='astra-book-evidence/1',files=files,symlink_observations=links,excluded_browser_state=sorted(set(excluded)),excluded_large_generated=large_generated,scope='All recorded selected-campaign execution streams, source witnesses, failed attempts, inspected screenshots and final static site. Earlier immutable evidence remains historical. Intentional negative-test links are inert metadata, never followed. Browser caches/profiles and generated native binaries/large cores are excluded explicitly; product identities and build recipes remain explicit.')

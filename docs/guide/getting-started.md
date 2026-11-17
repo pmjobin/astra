@@ -49,7 +49,13 @@ terminal and keep that terminal open for the next chapters. This recipe assumes
 the checkout and external products are already at the paths shown below; a
 relocated environment needs its own qualified paths and build recipe.
 
+Use a dedicated POSIX-compatible shell for these lessons. The first line enables
+`set -eu`, so an unhandled failed command or unset variable stops the recipe.
+The deliberate failure examples capture their statuses explicitly. If a real
+setup or build failure ends the shell, correct it and start a fresh lesson session.
+
 ```sh tutorial=setup
+set -eu
 cd "$HOME/Workspace/astra"
 export ASTRA_WORK="$HOME/Workspace/codex/work/astra"
 export ASTRA_PRODUCTS="$ASTRA_WORK/runtime/api-docs28a1-products.json"

@@ -1,49 +1,23 @@
 # Text, failures and useful diagnostics
 
-A useful program must explain results and handle expected failures. Keep text
-ownership and formatting cost visible instead of treating every interpolation
-as a freely escaping string. This program writes into a reserved builder, then
-separately materializes an owned message:
+Our readings have all been valid. A real input source may supply a negative
+value where our measuring policy allows only nonnegative readings. We need to
+reject that value without confusing a recoverable input problem with a compiler
+error or a fatal process failure. We also want a message whose bytes remain
+alive long enough to report the result.
 
-```astra example=formatting
+This chapter introduces validation first, then text ownership and formatting.
+The small programs use the same five readings and explicitly select the library
+sources and C providers they need. Keep the terminal from Getting started.
+
+## Make an error part of the function contract
+
+The complete [validation program](../../tests/books/guide-errors.astra) checks
+the good total, then deliberately tries a negative reading:
+
+```astra example=guide-errors
 language astra27b;
-int main() {
-	try {
-		var builder = new Utf8ByteBuilder();
-		if (!builder.reserve(64)) return 1;
-		int value = 42;
-		if (!format_into(builder, $"reading {value}")) return 2;
-		var snapshot = builder.snapshot();
-		if (snapshot.text != "reading 42") return 3;
-		var message = format_text($"value {value}");
-		if (message.text != "value 42") return 4;
-		return 42;
-	} catch (Error error) {
-		return 5;
-	}
-}
-```
-
-The first operation writes `reading 42` through the borrowed builder. The
-snapshot's exact text is checked. `format_text` then produces the owned message
-`value 42`; it has a different lifetime/cost contract. Both use an immediate
-typed interpolation plan. The selected libraries in the example manifest supply
-the real builder, scalar formatting, message and error definitions. Their
-authenticated C providers are explicit link inputs.
-
-An adequately reserved sink can avoid another allocation during a measured
-formatting interval. Creating/reserving the builder can allocate. Do not shorten
-that distinction to “formatting never allocates.” UTF-8 byte length also differs
-from character or grapheme count, and escaped NUL is part of counted text.
-See [Text](../reference/text.md).
-
-## Recover from a rejected value
-
-Validation can fail without terminating the whole process:
-
-```astra example=errors
-language astra27b;
-int positive(int value) throws Error {
+int validated(int value) throws Error {
 	if (value < 0) {
 		throw new Error("negative reading");
 	}
@@ -51,103 +25,241 @@ int positive(int value) throws Error {
 }
 
 int main() {
+	int total = 0;
 	try {
-		int rejected = positive(-1);
-		return rejected;
+		int value = 2;
+		while (value <= 10) {
+			total += validated(value);
+			value += 2;
+		}
+		if (total != 30) return 1;
+		int rejected = validated(-1);
+		return 2;
 	} catch (Error error) {
-		if (error.message == "negative reading") return 42;
-		return 1;
+		if (error.message != "negative reading" || total != 30) return 3;
+		return 0;
 	}
 }
 ```
 
-The validator declares its error bound. Its negative path creates a real error;
-the handler checks its exact message and returns the expected 42. The selected
-exception-root source and hosted text provider are part of the build, not an
-implicit global runtime. Scope cleanup still applies on the admitted error path.
-Fatal allocation actions and bounds traps do not promise the same unwinding.
+`throws Error` tells a caller that `validated` can fail with this error type.
+The negative branch constructs an error and throws it; that call does not
+produce an ordinary integer result. The `try` body continues only along normal
+returns. Its `catch` checks both the message and the already completed total. Reaching
+`return 2` would mean that the deliberately invalid value was incorrectly
+accepted, so this is an executable check of the failure path too.
 
-## Read the stage of a diagnostic
+`Error` comes from [base/errors.astra](../../lib/astra/base/errors.astra), which
+nominates the exception root. It is not an invisible built-in package. Its
+hosted text support is another explicit input. First authenticate the existing
+provider objects and load their paths:
 
-The next whole program is deliberately invalid:
+```sh tutorial=hosted-providers
+export ASTRA_LINK="$ASTRA_WORK/runtime/selfhost27c-dev21/link.json"
+python3 -B tests/books/environment.py \
+    --products "$ASTRA_PRODUCTS" --toolchain "$ASTRA_TOOLCHAIN" --link "$ASTRA_LINK" \
+    --output "$ASTRA_BOOK_BUILD/hosted-environment.sh"
+. "$ASTRA_BOOK_BUILD/hosted-environment.sh"
+```
 
-```astra example=negative-type
+This rechecks the development tool and provider identities. The five
+`ASTRA_PROVIDER_*` variables below name real, authenticated C object files;
+the recipe does not rebuild them or install a runtime. The selected provider
+bundle includes support for arguments, files, text, text operations and diagnostics.
+Only the dependencies actually used by this program matter to its behavior.
+
+```sh tutorial=validation
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/validation.o" \
+    tests/books/guide-errors.astra lib/astra/base/errors.astra lib/astra/hosted/text.astra
+cc -no-pie "$ASTRA_BOOK_BUILD/validation.o" \
+    "$ASTRA_PROVIDER_ARGS" "$ASTRA_PROVIDER_FILES" "$ASTRA_PROVIDER_TEXT" \
+    "$ASTRA_PROVIDER_TEXT_OPS" "$ASTRA_PROVIDER_DIAGNOSTICS" \
+    -o "$ASTRA_BOOK_BUILD/validation"
+"$ASTRA_BOOK_BUILD/validation"
+printf '%s\n' 'Total 30 checked; negative reading caught (exit 0).'
+```
+
+Astra prints nothing here. The shell message means the valid computation and
+the caught message both passed their checks. Zero is valid under this policy:
+`value < 0` rejects negatives, not zero.
+
+## Decide where recovery belongs
+
+A caller must handle a throwing call or propagate it through a compatible
+`throws` contract. The [unhandled version](../../tests/books/guide-unhandled.astra)
+puts `validated(-1)` directly in a nonthrowing `main`. Compile it to see the
+mistake, without expecting an executable:
+
+```sh tutorial=unhandled-error
+ASTRA_STATUS=0
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/rejected-unhandled.o" \
+    tests/books/guide-unhandled.astra lib/astra/base/errors.astra \
+    lib/astra/hosted/text.astra || ASTRA_STATUS=$?
+test "$ASTRA_STATUS" -eq 1
+test ! -e "$ASTRA_BOOK_BUILD/rejected-unhandled.o"
+```
+
+The diagnostic says `checked error is neither caught nor within the declared
+throws bound`. At the program boundary, our working repair catches the error
+and chooses an exit status. Inside a larger calculation, propagation can instead
+let a caller with more context decide what to do.
+
+Exercise: replace the reading six with -6, skip that one rejected reading, and
+continue processing the others. Predict the count, total and number of errors.
+Moving the `try` inside the loop makes recovery local to one reading. Here is
+the [complete answer](../../tests/books/guide-errors-skip.astra):
+
+```astra example=guide-errors-skip
 language astra27b;
-int main() {
-	bool value = 42;
+int validated(int value) throws Error {
+	if (value < 0) {
+		throw new Error("negative reading");
+	}
 	return value;
+}
+
+int main() {
+	int total = 0;
+	int count = 0;
+	int rejected = 0;
+	int value = 2;
+	while (value <= 10) {
+		int input = value == 6 ? -6 : value;
+		try {
+			total += validated(input);
+			count += 1;
+		} catch (Error error) {
+			if (error.message != "negative reading") return 1;
+			rejected += 1;
+		}
+		value += 2;
+	}
+	if (count != 4 || total != 24 || rejected != 1) return 2;
+	return 0;
 }
 ```
 
-It fails type checking before native code. A malformed token can fail even
-earlier; a source with admitted syntax/types can fail independent Flow/Core/SSA
-verification later. Preserve the exact source and diagnostic stage when reporting
-an issue. The current driver reports UTF-8 byte offsets, so do not treat them as
-screen columns. Do not “repair” a failing example by disabling a verifier or
-changing an ownership promise. [Errors](../reference/errors.md) and
-[Tooling](tooling.md) provide the precise effect and evidence workflow.
+The answer accepts 2, 4, 8 and 10: count 4, total 24, one rejection. Advancing
+`value` happens after either path, so a rejected value cannot stall the loop.
+An unexpected message still fails the program; the handler does not silently
+turn every possible problem into a skipped sample.
+
+```sh tutorial=validation-answer
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/skip.o" \
+    tests/books/guide-errors-skip.astra lib/astra/base/errors.astra lib/astra/hosted/text.astra
+cc -no-pie "$ASTRA_BOOK_BUILD/skip.o" \
+    "$ASTRA_PROVIDER_ARGS" "$ASTRA_PROVIDER_FILES" "$ASTRA_PROVIDER_TEXT" \
+    "$ASTRA_PROVIDER_TEXT_OPS" "$ASTRA_PROVIDER_DIAGNOSTICS" -o "$ASTRA_BOOK_BUILD/skip"
+"$ASTRA_BOOK_BUILD/skip"
+printf '%s\n' 'Four accepted, total 24, one rejected (exit 0).'
+```
+
+## Keep message backing alive
+
+A `catch (Error error)` binding borrows the caught owner for the handler's
+lifetime. Its message can be inspected there; returning borrowed text after
+that backing retires would be a different lifetime promise. Our handler compares
+it with a literal and returns an integer, so no text borrow escapes.
+
+Astra's `string` is counted, validated UTF-8. Its length describes bytes, not
+characters as a reader sees them. A NUL byte may occur inside counted text; it
+is not automatically an end marker. An owned `Utf8Message` keeps its text backing
+alive. Borrowing `message.text` for an immediate call lets the receiver read
+those bytes while the message remains owned by the caller.
+
+Recoverable errors use admitted cleanup paths. A bounds trap, fatal allocation
+action or other process termination does not promise the same unwinding. Do not
+wrap a computation in `try` expecting every possible failure to become `Error`.
+[Errors](../reference/errors.md) gives the exact boundary.
+
+## Format into storage, or create owned text
+
+We can now report the summary as real program output. This
+[complete program](../../tests/books/guide-text.astra) makes two different
+formatting choices and checks that their text agrees:
+
+```astra example=guide-text
+language astra27b;
+[CCode(text_abi = "utf8-i32")]
+extern(C) int show_text(borrowed string text);
+
+int main() {
+	try {
+		int count = 5;
+		int total = 2 + 4 + 6 + 8 + 10;
+		var builder = new Utf8ByteBuilder();
+		if (!builder.reserve(64)) return 1;
+		if (!format_into(builder, $"readings: count={count} total={total}")) return 2;
+		var snapshot = builder.snapshot();
+		if (snapshot.text != "readings: count=5 total=30") return 3;
+		var message = format_text($"readings: count={count} total={total}");
+		if (message.text != snapshot.text) return 4;
+		return show_text(message.text);
+	} catch (Error error) {
+		return 5;
+	}
+}
+```
+
+`$"...{count}..."` is a typed formatting plan for an immediate consumer, not an
+owned string to store for later. `format_into` writes through a named builder
+and reports success with a Boolean. Reserving capacity happens separately and
+can allocate; formatting into adequately reserved capacity need not grow it.
+Check the Boolean even when you have reserved space. A failed sink write does
+not promise to roll back earlier bytes.
+
+`snapshot()` copies the builder's current bytes into an owned message; that
+materialization also allocates. It is not a freely escaping borrow of the builder.
+`format_text` separately materializes an owned `Utf8Message` and has a recoverable
+error contract. These are different costs and lifetimes, even though the
+resulting bytes agree. The program borrows `message.text` only during `show_text`.
+Neither owned message escapes `main`.
+
+`show_text` is a small C sink supplied in
+[guide-text.c](../../tests/books/guide-text.c): it writes the supplied byte count
+with `fwrite` and appends a newline. It retains no pointer. Its declaration's
+counted-text annotation is a real foreign contract, explained in [FFI](ffi.md),
+not a built-in Astra printing function. Compile every selected library source
+and that actual provider:
+
+```sh tutorial=formatted-output
+"$ASTRA_HOST" -c -O0 -o "$ASTRA_BOOK_BUILD/text.o" tests/books/guide-text.astra \
+    lib/astra/base/errors.astra lib/astra/base/diagnostics.astra \
+    lib/astra/text/utf8-message.astra lib/astra/text/utf8-byte-builder.astra \
+    lib/astra/text/scalar-format.astra lib/astra/hosted/text-ops.astra \
+    lib/astra/collections/bag.astra lib/astra/hosted/text.astra
+cc -std=c11 -O0 -Wall -Wextra -Werror -c tests/books/guide-text.c \
+    -o "$ASTRA_BOOK_BUILD/text-sink.o"
+cc -no-pie "$ASTRA_BOOK_BUILD/text.o" "$ASTRA_BOOK_BUILD/text-sink.o" \
+    "$ASTRA_PROVIDER_ARGS" "$ASTRA_PROVIDER_FILES" "$ASTRA_PROVIDER_TEXT" \
+    "$ASTRA_PROVIDER_TEXT_OPS" "$ASTRA_PROVIDER_DIAGNOSTICS" -o "$ASTRA_BOOK_BUILD/text"
+"$ASTRA_BOOK_BUILD/text"
+```
+
+Expected stdout is exactly `readings: count=5 total=30` and a newline; exit is 0
+and stderr is empty. This time the message is program output through the C sink,
+not the shell describing a silent test. The earlier
+[formatting experiment](../../tests/books/formatting.astra) checks different
+messages and deliberately returns 42; [errors.astra](../../tests/books/errors.astra)
+likewise retains its original sentinel.
 
 ## Cleanup when a later argument fails
 
-A consuming call can fail before the callee starts. This example uses the
-[lifecycle observer](objects.md#independent-lifecycle-observer) to make that
-boundary visible. Select base/errors.astra and hosted/text.astra explicitly,
-as in the earlier error program, and link the observer/provider objects.
+There is one subtle extension of the ownership lesson. A consuming call can
+fail while evaluating its arguments, before the callee starts. In
+[call-abort.astra](../../tests/books/call-abort.astra), two reading owners are
+prepared for a call, then a later argument throws. The handler checks the error,
+and the observer checks that both objects still retire exactly once. On the
+successful call it sees count/sum 2/42; after the failing call it sees 4/84.
+The complete source uses [lifecycle.c](../../tests/books/lifecycle.c) and the
+same Error/text sources as our validation program. It is a further experiment,
+not a second failure model: written argument order and cleanup still matter
+before call entry.
 
-```astra example=call-abort
-language astra27b;
-extern(C) void note_drop(int value);
+A throw inside a handler belongs to an outer error contract; that handler does
+not catch its own throw again. Keeping this scope distinction clear prevents
+“recovery” from becoming an accidental loop of handlers.
 
-extern(C) int drop_count();
-
-extern(C) int drop_sum();
-
-class Reading {
-	int value;
-
-	init(int value) { this.value = value; }
-
-	deinit() { note_drop(this.value); }
-}
-
-int mark(bool fail) throws Error {
-	if (fail) {
-		throw new Error("operand failure");
-	}
-	return 0;
-}
-
-int eat(owned Reading left, owned Reading right, int marker) {
-	return left.value + right.value + marker;
-}
-
-int attempt(bool fail) {
-	var left = new Reading(20);
-	var right = new Reading(22);
-	try {
-		return eat(right: move right, left: move left, marker: mark(fail));
-	} catch (Error error) {
-		if (error.message == "operand failure") return 42;
-		return 1;
-	}
-}
-
-int main() {
-	if (attempt(false) != 42 || drop_count() != 2 || drop_sum() != 42) return 1;
-	if (attempt(true) != 42 || drop_count() != 4 || drop_sum() != 84) return 2;
-	return 42;
-}
-```
-
-On the first call, both owners enter eat and retire there. On the second call,
-mark throws after both owner operands were evaluated. The callee never enters;
-the handler returns 42 and cleanup still retires exactly two readings. Counts
-and sums after each invocation must be 2/42 and 4/84 respectively. A mere scalar
-42 would not detect a missing or duplicate destruction.
-
-The handler checks the exact message. Its error binding borrows the caught
-owner for the handler's lifetime. Do not return its borrowed text after the
-caught backing retires. A throw inside this handler would be governed by an
-outer effect contract, not caught by the same try again. Read
-[handler scope](../reference/errors.md#handler-scope-and-error-storage) and
-[call commitment](../reference/expressions.md#observing-written-order) together.
+We have made input rejection and reporting explicit. Next,
+[Sequences](sequences.md) replaces our hand-written traversal choices with
+storage, ranges and lazy plans while keeping ownership and costs visible.
