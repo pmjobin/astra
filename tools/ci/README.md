@@ -19,7 +19,8 @@ The seed's URL is deliberately null. `preflight.py --require-distribution` and
 `pipeline.py` fail before bootstrapping if a runner cannot acquire the trusted
 seed. An owner must authorize a durable distribution location and review a
 manifest update before hosted use. Downloaded checksum files cannot replace the
-committed digest. There is no lookup of a host `astrac`, rolling release or cache.
+committed digest. The URL must identify the raw pinned seed ELF; the local
+capsule is a separate audit transport, not an interchangeable download. There is no lookup of a host `astrac`, rolling release or cache.
 
 `llvm-linux.json` pins the official LLVM **23.1.4** archive and every selected
 member. The archive supplies static LLVM archives, not a usable `libLLVM`
