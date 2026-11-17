@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Hosted Linux orchestration; missing distribution is an error, never a skip."""
 import argparse
-import json
 import os
 from pathlib import Path
 import shutil
@@ -10,6 +9,7 @@ import subprocess
 import sys
 
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
+from preflight import qualification_inputs
 from trust import fetch, seed_manifest
 
 
@@ -28,6 +28,8 @@ def main():
 	seed = verify(a.seed, seed_lock) if a.seed else fetch(seed_lock, work/'seed')
 	if not a.seed:
 		seed.chmod(0o755)
+	if a.lane == 'nightly':
+		require(not (missing := qualification_inputs(ROOT.parent/'codex/work/astra')), '; '.join(missing))
 	require(shutil.disk_usage(work).free >= 4*1024**3, 'less than 4 GiB available for selected LLVM inputs and native build')
 	def script(name, args, timeout=7200):
 		run([sys.executable, '-B', ROOT/'tools/ci'/name, *args], logs/name.removesuffix('.py'), env, timeout=timeout)
@@ -42,26 +44,20 @@ def main():
 	head = subprocess.check_output(['git', '-C', ROOT, 'rev-parse', 'HEAD'], text=True).strip()
 	script('bootstrap.py', ['--seed', seed, '--llvm', llvm, '--library', library, '--library-receipt', receipt, '--commit', head, '--build', work/'bootstrap', '--runtime', work/'bootstrap-logs', '--stages', '2', '--jobs', '2'], timeout=18000)
 	products = work/'bootstrap-logs/result.json'
-	row = json.loads(products.read_text())
-	# Reuse the independent source and LLVM mutation tests, with their original
-	# explicitly guarded output routing. No historical C0 is obtained or assumed.
+	# These independent suites retain source-owner, ABI, physical mutation,
+	# all Book cases and boundary checks. A failure blocks packaging and keeps
+	# every suite's evidence available to the workflow artifact step.
 	legacy = ROOT.parent/'codex/work/astra'
 	run_name = 'ci-'+str(os.environ.get('GITHUB_RUN_ID', os.getpid()))+'-'+str(os.environ.get('GITHUB_RUN_ATTEMPT', '1'))
-	for key, value in json.loads((work/'bootstrap-logs/toolchain.json').read_text())['environment'].items():
-		if value is not None:
-			env[key] = value
-	for mode, product in row['products'].items():
-		label = run_name+'-'+mode+'-c-client'
-		run([sys.executable, '-B', ROOT/'tests/selfhost-convergence-27d/c-client.py', '--compiler', product['native']['path'], '--compiler-sha256', product['native']['sha256'], '--link', work/'bootstrap-logs/link.json', '--build', legacy/'build'/label, '--runtime', legacy/'runtime'/label], logs/label, env, timeout=1800)
-		shutil.copytree(legacy/'runtime'/label, logs/(label+'-evidence'))
-		for feature, recipe, extra in [('owners', 'selfhost-ownership-syntax-27b', []), ('range', 'selfhost-expressive-language-27c', ['--feature', 'range']), ('enum', 'selfhost-expressive-language-27c', ['--feature', 'enum'])]:
-			label = run_name+'-'+mode+'-'+feature
-			run([sys.executable, '-B', ROOT/'tests'/recipe/'physical.py', '--compiler', product['native']['path'], '--compiler-sha256', product['native']['sha256'], *extra, '--build', legacy/'build'/label, '--runtime', legacy/'runtime'/label], logs/label, env, timeout=1800)
-			shutil.copytree(legacy/'runtime'/label, logs/(label+'-evidence'))
-	run([sys.executable, '-B', ROOT/'tests/books/run.py', '--products', products, '--toolchain', work/'bootstrap-logs/toolchain.json', '--link', work/'bootstrap-logs/link.json', '--build', legacy/'build'/(run_name+'-books'), '--runtime', legacy/'runtime'/(run_name+'-books')], logs/'books', env, timeout=3600)
-	shutil.copytree(legacy/'runtime'/(run_name+'-books'), logs/'books-evidence')
-	run([sys.executable, '-B', ROOT/'tests/api-docs/native.py', '--products', products, '--toolchain', work/'bootstrap-logs/toolchain.json', '--build', legacy/'build'/(run_name+'-docs'), '--runtime', legacy/'runtime'/(run_name+'-docs')], logs/'docs', env, timeout=1800)
-	shutil.copytree(legacy/'runtime'/(run_name+'-docs'), logs/'docs-evidence')
+	qualification = legacy/'runtime'/(run_name+'-qualification')
+	try:
+		run([sys.executable, '-B', ROOT/'tests/install/regression.py', '--products', products, '--identity', work/'bootstrap-logs/docs-build-identity.json', '--link', work/'bootstrap-logs/link.json', '--toolchain', work/'bootstrap-logs/toolchain.json', '--build', legacy/'build'/(run_name+'-qualification'), '--runtime', qualification], logs/'qualification', env, timeout=14400)
+	except (ValueError, OSError, subprocess.TimeoutExpired):
+		write(work/'result.json', dict(status='CURRENT_LOCAL_CONSOLIDATED_REGRESSION_FAILED', source_commit=head, hosted_run_id=os.environ.get('GITHUB_RUN_ID'), release_authorized=False))
+		raise
+	finally:
+		if qualification.is_dir():
+			shutil.copytree(qualification, logs/'qualification-evidence')
 	script('handoff.py', ['--products', products, '--identity', work/'bootstrap-logs/identity.json', '--output', work/'handoff.json'])
 	script('package.py', ['--object', work/'bootstrap/stage2/astrac-O2.o', '--handoff', work/'handoff.json', '--llvm', llvm, '--library', library, '--library-receipt', receipt, '--kind', 'deb', '--build', work/'package', '--runtime', work/'package-logs'])
 	write(work/'result.json', dict(status='PARTIAL_REQUIRES_SEPARATE_INSTALL_AND_WINDOWS', source_commit=head, bootstrap_receipt=identify(products), package_receipt=identify(work/'package-logs/result.json'), hosted_run_id=os.environ.get('GITHUB_RUN_ID'), gates=dict(native_linux='BUILT_AND_REGRESSION_TESTED', clean_install='PENDING_SEPARATE_JOB', native_windows='BLOCKED_PORT_AND_SEED'), release_authorized=False))

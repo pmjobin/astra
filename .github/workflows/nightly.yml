@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
           clean: false
       - name: Record runner and require distributed seed
-        run: python3 -B tools/ci/preflight.py --require-distribution --output "$RUNNER_TEMP/astra-preflight.json"
+        run: python3 -B tools/ci/preflight.py --require-distribution --require-qualification-inputs --output "$RUNNER_TEMP/astra-preflight.json"
       - name: Native prerequisites
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++ libxml2-dev libzstd-dev zlib1g-dev zstd time valgrind gdb dpkg-dev
       - name: Fresh stages, independent verifiers and package

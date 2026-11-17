@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Current native book examples, independent expected data and strict memory."""
 import argparse
+from contextlib import contextmanager
 import datetime
 import json
 import os
@@ -20,6 +21,7 @@ def main():
 	for name in ('products','toolchain','link','build','runtime'): p.add_argument('--'+name,type=Path,required=True)
 	p.add_argument('--quick',action='store_true',help='Authoring semantic preflight only; no native acceptance credit')
 	p.add_argument('--case',action='append',help='Explicit case IDs for focused authoring; omission runs the entire manifest')
+	p.add_argument('--keep-going',action='store_true',help='Record failed profiles and attempt the rest; failures still reject qualification')
 	a = p.parse_args()
 	build = output_path(a.build,WORK/'build'); runtime = output_path(a.runtime,WORK/'runtime')
 	build.mkdir(parents=True,exist_ok=False); runtime.mkdir(parents=True,exist_ok=False)
@@ -55,6 +57,18 @@ def main():
 		witnesses[str(original)] = str(witness.relative_to(runtime))
 	for path in inputs: preserve_input(path)
 	commands = []; results = []; emitted = {}; foreign_objects = {}; diagnostics = {}
+	profiles = []
+	@contextmanager
+	def qualify_profile(label):
+		try:
+			yield
+		except AssertionError as error:
+			profiles.append(dict(label=label,passed=False,error=str(error)))
+			if not a.keep_going: raise
+		else:
+			profiles.append(dict(label=label,passed=True))
+		finally:
+			write(runtime/'profiles.json',profiles)
 	def run(label,argv,expected=0,memory=False):
 		if memory: argv = ['valgrind','--trace-children=yes','--default-suppressions=no','--error-exitcode=99','--leak-check=full','--show-leak-kinds=all','--errors-for-leak-kinds=all',*argv]
 		result = execute(argv,runtime/label,expected=expected,timeout=300,env=env)
@@ -76,6 +90,7 @@ def main():
 		assert all(r['passed'] for r in results)
 		return
 	for case in manifest['cases']:
+		profile_start = len(profiles)
 		name = case['id']; sources = [files[key] for key in case['files'] if files[key].suffix == '.astra']
 		libraries = [ROOT/path for path in case.get('libraries',[])]
 		inputs.update({str(path):sha(path) for path in libraries})
@@ -98,66 +113,69 @@ def main():
 			compiler = product['path']
 			for target_mode in (('O0',) if a.quick else ('O0','O2')):
 				label = name+'-'+host_mode+'-'+target_mode
-				obj = build/(label+'.o'); sentinel = b'BOOK_NEGATIVE_OUTPUT_SENTINEL\n'
-				if a.quick:
-					argv = [compiler,'--check',*sources,*libraries]
-				else:
-					argv = [compiler,'-c','-'+target_mode,'-o',obj,*sources,*libraries]
-				if case['mode'] == 'compile_fail':
-					obj.write_bytes(sentinel)
-					_,err = run(label+'-reject',argv,1,memory=not a.quick)
-					assert case['diagnostic'].lower().encode() in err.lower(),(name,err)
-					assert obj.read_bytes() == sentinel
-					fresh = build/(label+'-absent.o')
-					fresh_argv = [compiler,'-c','-'+target_mode,'-o',fresh,*sources,*libraries]
-					out,diagnostic = run(label+'-reject-absent',fresh_argv,1)
-					assert not fresh.exists() and out == b''
-					assert case['diagnostic'].lower().encode() in diagnostic.lower()
-					if name in diagnostics: assert diagnostics[name] == diagnostic.decode(),(name,'host/target diagnostic drift')
-					else: diagnostics[name] = diagnostic.decode()
-					continue
-				run(label+'-compile',argv,memory=not a.quick)
-				if a.quick: continue
-				emitted[str(obj)] = sha(obj)
-				ir = build/(label+'.ll')
-				run(label+'-IR',[compiler,'--emit-llvm','-'+target_mode,'-o',ir,*sources,*libraries])
-				run(label+'-verify',['opt','-passes=verify','-disable-output',ir])
-				emitted[str(ir)] = sha(ir)
-				if case['mode'] == 'run':
-					exe = build/label
-					run(label+'-link',['cc','-no-pie',obj,*foreign,*(providers if libraries else []),'-o',exe])
-					emitted[str(exe)] = sha(exe)
-					invocation = [exe]
-					if case.get('data'):
-						invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/case['data'][0]),exe]
-					out,err = run(label+'-plain-execute',invocation,case['exit'])
-					assert out == case.get('stdout','').encode() and err == case.get('stderr','').encode(),(label,out,err)
-					out,_ = run(label+'-execute',invocation,case['exit'],memory=True)
-					assert out == case.get('stdout','').encode(),(label,out)
-					if case.get('data'):
-						for number,path in enumerate([ROOT/case['data'][1],runtime/'absent-input.txt']):
-							out,err = run(label+'-plain-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64)
-							assert out == b'' and err == b''
-							out,_ = run(label+'-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64,memory=True)
-							assert out == b''
-					for number,row in enumerate(case.get('extra_runs',[])):
-						invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/row['data']),exe]
-						out,err = run(label+'-plain-extra-'+str(number),invocation,row['exit'])
-						assert out == row['stdout'].encode() and err == row['stderr'].encode()
-						out,_ = run(label+'-extra-'+str(number),invocation,row['exit'],memory=True)
-						assert out == row['stdout'].encode()
-					if case.get('freestanding'):
-						startup = runtime/'start.S'
-						startup.write_text('.text\n.globl _start\n_start:\n call main\n mov %eax,%edi\n mov $60,%eax\n syscall\n.section .note.GNU-stack,"",@progbits\n')
-						static = build/(label+'-no-runtime')
-						run(label+'-static-link',['cc','-nostdlib','-static','-no-pie','-Wl,-e,_start',startup,obj,'-o',static])
-						run(label+'-static-execute',[static],case['exit'],memory=True)
-						out,_ = run(label+'-undefined',['nm','-u',static]); assert not out
-						out,_ = run(label+'-segments',['readelf','-l',static]); assert b'INTERP' not in out
-		results.append(dict(id=name,mode=case['mode'],status='SEMANTIC_PREFLIGHT' if a.quick else 'EXPECTED_OUTCOMES_PASS'))
+				with qualify_profile(label):
+					obj = build/(label+'.o'); sentinel = b'BOOK_NEGATIVE_OUTPUT_SENTINEL\n'
+					if a.quick:
+						argv = [compiler,'--check',*sources,*libraries]
+					else:
+						argv = [compiler,'-c','-'+target_mode,'-o',obj,*sources,*libraries]
+					if case['mode'] == 'compile_fail':
+						obj.write_bytes(sentinel)
+						_,err = run(label+'-reject',argv,1,memory=not a.quick)
+						assert case['diagnostic'].lower().encode() in err.lower(),(name,err)
+						assert obj.read_bytes() == sentinel
+						fresh = build/(label+'-absent.o')
+						fresh_argv = [compiler,'-c','-'+target_mode,'-o',fresh,*sources,*libraries]
+						out,diagnostic = run(label+'-reject-absent',fresh_argv,1)
+						assert not fresh.exists() and out == b''
+						assert case['diagnostic'].lower().encode() in diagnostic.lower()
+						if name in diagnostics: assert diagnostics[name] == diagnostic.decode(),(name,'host/target diagnostic drift')
+						else: diagnostics[name] = diagnostic.decode()
+						continue
+					run(label+'-compile',argv,memory=not a.quick)
+					if a.quick: continue
+					emitted[str(obj)] = sha(obj)
+					ir = build/(label+'.ll')
+					run(label+'-IR',[compiler,'--emit-llvm','-'+target_mode,'-o',ir,*sources,*libraries])
+					run(label+'-verify',['opt','-passes=verify','-disable-output',ir])
+					emitted[str(ir)] = sha(ir)
+					if case['mode'] == 'run':
+						exe = build/label
+						run(label+'-link',['cc','-no-pie',obj,*foreign,*(providers if libraries else []),'-o',exe])
+						emitted[str(exe)] = sha(exe)
+						invocation = [exe]
+						if case.get('data'):
+							invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/case['data'][0]),exe]
+						out,err = run(label+'-plain-execute',invocation,case['exit'])
+						assert out == case.get('stdout','').encode() and err == case.get('stderr','').encode(),(label,out,err)
+						out,_ = run(label+'-execute',invocation,case['exit'],memory=True)
+						assert out == case.get('stdout','').encode(),(label,out)
+						if case.get('data'):
+							for number,path in enumerate([ROOT/case['data'][1],runtime/'absent-input.txt']):
+								out,err = run(label+'-plain-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64)
+								assert out == b'' and err == b''
+								out,_ = run(label+'-input-refusal-'+str(number),['env','ASTRA_READINGS_INPUT='+str(path),exe],64,memory=True)
+								assert out == b''
+						for number,row in enumerate(case.get('extra_runs',[])):
+							invocation = ['env','ASTRA_READINGS_INPUT='+str(ROOT/row['data']),exe]
+							out,err = run(label+'-plain-extra-'+str(number),invocation,row['exit'])
+							assert out == row['stdout'].encode() and err == row['stderr'].encode()
+							out,_ = run(label+'-extra-'+str(number),invocation,row['exit'],memory=True)
+							assert out == row['stdout'].encode()
+						if case.get('freestanding'):
+							startup = runtime/'start.S'
+							startup.write_text('.text\n.globl _start\n_start:\n call main\n mov %eax,%edi\n mov $60,%eax\n syscall\n.section .note.GNU-stack,"",@progbits\n')
+							static = build/(label+'-no-runtime')
+							run(label+'-static-link',['cc','-nostdlib','-static','-no-pie','-Wl,-e,_start',startup,obj,'-o',static])
+							run(label+'-static-execute',[static],case['exit'],memory=True)
+							out,_ = run(label+'-undefined',['nm','-u',static]); assert not out
+							out,_ = run(label+'-segments',['readelf','-l',static]); assert b'INTERP' not in out
+		results.append(dict(id=name,mode=case['mode'],status='EXPECTED_OUTCOMES_PASS' if all(row['passed'] for row in profiles[profile_start:]) else 'FAILED'))
 		print(name,results[-1]['status'],flush=True)
 	assert all(sha(path) == digest for path,digest in {**inputs,**providers,**emitted}.items())
-	write(runtime/'result.json',dict(status='BOOK_SEMANTIC_PREFLIGHT_PASS' if a.quick else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS',start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,full_manifest=not a.case,manifest_case_count=len(all_cases),products=products,inputs=inputs,input_witnesses=witnesses,build=str(build),emit_products=emitted,diagnostics=diagnostics,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; exact plain stdout/stderr and exits, identical complete refusal diagnostics across all four profiles, LLVM verify, absent outputs and preserved refusal sentinels, unsuppressed compiler/program memory. Explicit selections qualify only the listed cases. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
+	write(runtime/'result.json',dict(status='BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_PASS' if all(row['passed'] for row in profiles) else 'BOOK_CURRENT_NATIVE_O0_O2_STRICT_MEMORY_FAILURE',profiles=profiles,start_UTC=start,completed_UTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),cases=results,full_manifest=not a.case,manifest_case_count=len(all_cases),products=products,inputs=inputs,input_witnesses=witnesses,build=str(build),emit_products=emitted,diagnostics=diagnostics,commands_sha256=sha(runtime/'commands.json'),LLVM='23.1.4',scope='Actual compiler host O0/O2 and target O0/O2; exact plain stdout/stderr and exits, identical complete refusal diagnostics across all four profiles, LLVM verify, absent outputs and preserved refusal sentinels, unsuppressed compiler/program memory. Explicit selections qualify only the listed cases. Quick mode is semantic authoring evidence only. Static no-runtime scope is the fixed-array program on Linux x86-64.'))
+
+	assert all(row['passed'] for row in profiles), 'Book profiles failed; inspect profiles.json and command streams'
 
 
 if __name__ == '__main__':

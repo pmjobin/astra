@@ -46,8 +46,8 @@ def main():
 		plans.append(dict(label=label, recipe=recipe, recipe_sha256=sha(ROOT/recipe), argv=[sys.executable, '-B', str(ROOT/recipe), *map(str, options)], timeout=timeout))
 	shared = ['--products', a.products, '--toolchain', toolchain]
 	plan('native', 'tests/api-docs/qualify.py', [*shared, '--link', a.link, '--build', build/'native', '--runtime', runtime/'native'], 14400)
-	plan('books', 'tests/books/run.py', [*shared, '--link', a.link, '--build', build/'books', '--runtime', runtime/'books'], 7200)
-	plan('limits', 'tests/books/limits.py', [*shared, '--build', build/'limits', '--runtime', runtime/'limits'], 7200)
+	plan('books', 'tests/books/run.py', [*shared, '--keep-going', '--link', a.link, '--build', build/'books', '--runtime', runtime/'books'], 7200)
+	plan('limits', 'tests/books/limits.py', [*shared, '--keep-going', '--build', build/'limits', '--runtime', runtime/'limits'], 7200)
 	plan('grammar', 'tests/books/grammar.py', [*shared, '--link', a.link, '--build', build/'grammar', '--runtime', runtime/'grammar', '--preflight'], 1800)
 	plan('docs-native', 'tests/api-docs/native.py', [*shared, '--build', build/'docs-native', '--runtime', runtime/'docs-native'], 3600)
 	for mode, product in products.items():
