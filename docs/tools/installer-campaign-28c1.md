@@ -40,6 +40,16 @@ bounds, independent verifiers and module-owned LLVM layout-cache lifetime are
 unchanged. Source paths passed to the compiler are repository-relative; the
 working directory remains the real authenticated checkout.
 
+Both current Linux source generations completed. All eight comparisons match:
+O0/O2 compiler objects, native compiler images, dispatchers and doc companions
+are byte-identical between generations. The converged O2 native compiler is
+2,429,240 bytes, SHA-256
+`1ea89085d7178a63e65d16ed90cbe7514cf697f20c78cf7d58ec69121585e7a9`;
+its object SHA-256 is
+`a1e4fb5aa36aeb3726aa1bd47a74d8cce8464120410ba11a84a08c475f5c2988`.
+The packages and current regression evidence use this same generated object.
+Convergence does not waive the memory failures described below.
+
 The final packages bind packaging/Guide commit
 `4dd7d3d0ab0e168a28e0582b2e55f432b9558a8e`, tree
 `b2e0850ec4d3f9f6ed6798ffbae0bc16fbc045e3`, and the separately frozen compiler
@@ -158,7 +168,7 @@ the affected source generations and strict qualification before release use.
 | Gate | Actual disposition | Required next action |
 | --- | --- | --- |
 | C0 intake | Authenticated exact ZIP, Git base, protected/peer state and genuine predecessor publication | Retain the installed publisher's final identity |
-| C1 bootstrap | Authenticated local seed; Linux generation receipts retained; distribution and Windows trust open | Authorize an immutable seed location; establish native Windows root of trust |
+| C1 bootstrap | Authenticated local seed; two Linux generations converge in all eight O0/O2 comparisons; distribution and Windows trust open | Authorize an immutable seed location; establish native Windows root of trust |
 | C2 Linux artifacts | Real source-generated DEB/RPM; both tested on their declared userlands | Keep qualification scope separate from C7 |
 | C3 Windows | No native compiler or setup EXE | Port startup/providers, target/CRT/ABI/doc dispatch; authenticate seed; native rebuild and clean install tests |
 | C4 installed programs | Linux smoke and lifecycle pass; Windows absent | Execute the same native Windows contract after C3 |
