@@ -136,6 +136,13 @@ final installed O2 package payloads. Retained disassembly shows the reported
 branch at function offset `0x56` following a stack-slot comparison. This
 localizes the observation; it does not establish a complete upstream root cause.
 
+`tests/install/diagnostics/llvm-memory.c` reproduces the same 18 errors from two
+contexts using a plain C entry point, serialized unoptimized `values` IR, the
+unchanged mechanical LLVM C adapter and the same pinned library. Plain execution
+returns zero; strict Valgrind execution returns 99 with zero live heap blocks.
+No Astra frontend runs in this reproducer. Exact compile/link/run arguments,
+input and executable identities are retained under `memory-investigation/`.
+
 The pinned standalone `opt` investigation is a separate NOT_PASS observation:
 it retained 73,728 bytes through `llvm::InitLLVM` signal-handler setup under
 strict all-kinds checking. That run did not reproduce the same uninitialized
