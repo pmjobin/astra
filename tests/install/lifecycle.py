@@ -78,7 +78,7 @@ def main():
 	library.rename(held)
 	try:
 		run('missing-llvm-refusal', ['astrac', '--version'], expected=127, contains=b'installation unavailable')
-		run('doc-without-llvm', ['astrac', 'doc', '--output', '/build/no-llvm.json', '/usr/share/astra/install/api.astra'])
+		run('doc-without-llvm', ['astrac', 'doc', '--output', '/build/no-llvm.json', 'api.astra'], cwd='/usr/share/astra/install')
 	finally:
 		held.rename(library)
 	for name in ('llvm/libLLVM.so.23.1', 'astrac.native'):
