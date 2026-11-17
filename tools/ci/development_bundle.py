@@ -78,7 +78,7 @@ def main():
 					require(not subprocess.check_output(['git', 'diff', 'HEAD'], cwd=ROOT), 'uncommitted publication inputs')
 					for kind in ('deb', 'rpm'):
 						row = request['reviewed_local_packages'][kind]
-						require(row['qualification'] == 'DEVELOPMENT_UNQUALIFIED' and row['strict_memory'] == 'NOT_PASS' and row['bytes'] > 0 and len(row['sha256']) == 64 and all(c in '0123456789abcdef' for c in row['sha256']), 'incomplete reviewed candidate identity')
+						require(row['qualification'] == 'DEVELOPMENT_UNQUALIFIED' and row['original_LLVM_strict_memory'] == 'NOT_PASS' and row['strict_memory'] in ('NOT_PASS', 'FOCUSED_STRICT_MEMORY_PASS') and row['bytes'] > 0 and len(row['sha256']) == 64 and all(c in '0123456789abcdef' for c in row['sha256']), 'incomplete reviewed candidate identity')
 					approved = True
 			with a.github_output.open('a') as stream:
 				stream.write('approved='+str(approved).lower()+'\n')

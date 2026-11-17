@@ -125,7 +125,7 @@ def main():
 	guide('uninstall', 'tooling.md')
 	require(shutil.which('astrac') is None and not private.exists(), 'uninstall left compiler files')
 	if a.development:
-		require(not Path('/usr/share/astra').exists() and not Path('/usr/share/licenses/astra-development').exists(), 'uninstall left development payload')
+		require(all(not Path(name).exists() for name in ('/usr/share/astra', '/usr/share/licenses/astra-development', '/usr/share/doc/astra-development')), 'uninstall left development payload')
 	require(shutil.which('cc') is not None and shutil.which('python3') is not None, 'uninstall removed external prerequisites')
 	result = dict(status='CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', kind=a.kind, package_sha256=a.sha256, os_release=Path('/etc/os-release').read_text(), command_receipts_sha256=sha(a.output/'commands.json'), smoke_sha256=sha(a.output/'smoke/result.json'), guide_sha256=sha(a.output/'guide/result.json'), negative_controls=['missing LLVM', 'tampered LLVM', 'tampered compiler', 'doc without LLVM'], upgrade='Same-version reinstall tested; cross-version upgrade not claimed', signed=False)
 	if a.development:
