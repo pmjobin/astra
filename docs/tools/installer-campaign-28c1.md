@@ -41,8 +41,8 @@ unchanged. Source paths passed to the compiler are repository-relative; the
 working directory remains the real authenticated checkout.
 
 The final packages bind packaging/Guide commit
-`9820dd77d60013fd2bf7788fceeee4394600e482`, tree
-`f64d99fac9f12b9e4c5df427cce35cadda57fa26`, and the separately frozen compiler
+`4dd7d3d0ab0e168a28e0582b2e55f432b9558a8e`, tree
+`b2e0850ec4d3f9f6ed6798ffbae0bc16fbc045e3`, and the separately frozen compiler
 source revision. Later diagnostic and report changes do not retroactively
 change the package's source identity. The report records both revisions.
 
@@ -62,8 +62,8 @@ All artifact paths below are relative to
 
 | Platform | Artifact | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
-| Ubuntu 24.04 amd64 | `ubuntu-package-final/astra-development_0.0.3~dev28c1-1_amd64.deb` | 38,310,710 | `50a39f3a4572a93d6d745854104e0c3d21d7f796c3da1108297e2f3c45bb359e` |
-| Fedora 45 x86-64 | `fedora-package-final/astra-development-0.0.3-0.dev28c1.1.x86_64.rpm` | 38,132,436 | `51ec31919e922ab95191df295b43caa933c725c477ce637f980598d78c6dd8e9` |
+| Ubuntu 24.04 amd64 | `ubuntu-package-notices/astra-development_0.0.3~dev28c1-1_amd64.deb` | 38,349,510 | `8c260da73471814caf780a604d74b3af454a4526dcb0dbe3dc635fcc1bff5386` |
+| Fedora 45 x86-64 | `fedora-package-notices/astra-development-0.0.3-0.dev28c1.1.x86_64.rpm` | 38,171,513 | `2207c00cba71651ef9e1cedbcc45c3a9f919dffcddc48de909b4a894ea6d5869` |
 
 Each package was built with distro-native C providers and the actual
 source-generated O2 compiler object. Fresh pinned base containers received only
@@ -71,6 +71,15 @@ the package, lifecycle QA and empty output directories. No developer compiler,
 LLVM tree, source checkout, historic provider objects or C0 manifest was mounted.
 The distro package manager installed the declared external prerequisites.
 Containers share the host kernel; no separate-VM claim is made.
+
+The final archives include 176 distinct verbatim notices from 298 upstream
+source entries, collected from the authenticated 23.1.4 source archive
+`819ecf7351f1a66f76b2d701d8942faaf5faeb324cb90c9d5b090de142434bb2`.
+This includes xxHash, Unicode, regex and BLAKE3 notices alongside the LLVM,
+Polly, ISL and imath main licenses. The DEB also installs the conventional
+`/usr/share/doc/astra-development/copyright` file. Earlier package revisions
+remain retained; the table identifies the later notice-complete bytes actually
+retested through both clean-install lifecycles and the memory reproducer.
 
 Both final packages passed:
 

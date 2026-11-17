@@ -4,6 +4,9 @@ This campaign adds local Linux packaging and fail-closed Actions recipes. It is
 not a public release. Windows is unavailable; hosted execution and distributed
 seed acquisition are unqualified. The installed canonical 28-C1 report records
 the actual final gate outcomes, artifact hashes and retained failed attempts.
+The [28-C1 findings](../../docs/tools/installer-campaign-28c1.md) record the
+tested Linux artifacts and a confirmed broader LLVM optimizer memory failure.
+Passing installer smoke does not resolve that release blocker.
 
 ## Trust inputs
 

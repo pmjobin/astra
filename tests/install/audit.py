@@ -199,7 +199,7 @@ def main():
 				if row.get('strict_memory'):
 					require(memory_stream(directory/(row['name']+'.stderr'))['passed'], 'installed smoke memory failed')
 		distro = 'ubuntu' if kind == 'deb' else 'fedora'
-		broader = a.campaign/(distro+'-package-memory')
+		broader = a.campaign/(getattr(a, kind+'_build_receipt').parent.name+'-memory')
 		require(load(broader/'result.json')['status'] == 'INSTALLED_COMPILER_STRICT_MEMORY_NOT_PASS' and load(broader/'result.json')['package']['sha256'] == sha(package), 'broader installed memory disposition absent')
 		require(not memory_stream(broader/'container/stderr')['passed'], 'broader memory failure not observed')
 		packages[kind] = dict(artifact=identify(package), build_receipt=identify(getattr(a, kind+'_build_receipt')), installation=identify(installed/'result.json'), smoke=identify(installed/'lifecycle/smoke/result.json'), guide=identify(installed/'lifecycle/guide/result.json'), broader_compiler_memory=identify(broader/'result.json'))
