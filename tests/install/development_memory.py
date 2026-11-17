@@ -67,7 +67,9 @@ def main():
 			run(label+'-link', ['cc', '-no-pie', label+'.o', *(['abi.o'] if name == 'owners' else []), '-o', label])
 			run(label+'-target', [a.build/label], expected=result, stdout=stdout, memory=True)
 	run('negative-memory', [private/'astrac.native', '--check', fixtures/'negative-owner.astra'], expected=1, diagnostic=b'SSA verification failed', memory=True)
-	run('doc-memory', [private/'astrac.doc', 'doc', '--output', a.build/'api.json', fixtures/'api.astra'], memory=True)
+	(a.build/'api.astra').write_bytes((fixtures/'api.astra').read_bytes())
+	run('doc-memory', [private/'astrac.doc', 'doc', '--output', a.build/'api.json', 'api.astra'], memory=True)
+	assert json.loads((a.build/'api.json').read_text())['format'] == 'astra-api-docs/1'
 	failed = [row['name'] for row in commands if row['memory_status'] == 'NOT_PASS']
 	result = dict(status='NOT_PASS' if failed else 'FOCUSED_STRICT_MEMORY_PASS', failed_cases=failed, original_LLVM_historical_strict_memory='NOT_PASS', derivative_used=False, library_sha256=sha(library), native_sha256=sha(private/'astrac.native'), commands_sha256=sha(a.output/'commands.json'), scope='Fresh installed original LLVM and compiler. No suppressions; no full release or dependency disposition.')
 	result.update(recipe_sha256=sha(__file__), products={path.name:dict(bytes=path.stat().st_size, sha256=sha(path)) for path in a.build.iterdir() if path.is_file()})

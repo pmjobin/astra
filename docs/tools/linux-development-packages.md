@@ -71,3 +71,49 @@ of this path.
 Historical Ubuntu 24.04 results and all accepted, rejected and expired
 milestones remain historical. Full release still requires its unchanged
 independent compiler, memory, convergence and platform qualifications.
+
+## Delivery engineering observations, 2026-11-17
+
+The first current-source generation completed in an actual Ubuntu 26.04.1
+userland: 3,976.4 seconds wall, 3,933.48 seconds user CPU, 10.46 seconds system
+CPU and 960,108 KiB maximum RSS. Its compiler source revision is `6c257304`;
+compiler and library source files remain unchanged from the task intake.
+The authenticated O2 object is
+`a1e4fb5aa36aeb3726aa1bd47a74d8cce8464120410ba11a84a08c475f5c2988`.
+Fedora consumes this exact object and rebuilds its C providers and LLVM link.
+
+The initial packages at package revision `df580d569a72` passed complete fresh
+Ubuntu 26.04 and Fedora 45 functional install, 43 installed Guide blocks,
+ordinary-user execution, corruption refusals, reinstall repair and removal.
+Their corrected test harness copies the documentation fixture into its build
+directory and supplies a relative source name, as required by the docs CLI.
+The earlier absolute-path invocation failed and its command streams are
+retained. Compiler generation and package payloads did not cause that failure.
+Final candidate identities, subsequent packaging revisions and run receipts
+belong in the canonical report; these initial results are iteration evidence.
+
+Both installations independently reproduced three unsuppressed memory failures:
+the standalone LLVM InstCombine oracle, the owning-case O2 compilation and
+the values-case O2 compilation. All three report uninitialized-value use in
+`llvm::InstCombinerImpl::foldUsingDistributiveLaws`. Identity/malformed-IR
+controls, O0 compilations, generated native programs, negative compilation and
+isolated documentation completed their focused strict checks. The overall
+strict-memory result remains **NOT_PASS**, with no suppressions.
+
+The official archive SHA-256 remains
+`efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378`.
+Its fresh Ubuntu library link is
+`4fe64dbacd385867ca5c1b81a83646771f762cdbe00e372ed89b268d8741f80d`;
+the Fedora link is
+`4b7e50c4ff5019fd21e817744eaad6a4c2ce8850e12dc4e6ab76672c7141cd36`.
+The historical diagnostic derivative
+`f171a729134b8ee13d104b0643c528f404465f1b9d9ba5429a19d3fa287b8127`
+was rehashed and the development packaging gate rejected its authentic
+diagnostic receipt. It was neither executed nor substituted in this delivery.
+
+Ubuntu's actual dependency metadata requires `libxml2-16`; the old `libxml2`
+package name is insufficient. The distro-native links resolve the installed
+runtime libraries, and package metadata is generated from those ELF inputs.
+The first cold-build attempts also exposed omitted generated and nested LLVM
+C headers. The repaired lock adds only bytes authenticated against the same
+official archive; all failed attempts remain available in task evidence.
