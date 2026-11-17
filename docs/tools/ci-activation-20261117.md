@@ -1,8 +1,11 @@
 # GitHub CI activation — 2026-11-17
 
-This activation is separate from release qualification. The canonical R1 report
-remains byte-exact, SHA-256
+This activation is separate from release qualification. The pre-activation R1
+report has SHA-256
 `8076a8e808c64097d0d46a58c99509c448c4131f757bdd6a8c854a6096d367b2`.
+The owner subsequently requested an amendment to that report using the existing
+published intake. Its exact prior ZIP and observations remain historical; no new
+milestone or intake is opened, and the overall disposition remains PARTIAL.
 The starting source was `611da1360aa769b354a9693de5cf543fbfab35ac`, tree
 `ed1349bb71fc4d005da358a1b309d34aeaceb0c4`. The inspected remote is
 `git@github.com:pmjobin/astra.git`, public repository ID 1440814852. Existing
@@ -71,8 +74,9 @@ workflow. Main was initially unprotected. At the owner's request it now requires
 GitHub Actions app ID 15368, with strict freshness. Admin enforcement is enabled
 and force pushes/deletion remain disallowed. Blocked strict/Windows jobs are not
 required functional smoke contexts. Push and PR triggers are active
-on the branch. Default-branch scheduling/manual availability follows ordinary
-PR review/merge; no protection or dispatch policy was bypassed.
+on the branch. Scheduled execution follows ordinary default-branch review/merge.
+An ordinary API manual dispatch on the registered branch workflow succeeded;
+no protection or dispatch policy was bypassed.
 
 Strict nightly records the missing independent rebuilt-C0 oracle/runtime and
 immutable 27-C source closure before expensive builds. Their portable
@@ -103,6 +107,41 @@ it remains owner-gated and unchanged. `tools/ci/actions.json` records the audit.
 The smoke artifact roundtrip exercises checkout/upload/download in hosted CI
 and independently verifies the actual native products, fixtures and log hashes.
 No Node.js tooling dependency was added to Astra and no attestation was signed.
+
+## Verified workflow correction and Node.js 24 execution
+
+These observations are bound to implementation commit
+`5c697ea50b3db9583792ab29e49f2b6ebaf9715a`, tree
+`79cee883f8e5ab54aeebd87bf31855d95ed5d380`:
+
+| Actual run | Event | Outcome |
+| --- | --- | --- |
+| [44052980698](https://github.com/pmjobin/astra/actions/runs/44052980698) | push | PASS: both functional checks and real artifact roundtrip |
+| [44052988129](https://github.com/pmjobin/astra/actions/runs/44052988129) | pull_request | PASS: both functional checks and real artifact roundtrip |
+| [44053170839](https://github.com/pmjobin/astra/actions/runs/44053170839) | workflow_dispatch | FAILURE / BLOCKED: C0/runtime/source closure and Windows; PARTIAL ledger uploaded |
+
+No strict qualification push run was created for this implementation commit.
+The Linux smoke job downloaded its own real artifact using the new immutable
+download action and independently checked product, fixture and command-stream
+hashes. The manual strict run exercised the new checkout/upload actions on both
+Linux and native Windows runners, including evidence upload after gate failure.
+Its package/install jobs were skipped and establish no qualification.
+
+Downloaded ZIPs were CRC-checked and their local SHA-256 values matched GitHub's
+artifact digests:
+
+| Artifact ID | Run | Bytes | Downloaded ZIP SHA-256 |
+| --- | --- | --- | --- |
+| [14315275729](https://github.com/pmjobin/astra/actions/runs/44052980698/artifacts/14315275729) — Linux smoke | 44052980698 | 119134 | `96111f8480c688e186d416078c32978e1a6ad74c3bd3b61dec41ac6911f4218d` |
+| 14314193230 — source controls | 44052980698 | 6422 | `fe21fc373a26c51f1bcb550392f63f2ef127cc0e4b2bf7f9a05fddf99997c794` |
+| 14314851287 — Linux blockers | 44053170839 | 797 | `f4f8c8805840cab7acbd4337a1f1e9bc27411c3f4ce3d51fcd54b3a78eab2ad1` |
+| 14313713778 — qualification ledger | 44053170839 | 501 | `7d00c3ac4884905cd9be3a716b64a0feb96138a32cca4b4817f58a1ee0b9de21` |
+| 14313419716 — Windows blockers | 44053170839 | 919 | `fd0e23c117489ef877aac0bdcad179b3bfe5dca8918a61f1da8538a6599cffd1` |
+
+The amendment retains these observations at their actual source revision,
+alongside the official action release/runtime audit, original failure logs,
+required-check policy and previous report evidence. A documentation-only
+findings commit does not create a new compiler generation or qualification.
 
 Release preparation was not dispatched. Rebuilt C0 remains
 ACCEPTED_WITH_DISCLOSURE with historical memory NOT_PASS; original C0/1,044
