@@ -198,7 +198,11 @@ def main():
 					require(sha(path) == row[stream+'_sha256'], 'installed command stream changed')
 				if row.get('strict_memory'):
 					require(memory_stream(directory/(row['name']+'.stderr'))['passed'], 'installed smoke memory failed')
-		packages[kind] = dict(artifact=identify(package), build_receipt=identify(getattr(a, kind+'_build_receipt')), installation=identify(installed/'result.json'), smoke=identify(installed/'lifecycle/smoke/result.json'), guide=identify(installed/'lifecycle/guide/result.json'))
+		distro = 'ubuntu' if kind == 'deb' else 'fedora'
+		broader = a.campaign/(distro+'-package-memory')
+		require(load(broader/'result.json')['status'] == 'INSTALLED_COMPILER_STRICT_MEMORY_NOT_PASS' and load(broader/'result.json')['package']['sha256'] == sha(package), 'broader installed memory disposition absent')
+		require(not memory_stream(broader/'container/stderr')['passed'], 'broader memory failure not observed')
+		packages[kind] = dict(artifact=identify(package), build_receipt=identify(getattr(a, kind+'_build_receipt')), installation=identify(installed/'result.json'), smoke=identify(installed/'lifecycle/smoke/result.json'), guide=identify(installed/'lifecycle/guide/result.json'), broader_compiler_memory=identify(broader/'result.json'))
 	formatted = load(a.format)
 	require(formatted['changed'] == 0 and all(row['before_sha256'] == row['after_sha256'] == sha(ROOT/row['path']) for row in formatted['rows']), 'format receipt stale')
 	refusals = load(a.campaign/'refusal-final/result.json')
