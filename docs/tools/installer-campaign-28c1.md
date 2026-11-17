@@ -103,12 +103,14 @@ test evidence; the actual installer files remain at the paths above.
 
 ## Current safety evidence and unresolved optimizer failure
 
-The consolidated native lane exercised both compiler profiles. All 46 independent
+The consolidated native lane completed all 23 suites across both compiler
+profiles, including source-owner O0/O2 generation, native execution and strict
+memory. All 46 independent
 physical mutation controls passed (14 ownership, 7 range and 2 enum mutations
 per profile). The completed native ABI, ownership, weak/shared, range, match,
 formatting, collection, intrinsic and C-client suites passed their actual
-expectations. Source-owner completion and generation convergence are recorded
-by their final receipts rather than inferred from successful earlier commands.
+expectations. The source-owner builds took about 1,767 seconds at O0 and
+2,594 seconds at O2; individual raw resource receipts remain in the report.
 
 Focused docs schema, isolation, native/comment-equivalence and strict extraction
 memory passed. API previews passed at both profiles after selecting only the
@@ -123,6 +125,8 @@ recipe and expectations unchanged. In total, all 63 cases were attempted;
 failed case stopped at its first failing check, so 252 successful profiles are
 not claimed. The exact generic 256/257 checks completed; the boundary suite
 stopped at `lazy-8-O0-O2`, leaving its remaining cases unqualified.
+The stream audit rehashed 4,327 command records and 881 distinct memory streams;
+33 memory streams failed and remain recorded as failures.
 
 Valgrind reports conditional branches using uninitialized stack data in
 `llvm::InstCombinerImpl::foldUsingDistributiveLaws`. The focused `values` check
