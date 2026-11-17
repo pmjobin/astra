@@ -57,6 +57,10 @@ def main():
 		extra = shlex.split(subprocess.check_output([config, '--cflags'], text=True, env=env)) if name.endswith('/capi.c') else []
 		if name.endswith('/host.c'):
 			extra.append('-DASTRA_DOC_BUILD_SHA256="'+fingerprint+'"')
+		if name.endswith('/doc-guard.c'):
+			# This fatal guard deliberately ignores a best-effort stderr write.
+			# Ubuntu fortifies write(); retain its warning and unconditional _Exit.
+			extra.append('-Wno-error=unused-result')
 		run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *extra, '-c', ROOT/name, '-o', obj], runtime/('provider-'+Path(name).stem), env)
 		if not name.endswith('/doc-guard.c'):
 			objects.append(obj)

@@ -34,8 +34,11 @@ def main():
 	a.output.mkdir(parents=True, exist_ok=False)
 	a.build.mkdir(parents=True, exist_ok=False)
 	if a.clean_host:
-		for path in ('/home/pmjobin/Workspace/astra', '/home/pmjobin/Workspace/codex/work/astra'):
-			require(not Path(path).exists(), 'developer workspace present on install host')
+		for home in [Path.home(), *Path('/home').iterdir()]:
+			for suffix in ('Workspace/astra', 'Workspace/codex/work/astra'):
+				require(not (home/suffix).exists(), 'developer workspace present on install host')
+		for path in ('/src/compiler/driver/main.astra', '/llvm/bin/llvm-config', '/work/relative-bootstrap'):
+			require(not Path(path).exists(), 'developer build input mounted on install host')
 	compiler = str(Path(shutil.which(a.compiler)).resolve())
 	env = dict(os.environ, LC_ALL='C.UTF-8')
 	for key in ('LD_LIBRARY_PATH', 'LD_PRELOAD', 'LIBRARY_PATH', 'CPATH', 'VALGRIND_OPTS'):

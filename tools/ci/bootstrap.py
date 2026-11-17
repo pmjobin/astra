@@ -82,6 +82,10 @@ def main():
 		extra = shlex.split(subprocess.check_output([config, '--cflags'], text=True, env=env)) if name.endswith('/capi.c') else []
 		if name.endswith('/host.c'):
 			extra.append('-DASTRA_DOC_BUILD_SHA256="'+fingerprint+'"')
+		if name.endswith('/doc-guard.c'):
+			# Ubuntu warns for the guard's deliberate best-effort stderr write.
+			# The source still unconditionally _Exit(127); no verifier is disabled.
+			extra.append('-Wno-error=unused-result')
 		run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *extra, '-c', ROOT/name, '-o', obj], runtime/('provider-'+Path(name).stem), env)
 		if not name.endswith('/doc-guard.c'):
 			objects.append(obj)
