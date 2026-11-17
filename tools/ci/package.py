@@ -22,8 +22,15 @@ def main():
 		p.add_argument('--'+key.replace('_', '-'), type=Path, required=True)
 	p.add_argument('--mode', choices=('O0', 'O2'), default='O2')
 	p.add_argument('--kind', choices=('deb', 'rpm'), required=True)
+	p.add_argument('--development', action='store_true', help='Explicit unqualified preview with commit-specific package metadata')
 	a = p.parse_args()
 	handoff = json.loads(a.handoff.read_text())
+	suffix = 'devunqualified.'+handoff['package_commit'][:12] if a.development else 'dev28c1'
+	deb_version = '0.0.3~'+suffix+'-1'
+	rpm_release = '0.'+suffix+'.1'
+	if a.development:
+		os_release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
+		require(os_release['ID'].strip('"') == ('ubuntu' if a.kind == 'deb' else 'fedora') and os_release['VERSION_ID'].strip('"') == ('26.04' if a.kind == 'deb' else '45'), 'wrong development package userland')
 	require(handoff['format'] == 'astra-native-handoff/1' and handoff['status'] == 'AUTHENTICATED_GENERATION_INPUT', 'untrusted generation handoff')
 	require(sha(a.object) == handoff['products'][a.mode]['object_sha256'], 'native object mismatch')
 	for name, digest in handoff['sources'].items():
@@ -130,6 +137,10 @@ def main():
 		copyright_path.write_bytes((licenses/'LICENSE.txt').read_bytes()+b'\n\nBundled LLVM/Polly dependency notices:\n\n'+notices.read_bytes())
 	write(private/'INSTALL.json', dict(format='astra-installation/1', version='0.0.3-dev28c1', LLVM='23.1.4', files={str(path.relative_to(private)):dict(bytes=path.stat().st_size, sha256=sha(path)) for path in private.rglob('*') if path.is_file()}, source_commit=handoff['source_commit'], handoff_sha256=sha(a.handoff), qualification='DEVELOPMENT_ARTIFACT_REQUIRES_INSTALL_AND_REGRESSION_RECEIPTS'))
 	write(share/'PROVENANCE.json', material)
+	if a.development:
+		(share/'DEV-UNQUALIFIED.txt').write_text('DEVELOPMENT_UNQUALIFIED / UNSAFE_OR_UNQUALIFIED_DEVELOPMENT\nOriginal official LLVM 23.1.4: strict unsuppressed memory NOT_PASS.\nNo diagnostic InstCombine replacement is included or approved.\nSingle compiler generation; full convergence and independent C0 qualification remain required for release.\nUnsigned development package. No public release, Windows qualification or release approval.\nPackage source: '+handoff['package_commit']+'\nCompiler source: '+handoff['source_commit']+'\n')
+		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=deb_version if a.kind == 'deb' else '0.0.3-'+rpm_release)
+		write(share/'PROVENANCE.json', material)
 	for path in stage.rglob('*'):
 		if path.is_dir():
 			path.chmod(0o755)
@@ -143,11 +154,19 @@ def main():
 		installed_size = sum((path.stat().st_size+1023)//1024 for path in payload_files)
 		control = stage/'DEBIAN'
 		control.mkdir()
-		(control/'control').write_text('Package: astra-development\nVersion: 0.0.3~dev28c1-1\nArchitecture: amd64\nMaintainer: Astra contributors <noreply@localhost>\nSection: devel\nPriority: optional\nDepends: libc6 (>= 2.39), libstdc++6, libgcc-s1, libxml2, libzstd1, zlib1g, python3 (>= 3.11), gcc, libc6-dev, binutils\nDescription: Astra native development compiler with pinned LLVM 23.1.4\n Unsigned engineering artifact. No public release qualification.\n')
+		dependencies = 'libc6 (>= 2.39), libstdc++6, libgcc-s1, libxml2, libzstd1, zlib1g'
+		if a.development:
+			probe = build/'shlibdeps'
+			(probe/'debian').mkdir(parents=True)
+			(probe/'debian/control').write_text('Source: astra-development\n\nPackage: astra-development\nArchitecture: amd64\nDescription: dependency audit\n')
+			out, _ = run(['dpkg-shlibdeps', '-O', '-e'+str(private/'llvm/libLLVM.so.23.1'), '-e'+str(doc), '-e'+str(private/'astrac')], runtime/'shlibdeps', env, cwd=probe)
+			require(out.startswith(b'shlibs:Depends=') and len(out.splitlines()) == 1, 'ambiguous native dependency metadata')
+			dependencies = out.decode().strip().split('=', 1)[1]
+		(control/'control').write_text('Package: astra-development\nVersion: '+deb_version+'\nArchitecture: amd64\nMaintainer: Astra contributors <noreply@localhost>\nSection: devel\nPriority: optional\nDepends: '+dependencies+', python3 (>= 3.11), gcc, libc6-dev, binutils\nDescription: Astra native development compiler with pinned LLVM 23.1.4\n '+('DEVELOPMENT_UNQUALIFIED. Original LLVM strict memory NOT_PASS.\n ' if a.development else '')+'Unsigned engineering artifact. No public release qualification.\n')
 		with (control/'control').open('a') as stream:
 			stream.write('Installed-Size: '+str(installed_size)+'\n')
 		(control/'md5sums').write_text(''.join(hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()+'  '+str(path.relative_to(stage))+'\n' for path in payload_files))
-		artifact = build/'astra-development_0.0.3~dev28c1-1_amd64.deb'
+		artifact = build/('astra-development_'+deb_version+'_amd64.deb')
 		run(['dpkg-deb', '--root-owner-group', '--build', stage, artifact], runtime/'package', env, timeout=600)
 		run(['dpkg-deb', '--info', artifact], runtime/'metadata', env)
 		run(['dpkg-deb', '--contents', artifact], runtime/'contents', env)
@@ -157,6 +176,8 @@ def main():
 			(top/name).mkdir(parents=True)
 		spec = top/'SPECS/astra.spec'
 		spec.write_text('%global debug_package %{nil}\n%global __provides_exclude ^libLLVM.*\n%global __requires_exclude ^libLLVM.*\n%global __os_install_post %{nil}\nName: astra-development\nVersion: 0.0.3\nRelease: 0.dev28c1.1\nSummary: Astra native development compiler\nLicense: Apache-2.0 WITH LLVM-exception AND MIT AND LicenseRef-LLVM-Third-Party\nBuildArch: x86_64\nRequires: python3 >= 3.11, gcc, glibc-devel, binutils\n%description\nUnsigned engineering artifact with private LLVM 23.1.4.\n%install\nmkdir -p "%{buildroot}"\ncp -a '+shlex.quote(str(stage))+'/. "%{buildroot}/"\n%files\n/usr/bin/astrac\n/usr/lib/astra\n/usr/share/astra\n/usr/share/licenses/astra-development\n')
+		if a.development:
+			spec.write_text(spec.read_text().replace('Release: 0.dev28c1.1', 'Release: '+rpm_release).replace('Unsigned engineering artifact with private LLVM 23.1.4.', 'DEVELOPMENT_UNQUALIFIED. Original LLVM 23.1.4 strict memory NOT_PASS. Unsigned; no release qualification.'))
 		run(['rpmbuild', '-bb', '--define', '_topdir '+str(top), '--define', '_buildhost astra-build.invalid', '--define', 'use_source_date_epoch_as_buildtime 1', '--define', 'clamp_mtime_to_source_date_epoch 1', spec], runtime/'package', env, timeout=600)
 		artifacts = list((top/'RPMS').rglob('*.rpm'))
 		require(len(artifacts) == 1, 'ambiguous RPM output')
