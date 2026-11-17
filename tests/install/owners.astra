@@ -1,0 +1,44 @@
+language astra27b;
+extern(C) void note_drop(int value);
+
+extern(C) int drop_count();
+
+extern(C) int drop_sum();
+
+class Reading {
+	readonly int value;
+
+	init(int value) {
+		this.value = value;
+	}
+
+	deinit() {
+		note_drop(this.value);
+	}
+}
+
+Reading acquire(int value) {
+	var reading = new Reading(value);
+	return move reading;
+}
+
+int inspect(Reading reading) {
+	return reading.value;
+}
+
+int consume(owned Reading reading) {
+	return inspect(reading);
+}
+
+int main() {
+	int total = 0;
+	int value = 2;
+	while (value <= 10) {
+		var reading = acquire(value);
+		if (inspect(reading) != value) return 1;
+		total += consume(move reading);
+		value += 2;
+	}
+	if (total != 30 || drop_count() != 5 || drop_sum() != 30) return 2;
+	return 0;
+}

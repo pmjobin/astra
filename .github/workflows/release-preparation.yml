@@ -1,0 +1,73 @@
+name: Astra owner candidate preparation
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Exact fully qualified source commit SHA
+        required: true
+        type: string
+      qualification_run:
+        description: Completed successful nightly run ID for that exact commit
+        required: true
+        type: string
+      attest:
+        description: Owner authorizes GitHub candidate-metadata attestation
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: astra-owner-preparation
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'pmjobin/astra' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: qualification-${{ inputs.candidate }}-${{ inputs.qualification_run }}
+          path: ${{ runner.temp }}/qualification
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.qualification_run }}
+      - name: Require all native gates from the exact trusted run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ inputs.candidate }}
+          QUALIFICATION_RUN: ${{ inputs.qualification_run }}
+        run: python3 -B tools/ci/prepare.py --candidate "$CANDIDATE" --run-id "$QUALIFICATION_RUN" --qualification "$RUNNER_TEMP/qualification/QUALIFICATION.json" --output "$RUNNER_TEMP/candidate"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: owner-candidate-${{ inputs.candidate }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/candidate
+          retention-days: 14
+          if-no-files-found: error
+  attest:
+    needs: prepare
+    if: inputs.attest
+    environment: release-preparation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: owner-candidate-${{ inputs.candidate }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1
+        with:
+          subject-path: ${{ runner.temp }}/candidate/candidate.json
+          predicate-type: https://github.com/pmjobin/astra/qualification/v1
+          predicate-path: ${{ runner.temp }}/candidate/candidate.json
+          push-to-registry: false

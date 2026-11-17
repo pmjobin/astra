@@ -1,0 +1,181 @@
+name: Astra native qualification and installers
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: astra-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux:
+    if: github.repository == 'pmjobin/astra'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    outputs:
+      deb_sha256: ${{ steps.export.outputs.package_sha256 }}
+      handoff_sha256: ${{ steps.export.outputs.handoff_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Record runner and require distributed seed
+        run: python3 -B tools/ci/preflight.py --require-distribution --output "$RUNNER_TEMP/astra-preflight.json"
+      - name: Native prerequisites
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++ libxml2-dev libzstd-dev zlib1g-dev zstd time valgrind gdb dpkg-dev
+      - name: Fresh stages, independent verifiers and package
+        run: python3 -B tools/ci/pipeline.py --lane nightly --work "$RUNNER_TEMP/astra-nightly"
+      - id: export
+        run: python3 -B tools/ci/artifacts.py --work "$RUNNER_TEMP/astra-nightly" --kind deb --transfer "$RUNNER_TEMP/astra-transfer"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-input-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/astra-transfer
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: deb-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/astra-nightly/package/*.deb
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: build-evidence-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/astra-preflight.json
+            ${{ runner.temp }}/astra-nightly/logs
+            ${{ runner.temp }}/astra-nightly/bootstrap-logs
+            ${{ runner.temp }}/astra-nightly/package-logs
+            ${{ runner.temp }}/astra-nightly/result.json
+          retention-days: 14
+          if-no-files-found: error
+  deb-install:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: deb-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/installer
+      - name: Fresh Ubuntu install and native acceptance
+        env:
+          EXPECTED_SHA: ${{ needs.linux.outputs.deb_sha256 }}
+        run: python3 -B tools/ci/clean_install.py --kind deb --package "$RUNNER_TEMP/installer/astra-development_0.0.3~dev28c1-1_amd64.deb" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: deb-checks-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/astra-install
+          retention-days: 14
+          if-no-files-found: error
+  rpm:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      rpm_sha256: ${{ steps.export.outputs.package_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: native-input-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/native-input
+      - name: Pinned Fedora packaging
+        env:
+          EXPECTED_HANDOFF: ${{ needs.linux.outputs.handoff_sha256 }}
+        run: python3 -B tools/ci/rpm_job.py --input "$RUNNER_TEMP/native-input" --handoff-sha256 "$EXPECTED_HANDOFF" --work "$RUNNER_TEMP/astra-rpm"
+      - id: export
+        run: python3 -B tools/ci/artifacts.py --work "$RUNNER_TEMP/astra-rpm" --kind rpm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rpm-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/astra-rpm/package/*.rpm
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rpm-build-evidence-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/astra-rpm/container
+            ${{ runner.temp }}/astra-rpm/library-logs
+            ${{ runner.temp }}/astra-rpm/package-logs
+          retention-days: 14
+          if-no-files-found: error
+  rpm-install:
+    needs: rpm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: rpm-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/installer
+      - name: Fresh Fedora install and native acceptance
+        env:
+          EXPECTED_SHA: ${{ needs.rpm.outputs.rpm_sha256 }}
+        run: python3 -B tools/ci/clean_install.py --kind rpm --package "$RUNNER_TEMP/installer/astra-development-0.0.3-0.dev28c1.1.x86_64.rpm" --sha256 "$EXPECTED_SHA" --work "$RUNNER_TEMP/astra-install"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rpm-checks-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/astra-install
+          retention-days: 14
+          if-no-files-found: error
+  windows:
+    if: github.repository == 'pmjobin/astra'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Required native Windows gate
+        shell: pwsh
+        run: python -B tools/ci/preflight.py --require-distribution --output "$env:RUNNER_TEMP/windows-gate.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-checks-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/windows-gate.json
+          retention-days: 14
+          if-no-files-found: error
+  qualification:
+    if: always() && github.repository == 'pmjobin/astra'
+    needs: [linux, deb-install, rpm, rpm-install, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Preserve actual job outcomes
+        env:
+          ASTRA_JOB_OUTCOMES: ${{ toJSON(needs) }}
+        run: python3 -B tools/ci/consolidate.py --output "$RUNNER_TEMP/QUALIFICATION.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualification-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/QUALIFICATION.json
+          retention-days: 14
+          if-no-files-found: error
