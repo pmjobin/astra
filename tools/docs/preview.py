@@ -37,7 +37,7 @@ def main():
 	env.pop('VALGRIND_OPTS', None)
 	assert subprocess.check_output(['llvm-config', '--version'], env=env).strip() == b'23.1.4'
 	libraries = sorted(identity['material']['sources'])
-	libraries = [path for path in libraries if path.startswith('lib/')]
+	libraries = [path for path in libraries if path.startswith('lib/') and path.endswith('.astra')]
 	assert len(libraries) == 10
 	groups = {'library':['lib/astra/base/order.astra'], 'compiler-source':['compiler/source/source.astra', *libraries], 'catalog':['tests/api-docs/examples.astra']}
 	commands = []
