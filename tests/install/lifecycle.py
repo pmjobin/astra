@@ -72,7 +72,7 @@ def main():
 	user_build = Path('/build/ordinary-user')
 	user_build.mkdir()
 	os.chown(user_build, user.pw_uid, user.pw_gid)
-	run('ordinary-user-native', ['sudo', '-u', 'nobody', '/bin/sh', '-eu', '-c', 'astrac --version; astrac -c -O2 -o main.o /usr/share/astra/install/main.astra; cc -no-pie main.o -o main; ./main'], cwd=user_build, contains=b'0.0.3-dev28c1')
+	run('ordinary-user-native', ['sudo', '-u', 'nobody', '/bin/sh', '-eu', '-c', 'test "$(id -u)" -ne 0; astrac --version; astrac -c -O2 -o main.o /usr/share/astra/install/main.astra; cc -no-pie main.o -o main; ./main'], cwd=user_build, contains=b'0.0.3-dev28c1')
 	library = private/'llvm/libLLVM.so.23.1'
 	held = library.with_suffix('.held')
 	library.rename(held)

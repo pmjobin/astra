@@ -93,7 +93,13 @@ def main():
 	shutil.copytree(ROOT/'lib/astra', kit/'lib/astra', ignore=shutil.ignore_patterns('__pycache__', 'meson.build'))
 	shutil.copytree(ROOT/'lib/runtime/platform', kit/'lib/runtime/platform', ignore=shutil.ignore_patterns('meson.build'))
 	fixtures = json.loads((ROOT/'tests/books/examples.json').read_text())
-	for name in [row['path'] for row in fixtures['files']]+['tests/books/examples.json', 'tests/books/tutorial.py', 'tests/books/tutorial.json', 'tools/docs/render.py', 'tools/docs/api.css', 'docs/chapters.json']:
+	kit_sources = {row['path'] for row in fixtures['files']}
+	for case in fixtures['cases']:
+		kit_sources.update(case.get('data', []))
+		kit_sources.update(row['data'] for row in case.get('extra_runs', []))
+	kit_sources.update(['tests/books/examples.json', 'tests/books/tutorial.py', 'tests/books/tutorial.json', 'tools/docs/render.py', 'tools/docs/api.css', 'docs/chapters.json'])
+	for name in sorted(kit_sources):
+		require(not Path(name).is_absolute() and '..' not in Path(name).parts and name in handoff['package_sources'], 'tutorial input outside authenticated source closure')
 		target = kit/name
 		target.parent.mkdir(parents=True, exist_ok=True)
 		shutil.copyfile(ROOT/name, target)
