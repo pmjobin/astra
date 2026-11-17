@@ -115,6 +115,7 @@ def main():
 		require({'ordinary-user-native', 'pre-reinstall-corruption', 'reinstall', 'after-reinstall', 'uninstall'} <= names, 'ordinary-user or repair/removal controls missing')
 		smoke = load(installed/'lifecycle/smoke/result.json')
 		require(smoke['status'] == 'INSTALLED_NATIVE_SMOKE_PASS' and smoke['clean_host'] and smoke['strict_memory'], 'installed native/memory scope incomplete')
+		require(smoke['llvm_c_api_version'] == [23, 1, 4], 'installed LLVM runtime identity absent')
 		guide = load(installed/'lifecycle/guide/result.json')
 		require(guide['status'] == 'INSTALLED_GUIDE_VERBATIM_COMMANDS_PASS' and len(guide['blocks']) == 43, 'installed Guide replay incomplete')
 		for name, digest in guide['sources'].items():

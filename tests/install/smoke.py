@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Installed-user checks; runs with no source checkout, seed or developer files."""
 import argparse
+import ctypes
 import hashlib
 import json
 import os
@@ -40,6 +41,16 @@ def main():
 		for path in ('/src/compiler/driver/main.astra', '/llvm/bin/llvm-config', '/work/relative-bootstrap'):
 			require(not Path(path).exists(), 'developer build input mounted on install host')
 	compiler = str(Path(shutil.which(a.compiler)).resolve())
+	llvm = ctypes.CDLL('/usr/lib/astra/llvm/libLLVM.so.23.1')
+	llvm.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
+	llvm.LLVMGetVersion.restype = None
+	version_fields = [ctypes.c_uint() for unused in range(3)]
+	llvm.LLVMGetVersion(*[ctypes.byref(field) for field in version_fields])
+	llvm_version = [field.value for field in version_fields]
+	require(llvm_version == [23, 1, 4], 'installed LLVM C API is not 23.1.4')
+	llvm.LLVMShutdown.argtypes = []
+	llvm.LLVMShutdown.restype = None
+	llvm.LLVMShutdown()
 	env = dict(os.environ, LC_ALL='C.UTF-8')
 	for key in ('LD_LIBRARY_PATH', 'LD_PRELOAD', 'LIBRARY_PATH', 'CPATH', 'VALGRIND_OPTS'):
 		env.pop(key, None)
@@ -113,7 +124,7 @@ def main():
 		env.clear()
 		env.update(memory_env)
 		run('doc-memory', ['/usr/lib/astra/astrac.doc', 'doc', '--output', 'memory.json', 'api.astra'], memory=True)
-	receipt = dict(status='INSTALLED_NATIVE_SMOKE_PASS', platform=platform.platform(), os_release=Path('/etc/os-release').read_text(), compiler=dict(path=compiler, sha256=sha(compiler)), version=version.decode().strip(), source_inputs={f.name:sha(f) for f in a.fixtures.iterdir() if f.is_file()}, commands_sha256=sha(a.output/'commands.json'), strict_memory=a.memory, clean_host=a.clean_host, products={f.name:sha(f) for f in a.build.iterdir() if f.is_file()})
+	receipt = dict(status='INSTALLED_NATIVE_SMOKE_PASS', platform=platform.platform(), os_release=Path('/etc/os-release').read_text(), compiler=dict(path=compiler, sha256=sha(compiler)), version=version.decode().strip(), llvm_c_api_version=llvm_version, source_inputs={f.name:sha(f) for f in a.fixtures.iterdir() if f.is_file()}, commands_sha256=sha(a.output/'commands.json'), strict_memory=a.memory, clean_host=a.clean_host, products={f.name:sha(f) for f in a.build.iterdir() if f.is_file()})
 	(a.output/'result.json').write_text(json.dumps(receipt, indent=2)+'\n')
 	print('INSTALLED_NATIVE_SMOKE_PASS: O0/O2, C ABI, owners, refusal and doc')
 
