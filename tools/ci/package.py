@@ -48,7 +48,7 @@ def main():
 	private = stage/'usr/lib/astra'
 	private.mkdir(parents=True)
 	cc = Path(shutil.which('cc')).resolve()
-	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM=llvm['version'], system_llvm=llvm, cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
+	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], provider_rebuilds=handoff.get('provider_rebuilds', {}), package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM=llvm['version'], system_llvm=llvm, cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
 	if a.development:
 		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=deb_version if a.kind == 'deb' else '0.0.3-'+rpm_release)
 	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
@@ -69,6 +69,7 @@ def main():
 	common = [cc, '-no-pie', a.object, *objects]
 	native, doc = private/'astrac.native', private/'astrac.doc'
 	run([*common, llvm['library']['path'], '-o', native], runtime/'native-link', env)
+	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I'+llvm['include'], '-DASTRA_SYSTEM_LLVM_MAJOR='+str(llvm['major']), ROOT/'tests/install/diagnostics/llvm-direct.c', llvm['library']['path'], '-o', build/'llvm-oracle'], runtime/'oracle-build', env)
 	undefined, _ = run(['nm', '-u', native], runtime/'imports', env)
 	names = sorted(set(re.findall(rb'\b(LLVM[A-Za-z0-9_]+)(?:@[^\s]+)?\s*$', undefined, re.M)))
 	require(b'LLVMContextCreate' in names, 'missing LLVM boundary')

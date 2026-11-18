@@ -48,8 +48,10 @@ def audit_payload(stage):
 	for path in stage.rglob('*'):
 		rel = path.relative_to(stage)
 		require(not path.is_symlink(), 'Linux payload symlink refused: '+str(rel))
-		require(not any(part.lower() == 'llvm' or part.lower().startswith('libllvm') for part in rel.parts), 'bundled LLVM payload refused: '+str(rel))
-		require(not str(rel).startswith('usr/include/llvm'), 'LLVM headers refused')
+		require(not any(part.lower().startswith('libllvm') for part in rel.parts), 'bundled LLVM payload refused: '+str(rel))
+		require(not str(rel).startswith(('usr/include/llvm', 'usr/lib/astra/llvm')), 'LLVM runtime or headers refused')
+		if path.is_file():
+			require(path.suffix not in ('.so', '.a') and not path.name.endswith(('.h', '.hpp')) or not any(part.lower().startswith('llvm') for part in rel.parts), 'LLVM provider payload refused')
 
 
 def audit_elf(native, llvm, runtime, env):

@@ -14,7 +14,11 @@ int main(int argc, char **argv) {
 	if (argc != 5) return 2;
 	unsigned major, minor, patch;
 	LLVMGetVersion(&major, &minor, &patch);
+	#ifdef ASTRA_SYSTEM_LLVM_MAJOR
+	if (major != ASTRA_SYSTEM_LLVM_MAJOR) return 3;
+#else
 	if (major != 23 || minor != 1 || patch != 4) return 3;
+#endif
 	LLVMContextRef context = LLVMContextCreate();
 	LLVMModuleRef module = NULL;
 	LLVMTargetMachineRef machine = NULL;

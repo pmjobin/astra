@@ -11,6 +11,7 @@ from common import ROOT, require, sha, write
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
+	p.add_argument('--system-llvm', action='store_true', help='Permit only the audited C provider version guard adaptation')
 	p.add_argument('--products', type=Path, required=True)
 	p.add_argument('--identity', type=Path, required=True)
 	p.add_argument('--output', type=Path, required=True)
@@ -19,11 +20,20 @@ def main():
 	identity = json.loads(a.identity.read_text())
 	require(products['identity_sha256'] == sha(a.identity), 'generation identity receipt mismatch')
 	sources = {}
+	provider_rebuilds = {}
 	for name, item in identity['sources'].items():
 		path = Path(item['path'] if isinstance(item, dict) else name)
 		digest = item['sha256'] if isinstance(item, dict) else item
-		require(path.is_relative_to(ROOT) and sha(path) == digest, 'generation source changed: '+str(path))
-		sources[str(path.relative_to(ROOT))] = digest
+		require(path.is_relative_to(ROOT), 'generation source outside repository')
+		name = str(path.relative_to(ROOT))
+		if sha(path) != digest:
+			require(a.system_llvm and name == 'compiler/backend/llvm/capi.c', 'generation source changed: '+name)
+			original = subprocess.check_output(['git', 'show', identity.get('source_commit', identity.get('source_revision'))+':'+name], cwd=ROOT)
+			import hashlib
+			require(hashlib.sha256(original).hexdigest() == digest, 'original provider mismatch')
+			require(original.replace(b'#if LLVM_VERSION_MAJOR != 23\n#error LLVM 23 required', b'#if LLVM_VERSION_MAJOR != 22 && LLVM_VERSION_MAJOR != 23\n#error LLVM 22 or 23 required') == path.read_bytes(), 'provider adaptation exceeds version guard')
+			provider_rebuilds[name] = dict(original_sha256=digest, rebuilt_source_sha256=sha(path), change='22/23 header guard only; native C provider recompiled against target headers; current ABI/physical qualification required')
+		sources[name] = sha(path)
 	rows = {}
 	for mode, row in products['products'].items():
 		require(sha(row['object']) == row['object_sha256'], 'generation object mismatch')
@@ -35,7 +45,7 @@ def main():
 	package_sources = {name:sha(ROOT/name) for name in tracked}
 	package_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
 	package_tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip()
-	write(a.output, dict(format='astra-native-handoff/1', status='AUTHENTICATED_GENERATION_INPUT', source_commit=identity.get('source_commit', identity.get('source_revision')), sources=sources, products=rows, package_commit=package_commit, package_tree=package_tree, package_sources=package_sources, producer=identity.get('seed', identity.get('producer')), generation_receipt_sha256=sha(a.products), identity_sha256=sha(a.identity), qualification='Current installed and regression tests required; build alone gives no PASS'))
+	write(a.output, dict(format='astra-native-handoff/1', status='AUTHENTICATED_GENERATION_INPUT', provider_rebuilds=provider_rebuilds, source_commit=identity.get('source_commit', identity.get('source_revision')), sources=sources, products=rows, package_commit=package_commit, package_tree=package_tree, package_sources=package_sources, producer=identity.get('seed', identity.get('producer')), generation_receipt_sha256=sha(a.products), identity_sha256=sha(a.identity), qualification='Current installed and regression tests required; build alone gives no PASS'))
 
 
 if __name__ == '__main__':

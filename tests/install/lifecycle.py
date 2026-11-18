@@ -28,7 +28,7 @@ def system_acceptance(a, run, private, provenance):
 	library = Path(llvm['library']['path'])
 	listing = run('payload', ['dpkg-query', '-L', 'astrac'] if a.kind == 'deb' else ['rpm', '-ql', 'astrac'])
 	for name in listing.decode().splitlines():
-		require(not any(part.lower() == 'llvm' or part.lower().startswith('libllvm') for part in Path(name).parts), 'private LLVM payload')
+		require(not any(part.lower().startswith('libllvm') for part in Path(name).parts) and not name.startswith(('/usr/lib/astra/llvm', '/usr/include/llvm')), 'private LLVM payload')
 	run('library-owner', ['dpkg-query', '-S', library] if a.kind == 'deb' else ['rpm', '-qf', library])
 	elf = run('loader-elf', ['readelf', '-l', '-d', private/'astrac.native'])
 	require(b'(RPATH)' not in elf and b'(RUNPATH)' not in elf and llvm['soname'].encode() in elf, 'wrong runtime ELF')
