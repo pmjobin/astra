@@ -32,6 +32,7 @@ def main():
 	p.add_argument('--verify-only', action='store_true')
 	p.add_argument('--commit')
 	p.add_argument('--tree')
+	p.add_argument('--rpm-version')
 	for key in ('seed', 'build', 'runtime'):
 		p.add_argument('--'+key, type=Path)
 	a = p.parse_args()
@@ -64,7 +65,7 @@ def main():
 	write(runtime/'source-generation.json', dict(commit=a.commit, tree=a.tree, seed=SEED, compiler_sources=sources, compiler_object=identify(obj), manifest_sha256=sha(ROOT/'SOURCE-MANIFEST.json'), source_manifest=m, llvm=llvm, qualification='DEVELOPMENT_UNQUALIFIED'))
 	handoff = dict(source_commit=a.commit, package_commit=a.commit, package_tree=a.tree, products={'O2':dict(object_sha256=sha(obj))}, sources={n:r['sha256'] for n,r in m['files'].items() if n.startswith(('compiler/', 'lib/'))}, package_sources={n:r['sha256'] for n,r in m['files'].items()})
 	write(runtime/'source-handoff.json', handoff)
-	args = SimpleNamespace(object=obj, mode='O2', kind='rpm', development=True)
+	args = SimpleNamespace(object=obj, mode='O2', kind='rpm', development=True, package_version=a.rpm_version)
 	stage = build_payload(args, handoff, build, runtime, env, llvm)
 	provenance = stage/'usr/share/astra'
 	shutil.copyfile(runtime/'source-generation.json', provenance/'SOURCE-BUILD.json')

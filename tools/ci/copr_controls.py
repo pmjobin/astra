@@ -4,12 +4,11 @@
 import argparse
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tarfile
 
-from common import ROOT, external, require, run, sha, write
+from common import ROOT, external, require, sha, write
 from copr_source import archive, SEED_PATH
 
 

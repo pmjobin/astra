@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -18,10 +19,11 @@ SEED = dict(bytes=2388496, sha256='560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4a
 SEED_PATH = 'tools/ci/seeds/astra-27d-stage3-o2-linux-x86_64.elf'
 PREFIXES = ('compiler/', 'lib/', 'docs/', 'tests/books/', 'tests/install/', 'tools/docs/', 'tools/ci/', 'packaging/rpm/', '.copr/')
 LICENSES = ('LICENSE.txt', 'tools/ci/seeds/LICENSE.txt', 'tools/ci/seeds/PROVENANCE.json')
+BOOK_WITNESSES = ('tests/selfhost-convergence-27d/c-client.py', 'tests/selfhost-expressive-language-27c/named.py')
 
 
 def selected(name):
-	return (name in LICENSES or name.startswith(PREFIXES)) and name != SEED_PATH
+	return (name in LICENSES or name in BOOK_WITNESSES or name.startswith(PREFIXES)) and name != SEED_PATH
 
 
 def git(*args):
@@ -55,6 +57,9 @@ def snapshot(commit):
 	require(len(seed) == SEED['bytes'] and hashlib.sha256(seed).hexdigest() == SEED['sha256'], 'seed identity mismatch')
 	for name in LICENSES:
 		require(name in files and files[name][1], 'missing source license/provenance: '+name)
+	rules = json.loads(files['docs/books/rules.json'][1])
+	book_inputs = {row['path'] for rule in rules['rules'] for kind in ('sources', 'positive', 'negative') for row in rule[kind]}
+	require(book_inputs <= files.keys(), 'incomplete Book source witnesses: '+str(sorted(book_inputs-files.keys())))
 	for name, (mode, data) in files.items():
 		require(not name.endswith(('.o', '.a', '.so', '.rpm', '.elf')) and not data.startswith((b'\x7fELF', b'!<arch>')), 'prebuilt input refused: '+name)
 	return files, seed
@@ -114,7 +119,8 @@ def main():
 	spec.write_text(template)
 	write(top/'source-receipt.json', dict(commit=a.commit, tree=manifest['tree'], source_sha256=sha(path), seed=SEED, licenses=list(LICENSES), manifest=manifest))
 	if not a.archive_only:
-		subprocess.run(['rpmbuild', '-bs', '--define', '_topdir '+str(top), '--define', '_srcrpmdir '+str(output), str(spec)], check=True)
+		env = dict(os.environ, SOURCE_DATE_EPOCH=str(manifest['epoch']))
+		subprocess.run(['rpmbuild', '-bs', '--define', '_topdir '+str(top), '--define', '_srcrpmdir '+str(output), '--define', '_buildhost astra-source.invalid', '--define', 'source_date_epoch_from_changelog 0', '--define', 'use_source_date_epoch_as_buildtime 1', str(spec)], check=True, env=env)
 		artifacts = list(output.glob('astrac-*.src.rpm'))
 		require(len(artifacts) == 1, 'ambiguous source RPM output')
 		subprocess.run(['rpm', '-qpl', artifacts[0]], check=True)

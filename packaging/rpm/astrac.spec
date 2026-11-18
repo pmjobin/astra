@@ -38,7 +38,7 @@ echo '560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4afd77052325addf1f1c6  %{SOURCE
 %setup -q -n astra-%{commit}
 
 %build
-python3 -B tools/ci/copr_build.py --commit %{commit} --tree %{source_tree} --seed %{SOURCE1} --build %{_builddir}/astrac-output --runtime %{_builddir}/astrac-evidence
+python3 -B tools/ci/copr_build.py --commit %{commit} --tree %{source_tree} --seed %{SOURCE1} --rpm-version %{version}-%{release} --build %{_builddir}/astrac-output --runtime %{_builddir}/astrac-evidence
 
 %install
 mkdir -p %{buildroot}
