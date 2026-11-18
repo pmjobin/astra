@@ -10,7 +10,7 @@
 %global __brp_strip_comment_note /bin/true
 %global __brp_strip_static_archive /bin/true
 %global _build_id_links none
-%if 0%{?rhel} == 9
+%if %{astra_rhel9} || 0%{?rhel} == 9
 %global astra_python /usr/bin/python3.11
 %global astra_python_req python3.11
 %else
