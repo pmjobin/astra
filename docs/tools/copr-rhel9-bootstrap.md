@@ -10,8 +10,9 @@ independent CentOS Stream 9 build and COPR build 11347573. The compiler
 and library Git subtrees match the pinned bootstrap source byte-for-byte.
 The Red Hat buildroot compiled the seed's C providers and linked a new
 executable. The RPM then uses that seed to compile the 239 production
-Astra source inputs and nine C translation units in a separate target
-buildroot. The SRPM carries the seed as a source, and the installed RPM
+Astra source inputs and nine C providers in a separate target buildroot.
+The target compiler also builds the dispatcher from C. The SRPM carries
+the seed as a source, and the installed RPM
 requires system LLVM and Python 3.11.
 
 ## Replay the seed link
@@ -87,3 +88,32 @@ without the checkout or seed. The direct LLVM ABI tests, physical
 mutation suite, payload controls and Guide use the same compiler built
 by the SRPM. Hosted EPEL 9 delivery requires its separate source build
 and clean DNF evidence.
+
+## Local qualification result
+
+The source RPM used commit `e4932a1dad162e25e0b033b16258418976cdf33f`.
+Two runs of the SCM source recipe produced identical SRPMs. The cold UBI
+9 rebuild compiled 239 Astra sources and nine C providers plus the
+dispatcher. Two cold builds matched the compiler object byte-for-byte.
+The final build took 1:09:45 elapsed and peaked at 946,100 KiB RSS for
+the Astra compilation.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| SCM worker SRPM | `7a37448e89e8423daa43462a4ca1e2619107334eeeb82a607aeaeccfb16d1682` |
+| Cold UBI 9 binary RPM | `0839c18184088150ef1477adc67fa946b2c5ec585fe348dfcd67666d84905ce0` |
+| Fresh O2 compiler object | `b9e4c7f3a9dca665d6cbc78fc93a4b35a17ab9fad9fa349a89117da46afe900d` |
+| Extracted native compiler | `7e89a3b5d0577798b6ef961766c238c23f1eb7c2aa5d14af8ad73b1620cb9aad` |
+
+Local UBI 9 x86-64 earns SCOPED_PASS for the development RPM. The
+installed compiler passed O0/O2 smoke, C ownership and ABI, documentation,
+17 unsuppressed Valgrind cases, 43 Guide blocks, 39 physical refusals,
+22 positive controls and 12 ELF and payload controls. Fresh DNF consumers
+exercised installation, dependency-removal refusal, repair by reinstall,
+removal and fresh installation. The default Python executable was
+byte-identical after the DNF runs. The local RPM is unsigned.
+
+The installed compiler imports 217 system LLVM functions at LLVM_22.1.
+The direct C ABI audit and runtime matrix covered 231 declarations and
+24 public enum types. The RPM payload contains neither LLVM nor the
+seed. Fedora 45 and CentOS Stream 9 retain their separate qualifications.
