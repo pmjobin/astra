@@ -41,13 +41,15 @@ def main():
 		for path in ('/src/compiler/driver/main.astra', '/llvm/bin/llvm-config', '/work/relative-bootstrap'):
 			require(not Path(path).exists(), 'developer build input mounted on install host')
 	compiler = str(Path(shutil.which(a.compiler)).resolve())
-	llvm = ctypes.CDLL('/usr/lib/astra/llvm/libLLVM.so.23.1')
+	manifest = json.loads(Path('/usr/lib/astra/INSTALL.json').read_text())
+	system = manifest.get('system_llvm')
+	llvm = ctypes.CDLL(system['soname'] if system else '/usr/lib/astra/llvm/libLLVM.so.23.1')
 	llvm.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
 	llvm.LLVMGetVersion.restype = None
 	version_fields = [ctypes.c_uint() for unused in range(3)]
 	llvm.LLVMGetVersion(*[ctypes.byref(field) for field in version_fields])
 	llvm_version = [field.value for field in version_fields]
-	require(llvm_version == [23, 1, 4], 'installed LLVM C API is not 23.1.4')
+	require(llvm_version == list(map(int, system['version'].split('.'))) if system else llvm_version == [23, 1, 4], 'installed LLVM C API mismatch')
 	llvm.LLVMShutdown.argtypes = []
 	llvm.LLVMShutdown.restype = None
 	llvm.LLVMShutdown()
@@ -76,7 +78,7 @@ def main():
 			for marker in (b'ERROR SUMMARY: 0 errors', b'in use at exit: 0 bytes in 0 blocks', b'(suppressed: 0 from 0)'):
 				require(marker in result.stderr, name+': strict memory marker absent')
 		return result.stdout
-	version = run('version', [compiler, '--version'], stdout=b'astrac 0.0.3-dev28c1 (GNU/Linux x86-64, E25-A-v1, LLVM 23.1.4)\n')
+	version = run('version', [compiler, '--version'], stdout=('astrac 0.0.3-dev28c1 (GNU/Linux x86-64, E25-A-v1, LLVM '+'.'.join(map(str, llvm_version))+')\n').encode())
 	shadow = a.build/'hashlib.py'
 	shadow.write_text('raise RuntimeError("UNTRUSTED_USER_MODULE_LOADED")\n')
 	old_pythonpath = env.get('PYTHONPATH')
@@ -118,7 +120,8 @@ def main():
 		# Exercise the actual native image without Python's interpreter allocations.
 		native = Path('/usr/lib/astra/astrac.native')
 		memory_env = env.copy()
-		env['LD_LIBRARY_PATH'] = '/usr/lib/astra/llvm'
+		if not system:
+			env['LD_LIBRARY_PATH'] = '/usr/lib/astra/llvm'
 		run('compiler-memory', [native, '-c', '-O2', '-o', 'memory.o', 'main.astra'], memory=True)
 		run('negative-memory', [native, '--check', 'negative-owner.astra'], expected=1, diagnostic=b'SSA verification failed', memory=True)
 		env.clear()

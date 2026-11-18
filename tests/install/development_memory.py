@@ -44,10 +44,17 @@ def main():
 		return result
 	private = Path('/usr/lib/astra')
 	fixtures = Path('/usr/share/astra/install')
-	library = private/'llvm/libLLVM.so.23.1'
-	run('oracle-build', ['cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I/qa/include', '/qa/llvm-direct.c', library, '-Wl,-rpath,/usr/lib/astra/llvm', '-o', 'oracle'])
+	manifest = json.loads((private/'INSTALL.json').read_text())
+	system = manifest.get('system_llvm')
+	library = Path(system['library']['path']) if system else private/'llvm/libLLVM.so.23.1'
+	if system:
+		import shutil
+		shutil.copyfile('/qa/oracle', a.build/'oracle')
+		(a.build/'oracle').chmod(0o755)
+	else:
+		run('oracle-build', ['cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I/qa/include', '/qa/llvm-direct.c', library, '-Wl,-rpath,/usr/lib/astra/llvm', '-o', 'oracle'])
 	loaded = run('oracle-library', ['ldd', a.build/'oracle'])
-	assert str(library).encode() in loaded.stdout
+	assert any(Path(word.decode()).resolve() == library.resolve() for word in loaded.stdout.split() if word.startswith(b'/')), 'oracle loader differs from compiler'
 	(a.build/'identity.ll').write_text('define i32 @identity(i32 %a) {\n  ret i32 %a\n}\n')
 	(a.build/'invalid.ll').write_text('define i32 @invalid(i32 %a) {\n  ret i64 0\n}\n')
 	for name, source, expected in [('identity', a.build/'identity.ll', 0), ('invalid', a.build/'invalid.ll', 1), ('instcombine', Path('/qa/llvm-instcombine.ll'), 0)]:
@@ -71,7 +78,7 @@ def main():
 	run('doc-memory', [private/'astrac.doc', 'doc', '--output', a.build/'api.json', 'api.astra'], memory=True)
 	assert json.loads((a.build/'api.json').read_text())['format'] == 'astra-api-docs/1'
 	failed = [row['name'] for row in commands if row['memory_status'] == 'NOT_PASS']
-	result = dict(status='NOT_PASS' if failed else 'FOCUSED_STRICT_MEMORY_PASS', failed_cases=failed, original_LLVM_historical_strict_memory='NOT_PASS', derivative_used=False, library_sha256=sha(library), native_sha256=sha(private/'astrac.native'), commands_sha256=sha(a.output/'commands.json'), scope='Fresh installed original LLVM and compiler. No suppressions; no full release or dependency disposition.')
+	result = dict(status='NOT_PASS' if failed else 'FOCUSED_STRICT_MEMORY_PASS', failed_cases=failed, original_LLVM_historical_strict_memory='NOT_PASS', derivative_used=False, library_sha256=sha(library), native_sha256=sha(private/'astrac.native'), commands_sha256=sha(a.output/'commands.json'), scope='Fresh installed selected LLVM and compiler. No suppressions; no full release or dependency disposition.')
 	result.update(recipe_sha256=sha(__file__), products={path.name:dict(bytes=path.stat().st_size, sha256=sha(path)) for path in a.build.iterdir() if path.is_file()})
 	(a.output/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(result['status'], ', '.join(failed))

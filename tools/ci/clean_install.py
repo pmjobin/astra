@@ -20,6 +20,10 @@ def main():
 	p.add_argument('--engine-root', type=Path)
 	p.add_argument('--engine-runroot', type=Path)
 	p.add_argument('--development', action='store_true')
+	p.add_argument('--system-llvm', action='store_true')
+	p.add_argument('--oracle', type=Path)
+	p.add_argument('--predecessor', type=Path)
+	p.add_argument('--predecessor-sha256')
 	p.add_argument('--llvm', type=Path, help='Authenticated headers for the independent installed LLVM oracle')
 	a = p.parse_args()
 	require(sha(a.package) == a.sha256, 'artifact changed since builder receipt')
@@ -30,7 +34,7 @@ def main():
 	shutil.copyfile(ROOT/'tests/install/lifecycle.py', qa/'lifecycle.py')
 	for name in ('getting-started.md', 'tooling.md'):
 		shutil.copyfile(ROOT/'docs/guide'/name, qa/name)
-	if a.development:
+	if a.development and not a.system_llvm:
 		require(a.llvm, 'development memory oracle requires authenticated public LLVM headers')
 		pins = json.loads((ROOT/'tools/ci/llvm-linux.json').read_text())['files']
 		for name, pin in pins.items():
@@ -39,6 +43,11 @@ def main():
 				target = qa/name
 				target.parent.mkdir(parents=True, exist_ok=True)
 				shutil.copyfile(a.llvm/name, target)
+	if a.system_llvm:
+		require(a.development and a.oracle and a.predecessor and sha(a.predecessor) == a.predecessor_sha256, 'system lifecycle needs oracle and authenticated predecessor')
+		shutil.copyfile(a.oracle, qa/'oracle')
+		(qa/'oracle').chmod(0o755)
+	if a.development:
 		for name in ('llvm-direct.c', 'llvm-instcombine.ll'):
 			shutil.copyfile(ROOT/'tests/install/diagnostics'/name, qa/name)
 		shutil.copyfile(ROOT/'tests/install/development_memory.py', qa/'development_memory.py')
@@ -50,11 +59,13 @@ def main():
 		engine += ['--root', str(a.engine_root), '--runroot', str(a.engine_runroot)]
 	distro = 'ubuntu' if a.kind == 'deb' else 'fedora'
 	image = json.loads((ROOT/'tools/ci'/('development-containers.json' if a.development else 'containers.json')).read_text())['platforms'][distro]['image']
-	argv = [*engine, 'run', '--rm', '--platform', 'linux/amd64', '--security-opt', 'label=disable', '--memory', '4g', '--cpus', '2', '-v', str(a.package.resolve())+':/package/'+a.package.name+':ro', '-v', str(qa)+':/qa:ro', '-v', str(work)+':/logs:rw', '-v', str(build)+':/build:rw', '-e', 'TMPDIR=/build', image, 'sh', '-ec']
+	argv = [*engine, 'run', '--rm', '--platform', 'linux/amd64', '--security-opt', 'label=disable', '--memory', '4g', '--cpus', '2', '-v', str(a.package.resolve())+':/package/'+a.package.name+':ro', '-v', str(qa)+':/qa:ro', '-v', str(work)+':/logs:rw', '-v', str(build)+':/build:rw', '-e', 'TMPDIR=/build', ]
+	if a.predecessor:
+		argv += ['-v', str(a.predecessor.resolve())+':/predecessor/'+a.predecessor.name+':ro']
 	# The base images do not promise Python. Obtain only the test interpreter
 	# before the package manager installs the package's declared dependencies.
 	setup = 'apt-get update && apt-get install -y --no-install-recommends python3 sudo time' if a.kind == 'deb' else 'dnf install -y python3 sudo time'
-	argv += [setup+' && python3 -B /qa/lifecycle.py --kind "$1" --package "$2" --sha256 "$3" --output /logs/lifecycle --memory'+(' --development' if a.development else ''), 'install-test', a.kind, '/package/'+a.package.name, a.sha256]
+	argv += [image, 'sh', '-ec', setup+' && python3 -B /qa/lifecycle.py --kind "$1" --package "$2" --sha256 "$3" --output /logs/lifecycle --memory'+(' --development' if a.development else '')+(' --system-llvm --predecessor /predecessor/'+a.predecessor.name+' --predecessor-sha256 '+a.predecessor_sha256 if a.system_llvm else ''), 'install-test', a.kind, '/package/'+a.package.name, a.sha256]
 	run(argv, work/'container', clean_environment(), timeout=1800)
 	result = json.loads((work/'lifecycle/result.json').read_text())
 	require(result['status'] == 'CLEAN_INSTALL_SMOKE_REINSTALL_UNINSTALL_PASS', 'installation acceptance absent')

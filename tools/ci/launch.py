@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -I
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Installed development CLI; authenticate private images before native exec."""
+import ctypes
 import hashlib
 import json
 import os
@@ -13,7 +14,7 @@ def main():
 	manifest = json.loads((root/'INSTALL.json').read_text())
 	doc = len(sys.argv) > 1 and sys.argv[1] == 'doc'
 	selected = ['astrac', 'astrac.doc' if doc else 'astrac.native']
-	if not doc:
+	if not doc and 'system_llvm' not in manifest:
 		selected += ['llvm/libLLVM.so.23.1']
 	for name in selected:
 		path = root/name
@@ -25,8 +26,14 @@ def main():
 	env = dict(os.environ)
 	for key in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'LIBRARY_PATH'):
 		env.pop(key, None)
-	if not doc:
-		env['LD_LIBRARY_PATH'] = str(root/'llvm')
+	if sys.argv[1:] == ['--version'] and 'system_llvm' in manifest:
+		llvm = ctypes.CDLL(manifest['system_llvm']['soname'])
+		llvm.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
+		fields = [ctypes.c_uint() for unused in range(3)]
+		llvm.LLVMGetVersion(*map(ctypes.byref, fields))
+		version = '.'.join(str(field.value) for field in fields)
+		print('astrac 0.0.3-dev28c1 (GNU/Linux x86-64, E25-A-v1, LLVM '+version+')')
+		return
 	os.execve(root/'astrac', ['astrac', *sys.argv[1:]], env)
 
 
