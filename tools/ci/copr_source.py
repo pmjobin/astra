@@ -73,7 +73,7 @@ def archive(commit, output):
 	data = json.dumps(manifest, indent=2, sort_keys=True).encode()+b'\n'
 	files['SOURCE-MANIFEST.json'] = ('100644', data)
 	path = output/('astra-'+commit+'.tar.gz')
-	with path.open('xb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0) as compressed, tarfile.open(fileobj=compressed, mode='w', format=tarfile.PAX_FORMAT) as tar:
+	with path.open('xb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0, compresslevel=9) as compressed, tarfile.open(fileobj=compressed, mode='w', format=tarfile.PAX_FORMAT) as tar:
 		for name, (mode, data) in sorted(files.items()):
 			info = tarfile.TarInfo('astra-'+commit+'/'+name)
 			info.size, info.mtime, info.mode = len(data), epoch, int(mode, 8) & 0o777
