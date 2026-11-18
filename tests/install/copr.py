@@ -42,7 +42,7 @@ def main():
 	require(el9 or (os_release['ID'], os_release['VERSION_ID']) == ('fedora', '45'), 'unexpected consumer OS')
 	python = '/usr/bin/python3.11' if el9 else '/usr/bin/python3'
 	require(sys.executable == python, 'run consumer tests with '+python)
-	chroot = {'centos':'centos-stream-9-x86_64', 'rhel':'epel-9-x86_64', 'fedora':'fedora-45-x86_64'}[os_release['ID']]
+	chroot = {'centos':'centos-stream-9-x86_64', 'rhel':'rhel-9-x86_64', 'fedora':'fedora-45-x86_64'}[os_release['ID']]
 	require(re.fullmatch('[0-9a-f]{40}', a.commit), 'full source commit required')
 	require(not shutil.which('astrac') and not Path('/usr/lib/astra').exists(), 'Astra already installed')
 	require(not Path('/usr/include/llvm-c/Core.h').exists(), 'LLVM development headers present on consumer')

@@ -86,8 +86,8 @@ rpmbuild --rebuild --define '_topdir /rpmbuild' /input/astrac.src.rpm
 The local qualification runs the RPM installation in a fresh consumer
 without the checkout or seed. The direct LLVM ABI tests, physical
 mutation suite, payload controls and Guide use the same compiler built
-by the SRPM. Hosted EPEL 9 delivery requires its separate source build
-and clean DNF evidence.
+by the SRPM. The hosted route uses the existing `rhel-9-x86_64` COPR
+chroot. Its consumer checks use that repository explicitly.
 
 ## Local qualification result
 
