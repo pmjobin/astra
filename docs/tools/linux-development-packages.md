@@ -1,5 +1,35 @@
 # Linux development packages
 
+Current Linux products are `astrac` with distribution-managed LLVM and no
+bundled LLVM. Read [the current findings](system-llvm-28c.md) for exact platform
+statuses, package hashes, the LLVM 22 branch adapter and Ubuntu's strict-memory
+blocker. Fedora 45 uses `llvm-devel` at build time and `llvm-libs` at runtime;
+Ubuntu 26.04 uses official `llvm-22-dev` and `libllvm22`. Windows is separate.
+
+Build providers and packages with `package.py --system-llvm --development`
+using an authenticated `handoff.py --system-llvm` input. `system_llvm_matrix.py`
+records real header declarations and runtime exports; `system-llvm-abi.c`
+exercises the branch/LP64 ABI. `clean_install.py --development --system-llvm`
+requires the target-built `--oracle`, exact `--predecessor` and its SHA-256,
+plus fresh external `--build` and `--work` leaves. Its consumer mounts only the
+package, QA oracle, old migration package and output leaves; no LLVM headers,
+private toolchain or compiler checkout. The old product is used only during
+migration, after the fresh-system native, Guide and strict-memory checks.
+
+`development.py` builds a fresh generation with isolated build-only pinned
+LLVM 23, then packages against distro LLVM. Optional exact predecessor DEB/RPM
+paths and SHA-256 arguments enable full clean migration acceptance. Without
+them, its result is explicitly PARTIAL/build-only. The manual GitHub workflow
+keeps the pinned actions and `ubuntu-26.04` runner. New binary uploads are
+removed until a separate owner decision; the prior exact approval grants no
+permission for these products. No new hosted run is claimed.
+
+## Historical private-LLVM delivery (2026-11-17)
+
+The following records retain the preceding executed milestone and its exact
+old products; their private-LLVM interface is superseded for current Linux builds.
+
+
 The separate `development-packages.yml` workflow builds a fresh current-source
 compiler from the authenticated public 27-D Stage3 seed. Its routine build is
 one O2 compiler generation; the installed compiler must compile and execute

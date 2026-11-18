@@ -30,6 +30,7 @@ def main():
 	api = {}
 	for name in sorted(set(used+bindings)):
 		declarations = re.findall(rb'(?:^|[;}\n])\s*([^;{}]*?\b'+name+rb'\s*\([^;{}]*?\))\s*;', header, re.M)
+		declarations = [item for item in declarations if item[:item.index(name)].strip()]
 		require(len(declarations) == 1, 'missing or ambiguous header API: '+name.decode())
 		api[name.decode()] = re.sub(rb'\s+', b' ', declarations[0]).decode().strip()
 	declared = set(api)
@@ -39,7 +40,13 @@ def main():
 	enums = {name.decode():re.sub(rb'\s+', b' ', body).decode() for body, name in re.findall(rb'typedef enum\s*\{([^{}]*?)\}\s*(LLVM[A-Za-z0-9_]+)\s*;', header)}
 	require('LLVMOpcode' in enums and 'LLVMTypeKind' in enums, 'missing C enum ABI')
 	verification, _ = run(['dpkg', '--verify', llvm['runtime_package']] if llvm['major'] == 22 else ['rpm', '-V', llvm['runtime_package']], runtime/'package-integrity', env)
-	require(not verification.strip(), 'system library package has modified files')
+	if llvm['major'] == 22:
+		ledger = subprocess.check_output(['dpkg-query', '--control-show', llvm['runtime_package'], 'md5sums'], env=env)
+		rows = dict(line.split(None, 1)[::-1] for line in ledger.decode().splitlines())
+		library = Path(llvm['library']['path'])
+		require(hashlib.md5(library.read_bytes(), usedforsecurity=False).hexdigest() == rows[str(library).lstrip('/')], 'system LLVM package checksum mismatch')
+	else:
+		require(not verification.strip(), 'system library package has modified files')
 	write(runtime/'result.json', dict(status='SYSTEM_LLVM_HEADER_SYMBOL_MATRIX_RECORDED', LLVM=llvm, imported_functions=[name.decode() for name in used], declarations=api, enums=enums, header_preprocessed_sha256=sha(runtime/'header-api.txt'), full_export_table_sha256=hashlib.sha256(exports).hexdigest(), scope='Header prototypes and runtime symbol availability; branch/LP64 executable ABI witness and actual semantic/physical tests are separate gates.'))
 	print('SYSTEM_LLVM_HEADER_SYMBOL_MATRIX_RECORDED', len(api), len(enums))
 

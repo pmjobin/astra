@@ -35,6 +35,16 @@ def main():
 			controls.append(name)
 		else:
 			raise AssertionError('LLVM payload accepted')
+	for name, data in [('hidden-elf', a.native.read_bytes()), ('hidden-archive', b'!<arch>\n')]:
+		stage = out/name
+		stage.mkdir()
+		(stage/'innocent.bin').write_bytes(data)
+		try:
+			audit_payload(stage)
+		except ValueError:
+			controls.append(name)
+		else:
+			raise AssertionError('hidden binary accepted')
 	stage = out/'symlink'
 	stage.mkdir()
 	(stage/'library').symlink_to('/usr/lib/libLLVM.so')

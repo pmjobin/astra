@@ -59,7 +59,7 @@ def main():
 		if qualification.is_dir():
 			shutil.copytree(qualification, logs/'qualification-evidence')
 	script('handoff.py', ['--products', products, '--identity', work/'bootstrap-logs/identity.json', '--output', work/'handoff.json'])
-	script('package.py', ['--object', work/'bootstrap/stage2/astrac-O2.o', '--handoff', work/'handoff.json', '--llvm', llvm, '--library', library, '--library-receipt', receipt, '--kind', 'deb', '--build', work/'package', '--runtime', work/'package-logs'])
+	script('package.py', ['--object', work/'bootstrap/stage2/astrac-O2.o', '--handoff', work/'handoff.json', '--system-llvm', '--development', '--kind', 'deb', '--build', work/'package', '--runtime', work/'package-logs'])
 	write(work/'result.json', dict(status='PARTIAL_REQUIRES_SEPARATE_INSTALL_AND_WINDOWS', source_commit=head, bootstrap_receipt=identify(products), package_receipt=identify(work/'package-logs/result.json'), hosted_run_id=os.environ.get('GITHUB_RUN_ID'), gates=dict(native_linux='BUILT_AND_REGRESSION_TESTED', clean_install='PENDING_SEPARATE_JOB', native_windows='BLOCKED_PORT_AND_SEED'), release_authorized=False))
 
 

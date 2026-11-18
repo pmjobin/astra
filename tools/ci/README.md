@@ -1,4 +1,17 @@
-# Astra 28-C1 bootstrap and installer engineering
+# Astra bootstrap and installer engineering
+
+The current Linux package interface is `package.py --system-llvm --development`.
+Ubuntu requires 26.04 and official LLVM 22 development headers; Fedora requires
+45 and official LLVM 23 headers. Neither Linux payload may bundle LLVM. See
+[system LLVM findings](../../docs/tools/system-llvm-28c.md) and
+[development recipes](../../docs/tools/linux-development-packages.md).
+`rpm_job.py` uses the Fedora system dependency. The historical strict pipeline
+retains its independent oracle and memory gates; an old Ubuntu 24.04 runner
+cannot qualify the new 26.04 package contract. No nightly/full-release PASS is
+inferred from this focused packaging work.
+
+The following sections retain earlier toolchain and campaign observations.
+
 
 ## Hosted smoke activation
 

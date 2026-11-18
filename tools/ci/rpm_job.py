@@ -21,10 +21,9 @@ def main():
 	require(sha(a.input/'astrac-O2.o') == data['products']['O2']['object_sha256'], 'nightly object altered')
 	work = external(a.work)
 	env = clean_environment()
-	run([sys.executable, '-B', ROOT/'tools/ci/trust.py', '--manifest', ROOT/'tools/ci/llvm-linux.json', '--output', work/'llvm'], work/'fetch', env, timeout=1800)
-	image = json.loads((ROOT/'tools/ci/containers.json').read_text())['platforms']['fedora']['image']
-	command = 'dnf install -y gcc gcc-c++ python3 binutils rpm-build libxml2-devel libzstd-devel zlib-ng-compat-devel time && python3 -B /src/tools/ci/llvm_dylib.py --llvm /llvm --manifest /src/tools/ci/llvm-linux.json --build /output/library --runtime /output/library-logs && python3 -B /src/tools/ci/package.py --object /input/astrac-O2.o --handoff /input/handoff.json --llvm /llvm --library /output/library/libLLVM.so.23.1 --library-receipt /output/library-logs/result.json --kind rpm --build /output/package --runtime /output/package-logs'
-	run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--memory', '8g', '--cpus', '2', '-v', str(ROOT)+':/src:ro', '-v', str(a.input.resolve())+':/input:ro', '-v', str(work/'llvm/unpacked')+':/llvm:ro', '-v', str(work)+':/output:rw', image, 'sh', '-ec', command], work/'container', env, timeout=1800)
+	image = json.loads((ROOT/'tools/ci/development-containers.json').read_text())['platforms']['fedora']['image']
+	command = 'dnf install -y gcc gcc-c++ git python3 binutils rpm-build llvm-devel llvm-libs time && python3 -B /src/tools/ci/package.py --object /input/astrac-O2.o --handoff /input/handoff.json --system-llvm --development --kind rpm --build /output/package --runtime /output/package-logs'
+	run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--memory', '8g', '--cpus', '2', '-v', str(ROOT)+':/src:ro', '-v', str(a.input.resolve())+':/input:ro', '-v', str(work)+':/output:rw', image, 'sh', '-ec', command], work/'container', env, timeout=1800)
 	package = next((work/'package').glob('*.rpm'))
 	write(work/'result.json', dict(status='RPM_BUILT_PENDING_FRESH_INSTALL', package_sha256=sha(package), handoff_sha256=a.handoff_sha256, image=image))
 

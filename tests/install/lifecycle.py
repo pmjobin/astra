@@ -48,7 +48,9 @@ def system_acceptance(a, run, private, provenance):
 	run('upgrade-to-astrac', ['apt-get', 'install', '-y', str(a.package)] if a.kind == 'deb' else ['dnf', 'install', '-y', a.package])
 	require(not (private/'llvm').exists(), 'migration left private LLVM')
 	old = subprocess.run(['dpkg-query', '-W', '-f', '${db:Status-Status}', 'astra-development'] if a.kind == 'deb' else ['rpm', '-q', 'astra-development', '--qf', '%{NAME}'], capture_output=True)
-	require(b'installed' not in old.stdout and old.stdout.strip() != b'astra-development', 'old package remains installed')
+	require(old.stdout.strip() != (b'installed' if a.kind == 'deb' else b'astra-development'), 'old package remains installed')
+	(a.output/'old-package-state.stdout').write_bytes(old.stdout)
+	(a.output/'old-package-state.stderr').write_bytes(old.stderr)
 	run('migration-smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'migration-smoke', '--build', '/build/migration-smoke'], contains=b'INSTALLED_NATIVE_SMOKE_PASS')
 
 
