@@ -60,7 +60,7 @@ def main():
 		path.unlink()
 		check('missing-'+path.name, expected=1, expected_message='missing or undeclared source input')
 		path.write_bytes(data)
-	# SRPM frontend refuses arbitrary package/spec selection before producing output.
+		# SRPM frontend refuses arbitrary package/spec selection before producing output.
 	result = subprocess.run([sys.executable, '-B', ROOT/'tools/ci/copr_source.py', '--commit', a.commit, '--spec', 'other.spec', '--output', build/'wrong-name'], capture_output=True)
 	require(result.returncode != 0 and b'wrong spec/package' in result.stderr, 'foreign package accepted')
 	write(runtime/'wrong-package.json', dict(exit=result.returncode, stderr=result.stderr.decode()))
