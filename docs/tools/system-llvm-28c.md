@@ -11,6 +11,8 @@ recipes and findings. The canonical report binds full commit/tree identities,
 raw resources, package checksums and failed attempts. Build leaves are
 `~/Workspace/codex/work/astra/build/28c-system-llvm/{ubuntu4,fedora4}/`;
 raw observations are under the matching `runtime/28c-system-llvm/`.
+`tools/ci/system-llvm-builders.json` records portable builder setup recipes
+against the immutable image lock. The canonical evidence records actual image IDs.
 
 | Target | Distribution dependencies | Product bytes / SHA-256 |
 |---|---|---|
@@ -99,3 +101,16 @@ is superseded unlaunched reference material, not an executed milestone.
 No COPR create/upload, GitHub Release, new public binary artifact, merge or
 branch-protection change occurred. The old exact binary approval is disabled
 for new builds; the changed workflow uploads text observations only.
+
+
+Resource observations retain per-command GNU time records. The actual native
+relink used Ubuntu 0.565 s wall / 0.38 s user / 0.12 s system / 93,132 KiB peak
+RSS, and Fedora 0.380 s wall / 0.29 s user / 0.07 s system / 99,148 KiB peak RSS.
+Native package creation used Ubuntu 2.168 s wall / 2.03 s user / 0.07 s system /
+92,820 KiB peak RSS, and Fedora 3.367 s wall / 3.66 s user / 0.77 s system /
+620,120 KiB peak RSS. Final fresh-container lifecycles took 114.477 s and
+109.005 s respectively. Podman client CPU is not aggregate container CPU;
+compiler, memory and physical-test subprocess measurements are retained separately.
+Two outer install wrappers ended with 143 while their independent child sessions
+continued; their RUNNING records remain raw. Both child container commands have
+actual exit-0 records and complete final install/migration/uninstall receipts.

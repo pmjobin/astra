@@ -1,0 +1,22 @@
+{
+  "format": "astra-system-llvm-builders/1",
+  "image_lock": "tools/ci/development-containers.json",
+  "source_mount": "/src:ro",
+  "private_llvm_mount": false,
+  "ubuntu": {
+    "target": "Ubuntu 26.04 amd64",
+    "setup": "apt-get update && apt-get install -y --no-install-recommends llvm-22-dev gcc g++ python3 git dpkg-dev binutils time",
+    "qa_setup": "apt-get install -y --no-install-recommends gdb",
+    "config": "/usr/bin/llvm-config-22",
+    "runtime": "libllvm22"
+  },
+  "fedora": {
+    "target": "Fedora 45 x86_64",
+    "setup": "dnf install -y llvm-devel llvm-libs gcc gcc-c++ python3 git rpm-build binutils time",
+    "qa_setup": "dnf install -y gdb llvm",
+    "config": "/usr/bin/llvm-config",
+    "runtime": "llvm-libs"
+  },
+  "package": "python3 -B /src/tools/ci/package.py --system-llvm --development --kind KIND --object /input/astrac-O2.o --handoff /input/handoff.json --build /build/package --runtime /logs/package",
+  "bootstrap_boundary": "Authenticated compiler object only. Private pinned LLVM23 may be used in a separate source-generation builder; never mounted in these target link/package builders or fresh consumers."
+}
