@@ -20,6 +20,7 @@ Source0:        astra-%{commit}.tar.gz
 Source1:        astra-27d-stage3-o2-linux-x86_64.elf
 ExclusiveArch:  x86_64
 BuildRequires:  gcc, binutils, python3 >= 3.11, time
+BuildRequires:  /usr/bin/dnf, /usr/bin/rpm, /usr/bin/ldd
 BuildRequires:  llvm-devel >= 23, llvm-devel < 24, llvm-libs >= 23
 Requires:       llvm-libs >= 23, python3 >= 3.11, gcc, glibc-devel, binutils
 Provides:       astra-development = %{version}-%{release}

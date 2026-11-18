@@ -38,11 +38,13 @@ commit=$(git rev-parse HEAD)
 python3 -B tools/ci/copr_source.py --commit "$commit" --output "$build/srpm"
 make -f .copr/Makefile srpm outdir="$build/scm" spec=packaging/rpm/astrac.spec
 python3 -B tools/ci/copr_controls.py --commit "$commit" --build "$build/controls" --runtime "$runtime/controls"
-podman build -t localhost/astra-copr-fedora45:28c -f packaging/rpm/Containerfile packaging/rpm
+podman --root "$build/containers" --runroot "$runtime/containers" \
+  build -t localhost/astra-copr-fedora45:28c -f packaging/rpm/Containerfile packaging/rpm
 ```
 
 Mount only the inspected SRPM and a fresh output directory into the builder,
 disable its network, and use `rpmbuild --rebuild --define '_topdir /work/rpm'`.
+Use the same explicit `--root` and `--runroot` on subsequent Podman commands.
 Do not mount prior compiler objects. Inspect the SRPM with `rpm -qpl` and
 `rpm2cpio`; inspect the resulting RPM requirements, payload and ELF loader.
 `tests/install/copr.py` supports explicit local RPM mode for prepublication

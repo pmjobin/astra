@@ -69,8 +69,10 @@ def main():
 	args = SimpleNamespace(object=obj, handoff=runtime/'source-handoff.json', mode='O2', kind='rpm', development=True, package_version=a.rpm_version)
 	stage = build_payload(args, handoff, build, runtime, env, llvm)
 	provenance = stage/'usr/share/astra'
+	disclosure = provenance/'DEV-UNQUALIFIED.txt'
+	disclosure.write_text(disclosure.read_text().replace('Unsigned development package.', 'COPR development package; verify its repository RPM signature separately.'))
 	generation = json.loads((runtime/'source-generation.json').read_text())
-	generation.update(provider_objects={p.name:identify(p) for p in build.glob('*.o') if p != obj}, installed_images=json.loads((stage/'usr/lib/astra/INSTALL.json').read_text())['files'])
+	generation.update(provider_objects={p.name:identify(p) for p in build.glob('*.o') if p != obj}, installed_images=json.loads((stage/'usr/lib/astra/INSTALL.json').read_text())['files'], signing_scope='Payload is unsigned at build time; COPR repository RPM signing must be verified independently after publication.')
 	write(runtime/'source-generation.json', generation)
 	shutil.copyfile(runtime/'source-generation.json', provenance/'SOURCE-BUILD.json')
 	shutil.copyfile(runtime/'docs-build-identity.json', provenance/'DOCS-BUILD.json')

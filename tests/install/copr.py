@@ -5,7 +5,9 @@ import argparse
 import configparser
 import hashlib
 import json
+import os
 from pathlib import Path
+import pwd
 import re
 import shutil
 import subprocess
@@ -90,6 +92,11 @@ def main():
 	run('smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', a.build/'smoke'])
 	run('guide', ['python3', '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'])
 	run('strict-memory', ['python3', '-B', '/qa/development_memory.py', '--output', a.output/'memory', '--build', a.build/'memory'])
+	user = pwd.getpwnam('nobody')
+	ordinary = a.build/'ordinary-user'
+	ordinary.mkdir()
+	os.chown(ordinary, user.pw_uid, user.pw_gid)
+	run('ordinary-user', ['sudo', '-u', 'nobody', '/bin/sh', '-ec', 'test "$(id -u)" -ne 0; test ! -w /usr/lib/astra/astrac.native; astrac --version; for mode in O0 O2; do astrac -c -$mode -o main-$mode.o /usr/share/astra/install/main.astra; cc -no-pie main-$mode.o -o main-$mode; ./main-$mode; done'], cwd=ordinary)
 	# Documentation remains executable with the system LLVM library unavailable.
 	library = Path(manifest['system_llvm']['library']['path'])
 	held = library.with_name(library.name+'.held')
