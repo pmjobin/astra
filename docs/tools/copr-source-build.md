@@ -94,9 +94,13 @@ the stricter official Fedora compiler packaging process.
 
 Only Fedora 45 is initially allowed by the build driver. The live metadata
 survey found CentOS Stream 9 glibc 2.34 / LLVM 23.1.3 and Stream 10 glibc 2.39 /
-LLVM 22.1.8. Stream 9 remains UNKNOWN pending actual seed/header/native tests;
-Stream 10's observed default LLVM cannot load this seed. EPEL and RHEL chroots
-need their own evidence and approval; none is enabled by this implementation.
+LLVM 22.1.8. A clean Stream 9 seed/header/native probe passed, but no full
+compiler/package qualification was run and its default Python is below the
+recipe minimum; full support remains UNKNOWN. Stream 10's observed default LLVM
+cannot load this seed. EPEL and RHEL chroots need their own evidence and
+approval; none is enabled by this implementation. The actual Fedora 45 source
+build, repository acceptance and detailed target survey are recorded in
+[the 28C delivery findings](copr-source-build-28c.md).
 
 The prior Fedora 45 scoped PASS remains historical. Ubuntu system-Z3/LLVM
 strict-memory NOT_PASS, original LLVM 23.1.4 NOT_PASS, C0
