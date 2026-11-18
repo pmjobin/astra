@@ -24,11 +24,11 @@ def discover(kind, runtime, env):
 	library = Path(files[0]).resolve(strict=True)
 	include = Path(query('--includedir')).resolve(strict=True)
 	require(library.is_relative_to('/usr/lib') or library.is_relative_to('/usr/lib64'), 'private LLVM library path')
-	require(include.is_relative_to('/usr/include') or include.is_relative_to('/usr/lib'), 'private LLVM header path')
+	require(include.is_relative_to('/usr/include') or include.is_relative_to('/usr/lib') or include.is_relative_to('/usr/lib64'), 'private LLVM header path')
 	owner_args = ['dpkg-query', '-S', str(library)] if kind == 'deb' else ['rpm', '-qf', '--qf', '%{NAME}\n', library]
 	owner, _ = run(owner_args, runtime/'system-library-owner', env)
 	require((consumer+':').encode() in owner or (consumer+':amd64:').encode() in owner or owner.strip() == consumer.encode(), 'LLVM library is not distribution-owned')
-	header = include/'llvm-c/Core.h'
+	header = (include/'llvm-c/Core.h').resolve(strict=True)
 	owner, _ = run(['dpkg-query', '-S', str(header)] if kind == 'deb' else ['rpm', '-qf', '--qf', '%{NAME}\n', header], runtime/'system-header-owner', env)
 	require(development.encode() in owner, 'LLVM headers are not distribution-owned')
 	run(['dpkg-query', '-W', development, consumer] if kind == 'deb' else ['rpm', '-qi', development, consumer], runtime/'system-packages', env)

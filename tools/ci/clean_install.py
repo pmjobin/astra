@@ -62,8 +62,8 @@ def main():
 	argv = [*engine, 'run', '--rm', '--platform', 'linux/amd64', '--security-opt', 'label=disable', '--memory', '4g', '--cpus', '2', '-v', str(a.package.resolve())+':/package/'+a.package.name+':ro', '-v', str(qa)+':/qa:ro', '-v', str(work)+':/logs:rw', '-v', str(build)+':/build:rw', '-e', 'TMPDIR=/build', ]
 	if a.predecessor:
 		argv += ['-v', str(a.predecessor.resolve())+':/predecessor/'+a.predecessor.name+':ro']
-	# The base images do not promise Python. Obtain only the test interpreter
-	# before the package manager installs the package's declared dependencies.
+		# The base images do not promise Python. Obtain only the test interpreter
+		# before the package manager installs the package's declared dependencies.
 	setup = 'apt-get update && apt-get install -y --no-install-recommends python3 sudo time' if a.kind == 'deb' else 'dnf install -y python3 sudo time'
 	argv += [image, 'sh', '-ec', setup+' && python3 -B /qa/lifecycle.py --kind "$1" --package "$2" --sha256 "$3" --output /logs/lifecycle --memory'+(' --development' if a.development else '')+(' --system-llvm --predecessor /predecessor/'+a.predecessor.name+' --predecessor-sha256 '+a.predecessor_sha256 if a.system_llvm else ''), 'install-test', a.kind, '/package/'+a.package.name, a.sha256]
 	run(argv, work/'container', clean_environment(), timeout=1800)
