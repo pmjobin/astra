@@ -69,7 +69,7 @@ cc -nostdlib -static -no-pie -Wl,-e,_start \
 "$ASTRA_BOOK_BUILD/fixed-freestanding"
 nm -u "$ASTRA_BOOK_BUILD/fixed-freestanding" > "$ASTRA_BOOK_BUILD/fixed-undefined.txt"
 readelf -l "$ASTRA_BOOK_BUILD/fixed-freestanding" > "$ASTRA_BOOK_BUILD/fixed-segments.txt"
-python3 - "$ASTRA_BOOK_BUILD/fixed-undefined.txt" "$ASTRA_BOOK_BUILD/fixed-segments.txt" <<'CHECK'
+"$ASTRA_PYTHON" - "$ASTRA_BOOK_BUILD/fixed-undefined.txt" "$ASTRA_BOOK_BUILD/fixed-segments.txt" <<'CHECK'
 from pathlib import Path
 import sys
 assert Path(sys.argv[1]).read_bytes() == b''
@@ -107,7 +107,7 @@ cc -nostdlib -static -no-pie -Wl,-e,_start \
     2> "$ASTRA_BOOK_BUILD/allocator-link-error.txt" || ASTRA_STATUS=$?
 test "$ASTRA_STATUS" -eq 1
 test ! -e "$ASTRA_BOOK_BUILD/array-no-runtime"
-python3 - "$ASTRA_BOOK_BUILD/allocator-link-error.txt" <<'CHECK'
+"$ASTRA_PYTHON" - "$ASTRA_BOOK_BUILD/allocator-link-error.txt" <<'CHECK'
 from pathlib import Path
 import sys
 assert 'undefined reference' in Path(sys.argv[1]).read_text()

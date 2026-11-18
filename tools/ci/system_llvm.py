@@ -13,12 +13,21 @@ from common import identify, require, run
 
 def discover(kind, runtime, env):
 	os_release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
-	distro, release, major, config, development, consumer = ('ubuntu', '26.04', 22, '/usr/bin/llvm-config-22', 'llvm-22-dev', 'libllvm22') if kind == 'deb' else ('fedora', '45', 23, '/usr/bin/llvm-config', 'llvm-devel', 'llvm-libs')
-	require(os_release['ID'].strip('"') == distro and os_release['VERSION_ID'].strip('"') == release and platform.machine() == 'x86_64', 'wrong system LLVM target')
+	distro, release = os_release['ID'].strip('"'), os_release['VERSION_ID'].strip('"')
+	require(platform.machine() == 'x86_64', 'wrong system LLVM architecture')
+	if kind == 'deb':
+		require((distro, release) == ('ubuntu', '26.04'), 'wrong system LLVM target')
+		major, config, development, consumer = 22, '/usr/bin/llvm-config-22', 'llvm-22-dev', 'libllvm22'
+	else:
+		el9 = distro in ('centos', 'rhel') and release.split('.')[0] == '9'
+		require(kind == 'rpm' and ((distro, release) == ('fedora', '45') or el9), 'wrong system LLVM target')
+		major, config, development, consumer = 23, '/usr/bin/llvm-config', 'llvm-devel', 'llvm-libs'
 	def query(*args):
 		return subprocess.check_output([config, *args], env=env, text=True).strip()
 	version = query('--version')
 	require(int(version.split('.')[0]) == major, 'wrong system LLVM major')
+	if major == 23:
+		require(re.fullmatch(r'23\.1\.\d+', version), 'system LLVM 23.1.x required')
 	files = query('--link-shared', '--libfiles').split()
 	require(len(files) == 1, 'system LLVM must be one shared library')
 	library = Path(files[0]).resolve(strict=True)
@@ -36,6 +45,8 @@ def discover(kind, runtime, env):
 	elf, _ = run(['readelf', '-d', library], runtime/'system-library-elf', env)
 	sonames = re.findall(rb'\(SONAME\).*?\[(.*?)\]', elf)
 	require(len(sonames) == 1, 'missing system LLVM SONAME')
+	if major == 23:
+		require(sonames[0] == b'libLLVM.so.23.1', 'wrong system LLVM SONAME')
 	loaded = ctypes.CDLL(str(library))
 	loaded.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
 	fields = [ctypes.c_uint() for unused in range(3)]

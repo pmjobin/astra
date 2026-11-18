@@ -9,6 +9,13 @@
 %global __brp_strip_comment_note /bin/true
 %global __brp_strip_static_archive /bin/true
 %global _build_id_links none
+%if 0%{?rhel} == 9
+%global astra_python /usr/bin/python3.11
+%global astra_python_req python3.11
+%else
+%global astra_python /usr/bin/python3
+%global astra_python_req python3 >= 3.11
+%endif
 
 Name:           astrac
 Version:        0.0.3
@@ -19,10 +26,10 @@ URL:            https://github.com/pmjobin/astra
 Source0:        astra-%{commit}.tar.gz
 Source1:        astra-27d-stage3-o2-linux-x86_64.elf
 ExclusiveArch:  x86_64
-BuildRequires:  gcc, binutils, python3 >= 3.11, time
+BuildRequires:  gcc, binutils, %{astra_python_req}, time
 BuildRequires:  /usr/bin/dnf, /usr/bin/rpm, /usr/bin/ldd
 BuildRequires:  llvm-devel >= 23, llvm-devel < 24, llvm-libs >= 23
-Requires:       llvm-libs >= 23, python3 >= 3.11, gcc, glibc-devel, binutils
+Requires:       llvm-libs >= 23, %{astra_python_req}, gcc, glibc-devel, binutils
 Provides:       astra-development = %{version}-%{release}
 Obsoletes:      astra-development < 0.0.4
 
@@ -39,14 +46,14 @@ echo '560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4afd77052325addf1f1c6  %{SOURCE
 %setup -q -n astra-%{commit}
 
 %build
-python3 -B tools/ci/copr_build.py --commit %{commit} --tree %{source_tree} --seed %{SOURCE1} --rpm-version %{version}-%{release} --build %{_builddir}/astrac-output --runtime %{_builddir}/astrac-evidence
+%{astra_python} -B tools/ci/copr_build.py --commit %{commit} --tree %{source_tree} --seed %{SOURCE1} --rpm-version %{version}-%{release} --build %{_builddir}/astrac-output --runtime %{_builddir}/astrac-evidence
 
 %install
 mkdir -p %{buildroot}
 cp -a %{_builddir}/astrac-output/payload/. %{buildroot}/
 
 %check
-python3 -B tools/ci/copr_build.py --audit %{buildroot}
+%{astra_python} -B tools/ci/copr_build.py --audit %{buildroot}
 
 %files
 %{_bindir}/astrac

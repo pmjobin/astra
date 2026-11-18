@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-"""Exercise an actual COPR repository in a fresh Fedora userland; local RPM mode is explicit."""
+"""Exercise a COPR repository or an explicit local RPM in a fresh target userland."""
 import argparse
 import configparser
 import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import pwd
 import re
 import shutil
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -35,6 +37,12 @@ def main():
 	inputs.add_argument('--repo', choices=['pmjobin/astra'])
 	inputs.add_argument('--local-package', type=Path)
 	a = p.parse_args()
+	os_release = platform.freedesktop_os_release()
+	el9 = os_release['ID'] in ('rhel', 'centos') and os_release['VERSION_ID'].split('.')[0] == '9'
+	require(el9 or (os_release['ID'], os_release['VERSION_ID']) == ('fedora', '45'), 'unexpected consumer OS')
+	python = '/usr/bin/python3.11' if el9 else '/usr/bin/python3'
+	require(sys.executable == python, 'run consumer tests with '+python)
+	chroot = {'centos':'centos-stream-9-x86_64', 'rhel':'epel-9-x86_64', 'fedora':'fedora-45-x86_64'}[os_release['ID']]
 	require(re.fullmatch('[0-9a-f]{40}', a.commit), 'full source commit required')
 	require(not shutil.which('astrac') and not Path('/usr/lib/astra').exists(), 'Astra already installed')
 	require(not Path('/usr/include/llvm-c/Core.h').exists(), 'LLVM development headers present on consumer')
@@ -51,8 +59,9 @@ def main():
 		require(result.returncode == expected, name+': unexpected exit')
 		return result.stdout
 	if a.repo:
-		run('copr-enable', ['dnf', '-y', 'copr', 'enable', a.repo])
-		configuration = run('repository-config', ['cat', '/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:pmjobin:astra.repo']).decode()
+		run('copr-enable', ['dnf', '-y', 'copr', 'enable', a.repo, *([chroot] if el9 else [])])
+		repofile, = Path('/etc/yum.repos.d').glob('*copr*pmjobin*astra.repo')
+		configuration = run('repository-config', ['cat', repofile]).decode()
 		parser = configparser.ConfigParser()
 		parser.read_string(configuration)
 		section = parser[parser.sections()[0]]
@@ -62,7 +71,7 @@ def main():
 		key = a.output/'copr-public-key.txt'
 		key.write_bytes(urllib.request.urlopen(key_url, timeout=60).read())
 		run('key-fingerprint', ['gpg', '--show-keys', '--with-colons', key])
-		metadata_url = 'https://download.copr.fedorainfracloud.org/results/pmjobin/astra/fedora-45-x86_64/repodata/repomd.xml'
+		metadata_url = 'https://download.copr.fedorainfracloud.org/results/pmjobin/astra/'+chroot+'/repodata/repomd.xml'
 		(a.output/'repomd.xml.txt').write_bytes(urllib.request.urlopen(metadata_url, timeout=60).read())
 		try:
 			signature = urllib.request.urlopen(metadata_url+'.asc', timeout=60).read()
@@ -77,7 +86,14 @@ def main():
 	generation = json.loads(Path('/usr/share/astra/SOURCE-BUILD.json').read_text())
 	require(generation['commit'] == a.commit and manifest['source_commit'] == a.commit, 'wrong source-built product installed')
 	metadata = run('metadata', ['rpm', '-qi', 'astrac'])
-	run('requires', ['rpm', '-q', '--requires', 'astrac'])
+	requires = run('requires', ['rpm', '-q', '--requires', 'astrac']).decode().splitlines()
+	require({'libLLVM.so.23.1()(64bit)', 'libLLVM.so.23.1(LLVM_23.1)(64bit)'} <= set(requires), 'missing versioned LLVM dependency')
+	if el9:
+		require(manifest['python'] == python and Path('/usr/bin/astrac').read_bytes().splitlines()[0] == b'#!/usr/bin/python3.11 -I', 'wrong installed EL9 interpreter')
+		require('python3.11' in requires and 'python3 >= 3.11' not in requires, 'wrong EL9 Python dependency')
+		require(run('release', ['rpm', '-q', '--qf', '%{RELEASE}', 'astrac']).endswith(b'.el9'), 'wrong RPM distribution')
+		require(run('python-owner', ['rpm', '-qf', '--qf', '%{NAME}', python]) == b'python3.11', 'interpreter is not distribution-owned')
+		run('python-removal-refusal', ['rpm', '-e', '--test', 'python3.11'], expected=1)
 	listing = run('payload', ['rpm', '-ql', 'astrac']).decode().splitlines()
 	require(not any('libLLVM' in n or n.endswith(('.o', '.a', '.elf')) for n in listing), 'prebuilt/LLVM payload found')
 	require(b'devunqualified' in metadata, 'development marking absent')
@@ -89,9 +105,9 @@ def main():
 	require(b'(RPATH)' not in elf and b'(RUNPATH)' not in elf, 'private library search path')
 	run('llvm-owner', ['rpm', '-qf', manifest['system_llvm']['library']['path']])
 	run('llvm-removal-refusal', ['rpm', '-e', '--test', 'llvm-libs'], expected=1)
-	run('smoke', ['python3', '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', a.build/'smoke'])
-	run('guide', ['python3', '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'])
-	run('strict-memory', ['python3', '-B', '/qa/development_memory.py', '--output', a.output/'memory', '--build', a.build/'memory'])
+	run('smoke', [python, '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', a.build/'smoke'])
+	run('guide', [python, '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'])
+	run('strict-memory', [python, '-B', '/qa/development_memory.py', '--output', a.output/'memory', '--build', a.build/'memory'])
 	user = pwd.getpwnam('nobody')
 	ordinary = a.build/'ordinary-user'
 	ordinary.mkdir()
@@ -113,8 +129,8 @@ def main():
 	run('after-reinstall', ['astrac', '--version'])
 	if a.repo:
 		run('dnf-update', ['dnf', '-y', 'upgrade', 'astrac'])
-		run('repository-identity', ['dnf', 'repoquery', '--installed', '--qf', '%{name} %{evr} %{from_repo}', 'astrac'])
-		run('signing-keys', ['rpmkeys', '--list'])
+		run('repository-identity', ['dnf', 'info', '--installed', 'astrac'] if el9 else ['dnf', 'repoquery', '--installed', '--qf', '%{name} %{evr} %{from_repo}', 'astrac'])
+		run('signing-keys', ['rpm', '-q', 'gpg-pubkey'] if el9 else ['rpmkeys', '--list'])
 		run('download', ['dnf', 'download', '--destdir', a.build/'download', 'astrac'])
 		artifacts = list((a.build/'download').glob('astrac-*.x86_64.rpm'))
 		require(len(artifacts) == 1, 'ambiguous repository binary RPM')

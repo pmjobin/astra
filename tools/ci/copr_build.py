@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 import shutil
+import sys
 from types import SimpleNamespace
 
 from bootstrap import LIBRARIES, PROVIDERS
@@ -18,6 +19,13 @@ def audit(stage):
 	audit_payload(stage)
 	private = stage/'usr/lib/astra'
 	m = json.loads((private/'INSTALL.json').read_text())
+	if 'python' in m:
+		require(sys.executable == m['python'], 'audit interpreter differs from packaged Python')
+		require((stage/'usr/bin/astrac').read_bytes().splitlines()[0] == ('#!'+m['python']+' -I').encode(), 'wrong launcher interpreter')
+		if m['python'] == '/usr/bin/python3.11':
+			for script in (stage/'usr/share/astra/tutorial').rglob('*.py'):
+				require(script.read_bytes().splitlines()[0] == b'#!/usr/bin/python3.11', 'wrong tutorial interpreter: '+str(script))
+			require((stage/'usr/share/astra/install/smoke.py').read_bytes().splitlines()[0] == b'#!/usr/bin/python3.11', 'wrong smoke interpreter')
 	for name, pin in m['files'].items():
 		verify(private/name, pin)
 	for p in stage.rglob('*'):
@@ -36,6 +44,7 @@ def main():
 	for key in ('seed', 'build', 'runtime'):
 		p.add_argument('--'+key, type=Path)
 	a = p.parse_args()
+	require(sys.version_info >= (3, 11), 'Python 3.11 or newer required')
 	if a.audit:
 		audit(a.audit)
 		return
@@ -48,6 +57,8 @@ def main():
 	env = clean_environment()
 	env['SOURCE_DATE_EPOCH'] = str(m['epoch'])
 	llvm = discover('rpm', runtime, env)
+	python = '/usr/bin/python3' if llvm['os_release']['ID'].strip('"') == 'fedora' else '/usr/bin/python3.11'
+	require(sys.executable == python, 'source build must run with '+python)
 	# Copy the exact seed only into the private build directory to set executable mode.
 	tool = build/'bootstrap'
 	shutil.copyfile(seed, tool)
@@ -67,12 +78,12 @@ def main():
 	handoff = dict(source_commit=a.commit, package_commit=a.commit, package_tree=a.tree, products={'O2':dict(object_sha256=sha(obj))}, sources={n:m['files'][n]['sha256'] for n in sources+provider_sources}, package_sources={n:r['sha256'] for n,r in m['files'].items()})
 	write(runtime/'source-handoff.json', handoff)
 	args = SimpleNamespace(object=obj, handoff=runtime/'source-handoff.json', mode='O2', kind='rpm', development=True, package_version=a.rpm_version)
-	stage = build_payload(args, handoff, build, runtime, env, llvm)
+	stage = build_payload(args, handoff, build, runtime, env, llvm, python=python)
 	provenance = stage/'usr/share/astra'
 	disclosure = provenance/'DEV-UNQUALIFIED.txt'
 	disclosure.write_text(disclosure.read_text().replace('Unsigned development package.', 'COPR development package; verify its repository RPM signature separately.'))
 	generation = json.loads((runtime/'source-generation.json').read_text())
-	generation.update(provider_objects={p.name:identify(p) for p in build.glob('*.o') if p != obj}, installed_images=json.loads((stage/'usr/lib/astra/INSTALL.json').read_text())['files'], signing_scope='Payload is unsigned at build time; COPR repository RPM signing must be verified independently after publication.')
+	generation.update(build_python=dict(executable=python, version=sys.version), provider_objects={p.name:identify(p) for p in build.glob('*.o') if p != obj}, installed_images=json.loads((stage/'usr/lib/astra/INSTALL.json').read_text())['files'], signing_scope='Payload is unsigned at build time; COPR repository RPM signing must be verified independently after publication.')
 	write(runtime/'source-generation.json', generation)
 	shutil.copyfile(runtime/'source-generation.json', provenance/'SOURCE-BUILD.json')
 	shutil.copyfile(runtime/'docs-build-identity.json', provenance/'DOCS-BUILD.json')

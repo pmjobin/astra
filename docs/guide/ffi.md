@@ -73,7 +73,7 @@ cc -no-pie "$ASTRA_BOOK_BUILD/ffi.o" "$ASTRA_BOOK_BUILD/lifecycle.o" \
     || ASTRA_STATUS=$?
 test "$ASTRA_STATUS" -eq 1
 test ! -e "$ASTRA_BOOK_BUILD/ffi-wrong"
-python3 - "$ASTRA_BOOK_BUILD/ffi-link-error.txt" <<'CHECK'
+"$ASTRA_PYTHON" - "$ASTRA_BOOK_BUILD/ffi-link-error.txt" <<'CHECK'
 from pathlib import Path
 import sys
 message = Path(sys.argv[1]).read_text()

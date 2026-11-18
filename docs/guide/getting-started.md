@@ -84,6 +84,10 @@ checkout, seed or historical product manifest is required.
 set -eu
 cd /usr/share/astra/tutorial
 export ASTRA_HOST=astrac
+export ASTRA_PYTHON=/usr/bin/python3
+case "$(. /etc/os-release && printf '%s:%s' "$ID" "${VERSION_ID%%.*}")" in
+    centos:9|rhel:9) ASTRA_PYTHON=/usr/bin/python3.11 ;;
+esac
 ASTRA_WORK=$(mktemp -d "${TMPDIR:-/tmp}/astra-guide.XXXXXX")
 export ASTRA_WORK
 export ASTRA_BOOK_BUILD="$ASTRA_WORK/build"

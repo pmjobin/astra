@@ -16,7 +16,7 @@ extract the original readings model, then render that JSON as a local page:
 
 ```sh tutorial=model-docs
 "$ASTRA_HOST" doc --output "$ASTRA_BOOK_BUILD/model-api.json" tests/books/app-model.astra
-python3 -B tools/docs/render.py "$ASTRA_BOOK_BUILD/model-api.json" \
+"$ASTRA_PYTHON" -B tools/docs/render.py "$ASTRA_BOOK_BUILD/model-api.json" \
     --output "$ASTRA_BOOK_BUILD/model-api.html"
 ```
 
@@ -42,7 +42,7 @@ so you can compare a working answer with your own edit.
 
 ```sh tutorial=tooling-answer
 "$ASTRA_HOST" doc --output "$ASTRA_BOOK_BUILD/filtered-api.json" tests/books/guide-app-filter.astra
-python3 -B tools/docs/render.py "$ASTRA_BOOK_BUILD/filtered-api.json" \
+"$ASTRA_PYTHON" -B tools/docs/render.py "$ASTRA_BOOK_BUILD/filtered-api.json" \
     --output "$ASTRA_BOOK_BUILD/filtered-api.html"
 "$ASTRA_HOST" -c -O2 -o "$ASTRA_BOOK_BUILD/tooling-check.o" \
     tests/books/guide-app-filter.astra tests/books/app-main.astra

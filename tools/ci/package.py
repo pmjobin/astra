@@ -17,7 +17,7 @@ from system_llvm import discover, audit_payload, audit_elf
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
 
 
-def build_payload(a, handoff, build, runtime, env, llvm):
+def build_payload(a, handoff, build, runtime, env, llvm, *, python='/usr/bin/python3'):
 	"""Construct the same installed product from an independently authenticated object."""
 	stage = build/'payload'
 	private = stage/'usr/lib/astra'
@@ -87,6 +87,12 @@ def build_payload(a, handoff, build, runtime, env, llvm):
 		target.parent.mkdir(parents=True, exist_ok=True)
 		shutil.copyfile(ROOT/name, target)
 	shutil.copytree(ROOT/'docs/guide', kit/'docs/guide')
+	if python == '/usr/bin/python3.11':
+		for script in [bin_dir/'astrac', share/'install/smoke.py', kit/'tests/books/tutorial.py', kit/'tools/docs/render.py']:
+			shebang, body = script.read_bytes().split(b'\n', 1)
+			require(shebang in (b'#!/usr/bin/python3 -I', b'#!/usr/bin/env python3'), 'unexpected Python shebang: '+str(script))
+			flags = b' -I' if script == bin_dir/'astrac' else b''
+			script.write_bytes(b'#!'+python.encode()+flags+b'\n'+body)
 	api = {}
 	for name, sources in {'library':['lib/astra/base/order.astra'], 'compiler-source':['compiler/source/source.astra', *sorted(n for n in handoff['sources'] if n.startswith('lib/astra/') and n.endswith('.astra'))]}.items():
 		api[name] = build/(name+'.json')
@@ -109,7 +115,7 @@ def build_payload(a, handoff, build, runtime, env, llvm):
 		copyright_path = stage/'usr/share/doc/astrac/copyright'
 		copyright_path.parent.mkdir(parents=True)
 		copyright_path.write_bytes((licenses/'LICENSE.txt').read_bytes()+(licenses/'SYSTEM-LLVM.txt').read_bytes())
-	write(private/'INSTALL.json', dict(format='astra-installation/1', version='0.0.3-dev28c1', LLVM=llvm['version'], system_llvm=llvm, files={str(path.relative_to(private)):dict(bytes=path.stat().st_size, sha256=sha(path)) for path in private.rglob('*') if path.is_file()}, source_commit=handoff['source_commit'], handoff_sha256=sha(a.handoff), qualification='DEVELOPMENT_ARTIFACT_REQUIRES_INSTALL_AND_REGRESSION_RECEIPTS'))
+	write(private/'INSTALL.json', dict(format='astra-installation/1', version='0.0.3-dev28c1', python=python, LLVM=llvm['version'], system_llvm=llvm, files={str(path.relative_to(private)):dict(bytes=path.stat().st_size, sha256=sha(path)) for path in private.rglob('*') if path.is_file()}, source_commit=handoff['source_commit'], handoff_sha256=sha(a.handoff), qualification='DEVELOPMENT_ARTIFACT_REQUIRES_INSTALL_AND_REGRESSION_RECEIPTS'))
 	write(share/'PROVENANCE.json', material)
 	if a.development:
 		(share/'DEV-UNQUALIFIED.txt').write_text('DEVELOPMENT_UNQUALIFIED / UNSAFE_OR_UNQUALIFIED_DEVELOPMENT\nOriginal official LLVM 23.1.4: strict unsuppressed memory NOT_PASS.\nNo diagnostic InstCombine replacement is included or approved.\nSingle compiler generation; full convergence and independent C0 qualification remain required for release.\nUnsigned development package. No public release, Windows qualification or release approval.\nPackage source: '+handoff['package_commit']+'\nCompiler source: '+handoff['source_commit']+'\n')
