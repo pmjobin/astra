@@ -27,7 +27,7 @@ def main():
 	for key in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'LIBRARY_PATH'):
 		env.pop(key, None)
 	if sys.argv[1:] == ['--version'] and 'system_llvm' in manifest:
-		llvm = ctypes.CDLL(manifest['system_llvm']['soname'])
+		llvm = ctypes.CDLL(manifest['system_llvm']['library']['path'])
 		llvm.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
 		fields = [ctypes.c_uint() for unused in range(3)]
 		llvm.LLVMGetVersion(*map(ctypes.byref, fields))

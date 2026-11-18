@@ -36,37 +36,42 @@ come later, with its actual library or C-provider dependencies.
 
 ## Install the development package
 
-The local 28-C1 engineering artifacts target **Ubuntu 24.04 x86-64** (DEB)
-and **Fedora 45 x86-64** (RPM). Obtain the package and its SHA-256 from the
-same reviewed engineering report. There is no public download or signed release
-for this milestone. Windows installation is **not yet available**.
+The current `astrac` development packages target **Ubuntu 26.04 amd64** and
+**Fedora 45 x86-64**. Obtain the exact package name and SHA-256 from the matching
+engineering report; rebuilt packages require separate public distribution
+approval. They retain `devunqualified` status. Windows installation is unfinished.
 
-Check the package's SHA-256 against the report before running the matching
-installation block. A checksum downloaded beside an untrusted package is not an
-independent source of trust. The package manager installs Python 3.11 or later,
-the C compiler/linker and system libraries. LLVM **23.1.4** is a private bundled
-library; the distribution's default LLVM is not used.
+LLVM is supplied by the distribution: Ubuntu uses official `libllvm22`, and
+Fedora uses `llvm-libs`. No LLVM runtime, headers or private LLVM symlink is
+included in either Linux package. Consumer installations need no LLVM development
+package. The package manager installs Python, a C compiler/linker and runtime
+libraries. Do not add apt.llvm.org or rename an LLVM library to satisfy a loader.
 
-On Ubuntu, in the directory containing the package:
+Use the exact filename and checksum in the report. These console blocks use a
+shell variable so a later development commit does not imply the same bytes:
 
 ```console install=deb
-sha256sum 'astra-development_0.0.3~dev28c1-1_amd64.deb'
+ASTRA_DEB=$(find . -maxdepth 1 -name 'astrac_*_amd64.deb' -print)
+test -n "$ASTRA_DEB" && test "$(printf '%s\n' "$ASTRA_DEB" | wc -l)" -eq 1
+sha256sum "$ASTRA_DEB"
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends ./astra-development_0.0.3~dev28c1-1_amd64.deb
+sudo apt-get install -y --no-install-recommends "$ASTRA_DEB"
 ```
-
-On Fedora, in the directory containing the package:
 
 ```console install=rpm
-sha256sum astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
-sudo dnf install -y ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+ASTRA_RPM=$(find . -maxdepth 1 -name 'astrac-*.x86_64.rpm' -print)
+test -n "$ASTRA_RPM" && test "$(printf '%s\n' "$ASTRA_RPM" | wc -l)" -eq 1
+sha256sum "$ASTRA_RPM"
+sudo dnf install -y "$ASTRA_RPM"
 ```
 
-The public command is `astrac`. `astrac --version` reports
-`0.0.3-dev28c1`, GNU/Linux x86-64, E25-A-v1 and LLVM 23.1.4.
-`astrac --help` describes the supported switches. The checked launcher reports
-an installation error if its native compiler or private LLVM bytes are missing
-or changed; reinstall the original package to repair it.
+The command stays `astrac`. `astrac --version` reports the actual linked system
+LLVM version. The authenticated historical compiler object's direct native
+banner still names its original bootstrap LLVM 23.1.4; the installed CLI and
+provenance identify the current runtime. Installing `astrac` replaces the old
+`astra-development` package and removes its private LLVM. Reinstall the same
+verified package to repair compiler corruption. Historical LLVM 23.1.4 strict
+unsuppressed memory remains NOT_PASS; current distro memory results are separate.
 
 ## Prepare a lesson workspace
 

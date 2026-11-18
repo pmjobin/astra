@@ -381,3 +381,18 @@ void llvm13_fake_memory_none(LLVMContextRef c, LLVMValueRef call) {
 void llvm13_fake_function_memory_none(LLVMContextRef c, LLVMValueRef function) {
 	LLVMAddAttributeAtIndex(function, LLVMAttributeFunctionIndex, LLVMCreateEnumAttribute(c, LLVMGetEnumAttributeKindForName("memory", 6), 0));
 }
+
+// LLVM 23 split the C API branch opcode into conditional and unconditional
+// variants. Preserve that physical verifier vocabulary on LLVM 22, where the
+// branch operands and LLVMIsConditional still distinguish the same two forms.
+#if LLVM_VERSION_MAJOR == 22
+_Static_assert(LLVMBr == 2, "LLVM 22 branch opcode changed");
+LLVMOpcode __real_LLVMGetInstructionOpcode(LLVMValueRef instruction);
+
+LLVMOpcode __wrap_LLVMGetInstructionOpcode(LLVMValueRef instruction) {
+	LLVMOpcode opcode = __real_LLVMGetInstructionOpcode(instruction);
+	if (opcode == LLVMBr) return (LLVMOpcode)(LLVMIsConditional(instruction) ? 71 : 70);
+	return opcode;
+}
+
+#endif

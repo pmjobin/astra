@@ -27,6 +27,9 @@ def main():
 	p.add_argument('--development', action='store_true', help='Explicit unqualified preview with commit-specific package metadata')
 	a = p.parse_args()
 	handoff = json.loads(a.handoff.read_text())
+	current = subprocess.check_output(['git', '-c', 'safe.directory='+str(ROOT), 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+	require(handoff['package_commit'] == current, 'wrong package source commit')
+	require(a.development, 'Linux products retain devunqualified until separately qualified')
 	suffix = 'devunqualified.'+handoff['package_commit'][:12] if a.development else 'dev28c1'
 	deb_version = '0.0.3~'+suffix+'-1'
 	rpm_release = '0.'+suffix+'.1'
@@ -66,14 +69,17 @@ def main():
 		run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *extra, '-c', ROOT/name, '-o', obj], runtime/('provider-'+Path(name).stem), env)
 		if not name.endswith('/doc-guard.c'):
 			objects.append(obj)
-	common = [cc, '-no-pie', a.object, *objects]
+	compat = ['-Wl,--wrap=LLVMGetInstructionOpcode'] if llvm['major'] == 22 else []
+	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I'+llvm['include'], ROOT/'tests/install/diagnostics/system-llvm-abi.c', build/'capi.o', llvm['library']['path'], *compat, '-o', build/'system-llvm-abi'], runtime/'abi-build', env)
+	run([build/'system-llvm-abi'], runtime/'abi-run', env)
+	common = [cc, '-no-pie', a.object, *objects, *compat]
 	native, doc = private/'astrac.native', private/'astrac.doc'
 	run([*common, llvm['library']['path'], '-o', native], runtime/'native-link', env)
 	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-I'+llvm['include'], '-DASTRA_SYSTEM_LLVM_MAJOR='+str(llvm['major']), ROOT/'tests/install/diagnostics/llvm-direct.c', llvm['library']['path'], '-o', build/'llvm-oracle'], runtime/'oracle-build', env)
 	undefined, _ = run(['nm', '-u', native], runtime/'imports', env)
 	names = sorted(set(re.findall(rb'\b(LLVM[A-Za-z0-9_]+)(?:@[^\s]+)?\s*$', undefined, re.M)))
 	require(b'LLVMContextCreate' in names, 'missing LLVM boundary')
-	run([*common, build/'doc-guard.o', *['-Wl,--defsym='+n.decode()+'=astrac_doc_backend_unavailable' for n in names], '-o', doc], runtime/'doc-link', env)
+	run([*common, build/'doc-guard.o', *(['-Wl,--defsym=__real_LLVMGetInstructionOpcode=astrac_doc_backend_unavailable'] if compat else []), *['-Wl,--defsym='+n.decode()+'=astrac_doc_backend_unavailable' for n in names], '-o', doc], runtime/'doc-link', env)
 	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', ROOT/'compiler/driver/doc-launch.c', '-o', private/'astrac'], runtime/'dispatcher', env)
 	for path in [native, doc, private/'astrac']:
 		run(['strip', '--strip-debug', path], runtime/('strip-'+path.name), env)
@@ -147,7 +153,7 @@ def main():
 		control = stage/'DEBIAN'
 		control.mkdir()
 		dependencies = 'libc6 (>= 2.39), libstdc++6, libgcc-s1, libxml2, libzstd1, zlib1g'
-		if a.development:
+		if a.system_llvm:
 			probe = build/'shlibdeps'
 			(probe/'debian').mkdir(parents=True)
 			(probe/'debian/control').write_text('Source: astrac\n\nPackage: astrac\nArchitecture: amd64\nDescription: dependency audit\n')

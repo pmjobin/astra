@@ -40,6 +40,11 @@ def main():
 		blocks.extend((match[1], match[2]) for match in re.finditer(r'^```sh tutorial=([a-z0-9-]+)\n(.*?)^```$', body, re.M|re.S))
 	expectations = Path(__file__).with_suffix('.json')
 	spec = json.loads(expectations.read_text())['blocks']
+	installation = Path('/usr/lib/astra/INSTALL.json')
+	if installation.is_file():
+		system = json.loads(installation.read_text()).get('system_llvm')
+		if system:
+			spec['setup']['stdout'] = spec['setup']['stdout'].replace('LLVM 23.1.4)', 'LLVM '+system['version']+')')
 	assert len(blocks) == len(set(name for name, _ in blocks)) and set(name for name, _ in blocks) == set(spec)
 	script = r/'tutorial.sh'
 	program = ['set -eu\n']

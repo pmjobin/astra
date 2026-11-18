@@ -76,25 +76,31 @@ To reinstall the same verified package, run the matching command from the
 directory containing that package:
 
 ```console reinstall=deb
-sudo apt-get install -y --reinstall ./astra-development_0.0.3~dev28c1-1_amd64.deb
+ASTRA_DEB=$(find . -maxdepth 1 -name 'astrac_*_amd64.deb' -print)
+test -n "$ASTRA_DEB" && test "$(printf '%s\n' "$ASTRA_DEB" | wc -l)" -eq 1
+sudo apt-get install -y --reinstall "$ASTRA_DEB"
 ```
 
 ```console reinstall=rpm
-sudo dnf reinstall -y ./astra-development-0.0.3-0.dev28c1.1.x86_64.rpm
+ASTRA_RPM=$(find . -maxdepth 1 -name 'astrac-*.x86_64.rpm' -print)
+test -n "$ASTRA_RPM" && test "$(printf '%s\n' "$ASTRA_RPM" | wc -l)" -eq 1
+sudo dnf reinstall -y "$ASTRA_RPM"
 ```
 
 To remove Astra, use the matching command:
 
 ```console uninstall=deb
-sudo apt-get remove -y astra-development
+sudo apt-get remove -y astrac
 ```
 
 ```console uninstall=rpm
-sudo dnf --setopt=clean_requirements_on_remove=False remove -y astra-development
+sudo dnf --setopt=clean_requirements_on_remove=False remove -y astrac
 ```
 
 Removal deletes the compiler and its private files. Your own workspace and the
-system C compiler/Python remain. Cross-version upgrades have not been qualified.
+system C compiler/Python and distribution LLVM remain. The current engineering
+report records migration from the exact preceding `astra-development` packages,
+same-version reinstall and removal; it does not qualify unrelated versions.
 
 ## Contributor appendix
 

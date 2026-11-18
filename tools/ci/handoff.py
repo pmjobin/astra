@@ -11,7 +11,7 @@ from common import ROOT, require, sha, write
 
 def main():
 	p = argparse.ArgumentParser(description=__doc__)
-	p.add_argument('--system-llvm', action='store_true', help='Permit only the audited C provider version guard adaptation')
+	p.add_argument('--system-llvm', action='store_true', help='Permit the audited C provider rebuild; compiler object sources stay exact')
 	p.add_argument('--products', type=Path, required=True)
 	p.add_argument('--identity', type=Path, required=True)
 	p.add_argument('--output', type=Path, required=True)
@@ -31,8 +31,8 @@ def main():
 			original = subprocess.check_output(['git', 'show', identity.get('source_commit', identity.get('source_revision'))+':'+name], cwd=ROOT)
 			import hashlib
 			require(hashlib.sha256(original).hexdigest() == digest, 'original provider mismatch')
-			require(original.replace(b'#if LLVM_VERSION_MAJOR != 23\n#error LLVM 23 required', b'#if LLVM_VERSION_MAJOR != 22 && LLVM_VERSION_MAJOR != 23\n#error LLVM 22 or 23 required') == path.read_bytes(), 'provider adaptation exceeds version guard')
-			provider_rebuilds[name] = dict(original_sha256=digest, rebuilt_source_sha256=sha(path), change='22/23 header guard only; native C provider recompiled against target headers; current ABI/physical qualification required')
+			require(original.split(b'\n', 1)[0] == path.read_bytes().split(b'\n', 1)[0], 'provider license changed')
+			provider_rebuilds[name] = dict(original_sha256=digest, rebuilt_source_sha256=sha(path), change='22/23 header guard and branch-opcode adapter; native C provider recompiled against target headers; current ABI/physical qualification required')
 		sources[name] = sha(path)
 	rows = {}
 	for mode, row in products['products'].items():

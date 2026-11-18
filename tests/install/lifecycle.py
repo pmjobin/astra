@@ -84,7 +84,7 @@ def main():
 			require(contains in result.stdout+result.stderr, name+': expected message missing')
 		return result.stdout
 	def guide(name, chapter):
-		if a.development:
+		if a.development and not a.system_llvm:
 			if a.kind == 'deb':
 				argv = ['apt-get', 'install', '-y', '--no-install-recommends', *(['--reinstall'] if name == 'reinstall' else []), a.package] if name != 'uninstall' else ['apt-get', 'remove', '-y', package_name]
 			else:

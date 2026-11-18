@@ -43,13 +43,15 @@ def main():
 		fedora = json.loads((ROOT/'tools/ci/development-containers.json').read_text())['platforms']['fedora']['image']
 		(build/'fedora').mkdir()
 		(runtime/'fedora').mkdir()
-		command = 'dnf install -y gcc gcc-c++ python3 binutils rpm-build llvm-devel llvm-libs time && python3 -B /src/tools/ci/package.py --object /input/astrac-O2.o --handoff /input/handoff.json --system-llvm --kind rpm --development --build /build/package --runtime /logs/package'
+		command = 'dnf install -y gcc gcc-c++ python3 binutils rpm-build git llvm-devel llvm-libs time && python3 -B /src/tools/ci/package.py --object /input/astrac-O2.o --handoff /input/handoff.json --system-llvm --kind rpm --development --build /build/package --runtime /logs/package'
 		run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--memory', '8g', '--cpus', '2', '-v', str(ROOT)+':/src:ro', '-v', str(transfer)+':/input:ro', '-v', str(build/'fedora')+':/build:rw', '-v', str(runtime/'fedora')+':/logs:rw', fedora, 'sh', '-ec', command], runtime/'controller-fedora', env, timeout=1800)
 		packages = {'deb':next((build/'deb').glob('*.deb')), 'rpm':next((build/'fedora/package').glob('*.rpm'))}
 		# Local/hosted build has no authorization to distribute newly rebuilt binaries.
 		# The authenticated predecessor is an explicit lifecycle input, never a
 		# network fallback to the old public artifact or a fake migration fixture.
-		require(a.predecessor_deb and a.predecessor_rpm, 'supply authenticated old packages for full migration acceptance')
+		if not (a.predecessor_deb and a.predecessor_rpm):
+			write(runtime/'result.json', dict(status='PARTIAL', packages={kind:dict(path=str(path), sha256=sha(path)) for kind, path in packages.items()}, qualification='DEVELOPMENT_UNQUALIFIED', reason='Build only: authenticated predecessor packages and full fresh lifecycle/memory acceptance still required; no binary distribution authorized'))
+			return
 		for kind, package in packages.items():
 			old = a.predecessor_deb if kind == 'deb' else a.predecessor_rpm
 			oracle = build/'deb/llvm-oracle' if kind == 'deb' else build/'fedora/package/llvm-oracle'
