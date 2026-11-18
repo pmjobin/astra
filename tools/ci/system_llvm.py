@@ -51,6 +51,11 @@ def audit_payload(stage):
 		require(not any(part.lower().startswith('libllvm') for part in rel.parts), 'bundled LLVM payload refused: '+str(rel))
 		require(not str(rel).startswith(('usr/include/llvm', 'usr/lib/astra/llvm')), 'LLVM runtime or headers refused')
 		if path.is_file():
+			with path.open('rb') as stream:
+				magic = stream.read(8)
+			require(not magic.startswith(b'!<arch>'), 'private static archive refused')
+			if magic.startswith(b'\x7fELF'):
+				require(str(rel) in ('usr/lib/astra/astrac', 'usr/lib/astra/astrac.native', 'usr/lib/astra/astrac.doc'), 'undocumented binary payload refused: '+str(rel))
 			require(path.suffix not in ('.so', '.a') and not path.name.endswith(('.h', '.hpp')) or not any(part.lower().startswith('llvm') for part in rel.parts), 'LLVM provider payload refused')
 
 

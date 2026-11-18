@@ -169,10 +169,12 @@ def main():
 	for key in ('compiler', 'runtime', 'build'):
 		p.add_argument('--'+key, type=Path, required=True)
 	p.add_argument('--compiler-sha256', required=True)
+	p.add_argument('--system-llvm', action='store_true', help='Current distro ABI qualification; historical default stays pinned')
 	p.add_argument('--case', choices=tuple(CASES), action='append')
 	a = p.parse_args()
 	assert re.fullmatch('[0-9a-f]{64}', a.compiler_sha256) and sha(a.compiler) == a.compiler_sha256
-	assert subprocess.check_output(['llvm-config', '--version']).strip() == b'23.1.4'
+	llvm_version = subprocess.check_output(['llvm-config', '--version']).strip()
+	assert llvm_version.split(b'.')[0] in (b'22', b'23') if a.system_llvm else llvm_version == b'23.1.4'
 	runtime = output_path(a.runtime, WORK/'runtime')
 	build = output_path(a.build, WORK/'build')
 	runtime.mkdir(parents=True, exist_ok=False)
@@ -200,7 +202,10 @@ def main():
 		output.write_bytes(marker)
 		configuration = dict(leaf=str(leaf), function=function, action=action)
 		script = leaf/'mutate.gdb'
-		script.write_text(GDB.replace('@CONFIGURATION@', repr(configuration)))
+		script_text = GDB.replace('@CONFIGURATION@', repr(configuration))
+		if a.system_llvm and llvm_version.startswith(b'22.'):
+			script_text = script_text.replace('LLVMGetInstructionOpcode', '__wrap_LLVMGetInstructionOpcode')
+		script.write_text(script_text)
 		argv = ['gdb', '--batch', '--nx', '-x', script, '--args', a.compiler, '--emit-llvm', '-o', output, sources[kind]]
 		r = execute(argv, leaf/'execution', timeout=120, env=env)
 		assert r['status'] == 'EXPECTED_OUTCOME', (name, r)
@@ -217,7 +222,7 @@ def main():
 		write(runtime/'observations.json', rows)
 		print(name, 'CONTROL_PASS' if action == 'control' else 'LLVM_VALID_MUTANT_REFUSED', flush=True)
 	assert all(sha(path) == h for path, h in {**inputs, **tools}.items())
-	write(runtime/'result.json', dict(status='SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS', compiler_sha256=a.compiler_sha256, selected_cases=list(selected), mutations=len(selected), controls=len(plans)-len(selected), identity_sha256=sha(runtime/'identity.json'), observations_sha256=sha(runtime/'observations.json'), scope='Each returning structural verifier accepts actual mutated IR; an independent physical consumer refuses and preserves the sentinel. No memory, complete language, or delivery credit.'))
+	write(runtime/'result.json', dict(status='SELECTED_INDEPENDENT_PHYSICAL_MUTATIONS_PASS', compiler_sha256=a.compiler_sha256, system_LLVM=llvm_version.decode(), branch_opcode_boundary='provider adapter' if llvm_version.startswith(b'22.') else 'distribution C API', selected_cases=list(selected), mutations=len(selected), controls=len(plans)-len(selected), identity_sha256=sha(runtime/'identity.json'), observations_sha256=sha(runtime/'observations.json'), scope='Each returning structural verifier accepts actual mutated IR; an independent physical consumer refuses and preserves the sentinel. No memory, complete language, or delivery credit.'))
 
 
 if __name__ == '__main__':
