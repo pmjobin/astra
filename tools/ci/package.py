@@ -26,7 +26,9 @@ def build_payload(a, handoff, build, runtime, env, llvm):
 	cc = Path(shutil.which('cc')).resolve()
 	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], provider_rebuilds=handoff.get('provider_rebuilds', {}), package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM=llvm['version'], system_llvm=llvm, cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
 	if a.development:
-		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=getattr(a, 'package_version', deb_version if a.kind == 'deb' else '0.0.3-'+rpm_release))
+		suffix = 'devunqualified.'+handoff['package_commit'][:12]
+		default_version = '0.0.3~'+suffix+'-1' if a.kind == 'deb' else '0.0.3-0.'+suffix+'.1'
+		material.update(qualification='DEVELOPMENT_UNQUALIFIED', original_LLVM_strict_memory='NOT_PASS', diagnostic_derivative_used=False, package_version=getattr(a, 'package_version', None) or default_version)
 	fingerprint = hashlib.sha256(json.dumps(material, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 	write(runtime/'docs-build-identity.json', dict(fingerprint=fingerprint, material=material))
 	objects = []

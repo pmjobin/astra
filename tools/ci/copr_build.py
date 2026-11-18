@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 from types import SimpleNamespace
 
-from bootstrap import LIBRARIES
+from bootstrap import LIBRARIES, PROVIDERS
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
 from copr_source import SEED, verify_source
 from package import build_payload
@@ -63,15 +63,21 @@ def main():
 	run([tool, '-c', '-O2', '-o', obj, *sources], runtime/'compile-current-source', env, cwd=ROOT, timeout=18000)
 	require(obj.read_bytes()[:5] == b'\x7fELF\x02', 'source generation did not produce ELF64')
 	write(runtime/'source-generation.json', dict(commit=a.commit, tree=a.tree, seed=SEED, compiler_sources=sources, compiler_object=identify(obj), manifest_sha256=sha(ROOT/'SOURCE-MANIFEST.json'), source_manifest=m, llvm=llvm, qualification='DEVELOPMENT_UNQUALIFIED'))
-	handoff = dict(source_commit=a.commit, package_commit=a.commit, package_tree=a.tree, products={'O2':dict(object_sha256=sha(obj))}, sources={n:r['sha256'] for n,r in m['files'].items() if n.startswith(('compiler/', 'lib/'))}, package_sources={n:r['sha256'] for n,r in m['files'].items()})
+	provider_sources = PROVIDERS+['compiler/docs/host.c', 'compiler/driver/doc-guard.c', 'compiler/driver/doc-launch.c']
+	handoff = dict(source_commit=a.commit, package_commit=a.commit, package_tree=a.tree, products={'O2':dict(object_sha256=sha(obj))}, sources={n:m['files'][n]['sha256'] for n in sources+provider_sources}, package_sources={n:r['sha256'] for n,r in m['files'].items()})
 	write(runtime/'source-handoff.json', handoff)
-	args = SimpleNamespace(object=obj, mode='O2', kind='rpm', development=True, package_version=a.rpm_version)
+	args = SimpleNamespace(object=obj, handoff=runtime/'source-handoff.json', mode='O2', kind='rpm', development=True, package_version=a.rpm_version)
 	stage = build_payload(args, handoff, build, runtime, env, llvm)
 	provenance = stage/'usr/share/astra'
+	generation = json.loads((runtime/'source-generation.json').read_text())
+	generation.update(provider_objects={p.name:identify(p) for p in build.glob('*.o') if p != obj}, installed_images=json.loads((stage/'usr/lib/astra/INSTALL.json').read_text())['files'])
+	write(runtime/'source-generation.json', generation)
 	shutil.copyfile(runtime/'source-generation.json', provenance/'SOURCE-BUILD.json')
 	shutil.copyfile(runtime/'docs-build-identity.json', provenance/'DOCS-BUILD.json')
 	# Resource records and commands survive in the binary package and COPR logs.
 	shutil.copytree(runtime/'compile-current-source', provenance/'source-compilation')
+	for path in runtime.glob('provider-*'):
+		shutil.copytree(path, provenance/'provider-compilation'/path.name)
 	audit(stage)
 	print('FRESH_SOURCE_GENERATION', a.commit, 'object', sha(obj), 'LLVM', llvm['version'], flush=True)
 	print((runtime/'compile-current-source/time.txt').read_text(), flush=True)

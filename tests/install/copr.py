@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """Exercise an actual COPR repository in a fresh Fedora userland; local RPM mode is explicit."""
 import argparse
+import configparser
 import hashlib
 import json
 from pathlib import Path
@@ -9,6 +10,8 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.error
+import urllib.request
 
 
 def require(condition, message):
@@ -25,6 +28,7 @@ def main():
 	p.add_argument('--commit', required=True)
 	p.add_argument('--output', type=Path, required=True)
 	p.add_argument('--build', type=Path, required=True)
+	p.add_argument('--predecessor', type=Path)
 	inputs = p.add_mutually_exclusive_group(required=True)
 	inputs.add_argument('--repo', choices=['pmjobin/astra'])
 	inputs.add_argument('--local-package', type=Path)
@@ -46,7 +50,24 @@ def main():
 		return result.stdout
 	if a.repo:
 		run('copr-enable', ['dnf', '-y', 'copr', 'enable', a.repo])
-		run('repository-config', ['cat', '/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:pmjobin:astra.repo'])
+		configuration = run('repository-config', ['cat', '/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:pmjobin:astra.repo']).decode()
+		parser = configparser.ConfigParser()
+		parser.read_string(configuration)
+		section = parser[parser.sections()[0]]
+		require(section.getboolean('gpgcheck'), 'repository RPM signature checking disabled')
+		key_url = section['gpgkey']
+		require(key_url.startswith('https://download.copr.fedorainfracloud.org/results/pmjobin/astra/'), 'unexpected signing key origin')
+		key = a.output/'copr-public-key.txt'
+		key.write_bytes(urllib.request.urlopen(key_url, timeout=60).read())
+		run('key-fingerprint', ['gpg', '--show-keys', '--with-colons', key])
+		metadata_url = 'https://download.copr.fedorainfracloud.org/results/pmjobin/astra/fedora-45-x86_64/repodata/repomd.xml'
+		(a.output/'repomd.xml.txt').write_bytes(urllib.request.urlopen(metadata_url, timeout=60).read())
+		try:
+			signature = urllib.request.urlopen(metadata_url+'.asc', timeout=60).read()
+		except urllib.error.HTTPError as error:
+			require(error.code == 404, 'repository metadata signature lookup failed')
+			signature = None
+		(a.output/'repository-signing.json').write_text(json.dumps(dict(gpgcheck=True, repo_gpgcheck=section.getboolean('repo_gpgcheck', fallback=False), public_key_sha256=sha(key), repomd_sha256=sha(a.output/'repomd.xml.txt'), detached_metadata_signature_present=signature is not None), indent=2)+'\n')
 	package = str(a.local_package) if a.local_package else 'astrac'
 	run('install', ['dnf', '-y', 'install', package])
 	private = Path('/usr/lib/astra')
@@ -86,12 +107,20 @@ def main():
 	if a.repo:
 		run('dnf-update', ['dnf', '-y', 'upgrade', 'astrac'])
 		run('repository-identity', ['dnf', 'repoquery', '--installed', '--qf', '%{name} %{evr} %{from_repo}', 'astrac'])
-		run('signing-keys', ['rpm', '-qi', 'gpg-pubkey'])
+		run('signing-keys', ['rpmkeys', '--list'])
 		run('download', ['dnf', 'download', '--destdir', a.build/'download', 'astrac'])
 		artifacts = list((a.build/'download').glob('astrac-*.rpm'))
 		require(len(artifacts) == 1, 'ambiguous repository RPM')
-		run('signature', ['rpmkeys', '--checksig', '--verbose', artifacts[0]])
+		signature = run('signature', ['rpmkeys', '--checksig', '--verbose', artifacts[0]])
+		require(b'signature' in signature.lower() and b'NOKEY' not in signature and b'NOT OK' not in signature, 'repository RPM lacks a verified signature')
 		(a.output/'repository-rpm.json').write_text(json.dumps(dict(name=artifacts[0].name, bytes=artifacts[0].stat().st_size, sha256=sha(artifacts[0])), indent=2)+'\n')
+	if a.predecessor:
+		require(sha(a.predecessor) == '35a8a4f73851d2f09fca6b4069178c4efeb15c270795d280191ada188be01d45', 'historical migration input differs')
+		run('remove-before-upgrade', ['dnf', '-y', 'remove', '--setopt=clean_requirements_on_remove=False', 'astrac'])
+		run('install-historical-control', ['dnf', '-y', 'install', a.predecessor])
+		run('upgrade-historical-control', ['dnf', '-y', 'upgrade' if a.repo else 'install', package])
+		require(json.loads(Path('/usr/share/astra/SOURCE-BUILD.json').read_text())['commit'] == a.commit, 'upgrade installed wrong source product')
+		run('upgraded-version', ['astrac', '--version'])
 	run('uninstall', ['dnf', '-y', 'remove', '--setopt=clean_requirements_on_remove=False', 'astrac'])
 	require(not shutil.which('astrac') and not private.exists() and not Path('/usr/share/astra').exists(), 'uninstall left payload')
 	run('fresh-reinstall', ['dnf', '-y', 'install', package])
