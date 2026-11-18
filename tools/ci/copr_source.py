@@ -122,9 +122,9 @@ def main():
 		env = dict(os.environ, SOURCE_DATE_EPOCH=str(manifest['epoch']))
 		for item in (spec, *sources.iterdir()):
 			os.utime(item, (manifest['epoch'], manifest['epoch']))
-		# RPM 6 stores an expanded spec in the SRPM header. Relative source/build
-		# macros keep that header independent of the source builder's home path.
-		# Only -bs uses these macros; --rebuild gets the original portable spec.
+			# RPM 6 stores an expanded spec in the SRPM header. Relative source/build
+			# macros keep that header independent of the source builder's home path.
+			# Only -bs uses these macros; --rebuild gets the original portable spec.
 		subprocess.run(['rpmbuild', '-bs', '--define', '_topdir '+str(top), '--define', '_srcrpmdir '+str(output), '--define', '_sourcedir .', '--define', '_builddir ./BUILD', '--define', '_buildhost astra-source.invalid', '--define', 'source_date_epoch_from_changelog 0', '--define', 'use_source_date_epoch_as_buildtime 1', '../astrac.spec'], check=True, env=env, cwd=sources)
 		artifacts = list(output.glob('astrac-*.src.rpm'))
 		require(len(artifacts) == 1, 'ambiguous source RPM output')
