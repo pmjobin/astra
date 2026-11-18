@@ -56,7 +56,8 @@ def main():
 			(a.output/(name+'.'+label)).write_bytes(data)
 		commands.append(dict(name=name, argv=list(map(str, argv)), exit=result.returncode, expected=expected, seconds=time.monotonic()-start, stdout_sha256=sha(a.output/(name+'.stdout')), stderr_sha256=sha(a.output/(name+'.stderr'))))
 		(a.output/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
-		require(result.returncode == expected, name+': unexpected exit')
+		allowed = expected if isinstance(expected, tuple) else (expected,)
+		require(result.returncode in allowed, name+': unexpected exit')
 		return result.stdout
 	if a.repo:
 		run('copr-enable', ['dnf', '-y', 'copr', 'enable', a.repo, *([chroot] if el9 else [])])
@@ -87,7 +88,8 @@ def main():
 	require(generation['commit'] == a.commit and manifest['source_commit'] == a.commit, 'wrong source-built product installed')
 	metadata = run('metadata', ['rpm', '-qi', 'astrac'])
 	requires = run('requires', ['rpm', '-q', '--requires', 'astrac']).decode().splitlines()
-	require({'libLLVM.so.23.1()(64bit)', 'libLLVM.so.23.1(LLVM_23.1)(64bit)'} <= set(requires), 'missing versioned LLVM dependency')
+	llvm_major = 22 if os_release['ID'] == 'rhel' else 23
+	require({f'libLLVM.so.{llvm_major}.1()(64bit)', f'libLLVM.so.{llvm_major}.1(LLVM_{llvm_major}.1)(64bit)'} <= set(requires), 'missing versioned LLVM dependency')
 	if el9:
 		require(manifest['python'] == python and Path('/usr/bin/astrac').read_bytes().splitlines()[0] == b'#!/usr/bin/python3.11 -I', 'wrong installed EL9 interpreter')
 		require('python3.11' in requires and 'python3 >= 3.11' not in requires, 'wrong EL9 Python dependency')
@@ -107,7 +109,8 @@ def main():
 	run('llvm-removal-refusal', ['rpm', '-e', '--test', 'llvm-libs'], expected=1)
 	run('smoke', [python, '-B', '/usr/share/astra/install/smoke.py', '--clean-host', '--output', a.output/'smoke', '--build', a.build/'smoke'])
 	run('guide', [python, '-B', '/usr/share/astra/tutorial/tests/books/tutorial.py', '--runtime', a.output/'guide'])
-	run('strict-memory', [python, '-B', '/qa/development_memory.py', '--output', a.output/'memory', '--build', a.build/'memory'])
+	run('strict-memory', [python, '-B', '/qa/development_memory.py', '--output', a.output/'memory', '--build', a.build/'memory'], expected=(0, 99) if llvm_major == 22 else 0)
+	memory = json.loads((a.output/'memory/result.json').read_text())
 	user = pwd.getpwnam('nobody')
 	ordinary = a.build/'ordinary-user'
 	ordinary.mkdir()
@@ -148,10 +151,14 @@ def main():
 	require(not shutil.which('astrac') and not private.exists() and not Path('/usr/share/astra').exists(), 'uninstall left payload')
 	run('fresh-reinstall', ['dnf', '-y', 'install', package])
 	run('final-version', ['astrac', '--version'])
-	result = dict(status='COPR_REPOSITORY_INSTALL_PASS' if a.repo else 'LOCAL_SOURCE_RPM_INSTALL_PASS', source_commit=a.commit, native_sha256=manifest['files']['astrac.native']['sha256'], qualification='DEVELOPMENT_UNQUALIFIED', strict_memory=json.loads((a.output/'memory/result.json').read_text()), repository=a.repo, scope='Fresh container userland and real package manager; shared host kernel. Same-version update/reinstall; cross-version migration is separately qualified.')
+	status = 'COPR_REPOSITORY_INSTALL_PASS' if a.repo else 'LOCAL_SOURCE_RPM_INSTALL_PASS'
+	if memory['status'] != 'FOCUSED_STRICT_MEMORY_PASS':
+		status = 'PARTIAL'
+	result = dict(status=status, source_commit=a.commit, native_sha256=manifest['files']['astrac.native']['sha256'], qualification='DEVELOPMENT_UNQUALIFIED', strict_memory=memory, repository=a.repo, scope='Fresh container userland and real package manager; shared host kernel. Same-version update/reinstall; cross-version migration is separately qualified.')
 	(a.output/'result.json').write_text(json.dumps(result, indent=2)+'\n')
 	print(result['status'])
+	return 99 if status == 'PARTIAL' else 0
 
 
 if __name__ == '__main__':
-	main()
+	raise SystemExit(main())

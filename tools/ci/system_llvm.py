@@ -11,6 +11,10 @@ import subprocess
 from common import identify, require, run
 
 
+def rhel9(os_release):
+	return os_release['ID'].strip('"') == 'rhel' and os_release['VERSION_ID'].strip('"').split('.')[0] == '9'
+
+
 def discover(kind, runtime, env):
 	os_release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
 	distro, release = os_release['ID'].strip('"'), os_release['VERSION_ID'].strip('"')
@@ -21,13 +25,15 @@ def discover(kind, runtime, env):
 	else:
 		el9 = distro in ('centos', 'rhel') and release.split('.')[0] == '9'
 		require(kind == 'rpm' and ((distro, release) == ('fedora', '45') or el9), 'wrong system LLVM target')
-		major, config, development, consumer = 23, '/usr/bin/llvm-config', 'llvm-devel', 'llvm-libs'
+		major, config, development, consumer = 22 if rhel9(os_release) else 23, '/usr/bin/llvm-config', 'llvm-devel', 'llvm-libs'
 	def query(*args):
 		return subprocess.check_output([config, *args], env=env, text=True).strip()
 	version = query('--version')
 	require(int(version.split('.')[0]) == major, 'wrong system LLVM major')
 	if major == 23:
 		require(re.fullmatch(r'23\.1\.\d+', version), 'system LLVM 23.1.x required')
+	if rhel9(os_release):
+		require(version == '22.1.8', 'RHEL 9 requires the qualified system LLVM 22.1.8')
 	files = query('--link-shared', '--libfiles').split()
 	require(len(files) == 1, 'system LLVM must be one shared library')
 	library = Path(files[0]).resolve(strict=True)
@@ -47,6 +53,10 @@ def discover(kind, runtime, env):
 	require(len(sonames) == 1, 'missing system LLVM SONAME')
 	if major == 23:
 		require(sonames[0] == b'libLLVM.so.23.1', 'wrong system LLVM SONAME')
+	if rhel9(os_release):
+		require(sonames[0] == b'libLLVM.so.22.1', 'wrong RHEL 9 system LLVM SONAME')
+		verification, _ = run(['rpm', '-V', development, consumer], runtime/'system-package-integrity', env)
+		require(not verification.strip(), 'modified RHEL 9 LLVM package')
 	loaded = ctypes.CDLL(str(library))
 	loaded.LLVMGetVersion.argtypes = [ctypes.POINTER(ctypes.c_uint)]*3
 	fields = [ctypes.c_uint() for unused in range(3)]
@@ -80,4 +90,12 @@ def audit_elf(native, llvm, runtime, env):
 	require(b'not found' not in deps, 'missing system dependency')
 	paths = re.findall(rb'libLLVM[^\s]*\s+=>\s+(\S+)', deps)
 	require(len(paths) == 1 and Path(paths[0].decode()).resolve() == Path(llvm['library']['path']), 'wrong LLVM loader resolution')
+	if rhel9(llvm['os_release']):
+		versions, _ = run(['readelf', '-l', '-V', native], runtime/'rhel9-native-versions', env)
+		require(b'[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]' in versions, 'wrong RHEL 9 interpreter')
+		glibc = [tuple(map(int, number.split(b'.'))) for number in re.findall(rb'\bGLIBC_(\d+(?:\.\d+)+)\b', versions)]
+		require(glibc and max(glibc) <= (2, 34), 'native program requires glibc newer than RHEL 9')
+		symbols, _ = run(['nm', '-D', '--undefined-only', native], runtime/'rhel9-native-imports', env)
+		imports = re.findall(rb'\bLLVM[A-Za-z0-9_]+(?:@[^\s]+)?$', symbols, re.M)
+		require(imports and all(name.endswith(b'@LLVM_22.1') for name in imports), 'wrong RHEL 9 versioned LLVM imports')
 	return [name.decode() for name in needed]

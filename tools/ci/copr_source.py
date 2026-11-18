@@ -17,20 +17,31 @@ from common import ROOT, external, require, sha, verify, write
 
 SEED = dict(bytes=2388496, sha256='560e7c9eaeb6cdb974efdd43ed4ac41191cdda4acdb4afd77052325addf1f1c6')
 SEED_PATH = 'tools/ci/seeds/astra-27d-stage3-o2-linux-x86_64.elf'
+RHEL9_SEED_PATH = 'tools/ci/seeds/astra-rhel9-llvm22-x86_64.elf'
+RHEL9_PROVENANCE = 'tools/ci/seeds/RHEL9-PROVENANCE.json'
 PREFIXES = ('compiler/', 'lib/', 'docs/', 'tests/books/', 'tests/install/', 'tools/docs/', 'tools/ci/', 'packaging/rpm/', '.copr/')
 LICENSES = ('LICENSE.txt', 'tools/ci/seeds/LICENSE.txt', 'tools/ci/seeds/PROVENANCE.json')
 BOOK_WITNESSES = ('tests/selfhost-convergence-27d/c-client.py', 'tests/selfhost-expressive-language-27c/named.py')
 
 
 def selected(name):
-	return (name in LICENSES or name in BOOK_WITNESSES or name.startswith(PREFIXES)) and name != SEED_PATH
+	return (name in LICENSES or name in BOOK_WITNESSES or name.startswith(PREFIXES)) and name not in (SEED_PATH, RHEL9_SEED_PATH)
+
+
+def seed_contract(target):
+	if target is None:
+		return SEED, SEED_PATH, LICENSES
+	require(target == 'rhel9', 'unsupported source RPM target')
+	provenance = json.loads((ROOT/RHEL9_PROVENANCE).read_bytes())
+	require(provenance['format'] == 'astra-rhel9-seed-provenance/1', 'wrong RHEL 9 seed provenance format')
+	return provenance['seed'], RHEL9_SEED_PATH, (*LICENSES, RHEL9_PROVENANCE)
 
 
 def git(*args):
 	return subprocess.check_output(['git', '-C', ROOT, *args])
 
 
-def snapshot(commit):
+def snapshot(commit, rhel9_seed=None):
 	require(re.fullmatch('[0-9a-f]{40}', commit), 'full Git commit required')
 	require(git('rev-parse', 'HEAD').decode().strip() == commit, 'checkout identity mismatch')
 	rows = git('ls-tree', '-rz', commit).split(b'\0')
@@ -39,11 +50,11 @@ def snapshot(commit):
 		meta, raw = row.split(b'\t', 1)
 		mode, kind, oid = meta.decode().split()
 		name = raw.decode()
-		if selected(name) or name == SEED_PATH:
+		if selected(name) or (name == SEED_PATH and rhel9_seed is None):
 			require(kind == 'blob' and mode in ('100644', '100755'), 'nonregular source: '+name)
 			entries[name] = (mode, oid)
 	dirty = git('diff', '--name-only', 'HEAD').decode().splitlines()
-	require(not any(selected(n) or n == SEED_PATH for n in dirty), 'commit source changes before packaging')
+	require(not any(selected(n) or n in (SEED_PATH, RHEL9_SEED_PATH) for n in dirty), 'commit source changes before packaging')
 	request = ''.join(oid+'\n' for mode, oid in entries.values()).encode()
 	stream = io.BytesIO(subprocess.check_output(['git', '-C', ROOT, 'cat-file', '--batch'], input=request))
 	files = {}
@@ -53,9 +64,10 @@ def snapshot(commit):
 		data = stream.read(int(size))
 		require(stream.read(1) == b'\n', 'Git source transport truncated')
 		files[name] = (mode, data)
-	seed = files.pop(SEED_PATH)[1]
-	require(len(seed) == SEED['bytes'] and hashlib.sha256(seed).hexdigest() == SEED['sha256'], 'seed identity mismatch')
-	for name in LICENSES:
+	pin, seed_path, licenses = seed_contract('rhel9' if rhel9_seed else None)
+	seed = verify(rhel9_seed, pin).read_bytes() if rhel9_seed else files.pop(seed_path)[1]
+	require(len(seed) == pin['bytes'] and hashlib.sha256(seed).hexdigest() == pin['sha256'], 'seed identity mismatch')
+	for name in licenses:
 		require(name in files and files[name][1], 'missing source license/provenance: '+name)
 	rules = json.loads(files['docs/books/rules.json'][1])
 	book_inputs = {row['path'] for rule in rules['rules'] for kind in ('sources', 'positive', 'negative') for row in rule[kind]}
@@ -65,11 +77,15 @@ def snapshot(commit):
 	return files, seed
 
 
-def archive(commit, output):
-	files, seed = snapshot(commit)
+def archive(commit, output, rhel9_seed=None):
+	files, seed = snapshot(commit, rhel9_seed)
+	target = 'rhel9' if rhel9_seed else None
+	pin, seed_path, licenses = seed_contract(target)
 	tree = git('rev-parse', commit+'^{tree}').decode().strip()
 	epoch = int(git('show', '-s', '--format=%ct', commit))
-	manifest = dict(format='astra-copr-source/1', commit=commit, tree=tree, epoch=epoch, qualification='DEVELOPMENT_UNQUALIFIED', seed=SEED, licenses=list(LICENSES), files={n:dict(bytes=len(b), sha256=hashlib.sha256(b).hexdigest(), mode=m) for n, (m, b) in sorted(files.items())})
+	manifest = dict(format='astra-copr-source/1', commit=commit, tree=tree, epoch=epoch, qualification='DEVELOPMENT_UNQUALIFIED', seed=pin, licenses=list(licenses), files={n:dict(bytes=len(b), sha256=hashlib.sha256(b).hexdigest(), mode=m) for n, (m, b) in sorted(files.items())})
+	if target:
+		manifest['target'] = target
 	data = json.dumps(manifest, indent=2, sort_keys=True).encode()+b'\n'
 	files['SOURCE-MANIFEST.json'] = ('100644', data)
 	path = output/('astra-'+commit+'.tar.gz')
@@ -78,20 +94,21 @@ def archive(commit, output):
 			info = tarfile.TarInfo('astra-'+commit+'/'+name)
 			info.size, info.mtime, info.mode = len(data), epoch, int(mode, 8) & 0o777
 			tar.addfile(info, io.BytesIO(data))
-	(output/Path(SEED_PATH).name).write_bytes(seed)
+	(output/Path(seed_path).name).write_bytes(seed)
 	return path, manifest
 
 
 def verify_source(commit, tree):
 	m = json.loads((ROOT/'SOURCE-MANIFEST.json').read_text())
 	require(m['format'] == 'astra-copr-source/1' and m['commit'] == commit and m['tree'] == tree, 'source commit/tree mismatch')
-	require(m['seed'] == SEED and m['licenses'] == list(LICENSES), 'source licensing/seed contract mismatch')
+	pin, _, licenses = seed_contract(m.get('target'))
+	require(m['seed'] == pin and m['licenses'] == list(licenses), 'source licensing/seed contract mismatch')
 	actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*') if p.is_file() or p.is_symlink()}
 	require(actual == set(m['files']) | {'SOURCE-MANIFEST.json'}, 'missing or undeclared source input')
 	for name, pin in m['files'].items():
 		require(selected(name) and not Path(name).is_absolute() and '..' not in Path(name).parts, 'source outside public closure')
 		verify(ROOT/name, pin)
-	for name in LICENSES:
+	for name in licenses:
 		require(name in m['files'] and (ROOT/name).stat().st_size, 'missing license/provenance')
 	return m
 
@@ -102,6 +119,7 @@ def main():
 	p.add_argument('--output', required=True, type=Path)
 	p.add_argument('--spec', default='packaging/rpm/astrac.spec')
 	p.add_argument('--archive-only', action='store_true')
+	p.add_argument('--rhel9-seed', type=Path, help='Use the pinned RHEL 9 LLVM 22 build-only seed')
 	a = p.parse_args()
 	require(Path(a.spec).resolve() == ROOT/'packaging/rpm/astrac.spec', 'wrong spec/package requested')
 	a.spec = 'packaging/rpm/astrac.spec'
@@ -110,15 +128,16 @@ def main():
 	top.mkdir()
 	sources = top/'SOURCES'
 	sources.mkdir()
-	path, manifest = archive(a.commit, sources)
+	path, manifest = archive(a.commit, sources, a.rhel9_seed)
+	pin, seed_path, licenses = seed_contract(manifest.get('target'))
 	template = git('show', a.commit+':'+a.spec).decode()
 	require(re.search(r'^Name:\s+astrac$', template, re.M), 'wrong package name')
-	values = dict(COMMIT=a.commit, TREE=manifest['tree'], SHORT=a.commit[:12], DATE=datetime.datetime.fromtimestamp(manifest['epoch'], datetime.timezone.utc).strftime('%Y%m%d%H%M%S'), SOURCE_SHA=sha(path))
+	values = dict(COMMIT=a.commit, TREE=manifest['tree'], SHORT=a.commit[:12], DATE=datetime.datetime.fromtimestamp(manifest['epoch'], datetime.timezone.utc).strftime('%Y%m%d%H%M%S'), SOURCE_SHA=sha(path), RHEL9='1' if a.rhel9_seed else '0', SEED_SHA=pin['sha256'], SEED_NAME=Path(seed_path).name)
 	for key, value in values.items():
 		template = template.replace('@'+key+'@', value)
 	spec = top/'astrac.spec'
 	spec.write_text(template)
-	write(top/'source-receipt.json', dict(commit=a.commit, tree=manifest['tree'], source_sha256=sha(path), seed=SEED, licenses=list(LICENSES), manifest=manifest))
+	write(top/'source-receipt.json', dict(commit=a.commit, tree=manifest['tree'], source_sha256=sha(path), seed=pin, licenses=list(licenses), manifest=manifest))
 	if not a.archive_only:
 		env = dict(os.environ, SOURCE_DATE_EPOCH=str(manifest['epoch']))
 		for item in (spec, *sources.iterdir()):
@@ -130,7 +149,7 @@ def main():
 		artifacts = list(output.glob('astrac-*.src.rpm'))
 		require(len(artifacts) == 1, 'ambiguous source RPM output')
 		subprocess.run(['rpm', '-qpl', artifacts[0]], check=True)
-		write(top/'srpm-receipt.json', dict(commit=a.commit, source_sha256=sha(path), seed=SEED, srpm=dict(name=artifacts[0].name, bytes=artifacts[0].stat().st_size, sha256=sha(artifacts[0]))))
+		write(top/'srpm-receipt.json', dict(commit=a.commit, source_sha256=sha(path), seed=pin, srpm=dict(name=artifacts[0].name, bytes=artifacts[0].stat().st_size, sha256=sha(artifacts[0]))))
 	print('SOURCE_SNAPSHOT_CREATED', a.commit, sha(path))
 
 

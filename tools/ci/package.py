@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 from bootstrap import PROVIDERS
-from system_llvm import discover, audit_payload, audit_elf
+from system_llvm import discover, audit_payload, audit_elf, rhel9
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
 
 
@@ -55,7 +55,11 @@ def build_payload(a, handoff, build, runtime, env, llvm, *, python='/usr/bin/pyt
 	names = sorted(set(re.findall(rb'\b(LLVM[A-Za-z0-9_]+)(?:@[^\s]+)?\s*$', undefined, re.M)))
 	require(b'LLVMContextCreate' in names, 'missing LLVM boundary')
 	run([*common, build/'doc-guard.o', *(['-Wl,--defsym=__real_LLVMGetInstructionOpcode=astrac_doc_backend_unavailable'] if compat else []), *['-Wl,--defsym='+n.decode()+'=astrac_doc_backend_unavailable' for n in names], '-o', doc], runtime/'doc-link', env)
-	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', ROOT/'compiler/driver/doc-launch.c', '-o', private/'astrac'], runtime/'dispatcher', env)
+	dispatcher = ROOT/'compiler/driver/doc-launch.c'
+	if rhel9(llvm['os_release']):
+		dispatcher = build/'doc-launch.o'
+		run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-c', ROOT/'compiler/driver/doc-launch.c', '-o', dispatcher], runtime/'provider-doc-launch', env)
+	run([cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', dispatcher, '-o', private/'astrac'], runtime/'dispatcher', env)
 	for path in [native, doc, private/'astrac']:
 		run(['strip', '--strip-debug', path], runtime/('strip-'+path.name), env)
 	material['needed'] = audit_elf(native, llvm, runtime, env)

@@ -10,6 +10,7 @@ import shutil
 import subprocess
 
 from common import ROOT, clean_environment, external, require, run, sha, write
+from system_llvm import rhel9
 
 
 def main():
@@ -37,13 +38,15 @@ def main():
 	exports = subprocess.check_output(['nm', '-D', '--defined-only', llvm['library']['path']], env=env)
 	exported = set(name.decode() for name in re.findall(rb'\b(LLVM[A-Za-z0-9_]+)(?:@[^\s]+)?\s*$', exports, re.M))
 	require(set(name.decode() for name in used) <= exported, 'missing runtime C API exports')
-	if llvm['major'] == 23:
-		versioned = {name.decode() for name in re.findall(rb'\b(LLVM[A-Za-z0-9_]+)@@LLVM_23\.1$', exports, re.M)}
-		require(declared <= versioned, 'missing LLVM_23.1 exports: '+str(sorted(declared-versioned)))
+	rpm_target = llvm['major'] == 23 or rhel9(llvm['os_release'])
+	if rpm_target:
+		version = 'LLVM_'+str(llvm['major'])+'.1'
+		versioned = {name.decode() for name in re.findall(rb'\b(LLVM[A-Za-z0-9_]+)@@'+re.escape(version.encode())+rb'$', exports, re.M)}
+		require(declared <= versioned, 'missing '+version+' exports: '+str(sorted(declared-versioned)))
 	enums = {name.decode():re.sub(rb'\s+', b' ', body).decode() for body, name in re.findall(rb'typedef enum\s*\{([^{}]*?)\}\s*(LLVM[A-Za-z0-9_]+)\s*;', header)}
 	require('LLVMOpcode' in enums and 'LLVMTypeKind' in enums, 'missing C enum ABI')
-	verification, _ = run(['dpkg', '--verify', llvm['runtime_package']] if llvm['major'] == 22 else ['rpm', '-V', llvm['runtime_package']], runtime/'package-integrity', env)
-	if llvm['major'] == 22:
+	verification, _ = run(['rpm', '-V', llvm['runtime_package']] if rpm_target else ['dpkg', '--verify', llvm['runtime_package']], runtime/'package-integrity', env)
+	if not rpm_target:
 		ledger = subprocess.check_output(['dpkg-query', '--control-show', llvm['runtime_package'], 'md5sums'], env=env)
 		rows = dict(line.split(None, 1)[::-1] for line in ledger.decode().splitlines())
 		library = Path(llvm['library']['path'])
