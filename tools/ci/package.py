@@ -17,39 +17,12 @@ from system_llvm import discover, audit_payload, audit_elf
 from common import ROOT, clean_environment, external, identify, require, run, sha, verify, write
 
 
-def main():
-	p = argparse.ArgumentParser(description=__doc__)
-	for key in ('object', 'handoff', 'build', 'runtime'):
-		p.add_argument('--'+key.replace('_', '-'), type=Path, required=True)
-	p.add_argument('--system-llvm', action='store_true', required=True, help='Linux products require distribution-managed LLVM')
-	p.add_argument('--mode', choices=('O0', 'O2'), default='O2')
-	p.add_argument('--kind', choices=('deb', 'rpm'), required=True)
-	p.add_argument('--development', action='store_true', help='Explicit unqualified preview with commit-specific package metadata')
-	a = p.parse_args()
-	handoff = json.loads(a.handoff.read_text())
-	current = subprocess.check_output(['git', '-c', 'safe.directory='+str(ROOT), 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-	require(handoff['package_commit'] == current, 'wrong package source commit')
-	require(a.development, 'Linux products retain devunqualified until separately qualified')
-	suffix = 'devunqualified.'+handoff['package_commit'][:12] if a.development else 'dev28c1'
-	deb_version = '0.0.3~'+suffix+'-1'
-	rpm_release = '0.'+suffix+'.1'
-	if a.development:
-		os_release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
-		require(os_release['ID'].strip('"') == ('ubuntu' if a.kind == 'deb' else 'fedora') and os_release['VERSION_ID'].strip('"') == ('26.04' if a.kind == 'deb' else '45'), 'wrong development package userland')
-	require(handoff['format'] == 'astra-native-handoff/1' and handoff['status'] == 'AUTHENTICATED_GENERATION_INPUT', 'untrusted generation handoff')
-	require(sha(a.object) == handoff['products'][a.mode]['object_sha256'], 'native object mismatch')
-	for name, digest in handoff['sources'].items():
-		require(sha(ROOT/name) == digest, 'packaging source differs from generation: '+name)
-	for name, digest in handoff['package_sources'].items():
-		require(sha(ROOT/name) == digest, 'packaging input differs from frozen handoff: '+name)
-	build, runtime = external(a.build), external(a.runtime)
-	env = clean_environment()
-	env['SOURCE_DATE_EPOCH'] = '1794873600'
-	llvm = discover(a.kind, runtime, env)
-	config = Path(llvm['config'])
+def build_payload(a, handoff, build, runtime, env, llvm):
+	"""Construct the same installed product from an independently authenticated object."""
 	stage = build/'payload'
 	private = stage/'usr/lib/astra'
 	private.mkdir(parents=True)
+	config = Path(llvm['config'])
 	cc = Path(shutil.which('cc')).resolve()
 	material = dict(format='astra-package-build/1', compiler_mode=a.mode, compiler_object_sha256=sha(a.object), compiler_source_commit=handoff['source_commit'], provider_rebuilds=handoff.get('provider_rebuilds', {}), package_source_commit=handoff['package_commit'], package_source_tree=handoff['package_tree'], source_inputs=handoff['sources'], package_inputs=handoff['package_sources'], handoff_sha256=sha(a.handoff), LLVM=llvm['version'], system_llvm=llvm, cc=identify(cc), recipe_sha256=sha(__file__), package_kind=a.kind, unsigned=True)
 	if a.development:
@@ -147,6 +120,41 @@ def main():
 		if path.is_file():
 			require(b'/home/pmjobin' not in path.read_bytes(), 'developer home path in payload: '+str(path.relative_to(stage)))
 	audit_payload(stage)
+	return stage
+
+
+def main():
+	p = argparse.ArgumentParser(description=__doc__)
+	for key in ('object', 'handoff', 'build', 'runtime'):
+		p.add_argument('--'+key.replace('_', '-'), type=Path, required=True)
+	p.add_argument('--system-llvm', action='store_true', required=True, help='Linux products require distribution-managed LLVM')
+	p.add_argument('--mode', choices=('O0', 'O2'), default='O2')
+	p.add_argument('--kind', choices=('deb', 'rpm'), required=True)
+	p.add_argument('--development', action='store_true', help='Explicit unqualified preview with commit-specific package metadata')
+	a = p.parse_args()
+	handoff = json.loads(a.handoff.read_text())
+	current = subprocess.check_output(['git', '-c', 'safe.directory='+str(ROOT), 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+	require(handoff['package_commit'] == current, 'wrong package source commit')
+	require(a.development, 'Linux products retain devunqualified until separately qualified')
+	suffix = 'devunqualified.'+handoff['package_commit'][:12] if a.development else 'dev28c1'
+	deb_version = '0.0.3~'+suffix+'-1'
+	rpm_release = '0.'+suffix+'.1'
+	if a.development:
+		os_release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
+		require(os_release['ID'].strip('"') == ('ubuntu' if a.kind == 'deb' else 'fedora') and os_release['VERSION_ID'].strip('"') == ('26.04' if a.kind == 'deb' else '45'), 'wrong development package userland')
+	require(handoff['format'] == 'astra-native-handoff/1' and handoff['status'] == 'AUTHENTICATED_GENERATION_INPUT', 'untrusted generation handoff')
+	require(sha(a.object) == handoff['products'][a.mode]['object_sha256'], 'native object mismatch')
+	for name, digest in handoff['sources'].items():
+		require(sha(ROOT/name) == digest, 'packaging source differs from generation: '+name)
+	for name, digest in handoff['package_sources'].items():
+		require(sha(ROOT/name) == digest, 'packaging input differs from frozen handoff: '+name)
+	build, runtime = external(a.build), external(a.runtime)
+	env = clean_environment()
+	env['SOURCE_DATE_EPOCH'] = '1794873600'
+	llvm = discover(a.kind, runtime, env)
+	stage = build_payload(a, handoff, build, runtime, env, llvm)
+	private = stage/'usr/lib/astra'
+	native, doc = private/'astrac.native', private/'astrac.doc'
 	if a.kind == 'deb':
 		payload_files = sorted(path for path in stage.rglob('*') if path.is_file())
 		installed_size = sum((path.stat().st_size+1023)//1024 for path in payload_files)
